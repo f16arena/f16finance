@@ -1,0 +1,25 @@
+# Веб Orda на своём сервере (cloud-001). Supabase — отдельный стек в /opt/supabase/orda.
+# Запуск из /opt/orda: docker compose -f app/deploy/vps/docker-compose.yml --env-file build.env up -d --build
+services:
+  web:
+    build:
+      context: ../..
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-}
+        NEXT_PUBLIC_PRODUCT_MARK: ${NEXT_PUBLIC_PRODUCT_MARK:-}
+        GITHUB_SHA: ${GITHUB_SHA:-}
+    image: orda-web:latest
+    container_name: orda-web
+    restart: unless-stopped
+    # Supabase берётся по NEXT_PUBLIC_SUPABASE_URL (https://db.ordaops.kz) — через Caddy на этой же машине.
+    env_file: /opt/orda/web.env
+    ports:
+      - 127.0.0.1:3200:3000
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

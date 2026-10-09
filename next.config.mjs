@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Сборка для своего сервера (deploy/vps): самодостаточный server.js без node_modules целиком.
+  // На Vercel переменная не задана — сборка как раньше.
+  output: process.env.NEXT_OUTPUT_STANDALONE === '1' ? 'standalone' : undefined,
   generateBuildId: async () => process.env.GITHUB_SHA ?? null,
   experimental: {
     // View Transitions ОТКЛЮЧЕНЫ: их снапшот старой→новой страницы кросс-фейдил

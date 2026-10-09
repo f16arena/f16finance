@@ -234,7 +234,8 @@ export async function POST(request: Request) {
     ])
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
+      // На своём сервере — системный Chromium из образа (CHROMIUM_PATH), на Vercel — пакет Sparticuz.
+      executablePath: process.env.CHROMIUM_PATH || (await chromium.executablePath(CHROMIUM_PACK_URL)),
       headless: true,
     })
     const page = await browser.newPage()

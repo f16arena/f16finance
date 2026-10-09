@@ -1,0 +1,16 @@
+# Как в .vercelignore: в образ веба идёт только то, что нужно для сборки.
+# В .dockerignore пути считаются от корня, `mobile` не задевает app/api/mobile.
+.git
+node_modules
+.next
+.env*
+mobile
+desktop
+orda_electron
+apple
+_ordaios_scan
+promo
+brag-output*
+docs
+tsconfig.tsbuildinfo
+*.xlsx
