@@ -25,7 +25,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "padash00",
+      "owner": "f16arena",
       "repo": "OrdaKiosk"
     },
     "win": {

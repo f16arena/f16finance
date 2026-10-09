@@ -761,7 +761,7 @@ export default function PointDevicesPage() {
           </div>
           <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
             <a
-              href={process.env.NEXT_PUBLIC_OPERATOR_DOWNLOAD_URL || 'https://github.com/padash00/f16finance/releases/latest'}
+              href={process.env.NEXT_PUBLIC_OPERATOR_DOWNLOAD_URL || 'https://github.com/f16arena/f16finance/releases/latest'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
@@ -769,7 +769,7 @@ export default function PointDevicesPage() {
               <Download className="h-4 w-4" /> Операторская (касса)
             </a>
             <a
-              href={process.env.NEXT_PUBLIC_KIOSK_DOWNLOAD_URL || 'https://github.com/padash00/f16finance/releases/latest'}
+              href={process.env.NEXT_PUBLIC_KIOSK_DOWNLOAD_URL || 'https://github.com/f16arena/f16finance/releases/latest'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-white/5 px-4 py-2.5 text-sm font-medium text-body transition hover:bg-slate-200 dark:hover:bg-white/10"

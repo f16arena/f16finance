@@ -2,7 +2,7 @@
   "name": "orda-point-client",
   "version": "2.19.0",
   "description": "Orda Control Point — десктопный терминал",
-  "author": "Orda <https://github.com/padash00/f16finance>",
+  "author": "Orda <https://github.com/f16arena/f16finance>",
   "main": "electron.cjs",
   "type": "commonjs",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/padash00/f16finance.git"
+    "url": "https://github.com/f16arena/f16finance.git"
   },
   "build": {
     "appId": "kz.ordaops.pointclient",
@@ -37,7 +37,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "padash00",
+        "owner": "f16arena",
         "repo": "f16finance",
         "releaseType": "release"
       }

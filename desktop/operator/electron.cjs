@@ -5,7 +5,7 @@ const fs = require('fs')
 const { autoUpdater } = require('electron-updater')
 
 const isDev = !app.isPackaged
-const releasePageUrl = 'https://github.com/padash00/f16finance/releases'
+const releasePageUrl = 'https://github.com/f16arena/f16finance/releases'
 
 /** Один запуск: повторный клик по ярлыку поднимает уже открытое окно (Windows/Linux; на macOS нужен подписанный билд). */
 const gotTheLock = app.requestSingleInstanceLock()
@@ -17,7 +17,7 @@ if (!gotTheLock) {
 /** Явный feed: старые сборки могли попасть без корректного app-update.yml в resources. */
 const GITHUB_UPDATES = {
   provider: 'github',
-  owner: 'padash00',
+  owner: 'f16arena',
   repo: 'f16finance',
   releaseType: 'release',
 }
