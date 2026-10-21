@@ -25,7 +25,7 @@ def env_file(path):
     for line in open(path, encoding="utf-8"):
         if "=" in line and not line.startswith("#"):
             k, v = line.rstrip("\n").split("=", 1)
-            out[k] = v.strip().strip('"')
+            out[k] = v.strip().strip("'\"")  # web.env пишется с одинарными кавычками
     return out
 
 

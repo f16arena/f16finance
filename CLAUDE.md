@@ -88,11 +88,11 @@ export async function POST(request: Request) {
 
 ## Деплой
 
-- **Web**: push в `main` → Vercel автодеплой → ordaops.kz
+- **Web**: push в `main` → свой сервер cloud-001 сам подтягивает и пересобирает за ~1–4 мин (`deploy/vps/deploy.sh`, лог `/var/log/orda-deploy.log`). Vercel и облачный Supabase выводятся из работы — runbook `deploy/vps/README.md`. Supabase свой: `https://db.ordaops.kz`
 - **Kiosk**: `cd desktop/kiosk && npm run build` → GitHub Release
 - **Operator**: `cd desktop/operator && npm run build` → GitHub Release
-- **Supabase миграции**: применять через SQL Editor или `supabase db push`
+- **Supabase миграции**: на сервере `docker exec -i supabase-db psql -U supabase_admin -d postgres < файл.sql` (или SQL Editor в Studio на db.ordaops.kz)
 
 ## ENV переменные
 
-Список — в `.env.example`. Боевые значения живут в Vercel, локальные — в `.env.local`.
+Список — в `.env.example`. Боевые значения живут на сервере в `/opt/orda/web.env` (+ `build.env` для `NEXT_PUBLIC_*`, они вшиваются при сборке), локальные — в `.env.local`.

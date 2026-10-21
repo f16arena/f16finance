@@ -124,10 +124,10 @@ docker restart supabase-rest realtime-dev.supabase-realtime >/dev/null
 log "6/6 сверка числа строк"
 COUNT_SQL="select format('select %L, count(*) from %I.%I;', schemaname||'.'||relname, schemaname, relname)
   from pg_stat_user_tables where schemaname in ('public','auth','storage') order by 1"
-cloud "psql \"\$U\" -X -tA -c \"$COUNT_SQL\" | psql \"\$U\" -X -tA -F'|'" | sort > "$WORK/count-cloud.txt"
+cloud "psql \"\$U\" -X -tA -c \"$COUNT_SQL\" | psql \"\$U\" -X -tA -F'|'" | LC_ALL=C sort > "$WORK/count-cloud.txt"
 docker exec -i -e PGPASSWORD="$LOCAL_PW" supabase-db sh -c \
-  "psql -h 127.0.0.1 -U supabase_admin -d postgres -X -tA -c \"$COUNT_SQL\" | psql -h 127.0.0.1 -U supabase_admin -d postgres -X -tA -F'|'" | sort > "$WORK/count-local.txt"
-DIFF=$(join -t'|' -a1 -e MISSING -o 0,1.2,2.2 "$WORK/count-cloud.txt" "$WORK/count-local.txt" | awk -F'|' '$2 != $3')
+  "psql -h 127.0.0.1 -U supabase_admin -d postgres -X -tA -c \"$COUNT_SQL\" | psql -h 127.0.0.1 -U supabase_admin -d postgres -X -tA -F'|'" | LC_ALL=C sort > "$WORK/count-local.txt"
+DIFF=$(LC_ALL=C join -t'|' -a1 -e MISSING -o 0,1.2,2.2 "$WORK/count-cloud.txt" "$WORK/count-local.txt" | awk -F'|' '$2 != $3')
 if [ -n "$DIFF" ]; then
   echo "РАСХОЖДЕНИЯ (таблица|облако|локально):"; echo "$DIFF"
 else
