@@ -1,6 +1,6 @@
 #!/bin/sh
 # Доводит self-hosted Supabase (/opt/supabase/orda) до настроек облачного проекта:
-# письма Auth (шаблоны, темы, Gmail SMTP), SITE_URL и редиректы, MFA, лимиты, без входа по телефону.
+# ключи anon/service_role, письма Auth (шаблоны, темы, Gmail SMTP), SITE_URL и редиректы, MFA, лимиты, без входа по телефону.
 # Повторный запуск безопасен. Секреты не печатаются: SMTP берётся из /opt/orda/web.env на месте.
 set -eu
 
@@ -32,6 +32,10 @@ want = {
         "https://ordaops.kz/*", "https://www.ordaops.kz/*", "https://*.ordaops.kz/*",
         "https://f16finance.vercel.app/*", "http://localhost:3000/*",
     ]),
+    # Ключи облака (подписаны тем же JWT_SECRET): шлюз envoy сверяет apikey с ними буква в букву,
+    # а веб, киоск (rtconfig) и Realtime-рассылка ходят именно с облачными.
+    "ANON_KEY": web["NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+    "SERVICE_ROLE_KEY": web["SUPABASE_SERVICE_ROLE_KEY"],
     "ENABLE_PHONE_SIGNUP": "false",
     "ENABLE_PHONE_AUTOCONFIRM": "false",
     "SMTP_HOST": web.get("SMTP_HOST", "smtp.gmail.com"),
@@ -54,7 +58,8 @@ print("обновлено в .env:", ", ".join(want))
 PY
 
 cd "$SB"
-docker compose up -d auth-templates auth
+# Все сервисы: ключи читают envoy, storage, studio, functions.
+docker compose up -d
 for i in $(seq 1 30); do
   [ "$(docker inspect -f '{{.State.Health.Status}}' supabase-auth 2>/dev/null)" = healthy ] && break
   sleep 3
