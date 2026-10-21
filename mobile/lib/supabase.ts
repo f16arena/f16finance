@@ -24,6 +24,9 @@ export const supabaseHost = (() => {
 // expo-secure-store (chunked LargeSecureStore адаптер).
 export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
   auth: {
+    // Ключ закреплён за облачным проектом: иначе после переезда на db.ordaops.kz он сменится
+    // (supabase-js выводит его из URL) и сессия на телефоне потеряется.
+    storageKey: 'sb-tmudsqgagblmdctaosgw-auth-token',
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,

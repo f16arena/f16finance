@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { supabaseCookieOptions } from '@/lib/core/supabase-auth-key'
 
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>
 
@@ -15,7 +16,7 @@ function createLazyClient(): BrowserSupabaseClient {
   }
 
   if (!browserClient) {
-    browserClient = createBrowserClient(url, anonKey)
+    browserClient = createBrowserClient(url, anonKey, { cookieOptions: supabaseCookieOptions })
   }
 
   return browserClient

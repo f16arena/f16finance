@@ -1,27 +1,17 @@
 # Orda на cloud-001. Кладётся в /etc/caddy/sites/orda.caddy (Caddyfile делает import sites/*.caddy).
 # Включать ТОЛЬКО когда DNS этих имён смотрит на сервер, иначе Caddy будет зря долбить Let's Encrypt.
 #
-# Поддомены организаций (<slug>.ordaops.kz) получают сертификат по требованию (on-demand TLS).
-# Для этого в глобальном блоке /etc/caddy/Caddyfile (самый верх файла) нужно:
-#   {
-#     on_demand_tls {
-#       ask http://127.0.0.1:5555/check
-#     }
-#   }
-
-# Разрешаем сертификат только для наших поддоменов, чтобы никто не выпустил его на чужое имя.
-http://127.0.0.1:5555 {
-	@ours expression `{query.domain}.endsWith(".ordaops.kz") || {query.domain} == "ordaops.kz"`
-	respond @ours 200
-	respond 404
-}
+# Здесь только точные имена. Поддомены организаций (<slug>.ordaops.kz) живут в общем catch-all
+# `https://` из commrent.caddy: адрес `*.ordaops.kz` с on_demand в Caddy 2.11 ломает TLS у соседних
+# точных хостов (проверено на commrent 22.10.2026). Нужные правки commrent.caddy — в README.
 
 db.ordaops.kz {
 	reverse_proxy 127.0.0.1:8100
 }
 
+# 308, не 301: касса по умолчанию стучится в https://ordaops.kz, а на 301 fetch превращает POST в GET.
 ordaops.kz {
-	redir https://www.ordaops.kz{uri} permanent
+	redir https://www.ordaops.kz{uri} 308
 }
 
 www.ordaops.kz {
@@ -29,10 +19,6 @@ www.ordaops.kz {
 	reverse_proxy 127.0.0.1:3200
 }
 
-*.ordaops.kz {
-	tls {
-		on_demand
-	}
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:3200
+http://ordaops.kz, http://www.ordaops.kz, http://*.ordaops.kz {
+	redir https://{host}{uri} 308
 }

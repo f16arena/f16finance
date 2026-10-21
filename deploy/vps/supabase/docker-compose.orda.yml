@@ -1,0 +1,70 @@
+# Надстройка Orda над стандартным self-hosted Supabase (/opt/supabase/orda/docker-compose.orda.yml).
+# В .env стека: COMPOSE_FILE=docker-compose.yml:docker-compose.orda.yml
+# Ставится скриптом deploy/vps/apply-supabase-config.sh, руками не копировать.
+#
+# Настройки Auth повторяют облачный проект tmudsqgagblmdctaosgw (снято через Management API 22.10.2026).
+# SMTP, SITE_URL и редиректы — в .env стека (их подставляет тот же скрипт).
+services:
+  # Наружу ничего, только 127.0.0.1 (Caddy проксирует db.ordaops.kz -> 8100)
+  supavisor:
+    ports: !override
+      - 127.0.0.1:5434:5432
+      - 127.0.0.1:6544:6543
+
+  # GoTrue берёт шаблоны писем только по URL — отдаём их из соседнего контейнера.
+  auth-templates:
+    container_name: supabase-auth-templates
+    image: busybox:1.37
+    restart: unless-stopped
+    command: ["httpd", "-f", "-p", "8080", "-h", "/www"]
+    volumes:
+      - ./volumes/templates:/www:ro
+
+  auth:
+    depends_on:
+      auth-templates:
+        condition: service_started
+    environment:
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_MAX_FREQUENCY: 60s
+      GOTRUE_PASSWORD_MIN_LENGTH: "6"
+      GOTRUE_MAILER_OTP_EXP: "3600"
+      GOTRUE_MAILER_OTP_LENGTH: "8"
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: "true"
+      GOTRUE_MFA_TOTP_ENROLL_ENABLED: "true"
+      GOTRUE_MFA_TOTP_VERIFY_ENABLED: "true"
+      GOTRUE_MFA_MAX_ENROLLED_FACTORS: "10"
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "10"
+      # Лимиты считаются по IP клиента: Caddy кладёт его в X-Forwarded-For.
+      # Обновление токена с запасом: серверный Next обновляет сессии со своего одного IP.
+      GOTRUE_RATE_LIMIT_HEADER: X-Forwarded-For
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "30"
+      GOTRUE_RATE_LIMIT_OTP: "30"
+      GOTRUE_RATE_LIMIT_VERIFY: "30"
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "3000"
+
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://auth-templates:8080/confirmation.html
+      GOTRUE_MAILER_TEMPLATES_INVITE: http://auth-templates:8080/invite.html
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: http://auth-templates:8080/recovery.html
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://auth-templates:8080/magic_link.html
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: http://auth-templates:8080/email_change.html
+      GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION: http://auth-templates:8080/reauthentication.html
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Подтвердите регистрацию в Orda
+      GOTRUE_MAILER_SUBJECTS_INVITE: Вас пригласили в Orda
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: Сброс пароля в Orda
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Ссылка для входа в Orda
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: Подтвердите смену email в Orda
+      GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION: Подтверждение действия в Orda
+
+      # Уведомления: в облаке включены смена пароля, email и телефона.
+      GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_EMAIL_CHANGED_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_PHONE_CHANGED_ENABLED: "true"
+      GOTRUE_MAILER_TEMPLATES_PASSWORD_CHANGED_NOTIFICATION: http://auth-templates:8080/password_changed_notification.html
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGED_NOTIFICATION: http://auth-templates:8080/email_changed_notification.html
+      GOTRUE_MAILER_TEMPLATES_PHONE_CHANGED_NOTIFICATION: http://auth-templates:8080/phone_changed_notification.html
+      GOTRUE_MAILER_SUBJECTS_PASSWORD_CHANGED_NOTIFICATION: Your password has been changed
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGED_NOTIFICATION: Your email address has been changed
+      GOTRUE_MAILER_SUBJECTS_PHONE_CHANGED_NOTIFICATION: Your phone number has been changed

@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { canAccessPath, getDefaultAppPath, normalizeStaffRole, isPublicPath } from '@/lib/core/access'
 import { findCapabilityPageByPath } from '@/lib/core/capabilities'
 import { SITE_URL } from '@/lib/core/site'
+import { supabaseCookieOptions } from '@/lib/core/supabase-auth-key'
 import { isAdminEmail, resolveStaffByUser } from '@/lib/server/admin'
 import { loadUserCapabilities } from '@/lib/server/capabilities'
 import { resolveOrgEntitlements } from '@/lib/server/entitlements'
@@ -67,6 +68,7 @@ export async function proxy(request: NextRequest) {
   })
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: supabaseCookieOptions,
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value
@@ -103,7 +105,7 @@ export async function proxy(request: NextRequest) {
   // Тенант-поддомены (<slug>.ordaops.kz) пропускаем — организация определяется по хосту
   // (resolveOrganizationByHost в getRequestAccessContext). apex и www — основной домен.
   // Прочие чужие хосты (например *.vercel.app) — редиректим на apex, как и раньше.
-  const RESERVED_SUBDOMAINS = new Set(['www', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
+  const RESERVED_SUBDOMAINS = new Set(['www', 'db', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
   const isApexHost = requestHost === apexHost || requestHost === `www.${apexHost}`
   const subLabel = requestHost.endsWith(`.${apexHost}`)
     ? requestHost.slice(0, -(apexHost.length + 1))

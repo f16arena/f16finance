@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import { normalizeStaffRole, type StaffCapability, type StaffRole } from '@/lib/core/access'
+import { supabaseCookieOptions } from '@/lib/core/supabase-auth-key'
 import { resolveRequestAuthPersona, type RequestAuthPersonaKind } from '@/lib/server/auth-persona'
 import { isAdminEmail, resolveStaffByUser } from '@/lib/server/admin'
 import { fetchLinkedCustomersForUser, type LinkedCustomerRow } from '@/lib/server/linked-customers'
@@ -60,6 +61,7 @@ export function createRequestSupabaseClient(request: Request) {
   const cookieMap = parseCookies(request.headers.get('cookie'))
 
   return createServerClient(requiredEnv('NEXT_PUBLIC_SUPABASE_URL'), requiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'), {
+    cookieOptions: supabaseCookieOptions,
     cookies: {
       get(name: string) {
         return cookieMap.get(name)
