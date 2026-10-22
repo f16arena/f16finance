@@ -92,10 +92,6 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/personal-task-reminders",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/task-reminders",
       "schedule": "10 4 * * *"
     },
