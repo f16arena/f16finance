@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
 
 import { getRequestAccessContext } from '@/lib/server/request-auth'
-import { statusPanelFetch } from '@/lib/server/status-panel'
+import { containerLog, containers, HOST_LOGS, tailFile } from '@/lib/server/host-status'
 
-// Журналы Orda для страницы «Сервер» (только суперадмин). Пускаем только к
-// контейнерам и журналам Orda — соседние проекты на сервере сюда не видны.
+// Журналы Orda для /platform/status (только суперадмин): сборка, кроны, бэкап и
+// контейнеры Orda (хвосты кладёт status-snapshot.sh). Соседних проектов тут нет.
 
 export const dynamic = 'force-dynamic'
-
-const ORDA_LOGS = new Set(['backup', 'cron'])
 
 export async function GET(req: Request) {
   const access = await getRequestAccessContext(req)
@@ -20,26 +18,14 @@ export async function GET(req: Request) {
   const log = url.searchParams.get('log') || ''
   const tail = Math.min(3000, Math.max(50, Number(url.searchParams.get('tail')) || 800))
 
-  let query: string
+  let text: string
   if (log) {
-    if (!ORDA_LOGS.has(log)) return new NextResponse('Нет такого журнала', { status: 404 })
-    query = `project=orda&log=${log}`
+    if (!HOST_LOGS[log]) return new NextResponse('Нет такого журнала', { status: 404 })
+    text = await tailFile(HOST_LOGS[log], tail)
   } else {
-    const state = await statusPanelFetch('/api/state').then((r) => r.json()).catch(() => null)
-    const orda = (state?.projects || []).find((p: any) => p.id === 'orda')
-    const allowed = new Set<string>((orda?.containers || []).map((c: any) => String(c.name)))
-    if (!allowed.has(container)) return new NextResponse('Контейнер не относится к Orda', { status: 404 })
-    query = `container=${encodeURIComponent(container)}`
+    const { list } = await containers()
+    if (!list.some((c: { name: string }) => c.name === container)) return new NextResponse('Контейнер не относится к Orda', { status: 404 })
+    text = (await containerLog(container)) || 'Журнала пока нет — снимок появится в течение 20 секунд'
   }
-
-  let res: Response
-  try {
-    res = await statusPanelFetch(`/api/logs?${query}&tail=${tail}`, 10000)
-  } catch (e: any) {
-    return new NextResponse('Нет связи с панелью сервера: ' + (e?.message || e), { status: 502 })
-  }
-  return new NextResponse(await res.text(), {
-    status: res.ok ? 200 : 502,
-    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
-  })
+  return new NextResponse(text, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } })
 }

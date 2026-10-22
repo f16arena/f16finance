@@ -3,29 +3,15 @@ import { NextResponse } from 'next/server'
 import vercelConfig from '@/vercel.json'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
-import { statusPanelFetch } from '@/lib/server/status-panel'
+import { containers, deploys, ensureHostSampler, HOST_LOGS, latestBackup, serverInfo, siteChecks, tailFile } from '@/lib/server/host-status'
 
-// Платформа → «Сервер»: состояние Orda на cloud-001 (только суперадмин).
-// Метрики сервера, деплои, проверки сайтов, контейнеры и бэкап собирает панель
-// status.commrent.kz (deploy/vps/status в репозитории Commrent) — берём у неё
-// (lib/server/status-panel.ts),
-// чтобы не сэмплировать хост второй раз. Своё добавляем: кроны и ошибки из журнала.
+// Платформа → «Сервер и деплои»: живое состояние Orda на cloud-001 (только суперадмин).
+// Ресурсы, сайты, деплои, контейнеры, бэкап — lib/server/host-status.ts; кроны — из
+// журнала cron, ошибки — из audit_log.
 
 export const dynamic = 'force-dynamic'
 
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status })
-
-// Панель отдаёт состояние раз в 5 секунд — несколько открытых вкладок не должны
-// дёргать её каждая отдельно.
-let cache: { at: number; state: any } | null = null
-async function panelState() {
-  if (cache && Date.now() - cache.at < 4000) return cache.state
-  const res = await statusPanelFetch('/api/state')
-  if (!res.ok) throw new Error(`панель ответила ${res.status}`)
-  const state = await res.json()
-  cache = { at: Date.now(), state }
-  return state
-}
 
 type CronRun = { t: number; code: number }
 
@@ -33,11 +19,7 @@ async function cronSummary(now: number) {
   const schedule = new Map<string, string>()
   for (const c of (vercelConfig as { crons?: Array<{ path: string; schedule: string }> }).crons || []) schedule.set(c.path, c.schedule)
 
-  let text = ''
-  try {
-    const res = await statusPanelFetch('/api/logs?project=orda&log=cron&tail=6000')
-    if (res.ok) text = await res.text()
-  } catch { /* без журнала покажем только расписание */ }
+  const text = await tailFile(HOST_LOGS.cron, 6000)
 
   const runs = new Map<string, CronRun[]>()
   for (const line of text.split('\n')) {
@@ -107,19 +89,29 @@ export async function GET(req: Request) {
   if ('response' in access) return access.response
   if (!access.isSuperAdmin) return json({ error: 'forbidden' }, 403)
 
+  ensureHostSampler()
   const now = Math.floor(Date.now() / 1000)
-  const [stateRes, crons, errors] = await Promise.all([
-    panelState().then((s) => ({ ok: true as const, s }), (e: any) => ({ ok: false as const, error: String(e?.message || e) })),
+  const [server, crons, errors, deployList, cont, backup] = await Promise.all([
+    serverInfo(),
     cronSummary(now),
     errorSummary(now).catch(() => ({ total: 0, groups: [], hourly: [] })),
+    deploys(),
+    containers(),
+    latestBackup(),
   ])
 
-  const project = stateRes.ok ? (stateRes.s.projects || []).find((p: any) => p.id === 'orda') || null : null
   return json({
     now,
-    panel_error: stateRes.ok ? null : stateRes.error,
-    server: stateRes.ok ? stateRes.s.server : null,
-    project,
+    // Снимок контейнеров делает cron на хосте раз в 20 секунд; старше 3 минут — он не работает.
+    panel_error: cont.at && now - cont.at < 180 ? null : 'нет свежего снимка контейнеров (status-snapshot.sh на сервере)',
+    server,
+    project: {
+      repo: 'https://github.com/f16arena/f16finance',
+      deploys: deployList,
+      checks: siteChecks(),
+      containers: cont.list,
+      backup,
+    },
     crons,
     errors,
   })

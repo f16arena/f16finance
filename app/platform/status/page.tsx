@@ -34,7 +34,7 @@ type ServerInfo = {
   mem_total: number; mem_used: number; swap_total: number; swap_used: number
   disk_total: number; disk_used: number; reboot_required: boolean; history: Point[]
 }
-type Deploy = { start: number; end?: number; duration?: number; from?: string; sha?: string; sha_full?: string; status: string; subject?: string; error?: string; inferred?: boolean }
+type Deploy = { start: number; end?: number; duration?: number; from?: string; sha?: string; sha_full?: string; status: string; subject?: string; error?: string; inferred?: boolean; action?: string }
 type Check = { url: string; code: number; ms: number | null; at: number; history: Array<{ t: number; ok: boolean; ms: number | null }> }
 type Container = { name: string; image: string; state: string; status: string; health?: string; cpu: number | null; mem: number; mem_limit?: number }
 type Project = {
@@ -322,6 +322,44 @@ function LogDrawer({ source, onClose, sources, setSource }: { source: [string, s
   )
 }
 
+// Живой лог сборки, пока идёт деплой (как Building в Vercel): хвост журнала deploy каждые 3 с.
+function BuildLog({ since, subject, now }: { since: number; subject: string; now: number }) {
+  const [text, setText] = useState('')
+  const preRef = useRef<HTMLPreElement>(null)
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const t = await (await fetch('/api/admin/platform/status/logs?log=deploy&tail=400', { cache: 'no-store' })).text()
+        if (!alive) return
+        // Только текущая сборка: от строки «deploy …» с её временем.
+        const lines = t.split('\n')
+        let from = 0
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const m = lines[i].match(/^(\S+Z) deploy /)
+          if (m && Date.parse(m[1]) / 1000 >= since - 5) { from = i; break }
+        }
+        setText(lines.slice(from).join('\n'))
+        requestAnimationFrame(() => { if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight })
+      } catch { /* следующая попытка через 3 с */ }
+    }
+    void load()
+    const id = setInterval(load, 3000)
+    return () => { alive = false; clearInterval(id) }
+  }, [since])
+  return (
+    <Card className="mb-3 overflow-hidden border-sky-500/30">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-sm dark:border-white/[0.06]">
+        <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+        <span className="font-medium">Идёт сборка</span>
+        <span className="min-w-0 truncate text-slate-500 dark:text-slate-400">{subject}</span>
+        <span className="ml-auto shrink-0 font-mono text-xs tabular-nums text-sky-600 dark:text-sky-300">{dur(Math.max(0, now - since))}</span>
+      </div>
+      <pre ref={preRef} className="max-h-64 overflow-auto whitespace-pre-wrap break-words bg-[#050505] p-3 font-mono text-[11px] leading-relaxed text-slate-300">{text || 'ждём вывод сборки…'}</pre>
+    </Card>
+  )
+}
+
 function ServerTab() {
   const [data, setData] = useState<StatusData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -371,7 +409,7 @@ function ServerTab() {
   const p = data?.project || null
   const now = data?.now || Math.floor(Date.now() / 1000)
   const stale = lastOk > 0 && Date.now() - lastOk > 20000
-  const sources: Array<[string, string]> = [['log', 'cron'], ['log', 'backup'], ...(p?.containers || []).map((c) => ['c', c.name] as [string, string])]
+  const sources: Array<[string, string]> = [['log', 'deploy'], ['log', 'cron'], ['log', 'backup'], ...(p?.containers || []).map((c) => ['c', c.name] as [string, string])]
 
   if (!data && !error) {
     return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>
@@ -450,7 +488,7 @@ function ServerTab() {
 
         {/* ресурсы */}
         {sv ? <>
-          <SectionTitle icon={Activity} title="Ресурсы сервера" sub="последний час · обновление каждые 5 секунд · сервер общий с Commrent и Jiyn" />
+          <SectionTitle icon={Activity} title="Ресурсы сервера" sub="обновление каждые 5 секунд · сервер общий с Commrent и Jiyn · история с последнего деплоя" />
           <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
             <Card className="grid grid-cols-2 divide-slate-100 dark:divide-white/[0.06] [&>*:nth-child(-n+2)]:border-b [&>*:nth-child(odd)]:border-r [&>*]:border-slate-100 dark:[&>*]:border-white/[0.06]">
               <Ring icon={Cpu} value={sv.history.length ? sv.history[sv.history.length - 1].cpu : 0} label="Процессор" line1={`${sv.ncpu} ${plural(sv.ncpu, 'ядро', 'ядра', 'ядер')}`} line2={`load ${sv.load[0].toFixed(2)}`} />
@@ -503,6 +541,7 @@ function ServerTab() {
               ) : null}
               {control?.pending ? <div className="mb-3 flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm text-sky-700 dark:text-sky-300"><Loader2 className="h-4 w-4 animate-spin" />Заявка «{({ redeploy: 'пересобрать', rollback: 'откатить', unpin: 'вернуть автодеплой' } as Record<string, string>)[control.pending.action] || control.pending.action}» ждёт сервер (до минуты)…</div> : null}
               {controlMsg && !control?.pending ? <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">{controlMsg}</div> : null}
+              {lastDeploy?.status === 'running' ? <BuildLog since={lastDeploy.start} subject={lastDeploy.subject || ''} now={now} /> : null}
               <Card className="divide-y divide-slate-100 dark:divide-white/[0.06]">
                 {p.deploys.length ? p.deploys.slice(0, 10).map((d, i) => {
                   const [lv, label] = DEPLOY[d.status] || DEPLOY.unknown
@@ -516,6 +555,7 @@ function ServerTab() {
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                           <ShaLink repo={p.repo} d={d} />
                           <span className={LEVEL[lv].text}>{label}</span>
+                          {d.action === 'rollback' ? <span className="rounded-full bg-amber-500/10 px-2 py-px text-[11px] font-medium text-amber-600 dark:text-amber-300">откат</span> : d.action === 'redeploy' ? <span className="rounded-full bg-sky-500/10 px-2 py-px text-[11px] font-medium text-sky-600 dark:text-sky-300">пересборка</span> : d.action === 'unpin' ? <span className="rounded-full bg-emerald-500/10 px-2 py-px text-[11px] font-medium text-emerald-600 dark:text-emerald-300">возврат автодеплоя</span> : null}
                           {live ? <span className="rounded-full bg-violet-500/10 px-2 py-px text-[11px] font-medium text-violet-600 dark:text-violet-300">сейчас на сайте</span> : null}
                           {d.error ? <span className="text-rose-500">· {d.error}</span> : null}
                         </div>

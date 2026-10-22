@@ -20,6 +20,8 @@ flock -n 9 || exit 0  # сборка уже идёт
 
 log() { echo "$(date -u +%FT%TZ) $*" >> "$LOG"; }
 short() { echo "$1" | cut -c1-7; }
+# Журнал деплоев для /platform/status: по строке JSON на начало и конец сборки.
+event() { python3 -c 'import json,sys;print(json.dumps(dict(a.split("=",1) for a in sys.argv[1:]),ensure_ascii=False))' "$@" >> "$CONTROL/deploys.jsonl" 2>/dev/null || true; }
 
 cd "$APP"
 git fetch -q origin main
@@ -65,11 +67,14 @@ esac
 
 log "deploy $(short "$OLD") -> $(short "$NEW")"
 git reset -q --hard "$NEW"
+DEPLOY_ID=$(date +%s)
+event "id=$DEPLOY_ID" "start=$DEPLOY_ID" "from=$OLD" "sha=$NEW" "subject=$(git log -1 --format=%s "$NEW")" "action=${ACTION:-push}" "status=running"
 
 # Свежая копия этого скрипта для cron — только с main, не со старого коммита.
 if [ ! -f "$CONTROL/pin" ]; then
   mkdir -p /opt/orda/bin
   cp "$APP/deploy/vps/deploy.sh" /opt/orda/bin/deploy.sh.new && mv /opt/orda/bin/deploy.sh.new /opt/orda/bin/deploy.sh
+  cp "$APP/deploy/vps/status-snapshot.sh" /opt/orda/bin/status-snapshot.sh.new && mv /opt/orda/bin/status-snapshot.sh.new /opt/orda/bin/status-snapshot.sh
 fi
 
 cd /opt/orda
@@ -84,8 +89,10 @@ if GITHUB_SHA=$NEW docker compose -f app/deploy/vps/docker-compose.yml --env-fil
   # Кэш сборки растёт с каждым деплоем (за 10.2026 — 21 ГБ): держим только последнюю неделю.
   docker builder prune -f --filter until=168h >/dev/null 2>&1 || true
   log "ok"
+  event "id=$DEPLOY_ID" "end=$(date +%s)" "status=ok"
 else
   # Старый контейнер продолжает работать: compose не трогает его, если сборка упала.
   log "СБОРКА УПАЛА, работает прежняя версия"
+  event "id=$DEPLOY_ID" "end=$(date +%s)" "status=failed" "error=сборка упала, работает прежняя версия"
   exit 1
 fi

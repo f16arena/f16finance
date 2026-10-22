@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { writeAuditLog } from '@/lib/server/audit'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
-import { statusPanelFetch } from '@/lib/server/status-panel'
+import { deploys } from '@/lib/server/host-status'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
 
 // Кнопки деплоя на /platform/status (только суперадмин): пересобрать, откатить на
@@ -46,9 +46,7 @@ export async function POST(req: Request) {
   if (action === 'rollback') {
     sha = String(body?.sha || '').trim()
     // Откатывать можно только на версию из журнала деплоев, которая собралась успешно.
-    const state = await statusPanelFetch('/api/state').then((r) => r.json()).catch(() => null)
-    const deploys = ((state?.projects || []).find((p: any) => p.id === 'orda')?.deploys || []) as Array<{ sha?: string; sha_full?: string; status: string; start: number }>
-    const target = deploys.find((d) => d.status === 'ok' && sha && (d.sha_full === sha || (d.sha && sha.startsWith(d.sha))))
+    const target = (await deploys()).find((d) => d.status === 'ok' && sha && (d.sha_full === sha || (d.sha && sha.startsWith(d.sha))))
     if (!target?.sha_full) return NextResponse.json({ error: 'Эта версия не найдена среди успешных деплоев' }, { status: 400 })
     if (target.start < ROLLBACK_SINCE) return NextResponse.json({ error: 'На версии до появления кнопок откатиться отсюда нельзя' }, { status: 400 })
     sha = target.sha_full
