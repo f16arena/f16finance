@@ -20,3 +20,6 @@
 ## Почта
 SMTP у облачного проекта не был настроен (слал встроенный сервис Supabase). У своего Auth SMTP пустой —
 письма подтверждения регистрации не уйдут, пока не заданы SMTP_* в `/opt/supabase/turanix/.env`.
+
+## Бэкап
+`backup.sh` (cron `/etc/cron.d/turanix-backup`, 21:50 UTC): pg_dump public/auth/storage + файлы в `/opt/supabase/turanix/backups`, 14 дней.
