@@ -15,15 +15,24 @@ services:
     container_name: site-${SITE}
     restart: unless-stopped
     env_file: /opt/sites/${SITE}/web.env
+    # `next start` строит request.nextUrl из адреса запуска, а не из Host (флаг
+    # trustHostHeader есть только на Vercel). Запускаемся под доменом сайта на 443 —
+    # тогда origin = https://<домен> (вход Steam, команды агентам, проверки Origin).
+    hostname: ${SITE_HOST}
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
+    environment:
+      HOSTNAME: ${SITE_HOST}
+      PORT: 443
     ports:
-      - 127.0.0.1:${PORT}:3000
+      - 127.0.0.1:${PORT}:443
     logging:
       driver: json-file
       options:
         max-size: 20m
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/"]
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://$$HOSTNAME:443/"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -5,6 +5,7 @@
 | f16-arena (лендинг) | github.com/padash00/newf16extra-arena | /opt/sites/f16-arena | 127.0.0.1:3320 | f16-arena.kz → www.f16-arena.kz |
 | tour (турниры CS2) | github.com/padash00/Tour | /opt/sites/tour | 127.0.0.1:3330 | tournament.f16-arena.kz |
 
+- Контейнер запускается под доменом сайта на 443 (`SITE_HOST` в site.env): `next start` берёт origin из адреса запуска, а не из Host — иначе вход Steam уходил на 0.0.0.0:3000.
 - Сборка: `Dockerfile.next` (общий, кладётся в клон как `.Dockerfile.server`), `compose.yml`, параметры сайта — `/opt/sites/<site>/site.env`, ключи — `/opt/sites/<site>/web.env` (600; при сборке передаются секретом, в образ не попадают).
 - Автодеплой: `/etc/cron.d/sites-deploy` → `site-deploy.sh <site>` раз в минуту, push в main → пересборка. Руками: `FORCE=1 sh /opt/sites/bin/site-deploy.sh tour`. Лог: `/var/log/site-<site>-deploy.log`.
 - База Tour — облачный Supabase `dgpxlpjnjthyotjcccfl` (другой аккаунт), пока не переносилась.
