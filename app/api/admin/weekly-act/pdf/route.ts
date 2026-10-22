@@ -8,6 +8,7 @@ import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/se
 import { renderWeeklyHTML, PDF_OPTIONS } from '@/lib/reports/orda-weekly-template'
 import { buildWeeklyContract, type WeeklyActData } from '@/lib/reports/build-weekly-contract'
 import { forwardAuthHeaders } from '@/lib/server/forward-auth'
+import { pdfChromiumArgs } from '@/lib/server/pdf-chromium'
 
 // Vercel: PDF-генерация может занять 10-20 секунд (cold start chromium).
 export const maxDuration = 60
@@ -108,7 +109,7 @@ export async function GET(req: Request) {
       import('@sparticuz/chromium-min'),
     ])
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: pdfChromiumArgs(chromium.args),
       // На своём сервере — системный Chromium из образа (CHROMIUM_PATH), на Vercel — пакет Sparticuz.
       executablePath: process.env.CHROMIUM_PATH || (await chromium.executablePath(CHROMIUM_PACK_URL)),
       headless: true,

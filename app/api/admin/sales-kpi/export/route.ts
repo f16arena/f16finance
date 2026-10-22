@@ -26,6 +26,7 @@ import { buildSalesKpiWorkbook } from '@/lib/server/sales-kpi-xlsx'
 import { buildStoreKpiReport, coverageWarnings } from '@/lib/server/store-kpi-report'
 import { inScope, listStorePoints, resolveStoreKpiContext } from '@/lib/server/store-kpi'
 import { requireStaffCapability } from '@/lib/server/capabilities'
+import { pdfChromiumArgs } from '@/lib/server/pdf-chromium'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -233,7 +234,7 @@ export async function POST(request: Request) {
       import('@sparticuz/chromium-min'),
     ])
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: pdfChromiumArgs(chromium.args),
       // На своём сервере — системный Chromium из образа (CHROMIUM_PATH), на Vercel — пакет Sparticuz.
       executablePath: process.env.CHROMIUM_PATH || (await chromium.executablePath(CHROMIUM_PACK_URL)),
       headless: true,

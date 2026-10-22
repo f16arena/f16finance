@@ -7,6 +7,7 @@ import { renderFinReportHTML, PDF_OPTIONS as FIN_OPTIONS } from '@/lib/reports/o
 import { renderTableHTML, PDF_OPTIONS as TABLE_OPTIONS } from '@/lib/reports/orda-table-pdf'
 import { renderPremiumHTML, PDF_OPTIONS as PREMIUM_OPTIONS } from '@/lib/reports/orda-premium-pdf'
 import { renderPnlHTML, PDF_OPTIONS as PNL_OPTIONS } from '@/lib/reports/orda-pnl-pdf'
+import { pdfChromiumArgs } from '@/lib/server/pdf-chromium'
 
 // Единый рендер PDF из переданных клиентом данных: финансовый отчёт или таблица.
 export const maxDuration = 60
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
       import('@sparticuz/chromium-min'),
     ])
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: pdfChromiumArgs(chromium.args),
       // На своём сервере — системный Chromium из образа (CHROMIUM_PATH), на Vercel — пакет Sparticuz.
       executablePath: process.env.CHROMIUM_PATH || (await chromium.executablePath(CHROMIUM_PACK_URL)),
       headless: true,

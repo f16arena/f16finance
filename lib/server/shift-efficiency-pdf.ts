@@ -27,6 +27,7 @@ import {
   renderShiftSummary,
 } from '@/lib/reports/shift-efficiency-pdf-pages'
 import type { ShiftEfficiencyPdfReport } from '@/lib/reports/shift-efficiency-pdf-dto'
+import { pdfChromiumArgs } from '@/lib/server/pdf-chromium'
 
 const CHROMIUM_PACK_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar'
@@ -119,7 +120,7 @@ export async function buildShiftEfficiencyPdf(report: ShiftEfficiencyPdfReport):
   ])
 
   const browser = await puppeteer.launch({
-    args: chromium.args,
+    args: pdfChromiumArgs(chromium.args),
     // На своём сервере — системный Chromium из образа (CHROMIUM_PATH), на Vercel — пакет Sparticuz.
     executablePath: process.env.CHROMIUM_PATH || (await chromium.executablePath(CHROMIUM_PACK_URL)),
     headless: true,
