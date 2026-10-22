@@ -1,0 +1,34 @@
+# Один сайт = один проект compose: SITE, PORT, NODE_VERSION, PM — из /opt/sites/<site>/site.env.
+# Запуск: docker compose -p site-<site> -f compose.yml --env-file /opt/sites/<site>/site.env up -d --build
+services:
+  web:
+    build:
+      context: /opt/sites/${SITE}/app
+      # общий Dockerfile кладёт в клон site-deploy.sh (Docker не берёт его вне контекста)
+      dockerfile: .Dockerfile.server
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22}
+        PM: ${PM:-npm}
+      secrets:
+        - webenv
+    image: site-${SITE}:latest
+    container_name: site-${SITE}
+    restart: unless-stopped
+    env_file: /opt/sites/${SITE}/web.env
+    ports:
+      - 127.0.0.1:${PORT}:3000
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+secrets:
+  # содержимое web.env; файлом нельзя — bake не пускает к файлам вне контекста сборки
+  webenv:
+    environment: SITE_WEBENV

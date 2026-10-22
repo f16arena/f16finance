@@ -1,0 +1,21 @@
+# Сайты с бывшего Vercel padash00: лендинг F16 Arena и турниры (deploy/vps/sites).
+# Кладётся в /etc/caddy/sites/f16-arena.caddy ТОЛЬКО когда DNS этих имён смотрит на сервер.
+
+# Как было на Vercel: голый домен ведёт на www.
+f16-arena.kz {
+	redir https://www.f16-arena.kz{uri} 308
+}
+
+www.f16-arena.kz {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3320
+}
+
+# Агенты игровых серверов и MatchZy ходят сюда по API — тот же адрес, те же ключи.
+tournament.f16-arena.kz {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3330 {
+		# живые обновления матчей (стрим) — без буферизации
+		flush_interval -1
+	}
+}
