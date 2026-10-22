@@ -9,6 +9,35 @@ db.ordaops.kz {
 	reverse_proxy 127.0.0.1:8100
 }
 
+# Пароль Studio для studio.ordaops.kz — только на сервере, не в репозитории:
+# /etc/caddy/orda-studio-auth.caddy (root:caddy 640), сниппет (orda_studio_auth) с
+# header_up Authorization "Basic base64(DASHBOARD_USERNAME:DASHBOARD_PASSWORD)".
+import /etc/caddy/orda-studio-auth.caddy
+
+# Supabase Studio по сессии суперадмина Orda (lib/server/studio-gate.ts): пропуск из
+# /platform меняется на куку, каждый запрос проверяет /api/studio-gate/check.
+# Встраивается только в страницы ordaops.kz (/platform/studio).
+studio.ordaops.kz {
+	encode zstd gzip
+	handle /__orda/login {
+		rewrite * /api/studio-gate/login?{query}
+		reverse_proxy 127.0.0.1:3200 {
+			header_up Host www.ordaops.kz
+		}
+	}
+	handle {
+		forward_auth 127.0.0.1:3200 {
+			uri /api/studio-gate/check
+			header_up Host www.ordaops.kz
+		}
+		reverse_proxy 127.0.0.1:8100 {
+			import orda_studio_auth
+			header_down -X-Frame-Options
+			header_down Content-Security-Policy "frame-ancestors https://www.ordaops.kz https://ordaops.kz"
+		}
+	}
+}
+
 # 308, не 301: касса по умолчанию стучится в https://ordaops.kz, а на 301 fetch превращает POST в GET.
 ordaops.kz {
 	redir https://www.ordaops.kz{uri} 308

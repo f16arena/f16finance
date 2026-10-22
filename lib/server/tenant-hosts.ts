@@ -74,7 +74,7 @@ export async function resolveDefaultOrganization(): Promise<HostOrganization> {
   return result
 }
 
-const RESERVED_TENANT_SLUGS = new Set(['www', 'db', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
+const RESERVED_TENANT_SLUGS = new Set(['www', 'db', 'studio', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
 
 // Поддомен <slug>.ordaops.kz → организация по slug (с кэшем). apex/www/зарезервированные → null.
 export async function resolveOrganizationByHost(hostHeader: string | null | undefined): Promise<HostOrganization> {

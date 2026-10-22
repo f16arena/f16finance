@@ -7,6 +7,7 @@ import {
   BarChart3,
   Building2,
   CreditCard,
+  Database,
   FileText,
   Image as ImageIcon,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const NAV = [
   { href: '/platform/analytics', label: 'Аналитика', icon: TrendingUp, exact: false },
   { href: '/platform/audit', label: 'Аудит', icon: ScrollText, exact: false },
   { href: '/platform/status', label: 'Сервер и база', icon: Server, exact: false },
+  { href: '/platform/studio', label: 'Supabase Studio', icon: Database, exact: false },
   { href: '/platform/help-images', label: 'Иллюстрации', icon: ImageIcon, exact: false },
   { href: '/platform/settings', label: 'Настройки', icon: Settings, exact: false },
 ]

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 
 // Вкладка «База данных» на /platform/status: как Table Editor в Supabase, но только
-// для чтения. Править данные — в Supabase Studio (db.ordaops.kz), ссылка в шапке.
+// для чтения. Править данные — в Supabase Studio (/platform/studio), ссылка в шапке.
 
 type Overview = {
   version: string; size: number; connections: number; active: number; max_connections: number
@@ -38,7 +38,7 @@ type TableData = { columns: Column[]; rows: Record<string, unknown>[]; count: nu
 
 const size = (b: number) => (b >= 1024 ** 3 ? (b / 1024 ** 3).toFixed(1) + ' ГБ' : b >= 1024 ** 2 ? (b / 1024 ** 2).toFixed(1) + ' МБ' : Math.max(1, Math.round(b / 1024)) + ' КБ')
 const num = (n: number) => Number(n || 0).toLocaleString('ru-RU')
-const STUDIO_URL = 'https://db.ordaops.kz'
+const STUDIO_URL = '/platform/studio'
 
 function Cell({ value, type }: { value: unknown; type: string }) {
   if (value === null || value === undefined) return <span className="text-slate-300 dark:text-slate-600">NULL</span>
@@ -120,7 +120,7 @@ export default function DatabaseTab() {
           <h1 className="text-2xl font-bold tracking-tight">База данных</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">{overview.version} · работает с {new Date(overview.started_at).toLocaleString('ru-RU', { timeZone: 'Asia/Almaty', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <a href={STUDIO_URL} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95">
+        <a href={STUDIO_URL} className="ml-auto inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95">
           Открыть Supabase Studio <ExternalLink className="h-4 w-4" />
         </a>
       </div>

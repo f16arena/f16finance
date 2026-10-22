@@ -105,7 +105,7 @@ export async function proxy(request: NextRequest) {
   // Тенант-поддомены (<slug>.ordaops.kz) пропускаем — организация определяется по хосту
   // (resolveOrganizationByHost в getRequestAccessContext). apex и www — основной домен.
   // Прочие чужие хосты (например *.vercel.app) — редиректим на apex, как и раньше.
-  const RESERVED_SUBDOMAINS = new Set(['www', 'db', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
+  const RESERVED_SUBDOMAINS = new Set(['www', 'db', 'studio', 'admin', 'api', 'app', 'status', 'mail', 'blog', 'docs', 'support'])
   const isApexHost = requestHost === apexHost || requestHost === `www.${apexHost}`
   const subLabel = requestHost.endsWith(`.${apexHost}`)
     ? requestHost.slice(0, -(apexHost.length + 1))
