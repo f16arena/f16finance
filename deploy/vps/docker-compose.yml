@@ -14,6 +14,12 @@ services:
     image: orda-web:latest
     container_name: orda-web
     restart: unless-stopped
+    # В daemon.json ротации нет (сервер общий, трогать его — перезапуск всех контейнеров).
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
     # Supabase берётся по NEXT_PUBLIC_SUPABASE_URL (https://db.ordaops.kz) — через Caddy на этой же машине.
     env_file: /opt/orda/web.env
     ports:

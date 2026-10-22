@@ -28,6 +28,8 @@ if GITHUB_SHA=$NEW docker compose -f app/deploy/vps/docker-compose.yml --env-fil
     sh app/deploy/vps/install-crons.sh
   fi
   docker image prune -f >/dev/null 2>&1 || true
+  # Кэш сборки растёт с каждым деплоем (за 10.2026 — 21 ГБ): держим только последнюю неделю.
+  docker builder prune -f --filter until=168h >/dev/null 2>&1 || true
   log "ok"
 else
   # Старый контейнер продолжает работать: compose не трогает его, если сборка упала.
