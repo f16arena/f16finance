@@ -1,0 +1,47 @@
+# Turanix (turanix.kz): сайт /opt/sites/turanix и своя база /opt/supabase/turanix.
+# Кладётся в /etc/caddy/sites/turanix.caddy ТОЛЬКО когда DNS этих имён смотрит на сервер.
+
+# Как было на Vercel: оба адреса отдают сайт, без переадресации.
+turanix.kz, www.turanix.kz {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3340
+}
+
+# База: как шлюз Supabase — без apikey (anon или service) только ссылки, которые браузер
+# открывает сам: подтверждение почты из письма и подписанные/публичные ссылки на файлы.
+# Ключи — только на сервере: /etc/caddy/turanix-db-key.caddy (root:caddy 640), сниппет
+# (turanix_db_key) с матчером  @no_key not header_regexp apikey ^(<ANON_KEY>|<SERVICE_ROLE_KEY>)$ (точки экранированы)
+import /etc/caddy/turanix-db-key.caddy
+
+db.turanix.kz {
+	encode zstd gzip
+	import turanix_db_key
+	route {
+		@open path /auth/v1/verify /auth/v1/callback /storage/v1/object/sign/* /storage/v1/object/public/*
+		handle @open {
+			handle_path /auth/v1/* {
+				reverse_proxy 127.0.0.1:8221
+			}
+			handle_path /storage/v1/* {
+				reverse_proxy 127.0.0.1:8222 {
+					header_up X-Forwarded-Prefix /storage/v1
+				}
+			}
+		}
+		handle @no_key {
+			respond "unauthorized" 401
+		}
+		handle_path /auth/v1/* {
+			reverse_proxy 127.0.0.1:8221
+		}
+		handle_path /rest/v1/* {
+			reverse_proxy 127.0.0.1:8220
+		}
+		handle_path /storage/v1/* {
+			reverse_proxy 127.0.0.1:8222 {
+				header_up X-Forwarded-Prefix /storage/v1
+			}
+		}
+		respond 404
+	}
+}
