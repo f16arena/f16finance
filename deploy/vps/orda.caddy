@@ -6,6 +6,9 @@
 # точных хостов (проверено на commrent 22.10.2026). Нужные правки commrent.caddy — в README.
 
 db.ordaops.kz {
+	# PostgREST повторяет в Content-Location весь запрос: при .in() на 500 id это ~20 КБ, а Node
+	# (fetch/undici) принимает заголовки до 16 КБ — запрос падает «fetch failed». Облако его срезало.
+	header -Content-Location
 	reverse_proxy 127.0.0.1:8100
 }
 

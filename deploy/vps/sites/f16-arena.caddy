@@ -35,6 +35,8 @@ import /etc/caddy/tour-db-key.caddy
 
 db.f16-arena.kz {
 	encode zstd gzip
+	# Content-Location от PostgREST с длинным запросом не пролезает в лимит заголовков Node (см. orda.caddy).
+	header -Content-Location
 	import tour_db_key
 	route {
 		handle /storage/v1/object/public/* {
