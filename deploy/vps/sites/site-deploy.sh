@@ -24,6 +24,8 @@ grep -qx ".Dockerfile.server" .git/info/exclude 2>/dev/null || echo ".Dockerfile
 SITE_WEBENV=$(cat "$DIR/web.env"); export SITE_WEBENV
 if docker compose -p "site-$SITE" -f /opt/sites/bin/compose.yml --env-file "$DIR/site.env" up -d --build >> "$LOG" 2>&1; then
   docker image prune -f >/dev/null 2>&1 || true
+  # кэш сборки общий на сервер: держим неделю, как deploy.sh Orda
+  docker builder prune -f --filter until=168h >/dev/null 2>&1 || true
   log "ok"
 else
   log "СБОРКА УПАЛА, работает прежняя версия"
