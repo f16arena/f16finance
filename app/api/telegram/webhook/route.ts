@@ -1999,7 +1999,7 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
       // Изоляция: список точек — только своей орг. Иначе подсказка «доступные точки»
       // выдавала бы названия клубов других клиентов SaaS, а по имени можно было
       // завести задачу/смену в чужой точке.
-      let companyQuery = supabase.from('companies').select('id, name, code').eq('is_active', true)
+      let companyQuery = supabase.from('companies').select('id, name, code').is('archived_at', null)
       if (companyIds) companyQuery = companyQuery.in('id', companyIds)
       const { data: companies } = await companyQuery
       const all = (companies || []) as any[]
@@ -2945,7 +2945,7 @@ async function handleDetailedReport(chatId: number, companyIds: string[] | null 
     if (companyIds) q = q.in('company_id', companyIds)
     return q.order('date').order('id').range(from, to)
   }).then((data) => ({ data }))
-  let coQ = supabase.from('companies').select('id, name').eq('is_active', true)
+  let coQ = supabase.from('companies').select('id, name').is('archived_at', null)
   if (companyIds) coQ = coQ.in('id', companyIds)
   const [incomesRes, expensesRes, companiesRes] = await Promise.all([incP, expP, coQ])
 

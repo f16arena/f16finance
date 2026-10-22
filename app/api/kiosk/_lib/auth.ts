@@ -67,7 +67,7 @@ export async function resolveStationOrganizationId(
   const { data: links } = await admin
     .from('point_project_companies')
     .select('company:company_id(organization_id)')
-    .eq('point_project_id', projectId)
+    .eq('project_id', projectId)
     .limit(10)
 
   for (const row of (links || []) as any[]) {

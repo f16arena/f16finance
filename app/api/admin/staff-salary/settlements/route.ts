@@ -138,9 +138,9 @@ export async function GET(request: Request) {
     if (settlementIds.length > 0) {
       const { data: eventRows, error: eventError } = await db
         .from('staff_salary_settlement_events')
-        .select('id,settlement_id,event_type,amount,balance_delta,before_remaining,after_remaining,business_date,metadata,created_at')
+        .select('id,settlement_id,event_type,amount,balance_delta,before_remaining,after_remaining,business_date,metadata,created_at:occurred_at')
         .in('settlement_id', settlementIds)
-        .order('created_at', { ascending: false })
+        .order('occurred_at', { ascending: false })
         .limit(500)
       if (eventError) throw eventError
       events = (eventRows ?? []) as EventRow[]
