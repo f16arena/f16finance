@@ -858,6 +858,8 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
               </Button>
             </div>
 
+            {/* Ошибка дублируется в окне: общая плашка страницы остаётся под ним и её не видно. */}
+            {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
             <Button type="submit" disabled={saving} className="w-full">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArchiveX className="mr-2 h-4 w-4" />}
               Провести списание

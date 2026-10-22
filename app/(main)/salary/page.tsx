@@ -302,7 +302,8 @@ const OPERATOR_EVENT_KIND_META: Record<OperatorTimelineEventKind, { label: strin
   debt_item: { label: 'долг из кассы', plural: 'Долги из кассы', tone: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300' },
 }
 
-function Modal(props: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+// error — ошибка действия в окне: общая плашка страницы остаётся под ним и её не видно.
+function Modal(props: { title: string; subtitle?: string; onClose: () => void; error?: string | null; children: React.ReactNode }) {
   useModalEscape(true, props.onClose)
   if (typeof document === 'undefined') return null
   return createPortal(
@@ -318,6 +319,7 @@ function Modal(props: { title: string; subtitle?: string; onClose: () => void; c
           </div>
           <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={props.onClose}>Закрыть</Button>
         </div>
+        {props.error ? <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-200">{props.error}</div> : null}
         {props.children}
       </div>
     </div>,
@@ -1779,7 +1781,7 @@ export default function SalaryPage() {
 
                 {/* Корректировка у конкретного оператора — вместо общей формы внизу страницы */}
                 {operatorAdjTarget ? (
-                  <Modal title="Корректировка недели" subtitle={getOperatorDisplayName(operatorAdjTarget.operator)} onClose={() => setOperatorAdjTarget(null)}>
+                  <Modal error={error} title="Корректировка недели" subtitle={getOperatorDisplayName(operatorAdjTarget.operator)} onClose={() => setOperatorAdjTarget(null)}>
                     <form className="space-y-4" onSubmit={submitAdjustment}>
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
@@ -2636,7 +2638,7 @@ export default function SalaryPage() {
         </div>
 
       {advanceTarget ? (
-        <Modal title="Выдать аванс" subtitle={`${getOperatorDisplayName(advanceTarget.operator)} • ${formatRuDate(weekStart)} - ${formatRuDate(weekEnd)}`} onClose={() => setAdvanceTarget(null)}>
+        <Modal error={error} title="Выдать аванс" subtitle={`${getOperatorDisplayName(advanceTarget.operator)} • ${formatRuDate(weekStart)} - ${formatRuDate(weekEnd)}`} onClose={() => setAdvanceTarget(null)}>
           <form className="space-y-4" onSubmit={submitAdvance}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -2669,7 +2671,7 @@ export default function SalaryPage() {
       ) : null}
 
       {payTarget ? (
-        <Modal title="Выплатить зарплату" subtitle={`${getOperatorDisplayName(payTarget.operator)} • остаток ${money(payTarget.week.remainingAmount)}`} onClose={() => setPayTarget(null)}>
+        <Modal error={error} title="Выплатить зарплату" subtitle={`${getOperatorDisplayName(payTarget.operator)} • остаток ${money(payTarget.week.remainingAmount)}`} onClose={() => setPayTarget(null)}>
           <form className="space-y-4" onSubmit={submitPayment}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -2736,7 +2738,7 @@ export default function SalaryPage() {
       ) : null}
 
       {chatTarget ? (
-        <Modal title="Telegram chat_id" subtitle={getOperatorDisplayName(chatTarget.operator)} onClose={() => setChatTarget(null)}>
+        <Modal error={error} title="Telegram chat_id" subtitle={getOperatorDisplayName(chatTarget.operator)} onClose={() => setChatTarget(null)}>
           <form className="space-y-4" onSubmit={saveChatId}>
             <input className={input} type="text" value={chatValue} onChange={(e) => setChatValue(e.target.value)} placeholder="Например: -1001234567890" />
             <div className="flex justify-end gap-3">
@@ -2748,7 +2750,7 @@ export default function SalaryPage() {
       ) : null}
 
       {payDebtModal ? (
-        <Modal title="Оплата долга" subtitle={payDebtModal.staff.full_name} onClose={() => setPayDebtModal(null)}>
+        <Modal error={error} title="Оплата долга" subtitle={payDebtModal.staff.full_name} onClose={() => setPayDebtModal(null)}>
           <div className="space-y-4">
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.06] p-4 text-center">
               <div className="text-[11px] uppercase tracking-wide text-rose-400/70">Сумма долга к оплате</div>
@@ -2772,7 +2774,7 @@ export default function SalaryPage() {
       ) : null}
 
       {staffAdjModal ? (
-        <Modal title="Корректировка" subtitle={staffAdjModal.full_name} onClose={() => setStaffAdjModal(null)}>
+        <Modal error={error} title="Корректировка" subtitle={staffAdjModal.full_name} onClose={() => setStaffAdjModal(null)}>
           <form className="space-y-4" onSubmit={submitStaffAdjustment}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -2817,7 +2819,7 @@ export default function SalaryPage() {
       ) : null}
 
       {staffPayModal ? (
-        <Modal title="Выплата зарплаты" subtitle={`${staffPayModal.full_name} · к выплате ${money(calcStaffToPay(staffPayModal, staffSalary?.adjustments || [], staffSalary?.payments || [], getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot)).toPay)}`} onClose={() => setStaffPayModal(null)}>
+        <Modal error={error} title="Выплата зарплаты" subtitle={`${staffPayModal.full_name} · к выплате ${money(calcStaffToPay(staffPayModal, staffSalary?.adjustments || [], staffSalary?.payments || [], getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot)).toPay)}`} onClose={() => setStaffPayModal(null)}>
           <form className="space-y-4" onSubmit={submitStaffPayment}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -2884,7 +2886,7 @@ export default function SalaryPage() {
       ) : null}
 
       {broadcastConfirm ? (
-        <Modal title="Отправить расчёт всем?" subtitle={`Рассылка Telegram для ${broadcastTargets.length} операторов с активным chat_id`} onClose={() => setBroadcastConfirm(false)}>
+        <Modal error={error} title="Отправить расчёт всем?" subtitle={`Рассылка Telegram для ${broadcastTargets.length} операторов с активным chat_id`} onClose={() => setBroadcastConfirm(false)}>
           <div className="space-y-4">
             <p className="text-sm text-body">Каждый оператор получит сообщение со своим расчётом за неделю {formatRuDate(weekStart)} — {formatRuDate(weekEnd)}.</p>
             <div className="flex justify-end gap-3">

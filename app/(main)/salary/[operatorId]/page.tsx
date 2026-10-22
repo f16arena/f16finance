@@ -58,9 +58,10 @@ const money = formatMoney
 const parseMoney = (v: string) => { const n = Number(v.replace(',', '.').replace(/\s/g, '')); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0 }
 const statusMeta = (s: WeekData['status']) => s === 'paid' ? { label: 'Выплачено', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : s === 'partial' ? { label: 'Частично', className: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : { label: 'Не выплачено', className: 'border-slate-500/30 bg-slate-500/10 text-body' }
 
-function Modal(props: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+// error — ошибка действия в окне: общая плашка страницы остаётся под ним и её не видно.
+function Modal(props: { title: string; subtitle?: string; onClose: () => void; error?: string | null; children: React.ReactNode }) {
   useModalEscape(true, props.onClose)
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) props.onClose() }}><div className="w-full max-w-xl my-8 max-h-[calc(100vh-4rem)] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-[#10182b] p-6 shadow-2xl shadow-black/40"><div className="mb-6 flex items-start justify-between gap-4"><div><h3 className="text-xl font-semibold text-foreground">{props.title}</h3>{props.subtitle ? <p className="mt-1 text-sm text-muted-foreground">{props.subtitle}</p> : null}</div><Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={props.onClose}>Закрыть</Button></div>{props.children}</div></div>
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) props.onClose() }}><div className="w-full max-w-xl my-8 max-h-[calc(100vh-4rem)] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-[#10182b] p-6 shadow-2xl shadow-black/40"><div className="mb-6 flex items-start justify-between gap-4"><div><h3 className="text-xl font-semibold text-foreground">{props.title}</h3>{props.subtitle ? <p className="mt-1 text-sm text-muted-foreground">{props.subtitle}</p> : null}</div><Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={props.onClose}>Закрыть</Button></div>{props.error ? <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-200">{props.error}</div> : null}{props.children}</div></div>
 }
 
 function OperatorSalaryDetailPageContent() {
@@ -559,7 +560,7 @@ function OperatorSalaryDetailPageContent() {
         </div>
 
       {advanceOpen ? (
-        <Modal title="Выдать аванс" subtitle={`${title} · ${formatRuDate(weekStart)} — ${formatRuDate(weekEnd)}`} onClose={() => setAdvanceOpen(false)}>
+        <Modal error={error} title="Выдать аванс" subtitle={`${title} · ${formatRuDate(weekStart)} — ${formatRuDate(weekEnd)}`} onClose={() => setAdvanceOpen(false)}>
           <form className="space-y-4" onSubmit={submitAdvance}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -592,7 +593,7 @@ function OperatorSalaryDetailPageContent() {
       ) : null}
 
       {voidConfirm ? (
-        <Modal title="Аннулировать?" subtitle={voidConfirm.label} onClose={() => !voidSaving && setVoidConfirm(null)}>
+        <Modal error={error} title="Аннулировать?" subtitle={voidConfirm.label} onClose={() => !voidSaving && setVoidConfirm(null)}>
           <div className="space-y-4">
             <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -613,7 +614,7 @@ function OperatorSalaryDetailPageContent() {
       ) : null}
 
       {payOpen && data ? (
-        <Modal title="Выплатить зарплату" subtitle={`${title} · остаток ${money(data.week.remainingAmount)}`} onClose={() => setPayOpen(false)}>
+        <Modal error={error} title="Выплатить зарплату" subtitle={`${title} · остаток ${money(data.week.remainingAmount)}`} onClose={() => setPayOpen(false)}>
           <form className="space-y-4" onSubmit={submitPayment}>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
