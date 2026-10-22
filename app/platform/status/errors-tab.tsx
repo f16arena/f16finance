@@ -8,7 +8,7 @@ import { AlertTriangle, Check, ChevronDown, Globe, Loader2, Monitor, RefreshCw, 
 
 type Occurrence = {
   at: number; actor: string | null; pathname: string | null; user_agent: string | null
-  code: string | null; details: string | null; hint: string | null; stage: string | null; stack: string | null; full_message: string
+  code: string | null; details: string | null; hint: string | null; stage: string | null; stack: string | null; full_message: string; translated?: boolean
 }
 type Group = { area: string; message: string; scope: string; count: number; first_at: number; last_at: number; users: number; samples: Occurrence[] }
 type Data = { now: number; period: string; total: number; truncated: boolean; timeline: number[]; step: number; groups: Group[] }
@@ -135,6 +135,7 @@ export default function ErrorsTab() {
                           {browser(o.user_agent) ? <span>{browser(o.user_agent)}</span> : null}
                           {o.code ? <span className="font-mono">код {o.code}</span> : null}
                           {o.stage ? <span>этап: {o.stage}</span> : null}
+                          {o.translated ? <span className="rounded-full bg-amber-500/10 px-2 py-px font-medium text-amber-600 dark:text-amber-300" title="Переводчик браузера меняет текст страницы — частая причина ошибок React">включён переводчик</span> : null}
                         </div>
                         <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] text-rose-600 dark:text-rose-300">{o.full_message}</pre>
                         {o.details || o.hint ? <div className="mt-1.5 text-slate-500 dark:text-slate-400">{[o.details, o.hint].filter(Boolean).join(' · ')}</div> : null}

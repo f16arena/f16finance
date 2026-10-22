@@ -12,6 +12,8 @@ type Body = {
   source?: string
   stack?: string
   userAgent?: string
+  // Чем браузер мог помешать: переводчик страницы, язык документа (ошибки React из-за расширений)
+  env?: Record<string, string | boolean | null>
 }
 
 export async function POST(req: Request) {
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
         source: body.source || null,
         stack: body.stack || null,
         user_agent: body.userAgent || null,
+        env: body.env && typeof body.env === 'object' ? Object.fromEntries(Object.entries(body.env).slice(0, 8).map(([k, v]) => [String(k).slice(0, 40), typeof v === 'string' ? v.slice(0, 120) : v])) : null,
       },
     })
 

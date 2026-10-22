@@ -3,6 +3,20 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
+// Переводчик страницы (Google/Яндекс/Edge) переписывает текст в DOM — React потом
+// падает с #418 и «пустыми» ошибками. Пишем признаки, чтобы такие ошибки отличать от наших.
+function browserEnv() {
+  if (typeof document === 'undefined') return null
+  const html = document.documentElement
+  return {
+    translated: /translated-(ltr|rtl)/.test(html.className) || !!document.querySelector('font[style*="vertical-align"], [_msttexthash], .goog-te-banner-frame'),
+    lang: html.lang || null,
+    nav_lang: typeof navigator !== 'undefined' ? navigator.language : null,
+    online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+    visible: document.visibilityState,
+  }
+}
+
 export function ClientErrorReporter() {
   const pathname = usePathname()
 
@@ -28,6 +42,7 @@ export function ClientErrorReporter() {
           ...payload,
           pathname,
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+          env: browserEnv(),
         }),
       }).catch(() => null)
     }

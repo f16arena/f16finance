@@ -62,6 +62,7 @@ export async function GET(req: Request) {
       details: p.details || null,
       hint: p.hint || null,
       stage: p.stage || null,
+      translated: p.env?.translated === true,
       stack: p.stack ? String(p.stack).slice(0, 2000) : null,
       full_message: String(p.message || '').slice(0, 2000),
     }
