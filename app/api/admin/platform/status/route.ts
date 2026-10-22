@@ -3,11 +3,12 @@ import { NextResponse } from 'next/server'
 import vercelConfig from '@/vercel.json'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
-import { statusPanelAuth } from '@/lib/server/status-panel'
+import { statusPanelFetch } from '@/lib/server/status-panel'
 
 // Платформа → «Сервер»: состояние Orda на cloud-001 (только суперадмин).
 // Метрики сервера, деплои, проверки сайтов, контейнеры и бэкап собирает панель
-// status.commrent.kz (deploy/vps/status в репозитории Commrent) — берём у неё,
+// status.commrent.kz (deploy/vps/status в репозитории Commrent) — берём у неё
+// (lib/server/status-panel.ts),
 // чтобы не сэмплировать хост второй раз. Своё добавляем: кроны и ошибки из журнала.
 
 export const dynamic = 'force-dynamic'
@@ -17,9 +18,9 @@ const json = (data: unknown, status = 200) => NextResponse.json(data, { status }
 // Панель отдаёт состояние раз в 5 секунд — несколько открытых вкладок не должны
 // дёргать её каждая отдельно.
 let cache: { at: number; state: any } | null = null
-async function panelState(auth: { url: string; header: string }) {
+async function panelState() {
   if (cache && Date.now() - cache.at < 4000) return cache.state
-  const res = await fetch(`${auth.url}/api/state`, { headers: { authorization: auth.header }, cache: 'no-store', signal: AbortSignal.timeout(8000) })
+  const res = await statusPanelFetch('/api/state')
   if (!res.ok) throw new Error(`панель ответила ${res.status}`)
   const state = await res.json()
   cache = { at: Date.now(), state }
@@ -28,13 +29,13 @@ async function panelState(auth: { url: string; header: string }) {
 
 type CronRun = { t: number; code: number }
 
-async function cronSummary(auth: { url: string; header: string }, now: number) {
+async function cronSummary(now: number) {
   const schedule = new Map<string, string>()
   for (const c of (vercelConfig as { crons?: Array<{ path: string; schedule: string }> }).crons || []) schedule.set(c.path, c.schedule)
 
   let text = ''
   try {
-    const res = await fetch(`${auth.url}/api/logs?project=orda&log=cron&tail=6000`, { headers: { authorization: auth.header }, cache: 'no-store', signal: AbortSignal.timeout(8000) })
+    const res = await statusPanelFetch('/api/logs?project=orda&log=cron&tail=6000')
     if (res.ok) text = await res.text()
   } catch { /* без журнала покажем только расписание */ }
 
@@ -106,11 +107,10 @@ export async function GET(req: Request) {
   if ('response' in access) return access.response
   if (!access.isSuperAdmin) return json({ error: 'forbidden' }, 403)
 
-  const auth = statusPanelAuth()
   const now = Math.floor(Date.now() / 1000)
   const [stateRes, crons, errors] = await Promise.all([
-    auth ? panelState(auth).then((s) => ({ ok: true as const, s }), (e: any) => ({ ok: false as const, error: String(e?.message || e) })) : Promise.resolve({ ok: false as const, error: 'не настроен доступ к панели (STATUS_PANEL_*)' }),
-    auth ? cronSummary(auth, now) : Promise.resolve([]),
+    panelState().then((s) => ({ ok: true as const, s }), (e: any) => ({ ok: false as const, error: String(e?.message || e) })),
+    cronSummary(now),
     errorSummary(now).catch(() => ({ total: 0, groups: [], hourly: [] })),
   ])
 

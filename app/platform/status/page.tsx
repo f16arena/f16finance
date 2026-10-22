@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react'
 
+import DatabaseTab from './database-tab'
+
 // Платформа → «Сервер»: здоровье Orda на cloud-001 вживую. Данные — /api/admin/platform/status
 // (панель сервера + кроны из журнала + ошибки из audit_log), обновление каждые 5 секунд.
 
@@ -317,7 +319,7 @@ function LogDrawer({ source, onClose, sources, setSource }: { source: [string, s
   )
 }
 
-export default function PlatformStatusPage() {
+function ServerTab() {
   const [data, setData] = useState<StatusData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastOk, setLastOk] = useState(0)
@@ -595,6 +597,41 @@ export default function PlatformStatusPage() {
       </div>
 
       <LogDrawer source={logSource} onClose={() => setLogSource(null)} sources={sources} setSource={setLogSource} />
+    </div>
+  )
+}
+
+const TABS = [
+  { key: 'server', label: 'Сервер и деплои', icon: Server },
+  { key: 'database', label: 'База данных', icon: Database },
+] as const
+type TabKey = (typeof TABS)[number]['key']
+
+export default function PlatformStatusPage() {
+  // Вкладка — в адресе (?tab=database), чтобы ссылкой можно было открыть сразу базу.
+  const [tab, setTab] = useState<TabKey>('server')
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t === 'database') setTab('database')
+  }, [])
+  const choose = (t: TabKey) => {
+    setTab(t)
+    const url = new URL(window.location.href)
+    if (t === 'server') url.searchParams.delete('tab'); else url.searchParams.set('tab', t)
+    window.history.replaceState(null, '', url)
+  }
+  return (
+    <div className="min-h-screen text-slate-900 dark:text-white">
+      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#050816]/80">
+        <div className="mx-auto flex max-w-[1400px] gap-1 px-4 sm:px-6">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => choose(key)} className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition ${tab === key ? 'border-violet-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}>
+              <Icon className="h-4 w-4" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === 'server' ? <ServerTab /> : <DatabaseTab />}
     </div>
   )
 }
