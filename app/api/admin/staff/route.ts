@@ -331,7 +331,7 @@ export async function POST(req: Request) {
         .from('staff')
         .update({ is_active: body.is_active })
         .eq('id', body.staffId)
-        .select('id, email, user_id')
+        .select('id, email')
         .single()
 
       if (error) throw error
@@ -349,7 +349,7 @@ export async function POST(req: Request) {
       // operator_auth, иначе уволенный продолжает заходить со старой сессии
       // (и через operator-аккаунт, если он был привязан).
       if (!body.is_active) {
-        let staffUserId: string | null = (toggledStaff as any)?.user_id || null
+        let staffUserId: string | null = null
         const staffEmail: string | null = (toggledStaff as any)?.email || null
 
         if (!staffUserId && staffEmail) {
@@ -400,7 +400,7 @@ export async function POST(req: Request) {
         } catch { /* not critical */ }
       } else {
         // Восстановление: снимаем бан с auth.user, оживляем operator_auth
-        let staffUserId: string | null = (toggledStaff as any)?.user_id || null
+        let staffUserId: string | null = null
         const staffEmail: string | null = (toggledStaff as any)?.email || null
         if (!staffUserId && staffEmail) {
           try {

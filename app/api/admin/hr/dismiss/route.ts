@@ -13,6 +13,7 @@ import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/serv
 import { requireAddon } from '@/lib/server/entitlements'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { isTelegramConfigured, sendTelegram } from '@/lib/server/telegram'
+import { findAuthUserIdByEmail } from '@/lib/server/staff-auth-users'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -72,7 +73,7 @@ async function dismissStaff(ctx: DismissContext, id: string): Promise<string> {
       dismissed_by: ctx.dismissedBy,
     })
     .eq('id', id)
-    .select('id, full_name, short_name, user_id')
+    .select('id, full_name, short_name, email')
     .single()
 
   if (error) throw error
@@ -123,7 +124,7 @@ async function dismissStaff(ctx: DismissContext, id: string): Promise<string> {
   }
 
   // Полная блокировка: ban + signOut.
-  const staffUserId = (staffRow as any)?.user_id
+  const staffUserId = await findAuthUserIdByEmail(supabase, (staffRow as any)?.email)
   if (staffUserId) {
     try {
       await (supabase as any).auth.admin.updateUserById(staffUserId, { ban_duration: '876000h' })

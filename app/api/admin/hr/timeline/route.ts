@@ -18,6 +18,7 @@ import { listOrganizationOperatorIds, listOrganizationStaffIds } from '@/lib/ser
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { findStaffByAuthUserIds } from '@/lib/server/staff-auth-users'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -98,12 +99,9 @@ export async function GET(req: Request) {
     const actorIds = Array.from(new Set(events.map((e) => e.actor_user_id).filter(Boolean)))
     const actors: Record<string, string> = {}
     if (actorIds.length > 0) {
-      const { data: actorRows } = await supabase
-        .from('staff')
-        .select('user_id, full_name, short_name')
-        .in('user_id', actorIds)
-      for (const row of (actorRows || []) as any[]) {
-        if (row.user_id) actors[String(row.user_id)] = String(row.full_name || row.short_name || '')
+      const staffByUser = await findStaffByAuthUserIds(supabase, actorIds as string[])
+      for (const [actorId, row] of staffByUser) {
+        actors[actorId] = String(row.full_name || row.short_name || '')
       }
     }
 

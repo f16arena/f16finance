@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { resolveCompanyScope } from '@/lib/server/organizations'
+import { findStaffByAuthUserIds } from '@/lib/server/staff-auth-users'
 
 export const runtime = 'nodejs'
 
@@ -100,11 +101,7 @@ export async function GET(request: Request) {
         if (!shared || shared.length === 0) return json({ error: 'Пользователь не найден' }, 404)
       }
     }
-    const { data: staff } = await supabase
-      .from('staff')
-      .select('id, full_name, role, email, phone')
-      .eq('user_id', userId)
-      .maybeSingle()
+    const staff = (await findStaffByAuthUserIds(supabase, [userId])).get(userId) || null
     if (staff) {
       return json({
         type: 'staff',

@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { findStaffByAuthUserIds } from '@/lib/server/staff-auth-users'
 
 export const runtime = 'nodejs'
 
@@ -56,14 +57,14 @@ export async function GET(request: Request) {
   }
 
   const userIds = views.map((v: any) => v.user_id)
-  const [staffRes, opAuthRes] = await Promise.all([
-    supabase.from('staff').select('user_id, full_name, role').in('user_id', userIds),
+  const [staffByUser, opAuthRes] = await Promise.all([
+    findStaffByAuthUserIds(supabase, userIds),
     supabase.from('operator_auth').select('user_id, operator_id').in('user_id', userIds),
   ])
 
   const nameByUserId = new Map<string, { name: string; role: string }>()
-  for (const s of staffRes.data || []) {
-    nameByUserId.set((s as any).user_id, { name: (s as any).full_name || 'Сотрудник', role: (s as any).role || 'staff' })
+  for (const [userId, s] of staffByUser) {
+    nameByUserId.set(userId, { name: s.full_name || 'Сотрудник', role: s.role || 'staff' })
   }
   if ((opAuthRes.data || []).length > 0) {
     const opIds = (opAuthRes.data || []).map((a: any) => a.operator_id)

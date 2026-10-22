@@ -10,6 +10,7 @@ import { requireCapability } from '@/lib/server/capabilities'
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { findAuthUserIdByEmail } from '@/lib/server/staff-auth-users'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
           dismissed_by: null,
         })
         .eq('id', id)
-        .select('id, user_id')
+        .select('id, email')
         .single()
 
       if (error) throw error
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
       }
 
       // Снимаем бан с auth.user, если он был наложен при увольнении
-      const staffUserId = (staffRow as any)?.user_id
+      const staffUserId = await findAuthUserIdByEmail(supabase, (staffRow as any)?.email)
       if (staffUserId) {
         try {
           await (supabase as any).auth.admin.updateUserById(staffUserId, { ban_duration: 'none' })

@@ -15,6 +15,7 @@ import { resolveCompanyScope, ensureOrganizationOperatorAccess, ensureOrganizati
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { findStaffByAuthUserIds } from '@/lib/server/staff-auth-users'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -80,12 +81,9 @@ export async function GET(req: Request) {
       const actorIds = Array.from(new Set((auditRes.data || []).map((r: any) => r.actor_user_id).filter(Boolean)))
       const actors: Record<string, string> = {}
       if (actorIds.length > 0) {
-        const { data } = await supabase
-          .from('staff')
-          .select('user_id, full_name, short_name')
-          .in('user_id', actorIds)
-        for (const r of (data || []) as any[]) {
-          if (r.user_id) actors[String(r.user_id)] = String(r.full_name || r.short_name || '')
+        const staffByUser = await findStaffByAuthUserIds(supabase, actorIds as string[])
+        for (const [actorId, r] of staffByUser) {
+          actors[actorId] = String(r.full_name || r.short_name || '')
         }
       }
 
