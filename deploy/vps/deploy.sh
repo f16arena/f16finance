@@ -27,6 +27,7 @@ OLD=$(git rev-parse HEAD)
 NEW=$(git rev-parse origin/main)
 ACTION=""
 REQ_SHA=""
+RECREATE=""
 
 if [ -f "$CONTROL/request.json" ]; then
   ACTION=$(python3 -c "import json;print(json.load(open('$CONTROL/request.json')).get('action',''))" 2>/dev/null || true)
@@ -50,6 +51,9 @@ case "$ACTION" in
   redeploy)
     [ -f "$CONTROL/pin" ] && NEW=$(cat "$CONTROL/pin")
     FORCE=1
+    # Без изменений compose не трогает контейнер — по кнопке перезапускаем его всегда
+    # (заодно подхватываются правки /opt/orda/web.env).
+    RECREATE=--force-recreate
     log "пересборка по кнопке"
     ;;
   *)
@@ -70,7 +74,7 @@ fi
 
 cd /opt/orda
 # GITHUB_SHA из окружения перекрывает build.env — buildId и версия в мониторинге = коммит.
-if GITHUB_SHA=$NEW docker compose -f app/deploy/vps/docker-compose.yml --env-file build.env up -d --build >> "$LOG" 2>&1; then
+if GITHUB_SHA=$NEW docker compose -f app/deploy/vps/docker-compose.yml --env-file build.env up -d --build $RECREATE >> "$LOG" 2>&1; then
   # Кроны обновляем, только если они уже включены (до переключения их быть не должно:
   # пошли бы по тестовой копии и задвоили рассылки в Telegram).
   if [ -f /etc/cron.d/orda ]; then
