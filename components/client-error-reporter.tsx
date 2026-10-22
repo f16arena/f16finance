@@ -32,11 +32,19 @@ export function ClientErrorReporter() {
       }).catch(() => null)
     }
 
+    // Бросают не только Error: без описания такого значения в журнал падало пустое «Uncaught ».
+    const describe = (value: unknown) => {
+      if (value instanceof Error) return `${value.name}: ${value.message}`
+      if (value === undefined || value === null) return String(value)
+      try { return `${Object.prototype.toString.call(value).slice(8, -1)}: ${JSON.stringify(value).slice(0, 300)}` } catch { return String(value) }
+    }
+
     const onError = (event: ErrorEvent) => {
+      const bare = !event.message || /^Uncaught\s*$/.test(event.message)
       report({
         area: pathname || 'window',
-        message: event.message || 'Unhandled client error',
-        source: event.filename || 'window.error',
+        message: bare ? `Uncaught ${describe(event.error)}` : event.message,
+        source: event.filename ? `${event.filename}:${event.lineno}:${event.colno}` : 'window.error',
         stack: event.error?.stack || null,
       })
     }
@@ -45,7 +53,7 @@ export function ClientErrorReporter() {
       const reason = event.reason
       report({
         area: pathname || 'window',
-        message: reason?.message || String(reason || 'Unhandled rejection'),
+        message: reason?.message || `Unhandled rejection ${describe(reason)}`,
         source: 'unhandledrejection',
         stack: reason?.stack || null,
       })
