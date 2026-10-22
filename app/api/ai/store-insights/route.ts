@@ -113,7 +113,8 @@ export async function GET(request: Request) {
     await writeSystemErrorLogSafe({
       scope: 'server',
       area: 'api/ai/store-insights.GET',
-      message: error?.message || 'Store insights GET error',
+      // У «fetch failed» причина (DNS, сброс соединения, таймаут) лежит в cause.
+      message: [error?.message || 'Store insights GET error', error?.cause?.code || error?.cause?.message].filter(Boolean).join(' · '),
     })
     return json({ error: error?.message || 'Не удалось построить разбор магазина' }, 500)
   }

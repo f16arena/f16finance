@@ -22,6 +22,11 @@ services:
         max-file: "5"
     # Supabase берётся по NEXT_PUBLIC_SUPABASE_URL (https://db.ordaops.kz) — через Caddy на этой же машине.
     env_file: /opt/orda/web.env
+    # Адрес базы — без DNS хостинга: его резолвер иногда отвечает с задержкой (как у шлюза
+    # Supabase, см. dns_search там), и серверный запрос к базе падает «fetch failed».
+    extra_hosts:
+      - db.ordaops.kz:185.113.132.3
+    dns_search: .
     # Заявки «пересобрать / откатить» со страницы /platform/status — их забирает deploy.sh.
     volumes:
       - /opt/orda/control:/control
