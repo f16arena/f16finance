@@ -10,7 +10,8 @@ turanix.kz, www.turanix.kz {
 # База: как шлюз Supabase — без apikey (anon или service) только ссылки, которые браузер
 # открывает сам: подтверждение почты из письма и подписанные/публичные ссылки на файлы.
 # Ключи — только на сервере: /etc/caddy/turanix-db-key.caddy (root:caddy 640), сниппет
-# (turanix_db_key) с матчером  @no_key not header_regexp apikey ^(<ANON_KEY>|<SERVICE_ROLE_KEY>)$ (точки экранированы)
+# (turanix_db_key) с матчером  @no_key not header_regexp apikey `^(<ANON_KEY>|<SERVICE_ROLE_KEY>)$`
+# (ключи через re.escape, строка в обратных кавычках — иначе Caddy по-своему читает слэши)
 import /etc/caddy/turanix-db-key.caddy
 
 db.turanix.kz {
