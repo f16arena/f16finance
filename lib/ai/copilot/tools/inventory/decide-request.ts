@@ -6,6 +6,7 @@
 import type { CopilotTool } from '../../types'
 import { writeAuditLog } from '@/lib/server/audit'
 import { scopedCompanyIds } from '../../query-helpers'
+import { decideInventoryRequest } from '@/lib/server/repositories/inventory'
 
 /**
  * Мультитенантная изоляция: проверяем, что заявка принадлежит своей организации
@@ -31,7 +32,9 @@ async function getPendingRequests(ctx: any) {
     .select('id, status, created_at, requesting_company_id, comment')
     .in('status', ['new', 'disputed'])
     .order('created_at', { ascending: false })
-  if (ctx.organizationId) q = q.eq('organization_id', ctx.organizationId)
+  // У inventory_requests нет organization_id — скоуп по точке-заявителю
+  const scope = await scopedCompanyIds(ctx)
+  if (scope) q = q.in('requesting_company_id', scope)
   const { data } = await q
   const rows = data || []
   if (rows.length === 0) return []
@@ -76,14 +79,23 @@ export const approveRequestTool: CopilotTool = {
     const scopeErr = await assertRequestInScope(ctx, reqId)
     if (scopeErr) return { ok: false, message: scopeErr }
 
-    // Используем существующую RPC inventory_decide_request
-    const { error } = await ctx.supabase.rpc('inventory_decide_request', {
-      p_request_id: reqId,
-      p_decision: 'approve',
-      p_actor_user_id: ctx.userId,
-      p_decision_comment: 'Одобрено через AI Copilot',
-    })
-    if (error) return { ok: false, message: `Не удалось одобрить: ${error.message}` }
+    // Как на сайте: одобряем всё запрошенное, RPC inventory_decide_request резервирует товар на складе
+    const { data: lines, error: linesErr } = await ctx.supabase
+      .from('inventory_request_items')
+      .select('id, requested_qty')
+      .eq('request_id', reqId)
+    if (linesErr) return { ok: false, message: `Не удалось одобрить: ${linesErr.message}` }
+    try {
+      await decideInventoryRequest(ctx.supabase, {
+        request_id: reqId,
+        approved: true,
+        decision_comment: 'Одобрено через AI Copilot',
+        actor_user_id: ctx.userId,
+        items: (lines || []).map((l: any) => ({ request_item_id: String(l.id), approved_qty: Number(l.requested_qty || 0) })),
+      })
+    } catch (error: any) {
+      return { ok: false, message: `Не удалось одобрить: ${error?.message || 'ошибка'}` }
+    }
 
     try {
       await writeAuditLog(ctx.supabase, {
@@ -98,7 +110,7 @@ export const approveRequestTool: CopilotTool = {
       })
     } catch {}
 
-    return { ok: true, message: '✅ Заявка одобрена. Товар перенесён со склада на витрину.' }
+    return { ok: true, message: '✅ Заявка одобрена. Товар зарезервирован на складе и перейдёт на витрину, когда точка подтвердит приёмку.' }
   },
 }
 
@@ -134,13 +146,16 @@ export const declineRequestTool: CopilotTool = {
     const scopeErr = await assertRequestInScope(ctx, reqId)
     if (scopeErr) return { ok: false, message: scopeErr }
 
-    const { error } = await ctx.supabase.rpc('inventory_decide_request', {
-      p_request_id: reqId,
-      p_decision: 'decline',
-      p_actor_user_id: ctx.userId,
-      p_decision_comment: reason,
-    })
-    if (error) return { ok: false, message: `Не удалось отклонить: ${error.message}` }
+    try {
+      await decideInventoryRequest(ctx.supabase, {
+        request_id: reqId,
+        approved: false,
+        decision_comment: reason,
+        actor_user_id: ctx.userId,
+      })
+    } catch (error: any) {
+      return { ok: false, message: `Не удалось отклонить: ${error?.message || 'ошибка'}` }
+    }
 
     try {
       await writeAuditLog(ctx.supabase, {

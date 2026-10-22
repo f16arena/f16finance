@@ -6,6 +6,7 @@
 import type { CopilotTool } from '../../types'
 import { companyOptions, scopedCompanyIds, isOrgRowAllowed } from '../../query-helpers'
 import { writeAuditLog } from '@/lib/server/audit'
+import { createInventoryRequest } from '@/lib/server/repositories/inventory'
 
 export const createInventoryRequestTool: CopilotTool = {
   name: 'create_inventory_request',
@@ -72,35 +73,34 @@ export const createInventoryRequestTool: CopilotTool = {
       return { ok: false, message: 'Товар не найден.' }
     }
 
-    // Создаём заявку (status='new')
-    const { data: req, error: reqErr } = await ctx.supabase
-      .from('inventory_requests')
-      .insert([
-        {
-          requesting_company_id: companyId,
-          status: 'new',
-          comment,
-          created_by_kind: 'copilot',
-        },
-      ])
-      .select('id')
-      .single()
-    if (reqErr) return { ok: false, message: `Не удалось создать заявку: ${reqErr.message}` }
-
-    // Добавляем строку с товаром
-    const { error: itemErr } = await ctx.supabase
-      .from('inventory_request_items')
-      .insert([
-        {
-          request_id: req?.id,
-          item_id: itemId,
-          quantity,
-        },
-      ])
-    if (itemErr) {
-      await ctx.supabase.from('inventory_requests').delete().eq('id', req?.id)
-      return { ok: false, message: `Не удалось добавить товар: ${itemErr.message}` }
+    // Как на сайте (/store/showcase → createRequest): склад точки → витрина точки,
+    // заявка с позициями создаётся одним RPC inventory_create_request.
+    const { data: locs } = await ctx.supabase
+      .from('inventory_locations')
+      .select('id, location_type')
+      .eq('company_id', companyId)
+      .in('location_type', ['warehouse', 'point_display'])
+    const warehouse = (locs || []).find((l: any) => l.location_type === 'warehouse')
+    const showcase = (locs || []).find((l: any) => l.location_type === 'point_display')
+    if (!warehouse || !showcase) {
+      return { ok: false, message: 'У точки нет склада или витрины — создайте заявку на странице /store/showcase.' }
     }
+
+    let requestId: string | null = null
+    try {
+      const created = await createInventoryRequest(ctx.supabase, {
+        source_location_id: String(warehouse.id),
+        target_location_id: String(showcase.id),
+        requesting_company_id: companyId,
+        comment,
+        created_by: ctx.userId,
+        items: [{ item_id: itemId, requested_qty: quantity }],
+      })
+      requestId = created ? String(created) : null
+    } catch (error: any) {
+      return { ok: false, message: `Не удалось создать заявку: ${error?.message || 'ошибка'}` }
+    }
+    const req = { id: requestId }
 
     try {
       await writeAuditLog(ctx.supabase, {

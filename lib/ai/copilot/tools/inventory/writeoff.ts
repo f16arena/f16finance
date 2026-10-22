@@ -31,13 +31,14 @@ export const writeoffItemTool: CopilotTool = {
       getOptions: async (ctx) => {
         let q = ctx.supabase
           .from('inventory_locations')
-          .select('id, name, kind, company:company_id(name)')
+          .select('id, name, location_type, company:company_id(name)')
+          .neq('location_type', 'catalog_total')
           .order('name')
         if (ctx.organizationId) q = q.eq('organization_id', ctx.organizationId)
         const { data } = await q
         return (data || []).map((l: any) => {
           const co = Array.isArray(l.company) ? l.company[0] : l.company
-          const kindLabel = l.kind === 'warehouse' ? '🏭' : '🛍'
+          const kindLabel = l.location_type === 'warehouse' ? '🏭' : '🛍'
           return { value: l.id, label: `${kindLabel} ${l.name}${co?.name ? ` · ${co.name}` : ''}` }
         })
       },

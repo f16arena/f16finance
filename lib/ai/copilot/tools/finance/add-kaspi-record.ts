@@ -5,7 +5,6 @@
 
 import type { CopilotTool } from '../../types'
 import { companyOptions, scopedCompanyIds } from '../../query-helpers'
-import { writeAuditLog } from '@/lib/server/audit'
 
 function todayISO(): string {
   const d = new Date()
@@ -52,26 +51,11 @@ export const addKaspiRecordTool: CopilotTool = {
     const ids = await scopedCompanyIds(ctx)
     if (ids && !ids.includes(companyId)) return { ok: false, message: 'Точка не найдена.' }
 
-    const { data, error } = await ctx.supabase
-      .from('kaspi_terminal_records')
-      .insert([{ company_id: companyId, date, amount }])
-      .select('id')
-      .single()
-    if (error) return { ok: false, message: `Не удалось записать: ${error.message}` }
-
-    try {
-      await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
-        // Тегируем событие организацией: иначе запись уходит в «общий» пул
-        // audit_log и её читают копилоты других клиентов.
-        organizationId: ctx.organizationId || null,
-        entityType: 'kaspi-terminal',
-        entityId: data?.id || 'unknown',
-        action: 'create',
-        payload: { company_id: companyId, date, amount, via: 'copilot', source: ctx.source },
-      })
-    } catch {}
-
-    return { ok: true, message: `✅ запись безнала ${amount.toLocaleString('ru-RU')} ₸ за ${date} сохранена.` }
+    // Таблицы kaspi_terminal_records в базе нет, и сайт отдельный журнал терминала
+    // не ведёт: безнал вносится в доходы по смене. Ничего не пишем, а говорим куда идти.
+    return {
+      ok: false,
+      message: `Отдельного журнала терминала нет — безнал ${amount.toLocaleString('ru-RU')} ₸ за ${date} внесите в доходы смены на странице /income.`,
+    }
   },
 }

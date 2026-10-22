@@ -25,7 +25,8 @@ export const getOverdueTasksTool: CopilotTool = {
     let query = ctx.supabase
       .from('tasks')
       .select('id, title, due_date, operator_id, company_id')
-      .eq('status', 'open')
+      // Статуса 'open' в задачах нет — открытые = всё, кроме done/archived
+      .not('status', 'in', '(done,archived)')
       .lt('due_date', today)
       .order('due_date')
       .limit(30)

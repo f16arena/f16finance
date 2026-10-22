@@ -4,7 +4,7 @@
  */
 
 import type { CopilotTool } from '../../types'
-import { scopedOperatorIds, scopedOperatorRows } from '../../query-helpers'
+import { scopedCompanyIds, scopedOperatorIds, scopedOperatorRows } from '../../query-helpers'
 import { writeAuditLog } from '@/lib/server/audit'
 
 export const createTaskTool: CopilotTool = {
@@ -60,17 +60,43 @@ export const createTaskTool: CopilotTool = {
     const allowedOps = await scopedOperatorIds(ctx)
     if (allowedOps && !allowedOps.includes(operatorId)) return { ok: false, message: 'Оператор не найден.' }
 
+    // Точка задачи — основная точка оператора в своей организации: без company_id
+    // задача не видна в списках, которые фильтруются по точкам организации.
+    const scope = await scopedCompanyIds(ctx)
+    let assignQ = ctx.supabase
+      .from('operator_company_assignments')
+      .select('company_id, is_primary')
+      .eq('operator_id', operatorId)
+      .eq('is_active', true)
+    if (scope) assignQ = assignQ.in('company_id', scope)
+    const { data: assigns } = await assignQ
+    const assign = (assigns || []).find((a: any) => a.is_primary) || (assigns || [])[0]
+    const companyId = assign?.company_id ? String(assign.company_id) : null
+
+    // created_by ссылается на staff — ставим, только если актор и есть сотрудник
+    const { data: staffRow } = await ctx.supabase.from('staff').select('id').eq('id', ctx.userId).maybeSingle()
+
+    // Номер задачи — как на сайте: следующий после максимального
+    const { data: last } = await ctx.supabase
+      .from('tasks')
+      .select('task_number')
+      .order('task_number', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
     const { data, error } = await ctx.supabase
       .from('tasks')
       .insert([
         {
           operator_id: operatorId,
+          company_id: companyId,
+          task_number: Number(last?.task_number || 0) + 1,
           title,
           description,
           due_date: dueDate,
-          status: 'open',
-          created_by: ctx.userId,
-          source: 'copilot',
+          status: 'todo',
+          priority: 'medium',
+          created_by: staffRow?.id || null,
         },
       ])
       .select('id')

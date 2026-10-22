@@ -7,6 +7,7 @@
 import type { CopilotTool } from '../../types'
 import { companyOptions, scopedCompanyIds, isOrgRowAllowed } from '../../query-helpers'
 import { writeAuditLog } from '@/lib/server/audit'
+import { createInventoryRequest, decideInventoryRequest, issueInventoryRequest } from '@/lib/server/repositories/inventory'
 
 export const transferToShowcaseTool: CopilotTool = {
   name: 'transfer_to_showcase',
@@ -59,14 +60,53 @@ export const transferToShowcaseTool: CopilotTool = {
       return { ok: false, message: 'Товар не найден.' }
     }
 
-    // Используем RPC если есть, иначе через INSERT в movements
-    const { error } = await ctx.supabase.rpc('inventory_transfer_warehouse_to_showcase', {
-      p_company_id: companyId,
-      p_item_id: itemId,
-      p_quantity: quantity,
-      p_actor_user_id: ctx.userId,
-    })
-    if (error) return { ok: false, message: `Не удалось перенести: ${error.message}` }
+    // Отдельной RPC «склад → витрина» нет. Как выдача расходников на сайте
+    // (/api/admin/inventory/consumables): заявка → одобрение → выдача → приёмка,
+    // каждый шаг — существующей функцией, логику остатков не дублируем.
+    const { data: locs } = await ctx.supabase
+      .from('inventory_locations')
+      .select('id, location_type')
+      .eq('company_id', companyId)
+      .in('location_type', ['warehouse', 'point_display'])
+    const warehouse = (locs || []).find((l: any) => l.location_type === 'warehouse')
+    const showcase = (locs || []).find((l: any) => l.location_type === 'point_display')
+    if (!warehouse || !showcase) {
+      return { ok: false, message: 'У точки нет склада или витрины — перенесите товар на странице /store/showcase.' }
+    }
+
+    const comment = 'Перенос со склада на витрину через AI Copilot'
+    let requestId = ''
+    try {
+      requestId = String(await createInventoryRequest(ctx.supabase, {
+        source_location_id: String(warehouse.id),
+        target_location_id: String(showcase.id),
+        requesting_company_id: companyId,
+        comment,
+        created_by: ctx.userId,
+        items: [{ item_id: itemId, requested_qty: quantity }],
+      }))
+      const { data: lines, error: linesErr } = await ctx.supabase
+        .from('inventory_request_items')
+        .select('id, requested_qty')
+        .eq('request_id', requestId)
+      if (linesErr) throw linesErr
+      await decideInventoryRequest(ctx.supabase, {
+        request_id: requestId,
+        approved: true,
+        decision_comment: comment,
+        actor_user_id: ctx.userId,
+        items: (lines || []).map((l: any) => ({ request_item_id: String(l.id), approved_qty: Number(l.requested_qty || 0) })),
+      })
+      await issueInventoryRequest(ctx.supabase, requestId, ctx.userId)
+      const { error: rpcErr } = await ctx.supabase.rpc('inventory_receive_request', {
+        p_request_id: requestId,
+        p_actor_user_id: ctx.userId,
+      })
+      if (rpcErr) throw rpcErr
+    } catch (error: any) {
+      const tail = requestId ? ` Заявка создана — доведите её на странице /store/requests.` : ''
+      return { ok: false, message: `Не удалось перенести: ${error?.message || 'ошибка'}.${tail}` }
+    }
 
     try {
       await writeAuditLog(ctx.supabase, {
@@ -75,7 +115,7 @@ export const transferToShowcaseTool: CopilotTool = {
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,
         entityType: 'inventory-transfer',
-        entityId: `${companyId}:${itemId}`,
+        entityId: requestId,
         action: 'warehouse-to-showcase',
         payload: { company_id: companyId, item_id: itemId, quantity, via: 'copilot', source: ctx.source },
       })

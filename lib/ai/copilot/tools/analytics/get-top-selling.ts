@@ -28,7 +28,7 @@ export const getTopSellingTool: CopilotTool = {
       data = await fetchAllPages((from, to) => {
         let query = ctx.supabase
           .from('point_sale_items')
-          .select('quantity, total_amount, item:item_id(name), sale:sale_id!inner(created_at, company_id)')
+          .select('quantity, total_price, item:item_id(name), sale:sale_id!inner(created_at, company_id)')
           .gte('sale.created_at', since)
           .order('id', { ascending: true })
           .range(from, to)
@@ -46,7 +46,7 @@ export const getTopSellingTool: CopilotTool = {
       const name = item?.name || '?'
       const cur = byItem.get(name) || { name, qty: 0, sum: 0 }
       cur.qty += Number(r.quantity || 0)
-      cur.sum += Number(r.total_amount || 0)
+      cur.sum += Number(r.total_price || 0)
       byItem.set(name, cur)
     }
     const ranked = Array.from(byItem.values()).sort((a, b) => b.sum - a.sum).slice(0, 15)

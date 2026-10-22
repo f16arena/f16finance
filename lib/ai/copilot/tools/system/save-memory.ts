@@ -55,17 +55,9 @@ export const saveMemoryTool: CopilotTool = {
         created_by: ctx.userId,
         organization_id: ctx.organizationId || null,
       }])
-    if (error) {
-      // Fallback на старую схему telegram_chat_history если ai_memory ещё не создана
-      const chatKey = ctx.telegramChatId ? String(ctx.telegramChatId) : `web:${ctx.userId}`
-      await ctx.supabase.from('telegram_chat_history').insert([{
-        chat_id: chatKey,
-        role: 'system_memory',
-        content: fact,
-        created_at: new Date().toISOString(),
-      }])
-      return { ok: true, message: `📝 Запомнил (fallback): "${fact}"` }
-    }
+    // Запасной записи в telegram_chat_history нет: там одна строка history на чат,
+    // а не строки role/content — раньше «запомнил (fallback)» ничего не сохранял.
+    if (error) return { ok: false, message: `Не удалось запомнить: ${error.message}` }
 
     return { ok: true, message: `📝 Запомнил: "${fact}"` }
   },

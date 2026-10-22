@@ -27,7 +27,8 @@ export const closeTaskTool: CopilotTool = {
         let optQ = ctx.supabase
           .from('tasks')
           .select('id, title, due_date, operator_id')
-          .eq('status', 'open')
+          // Статуса 'open' в задачах нет — открытые = всё, кроме done/archived
+          .not('status', 'in', '(done,archived)')
         if (scope) optQ = optQ.in('company_id', scope)
         const { data } = await optQ
           .order('created_at', { ascending: false })
@@ -63,7 +64,7 @@ export const closeTaskTool: CopilotTool = {
 
     const { error } = await ctx.supabase
       .from('tasks')
-      .update({ status: 'done', closed_at: new Date().toISOString() })
+      .update({ status: 'done', completed_at: new Date().toISOString() })
       .eq('id', taskId)
     if (error) return { ok: false, message: `Не удалось закрыть: ${error.message}` }
 

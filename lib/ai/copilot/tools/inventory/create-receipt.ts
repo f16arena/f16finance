@@ -32,8 +32,8 @@ export const createReceiptTool: CopilotTool = {
         // Только склады, не витрины
         let q = ctx.supabase
           .from('inventory_locations')
-          .select('id, name, kind, company:company_id(name)')
-          .eq('kind', 'warehouse')
+          .select('id, name, location_type, company:company_id(name)')
+          .eq('location_type', 'warehouse')
           .order('name')
         if (ctx.organizationId) q = q.eq('organization_id', ctx.organizationId)
         const { data } = await q

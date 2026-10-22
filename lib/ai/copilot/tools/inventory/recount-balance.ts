@@ -6,6 +6,7 @@
 import type { CopilotTool } from '../../types'
 import { writeAuditLog } from '@/lib/server/audit'
 import { scopedCompanyIds, isOrgRowAllowed } from '../../query-helpers'
+import { postInventoryStocktake } from '@/lib/server/repositories/inventory'
 
 export const recountBalanceTool: CopilotTool = {
   name: 'recount_balance',
@@ -34,12 +35,12 @@ export const recountBalanceTool: CopilotTool = {
       required: true,
       description: 'Склад / витрина',
       getOptions: async (ctx) => {
-        let q = ctx.supabase.from('inventory_locations').select('id, name, kind, company:company_id(name)').order('name')
+        let q = ctx.supabase.from('inventory_locations').select('id, name, location_type, company:company_id(name)').neq('location_type', 'catalog_total').order('name')
         if (ctx.organizationId) q = q.eq('organization_id', ctx.organizationId)
         const { data } = await q
         return (data || []).map((l: any) => {
           const co = Array.isArray(l.company) ? l.company[0] : l.company
-          return { value: l.id, label: `${l.name} (${l.kind === 'warehouse' ? 'склад' : 'витрина'})${co?.name ? ` · ${co.name}` : ''}` }
+          return { value: l.id, label: `${l.name} (${l.location_type === 'warehouse' ? 'склад' : 'витрина'})${co?.name ? ` · ${co.name}` : ''}` }
         })
       },
     },
@@ -73,9 +74,10 @@ export const recountBalanceTool: CopilotTool = {
       return { ok: false, message: 'Товар не найден.' }
     }
 
+    // У inventory_balances нет id — ключ (item_id, location_id)
     const { data: existing } = await ctx.supabase
       .from('inventory_balances')
-      .select('id, quantity')
+      .select('quantity')
       .eq('item_id', itemId)
       .eq('location_id', locationId)
       .maybeSingle()
@@ -83,13 +85,19 @@ export const recountBalanceTool: CopilotTool = {
     const before = Number(existing?.quantity || 0)
     const delta = qty - before
 
-    let result
-    if (existing) {
-      result = await ctx.supabase.from('inventory_balances').update({ quantity: qty }).eq('id', existing.id)
-    } else {
-      result = await ctx.supabase.from('inventory_balances').insert([{ item_id: itemId, location_id: locationId, quantity: qty }])
+    // Как ревизия на сайте: RPC inventory_post_stocktake атомарно ставит остаток и пишет движение
+    let stocktake: any
+    try {
+      stocktake = await postInventoryStocktake(ctx.supabase, {
+        location_id: locationId,
+        counted_at: new Date().toISOString().slice(0, 10),
+        comment: comment || 'Пересчёт через AI Copilot',
+        created_by: ctx.userId,
+        items: [{ item_id: itemId, actual_qty: qty, comment }],
+      })
+    } catch (error: any) {
+      return { ok: false, message: `Не удалось пересчитать: ${error?.message || 'ошибка'}` }
     }
-    if (result.error) return { ok: false, message: `Не удалось пересчитать: ${result.error.message}` }
 
     try {
       await writeAuditLog(ctx.supabase, {
@@ -98,7 +106,7 @@ export const recountBalanceTool: CopilotTool = {
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,
         entityType: 'inventory-balance',
-        entityId: existing?.id || 'new',
+        entityId: stocktake?.stocktake_id ? String(stocktake.stocktake_id) : `${locationId}:${itemId}`,
         action: 'recount',
         payload: { item_id: itemId, location_id: locationId, before, after: qty, delta, comment, via: 'copilot', source: ctx.source },
       })

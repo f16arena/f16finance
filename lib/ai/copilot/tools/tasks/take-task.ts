@@ -1,5 +1,5 @@
 /**
- * AI tool: взять задачу в работу (status open → in_progress).
+ * AI tool: взять задачу в работу (status todo → in_progress).
  * Capability: tasks.edit
  */
 
@@ -10,7 +10,7 @@ import { scopedCompanyIds } from '../../query-helpers'
 export const takeTaskTool: CopilotTool = {
   name: 'take_task',
   category: 'tasks',
-  description: 'Взять задачу в работу (status: open → in_progress)',
+  description: 'Взять задачу в работу (status: todo → in_progress)',
   requiredCapability: 'tasks.edit',
   severity: 'low',
   params: [
@@ -26,7 +26,8 @@ export const takeTaskTool: CopilotTool = {
         let optQ = ctx.supabase
           .from('tasks')
           .select('id, title, due_date')
-          .eq('status', 'open')
+          // Статуса 'open' в задачах нет — в работу берём из backlog/todo
+          .in('status', ['backlog', 'todo'])
         if (scope) optQ = optQ.in('company_id', scope)
         const { data } = await optQ
           .order('created_at', { ascending: false })
@@ -52,7 +53,7 @@ export const takeTaskTool: CopilotTool = {
 
     const { error } = await ctx.supabase
       .from('tasks')
-      .update({ status: 'in_progress', started_at: new Date().toISOString() })
+      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
       .eq('id', taskId)
     if (error) return { ok: false, message: `Не удалось обновить: ${error.message}` }
 
