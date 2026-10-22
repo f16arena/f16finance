@@ -725,18 +725,17 @@ export async function POST(request: Request) {
     const expiryError = await validateExpiry(supabase as any, receiptItems)
     if (expiryError) return json({ error: expiryError }, 400)
 
-    const result = await postInventoryReceipt(supabase as any, {
-      location_id: String(body.payload.location_id || '').trim(),
-      supplier_id: supplierId,
-      received_at: body.payload.received_at,
-      invoice_number: invoiceNumber || null,
-      invoice_file_url: invoiceFileUrl,
-      comment: body.payload.comment || null,
-      created_by: actorUserId,
-      items: receiptItems,
-    })
-    const receiptId = String(result?.receipt_id || result?.id || '').trim()
-    if (!receiptId) throw new Error('Не удалось получить id приемки')
+    // Все проверки — до проводки: RPC сразу кладёт товар на склад, и отказ после
+    // него оставлял приход без расхода и долга, а повтор задваивал остаток.
+    const paymentMode = body.payload.payment_mode === 'deferred' ? 'deferred' : 'now'
+    const paymentMethod = body.payload.payment_method === 'kaspi' ? 'kaspi' : 'cash'
+    const paymentReceiptFileUrl = String(body.payload.payment_receipt_file_url || '').trim() || null
+    const isConsignment = Boolean(body.payload.is_consignment)
+    const dueDate = String(body.payload.due_date || '').trim() || null
+
+    if (paymentMode === 'now' && !paymentReceiptFileUrl) {
+      return json({ error: 'Загрузите чек об оплате (для приемки с оплатой сразу)' }, 400)
+    }
 
     // Изоляция: категория расхода — из справочника своей орг. Иначе в расход и в
     // долг поставщику попадало название/id категории соседнего арендатора.
@@ -773,6 +772,19 @@ export async function POST(request: Request) {
       .maybeSingle()
     if (supplierError) throw supplierError
 
+    const result = await postInventoryReceipt(supabase as any, {
+      location_id: String(body.payload.location_id || '').trim(),
+      supplier_id: supplierId,
+      received_at: body.payload.received_at,
+      invoice_number: invoiceNumber || null,
+      invoice_file_url: invoiceFileUrl,
+      comment: body.payload.comment || null,
+      created_by: actorUserId,
+      items: receiptItems,
+    })
+    const receiptId = String(result?.receipt_id || result?.id || '').trim()
+    if (!receiptId) throw new Error('Не удалось получить id приемки')
+
     const autoExpenseCommentParts = [
       `Авто из приемки №${invoiceNumber || receiptId}`,
       supplierCreate?.organization_name ? `Организация: ${supplierCreate.organization_name}` : null,
@@ -782,15 +794,6 @@ export async function POST(request: Request) {
     const autoExpenseComment = autoExpenseCommentParts.join('\n')
 
     const receiptTotal = Number(result?.total_amount || 0)
-    const paymentMode = body.payload.payment_mode === 'deferred' ? 'deferred' : 'now'
-    const paymentMethod = body.payload.payment_method === 'kaspi' ? 'kaspi' : 'cash'
-    const paymentReceiptFileUrl = String(body.payload.payment_receipt_file_url || '').trim() || null
-    const isConsignment = Boolean(body.payload.is_consignment)
-    const dueDate = String(body.payload.due_date || '').trim() || null
-
-    if (paymentMode === 'now' && !paymentReceiptFileUrl) {
-      return json({ error: 'Загрузите чек об оплате (для приемки с оплатой сразу)' }, 400)
-    }
 
     let createdExpenseId: string | null = null
     if (paymentMode === 'now') {

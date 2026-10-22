@@ -538,6 +538,10 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
       setError('Выберите поставщика')
       return
     }
+    if (paymentMode === 'now' && !paymentReceiptFileUrl) {
+      setError('Загрузите чек об оплате или выберите «В долг / Под реализацию»')
+      return
+    }
     if (supplierMode === 'new') {
       if (!supplierName.trim()) {
         setError('Введите название поставщика')
@@ -1979,6 +1983,10 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
               </div>
             </div>
 
+            {/* Ошибка дублируется в окне: общая плашка страницы остаётся под ним и её не видно. */}
+            {error ? (
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div>
+            ) : null}
             <Button data-tour="receipt-submit" type="submit" disabled={saving || loading} className="w-full">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
               Провести приемку
