@@ -14,6 +14,7 @@ import {
   Package,
   PlusCircle,
   ScrollText,
+  Server,
   Settings,
   TrendingUp,
   Zap,
@@ -27,6 +28,7 @@ const NAV = [
   { href: '/platform/packages', label: 'Конструктор', icon: Package, exact: false },
   { href: '/platform/analytics', label: 'Аналитика', icon: TrendingUp, exact: false },
   { href: '/platform/audit', label: 'Аудит', icon: ScrollText, exact: false },
+  { href: '/platform/status', label: 'Сервер', icon: Server, exact: false },
   { href: '/platform/help-images', label: 'Иллюстрации', icon: ImageIcon, exact: false },
   { href: '/platform/settings', label: 'Настройки', icon: Settings, exact: false },
 ]
