@@ -1,5 +1,7 @@
 # Orda на своём сервере (cloud-001, 185.113.132.3)
 
+**Переключено 22.10.2026 в 00:00 UTC (05:00 Алматы).** Vercel на паузе, облачный Supabase больше не пишется. Дальше — раздел «Полный уход».
+
 Переезд с Vercel + облачного Supabase (проект `tmudsqgagblmdctaosgw`, Токио). Всё на одной машине:
 
 | Что | Где | Порт (только 127.0.0.1) |
@@ -7,7 +9,7 @@
 | Supabase (стек `orda-supabase`) | `/opt/supabase/orda` | 8100 API, 5434/6544 Postgres через пулер |
 | Веб (`orda-web`) | `/opt/orda/app` (клон репо) | 3200 |
 | Кроны (36 шт., из `vercel.json`) | `/etc/cron.d/orda` ← `gen-crontab.mjs` | лог `/var/log/orda-cron.log` |
-| Бэкап | `/etc/cron.d/orda-backup` → `backup.sh` | `/opt/orda/backups`, лог `/var/log/orda-backup.log` |
+| Бэкап | `/etc/cron.d/orda-backup` → `backup.sh` (21:30 UTC) | `/opt/orda/backups` (14 дней), лог `/var/log/orda-backup.log`; копия на ПК владельца — задача Windows «Orda backup pull» (`pull-backup-windows.ps1`, 09:00 и при входе) → `%USERPROFILE%\Backups\Orda` |
 | HTTPS | Caddy, `/etc/caddy/sites/orda.caddy` + общий catch-all в `commrent.caddy` | 80/443 |
 
 Секреты лежат только на сервере: `/opt/supabase/orda/.env`, `/opt/orda/web.env`, `/opt/orda/build.env`, `/opt/orda/cloud-db.env` (все 600).
