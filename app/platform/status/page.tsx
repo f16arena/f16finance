@@ -13,12 +13,15 @@ import {
   HardDrive,
   Loader2,
   MemoryStick,
+  Pin,
   RefreshCw,
   ScrollText,
   Server,
   Timer,
   X,
 } from 'lucide-react'
+
+import { confirmDialog } from '@/components/ui/confirm-dialog'
 
 import DatabaseTab from './database-tab'
 
@@ -325,6 +328,9 @@ function ServerTab() {
   const [lastOk, setLastOk] = useState(0)
   const [logSource, setLogSource] = useState<[string, string] | null>(null)
   const [, force] = useState(0)
+  const [control, setControl] = useState<{ pin: string | null; pending: { action: string; sha?: string } | null; rollback_since: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [controlMsg, setControlMsg] = useState<string | null>(null)
 
   const tick = useCallback(async () => {
     try {
@@ -333,7 +339,26 @@ function ServerTab() {
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`)
       setData(j); setError(null); setLastOk(Date.now())
     } catch (e: any) { setError(e?.message || 'нет связи') }
+    fetch('/api/admin/platform/deploy', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((c) => c && setControl(c)).catch(() => null)
   }, [])
+
+  // Пересобрать / откатить / вернуть автодеплой: заявку забирает deploy.sh на сервере в течение минуты.
+  const deployAction = async (action: 'redeploy' | 'rollback' | 'unpin', d?: Deploy) => {
+    const ask = {
+      redeploy: { title: 'Пересобрать текущую версию?', description: 'Сайт соберётся заново из того же коммита (~2 минуты). Пока идёт сборка, работает прежняя версия.', confirmLabel: 'Пересобрать' },
+      rollback: { title: `Откатить сайт на ${(d?.sha || '').slice(0, 7)}?`, description: `«${d?.subject || ''}». Откатывается только код, база остаётся как есть. Версия закрепится: новые коммиты не будут выкатываться, пока не нажмёте «Вернуть автодеплой».`, confirmLabel: 'Откатить' },
+      unpin: { title: 'Вернуть автодеплой?', description: 'Сервер соберёт последний коммит из main и дальше снова будет выкатывать новые сам.', confirmLabel: 'Вернуть' },
+    }[action]
+    if (!(await confirmDialog(ask))) return
+    setBusy(true); setControlMsg(null)
+    try {
+      const r = await fetch('/api/admin/platform/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, sha: d?.sha_full || d?.sha }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
+      setControlMsg('Заявка принята — сервер возьмёт её в течение минуты, сборка ~2 минуты.')
+      void tick()
+    } catch (e: any) { setControlMsg('Не получилось: ' + (e?.message || e)) } finally { setBusy(false) }
+  }
   useEffect(() => {
     void tick()
     const id = setInterval(() => void tick(), 5000)
@@ -467,10 +492,22 @@ function ServerTab() {
         {p ? (
           <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
             <div className="min-w-0">
-              <SectionTitle icon={GitCommit} title="Деплои" sub="push в main → сервер собирает сам" />
+              <SectionTitle icon={GitCommit} title="Деплои" sub={control?.pin ? 'версия закреплена — новые коммиты ждут' : 'push в main → сервер собирает сам'}
+                right={<button disabled={busy || !!control?.pending} onClick={() => void deployAction('redeploy')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"><RefreshCw className="h-3 w-3" />Пересобрать</button>} />
+              {control?.pin ? (
+                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-300">
+                  <Pin className="h-4 w-4" />
+                  <span>Сайт закреплён на <b className="font-mono">{control.pin.slice(0, 7)}</b> после отката — автодеплой на паузе.</span>
+                  <button disabled={busy || !!control.pending} onClick={() => void deployAction('unpin')} className="ml-auto rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50">Вернуть автодеплой</button>
+                </div>
+              ) : null}
+              {control?.pending ? <div className="mb-3 flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm text-sky-700 dark:text-sky-300"><Loader2 className="h-4 w-4 animate-spin" />Заявка «{({ redeploy: 'пересобрать', rollback: 'откатить', unpin: 'вернуть автодеплой' } as Record<string, string>)[control.pending.action] || control.pending.action}» ждёт сервер (до минуты)…</div> : null}
+              {controlMsg && !control?.pending ? <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">{controlMsg}</div> : null}
               <Card className="divide-y divide-slate-100 dark:divide-white/[0.06]">
                 {p.deploys.length ? p.deploys.slice(0, 10).map((d, i) => {
                   const [lv, label] = DEPLOY[d.status] || DEPLOY.unknown
+                  const live = control?.pin ? !!d.sha_full && d.sha_full === control.pin && i === p.deploys.findIndex((x) => x.sha_full === control.pin) : i === p.deploys.findIndex((x) => x.status === 'ok')
+                  const canRollback = !live && d.status === 'ok' && !!d.sha_full && !!control && d.start >= control.rollback_since
                   return (
                     <div key={i} className="flex items-start gap-3 px-5 py-3.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                       <span className="mt-0.5"><StatusIcon level={lv} /></span>
@@ -479,9 +516,11 @@ function ServerTab() {
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                           <ShaLink repo={p.repo} d={d} />
                           <span className={LEVEL[lv].text}>{label}</span>
+                          {live ? <span className="rounded-full bg-violet-500/10 px-2 py-px text-[11px] font-medium text-violet-600 dark:text-violet-300">сейчас на сайте</span> : null}
                           {d.error ? <span className="text-rose-500">· {d.error}</span> : null}
                         </div>
                       </div>
+                      {canRollback ? <button disabled={busy || !!control?.pending} onClick={() => void deployAction('rollback', d)} className="shrink-0 self-center rounded-lg border border-slate-200 px-2 py-1 text-[11px] text-slate-500 hover:border-amber-400 hover:text-amber-600 disabled:opacity-50 dark:border-white/10 dark:text-slate-400">Откатить сюда</button> : null}
                       <div className="shrink-0 text-right text-xs tabular-nums text-slate-500 dark:text-slate-400">
                         <div>{dt(d.start)}</div>
                         <div className="text-slate-400">{d.status === 'running' ? 'идёт ' + dur(now - d.start) : dur(d.duration)}</div>

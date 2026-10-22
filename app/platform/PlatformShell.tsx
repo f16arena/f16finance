@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { ConfirmDialogHost } from '@/components/ui/confirm-dialog'
 import {
   BarChart3,
   Building2,
@@ -104,6 +105,7 @@ export default function PlatformShell({ children }: { children: React.ReactNode 
       </aside>
 
       <main className="flex-1 overflow-auto">{children}</main>
+      <ConfirmDialogHost />
     </div>
   )
 }

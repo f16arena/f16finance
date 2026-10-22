@@ -36,7 +36,11 @@
 
 Автоматически: `/etc/cron.d/orda-deploy` раз в минуту запускает `deploy.sh` — если в `origin/main` новый коммит, сервер пересобирает и перезапускает `orda-web` (2–4 мин), обновляет кроны. Лог: `/var/log/orda-deploy.log`. Сборка упала — продолжает работать прежняя версия.
 
-Руками: `FORCE=1 sh /opt/orda/app/deploy/vps/deploy.sh`. Кроны: `sh /opt/orda/app/deploy/vps/install-crons.sh` (на хосте node нет, генератор крутится в контейнере).
+Cron запускает копию скрипта `/opt/orda/bin/deploy.sh` (её обновляет сам деплой `main`), а не файл из репозитория: при откате репозиторий уходит на старый коммит.
+
+Кнопки на `/platform/status` («Пересобрать», «Откатить сюда», «Вернуть автодеплой») кладут заявку в `/opt/orda/control/request.json` (смонтирована в контейнер как `/control`), её забирает `deploy.sh`. Откат закрепляет версию в `/opt/orda/control/pin` — пока файл есть, новые коммиты не выкатываются. Аварийно вернуть автодеплой с сервера: `rm /opt/orda/control/pin && FORCE=1 sh /opt/orda/bin/deploy.sh`.
+
+Руками: `FORCE=1 sh /opt/orda/bin/deploy.sh`. Кроны: `sh /opt/orda/app/deploy/vps/install-crons.sh` (на хосте node нет, генератор крутится в контейнере).
 
 Расписание кронов по-прежнему живёт в `vercel.json` — файл остаётся источником, хотя Vercel больше не используется.
 
