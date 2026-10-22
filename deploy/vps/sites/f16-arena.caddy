@@ -14,8 +14,46 @@ www.f16-arena.kz {
 # Агенты игровых серверов и MatchZy ходят сюда по API — тот же адрес, те же ключи.
 tournament.f16-arena.kz {
 	encode zstd gzip
+	# журнал запросов: видно агентов, MatchZy и ошибки (Next сам запросы не пишет)
+	log {
+		output file /var/log/caddy/tournament-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
 	reverse_proxy 127.0.0.1:3330 {
 		# живые обновления матчей (стрим) — без буферизации
 		flush_interval -1
+	}
+}
+
+# Своя база Tour (deploy/vps/tour-supabase). Как шлюз Supabase в облаке: без ключа сервиса
+# пускаем только к публичным файлам Storage. Ключ — только на сервере:
+# /etc/caddy/tour-db-key.caddy (root:caddy 640), сниппет (tour_db_key) с матчером
+#   @no_key not header apikey "<SERVICE_ROLE_KEY из /opt/supabase/tour/.env>"
+import /etc/caddy/tour-db-key.caddy
+
+db.f16-arena.kz {
+	encode zstd gzip
+	import tour_db_key
+	route {
+		handle /storage/v1/object/public/* {
+			uri strip_prefix /storage/v1
+			reverse_proxy 127.0.0.1:8211 {
+				header_up X-Forwarded-Prefix /storage/v1
+			}
+		}
+		handle @no_key {
+			respond "unauthorized" 401
+		}
+		handle_path /rest/v1/* {
+			reverse_proxy 127.0.0.1:8210
+		}
+		handle_path /storage/v1/* {
+			reverse_proxy 127.0.0.1:8211 {
+				header_up X-Forwarded-Prefix /storage/v1
+			}
+		}
+		respond 404
 	}
 }
