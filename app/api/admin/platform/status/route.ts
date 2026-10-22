@@ -32,7 +32,9 @@ async function cronSummary(now: number) {
     runs.set(m[3], list)
   }
 
-  const paths = new Set([...schedule.keys(), ...runs.keys()])
+  // Только кроны из расписания: снятый крон (убрали из vercel.json) иначе сутки висит
+  // в журнале со старыми падениями и показывается как «крон падает».
+  const paths = new Set(schedule.size ? schedule.keys() : runs.keys())
   return [...paths].map((path) => {
     const list = runs.get(path) || []
     const last = list[list.length - 1] || null
