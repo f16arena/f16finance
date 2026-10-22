@@ -24,6 +24,8 @@ import {
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 
 import DatabaseTab from './database-tab'
+import ErrorsTab from './errors-tab'
+import LogsTab from './logs-tab'
 
 // Платформа → «Сервер»: здоровье Orda на cloud-001 вживую. Данные — /api/admin/platform/status
 // (панель сервера + кроны из журнала + ошибки из audit_log), обновление каждые 5 секунд.
@@ -682,6 +684,8 @@ function ServerTab() {
 
 const TABS = [
   { key: 'server', label: 'Сервер и деплои', icon: Server },
+  { key: 'logs', label: 'Логи', icon: ScrollText },
+  { key: 'errors', label: 'Ошибки', icon: AlertTriangle },
   { key: 'database', label: 'База данных', icon: Database },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
@@ -691,7 +695,7 @@ export default function PlatformStatusPage() {
   const [tab, setTab] = useState<TabKey>('server')
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    if (t === 'database') setTab('database')
+    if (t === 'database' || t === 'logs' || t === 'errors') setTab(t)
   }, [])
   const choose = (t: TabKey) => {
     setTab(t)
@@ -710,7 +714,7 @@ export default function PlatformStatusPage() {
           ))}
         </div>
       </div>
-      {tab === 'server' ? <ServerTab /> : <DatabaseTab />}
+      {tab === 'server' ? <ServerTab /> : tab === 'logs' ? <LogsTab /> : tab === 'errors' ? <ErrorsTab /> : <DatabaseTab />}
     </div>
   )
 }
