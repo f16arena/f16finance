@@ -48,6 +48,7 @@ export type HrEmployee = {
   dismissed_at: string | null
   monthly_salary: number | null
   is_admin_staff?: boolean | null
+  paired_staff_id?: string | null
   telegram_chat_id?: string | null
   hire_date?: string | null
   company_ids?: string[]
@@ -127,6 +128,8 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
 
   const isOperator = employee.kind === 'operator'
   const isHybrid = isOperator && employee.is_admin_staff === true
+  // Оклад оператора-двойника хранится в его записи staff — правим её отдельным запросом.
+  const pairedStaffId = isOperator ? employee.paired_staff_id || null : null
 
   const typeLabel = isHybrid ? 'Hybrid' : isOperator ? 'Оператор' : 'Админ'
   const typeColor = isHybrid
@@ -169,6 +172,16 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
       })
       const data = await res.json()
       if (!res.ok || !data.ok) throw new Error(data.error || 'Не удалось сохранить')
+      const sal = Number(monthlySalary)
+      if (pairedStaffId && monthlySalary.trim() !== '' && Number.isFinite(sal) && sal >= 0 && sal !== (employee.monthly_salary ?? null)) {
+        const salRes = await fetch('/api/admin/hr/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'staff', id: pairedStaffId, action: 'updateProfile', payload: { monthly_salary: sal } }),
+        })
+        const salData = await salRes.json().catch(() => ({}))
+        if (!salRes.ok || !salData.ok) throw new Error(salData.error || 'Профиль сохранён, а оклад — нет')
+      }
       setOkMsg('Сохранено')
       onUpdated()
       setTimeout(() => setOkMsg(null), 2000)
@@ -495,7 +508,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
           )}
 
           {/* Зарплата (только staff или hybrid) */}
-          {(!isOperator || isHybrid) && (
+          {(!isOperator || isHybrid || pairedStaffId) && (
             <Section icon={<Wallet className="w-3.5 h-3.5" />} label="Зарплата">
               <Field label="Месячный оклад (₸)">
                 <input

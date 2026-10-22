@@ -26,6 +26,8 @@ type HrEmployee = {
   is_active: boolean
   is_admin_staff?: boolean
   is_hybrid?: boolean
+  // Запись staff того же человека: оклад живёт там, карточка оператора правит его через неё.
+  paired_staff_id?: string | null
   company_ids?: string[]
   has_login?: boolean
   last_login?: string | null
@@ -221,6 +223,7 @@ export async function GET(req: Request) {
         null
       if (matchedStaff) {
         op.is_hybrid = true
+        op.paired_staff_id = matchedStaff.id
         op.monthly_salary = matchedStaff.monthly_salary
         // Если у оператора нет роли — берём со staff
         if (!op.role || op.role === 'operator') op.role = matchedStaff.role || op.role
