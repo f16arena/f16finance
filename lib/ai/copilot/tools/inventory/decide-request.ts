@@ -90,7 +90,7 @@ export const approveRequestTool: CopilotTool = {
         request_id: reqId,
         approved: true,
         decision_comment: 'Одобрено через AI Copilot',
-        actor_user_id: ctx.userId,
+        actor_user_id: ctx.actorUserId,
         items: (lines || []).map((l: any) => ({ request_item_id: String(l.id), approved_qty: Number(l.requested_qty || 0) })),
       })
     } catch (error: any) {
@@ -99,7 +99,7 @@ export const approveRequestTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,
@@ -151,7 +151,7 @@ export const declineRequestTool: CopilotTool = {
         request_id: reqId,
         approved: false,
         decision_comment: reason,
-        actor_user_id: ctx.userId,
+        actor_user_id: ctx.actorUserId,
       })
     } catch (error: any) {
       return { ok: false, message: `Не удалось отклонить: ${error?.message || 'ошибка'}` }
@@ -159,7 +159,7 @@ export const declineRequestTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

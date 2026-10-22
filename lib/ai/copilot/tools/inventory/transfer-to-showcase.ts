@@ -82,7 +82,7 @@ export const transferToShowcaseTool: CopilotTool = {
         target_location_id: String(showcase.id),
         requesting_company_id: companyId,
         comment,
-        created_by: ctx.userId,
+        created_by: ctx.actorUserId,
         items: [{ item_id: itemId, requested_qty: quantity }],
       }))
       const { data: lines, error: linesErr } = await ctx.supabase
@@ -94,13 +94,13 @@ export const transferToShowcaseTool: CopilotTool = {
         request_id: requestId,
         approved: true,
         decision_comment: comment,
-        actor_user_id: ctx.userId,
+        actor_user_id: ctx.actorUserId,
         items: (lines || []).map((l: any) => ({ request_item_id: String(l.id), approved_qty: Number(l.requested_qty || 0) })),
       })
-      await issueInventoryRequest(ctx.supabase, requestId, ctx.userId)
+      await issueInventoryRequest(ctx.supabase, requestId, ctx.actorUserId)
       const { error: rpcErr } = await ctx.supabase.rpc('inventory_receive_request', {
         p_request_id: requestId,
-        p_actor_user_id: ctx.userId,
+        p_actor_user_id: ctx.actorUserId,
       })
       if (rpcErr) throw rpcErr
     } catch (error: any) {
@@ -110,7 +110,7 @@ export const transferToShowcaseTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

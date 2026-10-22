@@ -63,8 +63,10 @@ export type CopilotToolResult = {
 }
 
 export type CopilotContext = {
-  /** Кто запросил действие (user_id) */
+  /** Кто запросил действие: на сайте — auth user id, из бота — id staff/оператора */
   userId: string
+  /** auth.users.id актора для полей «кто сделал» в базе; null — аккаунта входа нет */
+  actorUserId: string | null
   /** Telegram chat_id если из бота */
   telegramChatId?: number
   /** Активная организация */

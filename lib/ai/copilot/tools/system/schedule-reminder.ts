@@ -43,14 +43,14 @@ export const scheduleReminderTool: CopilotTool = {
     const { data, error } = await ctx.supabase
       .from('reminders')
       // Мультитенантная изоляция: привязываем напоминание к своей организации.
-      .insert([{ text, remind_at: isoTime, audience, created_by: ctx.userId, status: 'pending', organization_id: ctx.organizationId || null }])
+      .insert([{ text, remind_at: isoTime, audience, created_by: ctx.actorUserId, status: 'pending', organization_id: ctx.organizationId || null }])
       .select('id')
       .single()
     if (error) return { ok: false, message: `Не удалось: ${error.message}` }
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

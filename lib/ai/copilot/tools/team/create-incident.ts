@@ -99,7 +99,7 @@ export const createIncidentTool: CopilotTool = {
       p_description: description,
       p_subject_staff_id: subjectStaffId,
       p_reported_by: null,
-      p_reported_by_user_id: ctx.userId || null,
+      p_reported_by_user_id: ctx.actorUserId || null,
       p_article_id: null,
       p_severity: severity,
       p_fine_amount: null,
@@ -115,7 +115,7 @@ export const createIncidentTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

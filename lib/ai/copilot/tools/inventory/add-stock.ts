@@ -111,7 +111,7 @@ export const addStockTool: CopilotTool = {
       p_supplier_id: null,
       p_invoice_number: null,
       p_comment: `Оприходование: ${reason}`,
-      p_created_by: ctx.userId,
+      p_created_by: ctx.actorUserId,
       p_items: itemsJson,
     })
 
@@ -122,7 +122,7 @@ export const addStockTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

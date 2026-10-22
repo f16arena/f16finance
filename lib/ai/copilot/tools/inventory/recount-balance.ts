@@ -92,7 +92,7 @@ export const recountBalanceTool: CopilotTool = {
         location_id: locationId,
         counted_at: new Date().toISOString().slice(0, 10),
         comment: comment || 'Пересчёт через AI Copilot',
-        created_by: ctx.userId,
+        created_by: ctx.actorUserId,
         items: [{ item_id: itemId, actual_qty: qty, comment }],
       })
     } catch (error: any) {
@@ -101,7 +101,7 @@ export const recountBalanceTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

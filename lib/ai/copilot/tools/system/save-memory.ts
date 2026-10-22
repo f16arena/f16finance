@@ -52,7 +52,7 @@ export const saveMemoryTool: CopilotTool = {
         key,
         value: fact,
         source: 'user',
-        created_by: ctx.userId,
+        created_by: ctx.actorUserId,
         organization_id: ctx.organizationId || null,
       }])
     // Запасной записи в telegram_chat_history нет: там одна строка history на чат,

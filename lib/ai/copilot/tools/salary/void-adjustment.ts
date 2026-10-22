@@ -112,7 +112,7 @@ export const voidAdjustmentTool: CopilotTool = {
       .update({
         status: 'voided',
         voided_at: new Date().toISOString(),
-        voided_by: ctx.userId,
+        voided_by: ctx.actorUserId,
         void_reason: reason,
       })
       .eq('id', id)
@@ -123,7 +123,7 @@ export const voidAdjustmentTool: CopilotTool = {
         .from('operator_salary_adjustments')
         .update({
           voided_at: new Date().toISOString(),
-          voided_by: ctx.userId,
+          voided_by: ctx.actorUserId,
           void_reason: reason,
         })
         .eq('id', id)
@@ -134,7 +134,7 @@ export const voidAdjustmentTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

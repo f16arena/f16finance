@@ -35,7 +35,7 @@ export const lockPayrollPeriodTool: CopilotTool = {
         period_start: start,
         period_end: end,
         locked_at: new Date().toISOString(),
-        locked_by: ctx.userId,
+        locked_by: ctx.actorUserId,
       }])
       .select('id')
       .single()
@@ -43,7 +43,7 @@ export const lockPayrollPeriodTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

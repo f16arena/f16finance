@@ -12,6 +12,7 @@ import { runCopilot, handleCallback } from './engine'
 import { copilotResponseToTelegram } from './adapters/telegram'
 import { loadUserCapabilities } from '@/lib/server/capabilities'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
+import { findAuthUserIdByEmail } from '@/lib/server/staff-auth-users'
 import type { CopilotContext, CopilotResponse } from './types'
 
 // Lazy initialization (один раз на процесс)
@@ -132,6 +133,7 @@ async function buildContext(params: {
     : await loadUserCapabilities(params.userId, params.role)
   return {
     userId: params.userId,
+    actorUserId: await resolveActorUserId(supabase, params),
     telegramChatId: params.telegramChatId,
     organizationId: params.organizationId,
     isSuperAdmin: params.isSuperAdmin,
@@ -141,4 +143,35 @@ async function buildContext(params: {
     currentPath: params.currentPath,
     supabase,
   }
+}
+
+/**
+ * Из бота userId — это id записи staff/оператора (или сырой Telegram id), а поля
+ * created_by / actor_user_id в базе ждут auth.users.id: запись падала на uuid/FK.
+ * Сотрудник — по email, оператор — через operator_auth.
+ */
+async function resolveActorUserId(
+  supabase: any,
+  params: { userId: string; role: string | null; source: 'telegram' | 'web' },
+): Promise<string | null> {
+  if (params.source === 'web') return params.userId
+  try {
+    if (params.role === 'operator') {
+      const { data } = await supabase
+        .from('operator_auth')
+        .select('user_id')
+        .eq('operator_id', params.userId)
+        .not('user_id', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      return data?.user_id ? String(data.user_id) : null
+    }
+    if (params.role && params.role !== 'super_admin') {
+      const { data } = await supabase.from('staff').select('email').eq('id', params.userId).maybeSingle()
+      return await findAuthUserIdByEmail(supabase, data?.email)
+    }
+  } catch {
+    /* без автора запись всё равно пройдёт */
+  }
+  return null
 }

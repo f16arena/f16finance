@@ -8,7 +8,7 @@ import { requireCapability } from '@/lib/server/capabilities'
 import { requireOrgFeature } from '@/lib/server/entitlements'
 import { json } from '@/lib/server/api-response'
 import { normalizeQty } from '@/lib/domain/inventory-quantity'
-import { kzTodayISO } from '@/lib/server/forecast-inputs'
+import { createWriteoffAutoExpense } from '@/lib/server/writeoff-expense'
 
 function canManageStore(access: {
   isSuperAdmin: boolean
@@ -199,48 +199,12 @@ export async function POST(request: Request) {
       payload: result,
     })
 
-    // Автозапись убытка в расходы: сумма по себестоимости, категория «Списание
-    // товаров», компания точки списания. При отмене списания расход удаляется
-    // по маркеру [auto-writeoff:id] в комментарии.
+    // Автозапись убытка в расходы (общая с копилотом).
     try {
-      const writeoffId = String(result?.writeoff_id || result?.id || '')
-      if (writeoffId) {
-        const { data: woRow } = await supabase
-          .from('inventory_writeoffs')
-          .select('total_amount, written_at, reason, location:location_id(company_id)')
-          .eq('id', writeoffId)
-          .maybeSingle()
-        const loc = Array.isArray((woRow as any)?.location) ? (woRow as any).location[0] : (woRow as any)?.location
-        const total = Number((woRow as any)?.total_amount || 0)
-        if (woRow && loc?.company_id && total > 0) {
-          const writtenDate = String((woRow as any).written_at || '').slice(0, 10)
-          // Используем существующую категорию расходов вида «Списание / брак»,
-          // если она заведена в справочнике; иначе — дефолтное имя
-          let categoryName = 'Списание товаров'
-          const orgId = access.activeOrganization?.id || null
-          let catQuery = supabase.from('expense_categories').select('name').ilike('name', '%списан%').limit(1)
-          // NEVER-pattern: не-супер без орг → только глобальные категории (org IS NULL),
-          // а не справочник чужого арендатора.
-          if (orgId) catQuery = catQuery.or(`organization_id.is.null,organization_id.eq.${orgId}`)
-          else if (!access.isSuperAdmin) catQuery = catQuery.is('organization_id', null)
-          const { data: catRows } = await catQuery
-          if (catRows?.[0]?.name) categoryName = String(catRows[0].name)
-          const { error: expErr } = await supabase.from('expenses').insert([{
-            // Фолбэк «сегодня» — по Казахстану (сервер в UTC)
-            date: writtenDate || kzTodayISO(),
-            company_id: loc.company_id,
-            operator_id: null,
-            category: categoryName,
-            // Неденежный убыток: кладём в безнал, чтобы не искажать сверку
-            // физической наличной кассы (реальных денег из ящика не уходило)
-            cash_amount: 0,
-            kaspi_amount: total,
-            comment: `Автоматически: списание со склада по себестоимости. Причина: ${(woRow as any).reason || '—'} [auto-writeoff:${writeoffId}]`,
-            status: 'confirmed',
-          }])
-          if (expErr) throw expErr
-        }
-      }
+      await createWriteoffAutoExpense(supabase, String(result?.writeoff_id || result?.id || ''), {
+        organizationId: access.activeOrganization?.id || null,
+        isSuperAdmin: access.isSuperAdmin,
+      })
     } catch (autoExpErr: any) {
       // Расход — побочный эффект: списание уже проведено, не валим ответ
       await writeSystemErrorLogSafe({ scope: 'server', area: 'store/writeoffs.autoExpense', message: autoExpErr?.message || 'error' })

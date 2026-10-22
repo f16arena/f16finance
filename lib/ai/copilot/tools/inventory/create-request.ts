@@ -93,7 +93,7 @@ export const createInventoryRequestTool: CopilotTool = {
         target_location_id: String(showcase.id),
         requesting_company_id: companyId,
         comment,
-        created_by: ctx.userId,
+        created_by: ctx.actorUserId,
         items: [{ item_id: itemId, requested_qty: quantity }],
       })
       requestId = created ? String(created) : null
@@ -104,7 +104,7 @@ export const createInventoryRequestTool: CopilotTool = {
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

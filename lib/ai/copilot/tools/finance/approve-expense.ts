@@ -70,13 +70,13 @@ export const approveExpenseTool: CopilotTool = {
 
     const { error } = await ctx.supabase
       .from('expenses')
-      .update({ status: 'approved', approved_at: new Date().toISOString(), approved_by: ctx.userId })
+      .update({ status: 'approved', approved_at: new Date().toISOString(), approved_by: ctx.actorUserId })
       .eq('id', expenseId)
     if (error) return { ok: false, message: `Не удалось одобрить: ${error.message}` }
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,
@@ -156,13 +156,13 @@ export const declineExpenseTool: CopilotTool = {
 
     const { error } = await ctx.supabase
       .from('expenses')
-      .update({ status: 'declined', declined_at: new Date().toISOString(), declined_by: ctx.userId, declined_reason: reason })
+      .update({ status: 'declined', declined_at: new Date().toISOString(), declined_by: ctx.actorUserId, declined_reason: reason })
       .eq('id', expenseId)
     if (error) return { ok: false, message: `Не удалось: ${error.message}` }
 
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,

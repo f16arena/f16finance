@@ -7,7 +7,8 @@
  */
 
 import type { CopilotTool } from '../../types'
-import { writeAuditLog } from '@/lib/server/audit'
+import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { createWriteoffAutoExpense } from '@/lib/server/writeoff-expense'
 import { scopedCompanyIds, isOrgRowAllowed } from '../../query-helpers'
 
 function todayISO(): string {
@@ -134,7 +135,7 @@ export const writeoffItemTool: CopilotTool = {
       p_written_at: todayISO(),
       p_reason: reason,
       p_comment: comment,
-      p_created_by: ctx.userId,
+      p_created_by: ctx.actorUserId,
       p_items: itemsJson,
     })
 
@@ -143,9 +144,19 @@ export const writeoffItemTool: CopilotTool = {
     const writeoffRow = Array.isArray(data) ? data[0] : data
     const writeoffId = writeoffRow?.writeoff_id ? String(writeoffRow.writeoff_id) : 'unknown'
 
+    // Убыток в расходы — как при списании на сайте.
+    try {
+      await createWriteoffAutoExpense(ctx.supabase, writeoffId === 'unknown' ? '' : writeoffId, {
+        organizationId: ctx.organizationId || null,
+        isSuperAdmin: ctx.isSuperAdmin,
+      })
+    } catch (autoExpErr: any) {
+      await writeSystemErrorLogSafe({ scope: 'server', area: 'copilot/writeoff.autoExpense', message: autoExpErr?.message || 'error' })
+    }
+
     try {
       await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.userId,
+        actorUserId: ctx.actorUserId,
         // Тегируем событие организацией: иначе запись уходит в «общий» пул
         // audit_log и её читают копилоты других клиентов.
         organizationId: ctx.organizationId || null,
