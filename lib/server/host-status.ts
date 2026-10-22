@@ -1,14 +1,14 @@
 import 'server-only'
 
-import { readdir, readFile, stat, statfs } from 'node:fs/promises'
+import { readFile, statfs } from 'node:fs/promises'
 import os from 'node:os'
 
 /**
  * Живое состояние сервера для /platform/status — без чужих панелей.
  * Ресурсы хоста: /proc контейнера показывает хост (load, память, CPU, диски), раз в 5 с.
  * Сеть хоста, контейнеры и хвосты их логов кладёт deploy/vps/status-snapshot.sh в /control.
- * Деплои — /control/deploys.jsonl (пишет deploy.sh), журналы кронов/бэкапа/сборки и
- * бэкапы смонтированы только на чтение (deploy/vps/docker-compose.yml).
+ * Деплои — /control/deploys.jsonl (пишет deploy.sh), сведения о бэкапе — /control/backup.json,
+ * журналы кронов/бэкапа/сборки смонтированы только на чтение (deploy/vps/docker-compose.yml).
  */
 
 export const CONTROL = '/control'
@@ -17,7 +17,6 @@ export const HOST_LOGS: Record<string, string> = {
   cron: '/hostlogs/cron.log',
   backup: '/hostlogs/backup.log',
 }
-const BACKUPS = '/backups'
 const SITE_CHECKS = [
   { url: 'https://www.ordaops.kz/', probe: 'https://www.ordaops.kz/login' },
   { url: 'https://db.ordaops.kz/', probe: 'https://db.ordaops.kz/auth/v1/health' },
@@ -197,11 +196,8 @@ export async function containers() {
 
 export async function latestBackup() {
   try {
-    const files = (await readdir(BACKUPS)).filter((f) => /^db-.*\.dump$/.test(f))
-    if (!files.length) return null
-    const withTime = await Promise.all(files.map(async (f) => ({ f, s: await stat(`${BACKUPS}/${f}`) })))
-    withTime.sort((a, b) => b.s.mtimeMs - a.s.mtimeMs)
-    return { name: withTime[0].f, time: Math.floor(withTime[0].s.mtimeMs / 1000), size: withTime[0].s.size, count: files.length }
+    const b = JSON.parse(await readText(`${CONTROL}/backup.json`))
+    return b?.name ? { name: String(b.name), time: Number(b.time), size: Number(b.size), count: Number(b.count) } : null
   } catch { return null }
 }
 

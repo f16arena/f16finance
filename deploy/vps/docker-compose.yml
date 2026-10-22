@@ -25,11 +25,10 @@ services:
     # Заявки «пересобрать / откатить» со страницы /platform/status — их забирает deploy.sh.
     volumes:
       - /opt/orda/control:/control
-      # Только чтение — для /platform/status: журналы сборки, кронов, бэкапа и сами бэкапы.
+      # Только чтение — для /platform/status: журналы сборки, кронов и бэкапа.
       - /var/log/orda-deploy.log:/hostlogs/deploy.log:ro
       - /var/log/orda-cron.log:/hostlogs/cron.log:ro
       - /var/log/orda-backup.log:/hostlogs/backup.log:ro
-      - /opt/orda/backups:/backups:ro
     ports:
       - 127.0.0.1:3200:3000
     healthcheck:

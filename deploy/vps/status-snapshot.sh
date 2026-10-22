@@ -16,6 +16,12 @@ while [ $i -lt 12 ]; do
   awk -v ifc="$IFACE:" -v t="$(date +%s)" '$1==ifc{print t, $2, $10}' /proc/net/dev > "$OUT/hostnet.tmp" && mv "$OUT/hostnet.tmp" "$OUT/hostnet"
 
   if [ $((i % 4)) -eq 0 ]; then
+    # Последний бэкап: только имя, время и размер — сами дампы в контейнер не попадают.
+    python3 -c '
+import glob, json, os
+f = sorted(glob.glob("/opt/orda/backups/db-*.dump"), key=os.path.getmtime)
+json.dump({"name": os.path.basename(f[-1]), "time": int(os.path.getmtime(f[-1])), "size": os.path.getsize(f[-1]), "count": len(f)} if f else None, open("/opt/orda/control/backup.json.tmp", "w"))
+' && mv "$OUT/backup.json.tmp" "$OUT/backup.json"
     NAMES=$(docker ps -a --format '{{.Names}}' | grep -E '^(orda-|supabase-|realtime-dev\.supabase-)' || true)
     if [ -n "$NAMES" ]; then
       docker stats --no-stream --format '{{json .}}' $NAMES > "$OUT/stats.tmp" 2>/dev/null || true
