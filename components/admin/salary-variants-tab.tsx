@@ -221,7 +221,7 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'Ошибка сохранения')
-      setSuccess(form.id ? 'Вариант обновлён' : 'Вариант создан')
+      setSuccess(form.id ? 'Вариант обновлён — действует с понедельника этой недели, прошлые недели не меняются' : 'Вариант создан — действует с понедельника этой недели')
       setShowForm(false)
       await load()
     } catch (e: any) {
@@ -242,7 +242,7 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'Ошибка удаления')
-      setSuccess('Вариант удалён')
+      setSuccess('Вариант убран — прошлые недели по-прежнему считаются с ним')
       await load()
     } catch (e: any) {
       setError(e.message || 'Ошибка удаления')
@@ -315,6 +315,9 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
             <p className="text-foreground font-medium">Варианты оклада по выручке</p>
             <p className="text-slate-500 dark:text-gray-400">
               Несколько правил для одной точки и смены с разными диапазонами выручки. Напр.: «если выручка ≥ 500к → оклад 8000», «если &lt; 500к → оклад 5000». Выполняются по приоритету. <b>Stop</b> останавливает проверку следующих.
+            </p>
+            <p className="text-slate-500 dark:text-gray-400">
+              Изменение действует с понедельника текущей недели. Прошлые недели, в том числе выплаченные, считаются по тому, что действовало тогда.
             </p>
           </div>
         </div>

@@ -7,7 +7,7 @@ import { DEFAULT_OPERATOR_PAY_SCHEDULE, isDefaultOperatorPaySchedule, type Opera
 import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
 import { getOrgSettings } from '@/lib/server/org-settings'
 import { calculateOperatorWeekSummary, type SalaryOperatorMeta, type SalaryWeekCompanyAllocation } from '@/lib/domain/salary'
-import { evaluatePointRules, type PointRuleRow } from '@/lib/domain/point-rules'
+import { evaluatePointRules, pointRuleActiveOn, type PointRuleRow } from '@/lib/domain/point-rules'
 import {
   ensureOrganizationOperatorAccess,
   listOrganizationCompanyIds,
@@ -147,7 +147,7 @@ function mapOperatorMeta(row: any): SalaryOperatorMeta | null {
 
 type SalaryPointRule = Pick<
   PointRuleRow,
-  'id' | 'company_id' | 'scope' | 'event' | 'name' | 'priority' | 'is_active' | 'stop_processing' | 'conditions' | 'actions'
+  'id' | 'company_id' | 'scope' | 'event' | 'name' | 'priority' | 'is_active' | 'stop_processing' | 'conditions' | 'actions' | 'effective_from' | 'effective_to'
 >
 
 type SalaryRulesBundle = {
@@ -161,7 +161,8 @@ async function listSalaryPointRules(
 ): Promise<SalaryRulesBundle> {
   let query = supabase
     .from('point_rules')
-    .select('id,company_id,scope,event,name,priority,is_active,stop_processing,conditions,actions')
+    // '*' — вместе со сроком действия строки (effective_from/to), если миграция накатана
+    .select('*')
     .eq('scope', 'salary')
     .in('event', ['salary.week.computed', 'salary.shift.computed'])
     .eq('is_active', true)
@@ -184,13 +185,15 @@ async function listSalaryPointRules(
 function applySalaryPointRules(params: {
   summary: Awaited<ReturnType<typeof calculateOperatorWeekSummary>>
   rules: SalaryPointRule[]
+  /** Неделя считается по правилам, действовавшим в её понедельник */
+  weekStart: string
 }) {
   const summary = {
     ...params.summary,
     companyAllocations: params.summary.companyAllocations.map((item) => ({ ...item })),
   }
 
-  const rules = params.rules || []
+  const rules = (params.rules || []).filter((rule) => pointRuleActiveOn(rule, params.weekStart))
   if (rules.length === 0 || summary.companyAllocations.length === 0) {
     return { summary, matchedRules: [] as Array<{ id: string; name: string }> }
   }
@@ -587,6 +590,7 @@ async function ensureSalaryWeekSnapshot(params: {
   const { summary } = applySalaryPointRules({
     summary: rawSummary,
     rules: params.pointRules?.weekRules || [],
+    weekStart: params.weekStart,
   })
 
   let existingWeek: any | null

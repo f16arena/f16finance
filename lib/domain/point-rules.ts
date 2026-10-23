@@ -45,6 +45,21 @@ export type PointRuleRow = {
   stop_processing: boolean
   conditions: PointRuleCondition[]
   actions: PointRuleAction[]
+  /** Срок действия строки; пусто — без границы (старые строки до версионирования) */
+  effective_from?: string | null
+  effective_to?: string | null
+}
+
+/**
+ * Действовала ли строка правила в эту дату. Правка правила закрывает старую
+ * строку и открывает новую, поэтому прошлые недели считаются по тому, что
+ * действовало тогда, а не по сегодняшней версии.
+ */
+export function pointRuleActiveOn(rule: Pick<PointRuleRow, 'effective_from' | 'effective_to'>, date: string | null | undefined) {
+  if (!date) return !rule.effective_to
+  if (rule.effective_from && rule.effective_from > date) return false
+  if (rule.effective_to && rule.effective_to < date) return false
+  return true
 }
 
 export type RuleEvaluationContext = Record<string, unknown>
@@ -166,9 +181,11 @@ export function resolveShiftOverrides(params: {
   companyId: string | null
   shiftType: 'day' | 'night'
   turnover: number
+  /** Дата смены — берутся только строки правил, действовавшие в неё */
+  date?: string
 }): ShiftOverrides {
   const scoped = params.rules.filter(
-    (rule) => !rule.company_id || rule.company_id === params.companyId,
+    (rule) => (!rule.company_id || rule.company_id === params.companyId) && pointRuleActiveOn(rule, params.date),
   )
   const context: RuleEvaluationContext = {
     shift: {

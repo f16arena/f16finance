@@ -451,6 +451,7 @@ function computeShiftCompensation(params: {
         companyId: params.companyId,
         shiftType: params.shiftType,
         turnover: params.turnover,
+        date: params.shiftDate,
       })
     : null
 

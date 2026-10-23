@@ -350,6 +350,16 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`
 }
 
+/** Понедельник текущей недели — недели зарплаты начинаются с понедельника */
+function currentWeekStartISO() {
+  const now = new Date()
+  const day = now.getDay() || 7
+  now.setDate(now.getDate() - (day - 1))
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${mm}-${dd}`
+}
+
 async function syncCurrentRuleVersion(
   supabase: ReturnType<typeof createAdminSupabaseClient>,
   rule: { id: number; effective_from?: string | null } & RuleSnapshotInput,
@@ -670,14 +680,17 @@ export async function POST(req: Request) {
       const materialChanged = hasMaterialSalaryChange(previous as RuleSnapshotInput, payload as RuleSnapshotInput)
       const finalPayload = { ...payload }
       if (materialChanged) {
-        if (!finalPayload.effective_from) {
-          finalPayload.effective_from = todayISO()
+        // Дата из формы — это дата прошлой правки, если её не трогали. Оставить
+        // её — значит переписать версию, которая уже посчитала (и выплатила)
+        // недели с той даты. Поэтому новые цифры действуют с понедельника этой
+        // недели; свою дату владелец может поставить, изменив поле явно.
+        const sentDate = normalizeDate((body.payload as any)?.effective_from)
+        const dateUntouched = !sentDate || sentDate === (previous.effective_from || null)
+        if (dateUntouched) {
+          const weekStart = currentWeekStartISO()
+          finalPayload.effective_from = previous.effective_from && previous.effective_from > weekStart ? previous.effective_from : weekStart
         }
-        if (
-          finalPayload.base_per_shift_prev == null &&
-          previous.base_per_shift != null &&
-          Number(previous.base_per_shift) !== Number(finalPayload.base_per_shift)
-        ) {
+        if (previous.base_per_shift != null && Number(previous.base_per_shift) !== Number(finalPayload.base_per_shift)) {
           finalPayload.base_per_shift_prev = Number(previous.base_per_shift)
         }
         await ensureHistoricalAnchor(supabase, body.ruleId, previous as any)

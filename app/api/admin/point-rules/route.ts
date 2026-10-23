@@ -6,6 +6,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { createRequestSupabaseClient, getRequestAccessContext, requireStaffCapabilityRequest } from '@/lib/server/request-auth'
 import { requireCapability, requireStaffCapability } from '@/lib/server/capabilities'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
+import { addDaysISO, mondayOfDate, toISODateLocal } from '@/lib/core/date'
 
 type RulePayload = {
   company_id?: string | null
@@ -43,6 +44,32 @@ function normalizePayload(payload: RulePayload) {
     conditions: Array.isArray(payload.conditions) ? payload.conditions : [],
     actions: Array.isArray(payload.actions) ? payload.actions : [],
   }
+}
+
+/**
+ * Срок действия строк правила (миграция 20261002_point_rules_validity).
+ *
+ * Правка правила, которое уже действовало до этой недели, не меняет строку на
+ * месте: старая закрывается воскресеньем прошлой недели, новая действует с
+ * понедельника текущей. Так выплаченные недели считаются по тому, что было
+ * тогда. Пока миграция не накатана, колонок нет — правим на месте, как раньше.
+ */
+const currentWeekStart = () => toISODateLocal(mondayOfDate(new Date()))
+const hasValidity = (row: Record<string, unknown> | null | undefined) => Boolean(row && 'effective_to' in row)
+const startedBeforeWeek = (row: { effective_from?: string | null }, weekStart: string) => !row.effective_from || row.effective_from < weekStart
+
+/** Поля, от которых зависят деньги; имя и описание — нет */
+function changesMoney(current: Record<string, any>, next: ReturnType<typeof normalizePayload>) {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+  return (
+    (current.company_id || null) !== next.company_id ||
+    current.event !== next.event ||
+    Number(current.priority) !== next.priority ||
+    (current.is_active !== false) !== next.is_active ||
+    (current.stop_processing === true) !== next.stop_processing ||
+    !same(current.conditions, next.conditions) ||
+    !same(current.actions, next.actions)
+  )
 }
 
 function validatePayload(payload: ReturnType<typeof normalizePayload>) {
@@ -85,7 +112,8 @@ export async function GET(req: Request) {
     }
     const { data, error } = await query
     if (error) throw error
-    return json({ ok: true, data: data || [] })
+    // Закрытые строки считают только прошлые недели — в списке их нет
+    return json({ ok: true, data: (data || []).filter((row: any) => !row.effective_to) })
   } catch (error: any) {
     await writeSystemErrorLogSafe({
       scope: 'server',
@@ -150,7 +178,7 @@ export async function POST(req: Request) {
       const { data, error } = await query
       if (error) throw error
 
-      const rules = (data || []) as any[]
+      const rules = ((data || []) as any[]).filter((row) => !row.effective_to)
       const result = evaluatePointRules({
         rules: rules.map((row) => ({
           ...row,
@@ -182,11 +210,16 @@ export async function POST(req: Request) {
         // достаточно было не прислать точку, чтобы написать правило всем.
         return json({ error: 'Для правила нужно выбрать точку' }, 400)
       }
-      const { data, error } = await supabase
+      // Новое правило действует с понедельника этой недели — прошлые недели не трогает
+      const row = { ...payload, created_by: user?.id || null, updated_by: user?.id || null }
+      let { data, error } = await supabase
         .from('point_rules')
-        .insert([{ ...payload, created_by: user?.id || null, updated_by: user?.id || null }])
+        .insert([{ ...row, effective_from: currentWeekStart() }])
         .select('*')
         .single()
+      if (error && (error.code === '42703' || /effective_from/.test(String(error.message || '')))) {
+        ;({ data, error } = await supabase.from('point_rules').insert([row]).select('*').single())
+      }
       if (error) throw error
       await writeAuditLog(supabase, {
         actorUserId: user?.id || null,
@@ -231,19 +264,43 @@ export async function POST(req: Request) {
         // превратить в глобальное и распространить на чужие организации.
         return json({ error: 'Для правила нужно выбрать точку' }, 400)
       }
-      const { data, error } = await supabase
-        .from('point_rules')
-        .update({ ...payload, updated_by: user?.id || null })
-        .eq('id', body.ruleId)
-        .select('*')
-        .single()
-      if (error) throw error
+      if (current.effective_to) return json({ error: 'Это правило уже заменено новой версией — обновите страницу' }, 409)
+
+      const weekStart = currentWeekStart()
+      const newVersion = hasValidity(current) && changesMoney(current, payload) && startedBeforeWeek(current, weekStart)
+      let data: any
+      if (newVersion) {
+        const inserted = await supabase
+          .from('point_rules')
+          .insert([{ ...payload, effective_from: weekStart, created_by: current.created_by || null, updated_by: user?.id || null }])
+          .select('*')
+          .single()
+        if (inserted.error) throw inserted.error
+        const closed = await supabase
+          .from('point_rules')
+          .update({ effective_to: addDaysISO(weekStart, -1), replaced_by: inserted.data.id, updated_by: user?.id || null })
+          .eq('id', body.ruleId)
+        if (closed.error) {
+          await supabase.from('point_rules').delete().eq('id', inserted.data.id)
+          throw closed.error
+        }
+        data = inserted.data
+      } else {
+        const updated = await supabase
+          .from('point_rules')
+          .update({ ...payload, updated_by: user?.id || null })
+          .eq('id', body.ruleId)
+          .select('*')
+          .single()
+        if (updated.error) throw updated.error
+        data = updated.data
+      }
       await writeAuditLog(supabase, {
         actorUserId: user?.id || null,
         entityType: 'point-rule',
         entityId: String(data.id),
         action: 'update',
-        payload: { previous: current, next: data },
+        payload: { previous: current, next: data, newVersionFrom: newVersion ? weekStart : null },
       })
       return json({ ok: true, data })
     }
@@ -265,7 +322,16 @@ export async function POST(req: Request) {
       } else if (!access.isSuperAdmin) {
         return json({ error: 'forbidden' }, 403)
       }
-      const { error } = await supabase.from('point_rules').delete().eq('id', body.ruleId)
+      // Правило, которое уже считало прошлые недели, не удаляем, а закрываем:
+      // иначе выплаченные недели пересчитаются без него
+      const weekStart = currentWeekStart()
+      const { error } =
+        hasValidity(current) && !current.effective_to && startedBeforeWeek(current, weekStart)
+          ? await supabase
+              .from('point_rules')
+              .update({ effective_to: addDaysISO(weekStart, -1), updated_by: user?.id || null })
+              .eq('id', body.ruleId)
+          : await supabase.from('point_rules').delete().eq('id', body.ruleId)
       if (error) throw error
       await writeAuditLog(supabase, {
         actorUserId: user?.id || null,

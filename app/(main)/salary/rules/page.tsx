@@ -622,7 +622,7 @@ function SalaryRulesContent() {
         return next
       })
 
-      setSuccessMsg('Правило сохранено')
+      setSuccessMsg(json.data?.effective_from ? `Правило сохранено — действует со смен с ${String(json.data.effective_from).split("-").reverse().join(".")}, более ранние недели не меняются` : 'Правило сохранено')
       await loadAll(true)
     } catch (e: any) {
       console.error(e)

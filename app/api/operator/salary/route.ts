@@ -45,7 +45,7 @@ async function listShiftPointRules(
 ): Promise<PointRuleRow[]> {
   let query = supabase
     .from('point_rules')
-    .select('id,company_id,scope,event,name,description,priority,is_active,stop_processing,conditions,actions')
+    .select('*') // вместе со сроком действия строки (effective_from/to), если миграция накатана
     .eq('scope', 'salary')
     .eq('event', 'salary.shift.computed')
     .eq('is_active', true)
