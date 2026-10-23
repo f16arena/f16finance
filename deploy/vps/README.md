@@ -67,7 +67,7 @@ Cron запускает копию скрипта `/opt/orda/bin/deploy.sh` (е�
 
 ## Полный уход с Vercel и Supabase (после 1–2 дней без проблем)
 
-1. **DNS в ps.kz.** Домен зарегистрирован в ICPS (ps.kz), DNS сейчас у Vercel (`ns1/ns2.vercel-dns.com`). В кабинете ps.kz включить их DNS-хостинг и завести записи:
+1. **DNS в ps.kz** — ✅ сделано (23.10: NS `ns1-3.ps.kz` у ordaops.kz, f16-arena.kz, turanix.kz). Домен зарегистрирован в ICPS (ps.kz), DNS сейчас у Vercel (`ns1/ns2.vercel-dns.com`). В кабинете ps.kz включить их DNS-хостинг и завести записи:
 
    | Имя | Тип | Значение |
    |---|---|---|
@@ -80,6 +80,20 @@ Cron запускает копию скрипта `/opt/orda/bin/deploy.sh` (е�
 2. **Последний дамп облака** скачать и положить к бэкапам (на случай «а что там было»).
 3. **Удалить** проект Supabase `F16finance` (ref `tmudsqgagblmdctaosgw`), проект Vercel `f16finance`, домен `ordaops.kz` из аккаунта Vercel padash00 (только после того, как NS уже на ps.kz).
 4. **Сменить** токены Vercel/Supabase, пароль root и ключ из `server.txt` — они светились в переписке.
+
+## Восстановление из бэкапа
+
+Проверено 23.10.2026: дамп `db-20261022-2130.dump` развёрнут во временную базу `restore_test` рядом с боевой. Совпали таблицы (244), свои функции (147), ограничения (1064), политики RLS (183), файлы Storage (511). Не хватило одного триггера: `realtime.subscription`, его создаёт сам образ Supabase.
+
+Дамп снимает только схемы `public/auth/storage/supabase_migrations`, **расширения в него не входят**. Поэтому `btree_gist` (нужен брони `client_bookings_no_station_overlap`) создаётся до восстановления:
+
+```sh
+docker exec supabase-db psql -U supabase_admin -d postgres -c 'create extension if not exists btree_gist'
+docker exec -i supabase-db pg_restore -U supabase_admin -d postgres --clean --if-exists --no-owner --no-privileges < /opt/orda/backups/db-<дата>.dump
+tar -xzf /opt/orda/backups/storage-<дата>.tgz -C /opt/supabase/orda/volumes   # файлы (внутри папка storage/)
+```
+
+Ошибка `schema "public" already exists` при восстановлении безвредна. Пробу без риска делать в отдельной базе: `create database restore_test`, `-d restore_test`, потом `drop database restore_test`.
 
 ## После переезда
 
