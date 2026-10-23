@@ -203,28 +203,12 @@ export const navSections: NavSection[] = [
       { href: '/simulation', label: 'Симуляция выручки', icon: Calculator, note: 'Потенциал по зонам vs факт', badge: 'new', badgeColor: 'blue', isNew: true },
       { href: '/tasks', label: 'Задачи', icon: FolderKanban, note: 'Текущая работа' },
       { href: '/shifts', label: 'Смены', icon: CalendarClock, note: 'График и сменность' },
-      { href: '/shifts/reports', label: 'Отчёты смен', icon: CalendarClock, note: 'Закрытые смены точек', badge: 'new', badgeColor: 'green' },
       { href: '/sales-kpi', label: 'Эффективность продавцов', icon: Gauge, note: 'Кому доплатить и почему касса была такой', badge: 'new', badgeColor: 'green', isNew: true, feature: 'addon.sales_kpi' },
-      { href: '/incidents', label: 'Инциденты', icon: ClipboardCheck, note: 'Штрафы, бонусы, заметки', badge: 'new', badgeColor: 'green' },
       // Правила, чек-листы и экзамены — один цикл, поэтому один пункт с вкладками.
       { href: '/regulations', label: 'Регламенты точки', icon: BookOpen, note: 'Правила, чек-листы, экзамены', badge: 'new', badgeColor: 'green', isNew: true },
       { href: '/birthdays', label: 'Дни рождения', icon: CalendarDays, note: 'Кто скоро отмечает' },
-    ],
-  },
-  {
-    id: 'team-space',
-    title: 'Команда',
-    subtitle: 'Чат, лента, календарь, аналитика',
-    accentColor: 'fuchsia',
-    icon: MessageSquare,
-    items: [
-      // Коммуникация
-      { href: '/news', label: 'Лента', icon: Newspaper, note: 'Объявления и новости компании', isNew: true },
-      { href: '/team-chat', label: 'Командный чат', icon: MessageSquare, note: 'Общий чат + закрепления + опросы', isNew: true },
-      { href: '/messages', label: 'Личные сообщения', icon: MessageSquareText, note: 'DM с коллегами', isNew: true },
-      { href: '/calendar', label: 'Календарь', icon: CalendarDays, note: 'Смены, ДР, праздники РК', isNew: true },
-      { href: '/moderation', label: 'Модерация ИИ', icon: ShieldAlert, note: 'Флаги нарушений в чате', isNew: true },
-      // Аналитика операторов
+      // Аналитика операторов — перенесена из убранного раздела «Команда» (23.10):
+      // ленту, чаты, календарь и модерацию владелец убрал из меню.
       { href: '/operator-analytics', label: 'Аналитика операторов', icon: Zap, note: 'Эффективность по людям' },
       { href: '/performance', label: 'Эффективность (PI)', icon: TrendingUp, note: 'Справедливый рейтинг с поправкой на слот', badge: 'new', badgeColor: 'green' },
       { href: '/ratings', label: 'Рейтинг операторов', icon: Trophy, note: 'Лидерборд по выручке' },
