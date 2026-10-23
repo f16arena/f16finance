@@ -34,7 +34,18 @@ export type OperatorPaySchedule =
 export type OrgSettings = {
   staffPaySchedule: StaffPaySchedule
   operatorPaySchedule: OperatorPaySchedule
+  /**
+   * Часовой пояс (IANA) и валюта (ISO 4217) организации. Ключи settings.timezone /
+   * settings.currency уже пишет панель /platform. Код сайта пока считает по
+   * Казахстану (UTC+5, ₸) — новые места берут значения отсюда через
+   * lib/core/org-locale.ts; старые переводятся, когда появится клиент вне KZ.
+   */
+  timezone: string
+  currency: string
 }
+
+export const DEFAULT_ORG_TIMEZONE = 'Asia/Almaty'
+export const DEFAULT_ORG_CURRENCY = 'KZT'
 
 export const DEFAULT_STAFF_PAY_SCHEDULE: StaffPaySchedule = { kind: 'semimonthly' }
 export const DEFAULT_OPERATOR_PAY_SCHEDULE: OperatorPaySchedule = { kind: 'weekly', startDay: 1 }
@@ -44,6 +55,26 @@ export const DEFAULT_BIWEEKLY_ANCHOR = '2026-01-05'
 export const DEFAULT_ORG_SETTINGS: OrgSettings = {
   staffPaySchedule: DEFAULT_STAFF_PAY_SCHEDULE,
   operatorPaySchedule: DEFAULT_OPERATOR_PAY_SCHEDULE,
+  timezone: DEFAULT_ORG_TIMEZONE,
+  currency: DEFAULT_ORG_CURRENCY,
+}
+
+/** Часовой пояс, который понимает Intl; иначе — Алматы. */
+export function normalizeOrgTimezone(raw: unknown): string {
+  const value = String(raw || '').trim()
+  if (!value) return DEFAULT_ORG_TIMEZONE
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value })
+    return value
+  } catch {
+    return DEFAULT_ORG_TIMEZONE
+  }
+}
+
+/** Трёхбуквенный код валюты; иначе — тенге. */
+export function normalizeOrgCurrency(raw: unknown): string {
+  const value = String(raw || '').trim().toUpperCase()
+  return /^[A-Z]{3}$/.test(value) ? value : DEFAULT_ORG_CURRENCY
 }
 
 /** Неделя пн–вс — как было до настроек. Для неё работают старые пути (week_start = понедельник). */
@@ -105,6 +136,8 @@ export function normalizeOrgSettings(raw: unknown): OrgSettings {
   return {
     staffPaySchedule: normalizeStaffPaySchedule(value.staff_pay_schedule),
     operatorPaySchedule: normalizeOperatorPaySchedule(value.operator_pay_schedule),
+    timezone: normalizeOrgTimezone(value.timezone),
+    currency: normalizeOrgCurrency(value.currency),
   }
 }
 
