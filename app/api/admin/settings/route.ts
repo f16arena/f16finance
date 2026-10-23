@@ -6,6 +6,7 @@ import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/serv
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
 import { createCompanyForOrganization } from '@/lib/server/company-create'
+import { companyNameMatches, countCompanyHistory, describeCompanyHistory } from '@/lib/server/company-delete'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type MutationBody =
@@ -22,8 +23,10 @@ type MutationBody =
     }
   | {
       entity: 'company'
-      action: 'delete'
+      action: 'delete' | 'deletePreview'
       id: string
+      /** Название точки, набранное руками, — без него удаление не проходит. */
+      confirmName?: string
     }
   | {
       entity: 'staff'
@@ -197,7 +200,7 @@ export async function POST(req: Request) {
     if (body.entity === 'company') {
       // Капабилити-проверка зависит от действия
       const capForCompany =
-        body.action === 'delete' ? 'settings.delete_company' : 'settings.manage_companies'
+        body.action === 'delete' || body.action === 'deletePreview' ? 'settings.delete_company' : 'settings.manage_companies'
       const denied = await requireCapability(access, capForCompany)
       if (denied) return denied as any
 
@@ -245,6 +248,45 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true })
       }
 
+      // Удаление: только владелец, только пустая точка и только с названием,
+      // набранным руками. Каскад по 55 таблицам стирает историю без следа.
+      const { data: target, error: targetError } = await scopeOrg(
+        supabase.from('companies').select('id, name, code').eq('id', body.id),
+      ).maybeSingle()
+      if (targetError) throw targetError
+      if (!target) return NextResponse.json({ error: 'Точка не найдена' }, { status: 404 })
+      if (access.companyRestriction && !access.companyRestriction.includes(String(target.id))) {
+        return NextResponse.json({ error: 'forbidden-company' }, { status: 403 })
+      }
+
+      const history = await countCompanyHistory(supabase, String(target.id))
+      if (body.action === 'deletePreview') {
+        return NextResponse.json({
+          ok: true,
+          company: { id: target.id, name: target.name, code: target.code },
+          history: history.items,
+          canDelete: !history.hasHistory && isOwnerActor(access),
+          ownerOnly: !isOwnerActor(access),
+        })
+      }
+
+      if (!isOwnerActor(access)) {
+        return NextResponse.json({ error: 'Удалить точку может только владелец' }, { status: 403 })
+      }
+      if (!companyNameMatches(String(target.name || ''), body.confirmName)) {
+        return badRequest('Для удаления введите название точки точно так, как оно написано')
+      }
+      if (history.hasHistory) {
+        return NextResponse.json(
+          {
+            error: `У точки есть история (${describeCompanyHistory(history.items)}) — удалять нельзя, иначе она пропадёт из отчётов.`,
+            code: 'company-has-history',
+            history: history.items,
+          },
+          { status: 409 },
+        )
+      }
+
       const { error } = await scopeOrg(supabase.from('companies').delete().eq('id', body.id))
       if (error) throw error
       await writeAuditLog(supabase, {
@@ -252,6 +294,7 @@ export async function POST(req: Request) {
         entityType: 'company',
         entityId: body.id,
         action: 'delete',
+        payload: { name: target.name, code: target.code },
       })
       return NextResponse.json({ ok: true })
     }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { companyCodeBase, pickFreeCompanyCode, transliterate } from '@/lib/core/company-code'
+import { companyCodeBase, companyNameMatches, pickFreeCompanyCode, transliterate } from '@/lib/core/company-code'
 
 test('код из кириллицы и казахских букв — латиница без пробелов', () => {
   assert.equal(companyCodeBase('Кофейня на Абая'), 'KOFEYNYANA')
@@ -19,4 +19,11 @@ test('занятый код — берём следующий номер, рег
 
 test('логин из имени', () => {
   assert.equal(transliterate('Айгуль').toLowerCase(), 'aygul')
+})
+
+test('удаление — только с точно набранным названием', () => {
+  assert.equal(companyNameMatches('F16 Test', 'f16  test '), true)
+  assert.equal(companyNameMatches('F16 Test', 'F16'), false)
+  assert.equal(companyNameMatches('F16 Test', ''), false)
+  assert.equal(companyNameMatches('F16 Test', undefined), false)
 })

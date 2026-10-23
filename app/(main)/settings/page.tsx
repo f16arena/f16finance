@@ -4,9 +4,11 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/use-toast'
+import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
+import { DeleteCompanyDialog } from '@/components/admin/delete-company-dialog'
 import { NavLayoutPicker } from '@/components/nav-layout-picker'
 import { CardSkeleton } from '@/components/skeleton'
 import { useCapabilities } from '@/lib/client/use-capabilities'
@@ -76,6 +78,7 @@ export default function SettingsPage() {
 
   // Формы создания
   const [newComp, setNewComp] = useState({ name: '', code: '', show_in_structure: true })
+  const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null)
   const [newStaff, setNewStaff] = useState({ name: '', phone: '', email: '', role: 'other' })
 
   // Редактирование
@@ -193,15 +196,8 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
-  const handleDeleteCompany = async (id: string) => {
-      if (!confirm('Удалить компанию? Это может сломать отчеты!')) return
-      try {
-        await mutateSettings({ entity: 'company', action: 'delete', id })
-        fetchData()
-      } catch (err: any) {
-        toast({ title: 'Не получилось', description: err.message, variant: 'destructive' })
-      }
-  }
+  // Удаление — через окно с проверкой истории и вводом названия (DeleteCompanyDialog).
+  const handleDeleteCompany = (id: string) => setDeletingCompanyId(id)
 
   // --- ЛОГИКА СОТРУДНИКОВ ---
   const handleAddStaff = async (e: React.FormEvent) => {
@@ -255,7 +251,13 @@ export default function SettingsPage() {
   // Поэтому «убираем из команды» = архивируем (is_active=false), как на странице
   // «Сотрудники». История сохраняется, восстановить можно там же.
   const handleArchiveStaff = async (id: string, name: string) => {
-      if (!confirm(`Убрать «${name}» из команды (в архив)?\n\nИстория зарплаты сохранится. Восстановить можно на странице «Сотрудники».`)) return
+      const ok = await confirmDialog({
+        title: `Убрать «${name}» из команды?`,
+        description: 'Сотрудник уйдёт в архив. История зарплаты сохранится, восстановить можно на странице «Сотрудники».',
+        confirmLabel: 'В архив',
+        destructive: true,
+      })
+      if (!ok) return
       try {
         const response = await fetch('/api/admin/staff', {
           method: 'POST',
@@ -298,6 +300,16 @@ export default function SettingsPage() {
           )}
 
           <NavLayoutPicker />
+
+          <DeleteCompanyDialog
+            companyId={deletingCompanyId}
+            onClose={() => setDeletingCompanyId(null)}
+            onDeleted={() => {
+              setDeletingCompanyId(null)
+              toast({ title: 'Точка удалена' })
+              fetchData()
+            }}
+          />
 
           <OrgPayScheduleCard />
 

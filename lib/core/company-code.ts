@@ -27,3 +27,9 @@ export function pickFreeCompanyCode(base: string, taken: Iterable<string>, fallb
 export function companyCodeCandidates(base: string) {
   return [base, ...Array.from({ length: 8 }, (_, i) => `${base}${i + 2}`)]
 }
+
+/** Название точки, набранное для подтверждения удаления: без учёта регистра и лишних пробелов. */
+export function companyNameMatches(actual: string, typed: unknown) {
+  const norm = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+  return typeof typed === 'string' && norm(typed) !== '' && norm(typed) === norm(actual)
+}
