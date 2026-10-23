@@ -106,9 +106,8 @@ export function buildReceiptHtml(preview: SaleReceiptPreview) {
     ? `<div class="summary-row"><span>в т.ч. НДС (${vatRate}%)</span><strong>${escapeHtml(formatMoney(vatInclusiveAmount))}</strong></div>`
     : ''
 
-  // Фискальный признак — placeholder. Заменится реальным значением после
-  // подключения Webkassa (Уровень B плана).
-  const fiscalSign = (preview.saleId || '').replace(/[^a-z0-9]/gi, '').slice(-16).toUpperCase().padStart(16, '0')
+  // Фискального признака нет, пока касса не подключена к ОФД (Webkassa — Уровень B плана).
+  // Раньше печатался «ФП» из id продажи — клиент на ОУР получал чек с поддельным признаком.
 
   const ofdBlock = rs && (rs.ofd_name || rs.ofd_check_url)
     ? `<div style="margin-top:8px;font-size:11px;">
@@ -176,7 +175,6 @@ export function buildReceiptHtml(preview: SaleReceiptPreview) {
       .payment-label { font-weight: 600; }
       .footer { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #000; font-size: 11px; }
       .thanks { font-size: 16px; font-weight: 700; margin-top: 8px; }
-      .fiscal { font-family: 'Courier New', monospace; letter-spacing: 1px; font-size: 12px; margin-top: 6px; }
       .placeholder-note { color: #b45309; font-size: 10px; margin-top: 4px; font-style: italic; }
     </style>
   </head>
@@ -260,8 +258,7 @@ export function buildReceiptHtml(preview: SaleReceiptPreview) {
       <div class="footer center">
         <div class="thanks">${escapeHtml(thanksText)}</div>
         ${copyFooter}
-        <div class="fiscal">ФП: ${fiscalSign}</div>
-        <div class="placeholder-note">фискализация: тестовый режим</div>
+        <div class="placeholder-note">нефискальный чек</div>
         ${preview.qrDataUrl ? `<div style="margin-top:10px;text-align:center;">
           <img src="${preview.qrDataUrl}" style="width:120px;height:120px;" alt="QR" />
           <div class="muted" style="margin-top:2px;">Чек онлайн — наведите камеру</div>
