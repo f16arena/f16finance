@@ -421,7 +421,7 @@ function ProjectFormPanel({
             value={form.name}
             onChange={(e) => onChange({ ...form, name: e.target.value })}
             className="w-full rounded-xl border border-border bg-background px-3 py-2"
-            placeholder="F16, Arena, Восток..."
+            placeholder="Например: Касса 1, Вход, Бар"
           />
         </label>
 

@@ -511,7 +511,7 @@ function WeeklyReportContent() {
 
 // ─── Итоги ──────────────────────────────────────────────────────────────────
 
-function PlanCard({ plan }: { plan: WeekPlanStatus }) {
+function PlanCard({ plan, extraNames }: { plan: WeekPlanStatus; extraNames: string[] }) {
   const month = MONTH_GEN[Number(plan.month.slice(5, 7)) - 1]
   const donePct = Math.round((plan.fact / plan.target) * 100)
   const weekDiff = plan.weekFact - plan.weekExpectedToDate
@@ -519,7 +519,7 @@ function PlanCard({ plan }: { plan: WeekPlanStatus }) {
   return (
     <SectionCard
       title={`План на ${month}`}
-      subtitle={`${plan.source === 'org' ? 'Общая цель организации' : 'Сумма целей точек'} · выручка без F16 Extra, по ${dm(plan.lastFactDate)}`}
+      subtitle={`${plan.source === 'org' ? 'Общая цель организации' : 'Сумма целей точек'} · выручка${extraNames.length ? ` без ${extraNames.join(', ')}` : ''}, по ${dm(plan.lastFactDate)}`}
       icon={<Target className="h-4 w-4 text-emerald-500" />}
       action={
         <Button asChild variant="outline" size="sm">
@@ -639,7 +639,7 @@ function SummaryTab({ balance, plan, loading, onOpenShifts }: { balance: WeeklyB
         </div>
       ) : null}
 
-      {plan ? <PlanCard plan={plan} /> : null}
+      {plan ? <PlanCard plan={plan} extraNames={balance.extra.names} /> : null}
 
       <div className="grid gap-5 xl:grid-cols-5">
         <div className="xl:col-span-3">

@@ -939,9 +939,9 @@ function OperatorAnalyticsContent() {
   const [error, setError] = useState<string | null>(null)
 
   // Filters
-  const [includeArena, setIncludeArena] = useState(true)
-  const [includeRamen, setIncludeRamen] = useState(true)
-  const [includeExtra, setIncludeExtra] = useState(true)
+  // Выключенные точки (коды). Раньше фильтр знал только arena/ramen/extra F16 —
+  // у другой организации все её точки отсеивались и страница была пустой.
+  const [hiddenCodes, setHiddenCodes] = useState<string[]>([])
   const [showInactive, setShowInactive] = useState(false)
 
   // UI states
@@ -990,9 +990,7 @@ function OperatorAnalyticsContent() {
     const sp = searchParams
     const pFrom = sp.get('from')
     const pTo = sp.get('to')
-    const pArena = sp.get('arena')
-    const pRamen = sp.get('ramen')
-    const pExtra = sp.get('extra')
+    const pOff = sp.get('off')
     const pSearch = sp.get('q')
     const pSort = sp.get('sort') as SortKey | null
     const pDir = sp.get('dir') as SortDirection | null
@@ -1003,9 +1001,7 @@ function OperatorAnalyticsContent() {
       setDatePreset('custom')
     }
 
-    if (pArena !== null) setIncludeArena(pArena === '1')
-    if (pRamen !== null) setIncludeRamen(pRamen === '1')
-    if (pExtra !== null) setIncludeExtra(pExtra === '1')
+    if (pOff) setHiddenCodes(pOff.split(',').map((code) => code.trim().toLowerCase()).filter(Boolean))
     if (pSearch) setSearch(pSearch)
     if (pSort) setSortKey(pSort)
     if (pDir) setSortDirection(pDir)
@@ -1020,9 +1016,7 @@ function OperatorAnalyticsContent() {
       const params = new URLSearchParams()
       params.set('from', dateFrom)
       params.set('to', dateTo)
-      params.set('arena', includeArena ? '1' : '0')
-      params.set('ramen', includeRamen ? '1' : '0')
-      params.set('extra', includeExtra ? '1' : '0')
+      if (hiddenCodes.length) params.set('off', hiddenCodes.join(','))
       if (search) params.set('q', search)
       params.set('sort', sortKey)
       params.set('dir', sortDirection)
@@ -1031,7 +1025,7 @@ function OperatorAnalyticsContent() {
     }, 250)
 
     return () => clearTimeout(timeoutId)
-  }, [dateFrom, dateTo, includeArena, includeRamen, includeExtra, search, sortKey, sortDirection, pathname, router])
+  }, [dateFrom, dateTo, hiddenCodes, search, sortKey, sortDirection, pathname, router])
 
   // Load static data + profiles
   useEffect(() => {
@@ -1100,12 +1094,13 @@ function OperatorAnalyticsContent() {
 
   // Memoized values
   const allowedCodes = useMemo(() => {
-    const set = new Set<string>()
-    if (includeArena) set.add('arena')
-    if (includeRamen) set.add('ramen')
-    if (includeExtra) set.add('extra')
-    return set
-  }, [includeArena, includeRamen, includeExtra])
+    const hidden = new Set(hiddenCodes)
+    return new Set(
+      companies.map((c) => (c.code || '').toLowerCase()).filter((code) => code && !hidden.has(code)),
+    )
+  }, [companies, hiddenCodes])
+  const togglePointCode = (code: string) =>
+    setHiddenCodes((current) => (current.includes(code) ? current.filter((value) => value !== code) : [...current, code]))
 
   const companyById = useMemo(() => {
     const m = new Map<string, Company>()
@@ -1754,38 +1749,25 @@ function OperatorAnalyticsContent() {
                 <span className="text-sm text-slate-700 dark:text-slate-400">Фильтры:</span>
               </div>
 
-              <button
-                onClick={() => setIncludeArena(!includeArena)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                  includeArena
-                    ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10'
-                    : 'border-border text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-                }`}
-              >
-                Arena
-              </button>
-
-              <button
-                onClick={() => setIncludeRamen(!includeRamen)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                  includeRamen
-                    ? 'border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-500/10'
-                    : 'border-border text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-                }`}
-              >
-                Ramen
-              </button>
-
-              <button
-                onClick={() => setIncludeExtra(!includeExtra)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                  includeExtra
-                    ? 'border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-500/10'
-                    : 'border-border text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-                }`}
-              >
-                Extra
-              </button>
+              {companies
+                .filter((c) => c.code)
+                .map((c) => {
+                  const code = String(c.code).toLowerCase()
+                  const on = !hiddenCodes.includes(code)
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => togglePointCode(code)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                        on
+                          ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10'
+                          : 'border-border text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  )
+                })}
 
               <div className="h-4 w-px bg-slate-200 dark:bg-white/10 mx-2" />
 

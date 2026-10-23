@@ -216,7 +216,7 @@ function buildPrompt(d: InsightData): string {
   const lowStr = d.lowStock.length ? d.lowStock.map((l) => `${l.name}: ${l.qty}`).join(', ') : 'все ок'
 
   return [
-    'Ты AI-помощник владельца компьютерного клуба в Казахстане. Прислал тебе данные за вчера и неделю.',
+    'Ты AI-помощник владельца бизнеса в Казахстане. Прислал тебе данные за вчера и неделю.',
     `Вчера (${d.yesterday}) выручка: ${fmtMoney(d.yesterdayIncome)}`,
     `Среднее за неделю: ${fmtMoney(d.weekAvgIncome)}`,
     `Тренд недели: ${trendStr}`,
@@ -259,7 +259,7 @@ export async function GET(req: Request) {
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         maxTokens: 300,
         messages: [
-          { role: 'system', content: 'Ты — AI-ассистент владельца компьютерного клуба. Пиши кратко, по делу, на русском.' },
+          { role: 'system', content: 'Ты — AI-ассистент владельца бизнеса. Пиши кратко, по делу, на русском.' },
           { role: 'user', content: prompt },
         ],
       })

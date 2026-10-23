@@ -373,6 +373,7 @@ export default function DashboardPage() {
   // ---------- companies ----------
   const companies = useMemo(() => (Array.isArray(companiesRes.data) ? companiesRes.data : []), [companiesRes.data])
   const hasExtraCompany = companies.some(isExtraCompany)
+  const extraLabel = companies.filter(isExtraCompany).map((c: any) => c.name).join(', ') || 'Extra'
   const extraIds = useMemo(() => new Set(companies.filter(isExtraCompany).map((c) => c.id)), [companies])
   const agg = main.data?.aggregate
   const companyName = useMemo(() => {
@@ -726,7 +727,7 @@ export default function DashboardPage() {
                 className={`rounded-xl ${includeExtra ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}
                 onClick={() => setIncludeExtra((v) => !v)}
               >
-                {includeExtra ? 'Extra в итогах' : 'Extra не в итогах'}
+                {includeExtra ? `${extraLabel} в итогах` : `${extraLabel} не в итогах`}
               </Button>
             )}
           </div>

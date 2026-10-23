@@ -205,6 +205,8 @@ export async function POST(request: Request) {
       companyId,
       includeExtra,
       hasExtra: extraIds.size > 0,
+      // Названия точек «не в общих итогах» — подпись переключателя (у F16 — «F16 Extra»)
+      extraNames: allCompanies.filter((c) => extraIds.has(c.id)).map((c) => c.name),
       // Мобильное приложение читает итоги с верхнего уровня
       revenue: review.executive.revenue,
       expense: review.executive.expenses,
@@ -235,7 +237,7 @@ export async function POST(request: Request) {
 
 async function runAi(access: any, computed: any) {
   const systemPrompt = [
-    'Ты — финансовый директор собственника игрового клуба и магазина. Цель — рост чистой прибыли и конкретные действия.',
+    'Ты — финансовый директор собственника бизнеса. Цель — рост чистой прибыли и конкретные действия.',
     '',
     'Тебе дают УЖЕ ПОСЧИТАННЫЙ разбор периода (JSON). Цифры в нём точные — не пересчитывай и не спорь с ними.',
     '- bridge — почему прибыль изменилась к прошлому периоду: строки с effect (+ добавило прибыль, − отняло). Сумма effect = изменение прибыли.',

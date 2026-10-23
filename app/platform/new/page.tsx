@@ -197,7 +197,7 @@ export default function NewOrganizationPage() {
                 <Input
                   value={name}
                   onChange={e => handleNameChange(e.target.value)}
-                  placeholder="F16 Arena"
+                  placeholder="Например: Центральный"
                   className={inputClass}
                   autoFocus
                 />

@@ -2287,7 +2287,7 @@ function SelectOrganizationContent() {
                                       }
                                     }}
                                     className="border-white/10 bg-slate-900/60 text-white"
-                                    placeholder="Например: F16 Holding"
+                                    placeholder="Например: ТОО «Ромашка»"
                                   />
                                   <div className="grid gap-3 sm:grid-cols-2">
                                     <Input

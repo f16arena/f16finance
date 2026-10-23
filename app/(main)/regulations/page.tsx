@@ -1006,7 +1006,7 @@ export default function KnowledgeAdminPage() {
                         </div>
                       </div>
                     ))}
-                    {!articlesByCategory.length && <EmptyState text="Материалов пока нет. Создайте первую инструкцию или нажмите «Создать базу F16»." />}
+                    {!articlesByCategory.length && <EmptyState text="Материалов пока нет. Создайте первую инструкцию или нажмите «Создать стартовую базу»." />}
                   </div>
                 </Panel>
               </div>

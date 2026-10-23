@@ -775,7 +775,7 @@ export default function BranchPlanPage() {
           className="mt-1 text-lg font-semibold"
           value={draft.name}
           onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-          placeholder="F16 Бостандык"
+          placeholder="Например: Филиал на Абая"
         />
       </Card>
 

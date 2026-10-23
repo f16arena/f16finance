@@ -68,6 +68,7 @@ export default function AnalysisPage() {
   // Как в /reports и на дашборде: точка-экстра по умолчанию не в итогах
   const [includeExtra, setIncludeExtra] = useState(false)
   const hasExtraCompany = companies.some(isExtraCompany)
+  const extraLabel = companies.filter(isExtraCompany).map((c) => c.name).join(', ') || 'Extra'
   const [data, setData] = useState<MonthlyForecastResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,7 +192,7 @@ export default function AnalysisPage() {
                 className={`rounded-xl ${includeExtra ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : ''}`}
                 onClick={() => setIncludeExtra((v) => !v)}
               >
-                {includeExtra ? 'Extra в итогах' : 'Extra не в итогах'}
+                {includeExtra ? `${extraLabel} в итогах` : `${extraLabel} не в итогах`}
               </Button>
             )}
             <Button variant="outline" size="icon-sm" className="rounded-xl" onClick={() => void load()} disabled={loading} aria-label="Обновить">

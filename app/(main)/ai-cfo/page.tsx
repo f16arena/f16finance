@@ -52,6 +52,8 @@ type CfoResponse = CfoReview & {
   prevTo: string
   hasExtra: boolean
   includeExtra: boolean
+  /** Точки «не в общих итогах» (настройка точки) */
+  extraNames?: string[]
   ai: AiAnalysis | null
 }
 
@@ -290,7 +292,7 @@ export default function AiCfoPage() {
             </NativeSelect>
             {data?.hasExtra && !companyId ? (
               <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-                <Checkbox checked={includeExtra} onCheckedChange={(v) => setIncludeExtra(v === true)} /> с Extra
+                <Checkbox checked={includeExtra} onCheckedChange={(v) => setIncludeExtra(v === true)} /> с {data.extraNames?.join(', ') || 'точками вне итогов'}
               </label>
             ) : null}
             <Button variant="outline" size="sm" onClick={() => void load(true)} disabled={loading || waitingForDates}>
@@ -366,7 +368,7 @@ function Totals({ data }: { data: CfoResponse }) {
         <Link href="/reports" className="text-violet-600 hover:underline dark:text-violet-400">
           отчётах
         </Link>
-        : все расходы, безнал ночной смены — на следующий день{data.hasExtra && !data.includeExtra ? ', без F16 Extra' : ''}.
+        : все расходы, безнал ночной смены — на следующий день{data.hasExtra && !data.includeExtra ? `, без ${data.extraNames?.join(', ') || 'точек вне итогов'}` : ''}.
       </p>
     </div>
   )

@@ -24,7 +24,7 @@ import type { ShiftExplanation } from '@/lib/domain/store-kpi'
  * Системный промпт модуля. Ограничения продублированы здесь, потому что модель
  * видит только его — она не знает ни про clip, ни про минимальные выборки.
  */
-export const STORE_KPI_SYSTEM_PROMPT = `Ты — аналитик розничных продаж магазина внутри компьютерного клуба в Казахстане.
+export const STORE_KPI_SYSTEM_PROMPT = `Ты — аналитик розничных продаж магазина точки продаж в Казахстане.
 Твоя работа — объяснять владельцу и управляющему, что произошло в смене, на языке бизнеса.
 
 ПРАВИЛА, КОТОРЫЕ НЕЛЬЗЯ НАРУШАТЬ:
@@ -225,7 +225,7 @@ export async function runPostShiftReview(args: {
 }): Promise<{ result: PostShiftAiResult | null; error: string | null }> {
   const input = {
     task: 'POST_SHIFT_CASHIER_REVIEW',
-    point: 'Магазин внутри компьютерного клуба',
+    point: 'Магазин точки продаж',
     subject: args.subject,
     facts: args.facts,
     // Готовый разбор: модель объясняет его, а не пересчитывает.
@@ -462,7 +462,7 @@ export async function runCashierReview(args: {
 }): Promise<{ result: CashierAiResult | null; error: string | null }> {
   const input = {
     task: 'CASHIER_PERIOD_REVIEW',
-    point: 'Магазин внутри компьютерного клуба',
+    point: 'Магазин точки продаж',
     period: args.period,
     cashier: args.cashier,
     shifts: args.shifts,

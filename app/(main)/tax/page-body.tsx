@@ -328,10 +328,8 @@ export default function TaxPage() {
   }
 
   // Точка «не в общих итогах» (настройка точки; у F16 — Extra)
-  const extraCompanyId = useMemo(() => {
-    const c = companies.find(isExtraCompany)
-    return c?.id ?? null
-  }, [companies])
+  const extraCompany = useMemo(() => companies.find(isExtraCompany) ?? null, [companies])
+  const extraCompanyId = extraCompany?.id ?? null
 
   // Helper: учитывается ли тип оплаты для компании в налогооблагаемом обороте
   function isTaxable(companyId: string | null, paymentType: 'cash' | 'kaspi' | 'online' | 'card') {
@@ -597,7 +595,7 @@ export default function TaxPage() {
                   onChange={(e) => { setIncludeExtra(e.target.checked); localStorage.setItem('tax_include_extra', e.target.checked ? '1' : '0') }}
                   className="h-4 w-4 accent-emerald-500"
                 />
-                Включать F16 Extra в налог
+                Включать {extraCompany?.name} в налог
               </label>
             ) : null}
           </div>

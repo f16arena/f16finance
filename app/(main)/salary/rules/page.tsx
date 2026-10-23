@@ -407,15 +407,8 @@ function SalaryRulesContent() {
 
   // Computed values
   const companyOptions = useMemo(() => {
-    const list = (companies || []).filter((c) => c.code)
-    if (list.length === 0) {
-      return [
-        { id: 'x1', name: 'F16 Arena', code: 'arena' },
-        { id: 'x2', name: 'F16 Ramen', code: 'ramen' },
-        { id: 'x3', name: 'F16 Extra', code: 'extra' },
-      ] as CompanyRow[]
-    }
-    return list
+    // Только свои точки. Раньше без точек показывались придуманные «F16 Arena/Ramen/Extra».
+    return (companies || []).filter((c) => c.code)
   }, [companies])
 
   const existingKeys = useMemo(() => {
@@ -1956,7 +1949,7 @@ function SalaryRulesContent() {
                 <div className="rounded-3xl border border-slate-200 dark:border-white/5 bg-surface-muted p-4">
                   <p className="font-medium text-foreground">1. Сначала выбери точку</p>
                   <p className="mt-1 text-slate-700 dark:text-gray-400">
-                    Через быстрые вкладки сверху можно быстро перейти на F16 Arena, Ramen или Extra.
+                    Через быстрые вкладки сверху можно быстро перейти на нужную точку.
                   </p>
                 </div>
                 <div className="rounded-3xl border border-slate-200 dark:border-white/5 bg-surface-muted p-4">
@@ -1982,20 +1975,6 @@ function SalaryRulesContent() {
               {dirtyIds.size > 0 && (
                 <span className="ml-2 text-amber-400">({dirtyIds.size} несохранённых)</span>
               )}
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Arena
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Ramen
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-violet-500" />
-                Extra
-              </span>
             </div>
           </div>
             </TabsContent>
