@@ -79,7 +79,7 @@ export async function GET(req: Request) {
     const dateTo = monthEnd(to)
     const scopeIn = (q: any) => (companyScope.allowedCompanyIds !== null ? q.in('company_id', companyScope.allowedCompanyIds) : q)
 
-    let companiesQ: any = supabase.from('companies').select('id, name, code').order('name')
+    let companiesQ: any = supabase.from('companies').select('id, name, code, exclude_from_totals').order('name')
     if (companyScope.allowedCompanyIds !== null) companiesQ = companiesQ.in('id', companyScope.allowedCompanyIds)
     let categoriesQ: any = supabase.from('expense_categories').select('name, accounting_group')
     if (!access.isSuperAdmin) categoriesQ = categoriesQ.eq('organization_id', orgFilterId)

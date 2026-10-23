@@ -19,6 +19,7 @@ import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { toast } from '@/hooks/use-toast'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { useCompanies } from '@/hooks/use-companies'
+import { isExtraCompany } from '@/lib/reports/extra-company'
 import { useExpenses, type ExpenseRow } from '@/hooks/use-expenses'
 import { useOperators, type OperatorWithProfile } from '@/hooks/use-operators'
 import { FloatingAssistant } from '@/components/ai/floating-assistant'
@@ -538,7 +539,7 @@ export default function ExpensesPage() {
   }
 
   const extraCompanyId = useMemo(() => {
-    const extra = companies.find((c) => c.code === 'extra' || c.name === 'F16 Extra')
+    const extra = companies.find(isExtraCompany)
     return extra?.id ?? null
   }, [companies])
 
@@ -2216,7 +2217,7 @@ function ListTab({
           {rows.map((row: ExpenseRow) => {
             const total = rowTotal(row)
             const company = companyMap.get(row.company_id)
-            const isExtra = company?.code === 'extra' || company?.name === 'F16 Extra'
+            const isExtra = !!company && isExtraCompany(company)
             const statusLabel =
               row.status === 'pending_approval'
                 ? 'Ожидает'
@@ -2417,7 +2418,7 @@ function ListTab({
               if (!row) return null
               const total = rowTotal(row)
               const company = companyMap.get(row.company_id)
-              const isExtra = company?.code === 'extra' || company?.name === 'F16 Extra'
+              const isExtra = !!company && isExtraCompany(company)
               const statusLabel =
                 row.status === 'pending_approval'
                   ? 'Ожидает'

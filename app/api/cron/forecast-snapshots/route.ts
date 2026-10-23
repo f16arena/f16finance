@@ -56,7 +56,7 @@ export async function GET(request: Request) {
   try {
     const { data: companies, error: companiesError } = await supabase
       .from('companies')
-      .select('id, organization_id, name, code')
+      .select('id, organization_id, name, code, exclude_from_totals')
       .not('organization_id', 'is', null)
     if (companiesError) throw companiesError
 

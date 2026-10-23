@@ -30,6 +30,7 @@ type Company = {
   name: string
   code: string | null
   show_in_structure: boolean
+  exclude_from_totals?: boolean | null
   created_at?: string
 }
 
@@ -75,7 +76,7 @@ export default function SettingsPage() {
 
   // Редактирование
   const [editCompId, setEditCompId] = useState<string | null>(null)
-  const [editCompData, setEditCompData] = useState({ name: '', code: '', show_in_structure: true })
+  const [editCompData, setEditCompData] = useState({ name: '', code: '', show_in_structure: true, exclude_from_totals: false })
 
   const [editStaffId, setEditStaffId] = useState<string | null>(null)
   const [editStaffData, setEditStaffData] = useState({ name: '', phone: '', email: '', role: 'other' })
@@ -176,6 +177,7 @@ export default function SettingsPage() {
           name: editCompData.name,
           code: editCompData.code || null,
           show_in_structure: editCompData.show_in_structure,
+          exclude_from_totals: editCompData.exclude_from_totals,
         },
       })
       setEditCompId(null)
@@ -357,6 +359,18 @@ export default function SettingsPage() {
                                             />
                                             В структуре
                                         </label>
+                                        <label
+                                            className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap"
+                                            title="Отдельная касса: в общие итоги отчётов попадает только по галочке «включить»"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={editCompData.exclude_from_totals}
+                                                onChange={e => setEditCompData({ ...editCompData, exclude_from_totals: e.target.checked })}
+                                                className="rounded border-border bg-input"
+                                            />
+                                            Не в общих итогах
+                                        </label>
                                         <Button size="icon" className="h-7 w-7 bg-green-600 hover:bg-green-700" onClick={handleSaveCompany}>
                                             <Save className="w-3 h-3" />
                                         </Button>
@@ -377,12 +391,17 @@ export default function SettingsPage() {
                                                     <span className={`text-[10px] px-1.5 rounded border ${c.show_in_structure ? 'text-cyan-700 dark:text-cyan-300 border-cyan-500/30 bg-cyan-500/10' : 'text-gray-500 border-border bg-slate-100 dark:bg-white/5'}`}>
                                                         {c.show_in_structure ? 'В структуре' : 'Скрыта'}
                                                     </span>
+                                                    {c.exclude_from_totals && (
+                                                        <span className="text-[10px] px-1.5 rounded border text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10">
+                                                            Не в общих итогах
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 gap-1">
                                             {can('settings.manage_companies') && (
-                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-blue-400" onClick={() => { setEditCompId(c.id); setEditCompData({ name: c.name, code: c.code || '', show_in_structure: c.show_in_structure }) }}>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-blue-400" onClick={() => { setEditCompId(c.id); setEditCompData({ name: c.name, code: c.code || '', show_in_structure: c.show_in_structure, exclude_from_totals: c.exclude_from_totals === true }) }}>
                                                     <Pencil className="w-3 h-3" />
                                                 </Button>
                                             )}

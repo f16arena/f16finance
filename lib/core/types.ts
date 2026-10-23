@@ -4,11 +4,13 @@
  */
 import type { SubscriptionFeature } from '@/lib/core/access'
 
-/** Business unit (arena, ramen, extra) */
+/** Точка организации */
 export type Company = {
   id: string
   name: string
   code: string | null
+  /** Не складывать в общие итоги по умолчанию (было: «F16 Extra» в коде). */
+  exclude_from_totals?: boolean | null
 }
 
 export type SessionOrganizationAccessRole =

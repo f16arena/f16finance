@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     }
     const includeExtra = body?.include_extra === true || body?.include_extra === '1'
 
-    let companiesQ = supabase.from('companies').select('id, name, code')
+    let companiesQ = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (scope.allowedCompanyIds) companiesQ = companiesQ.in('id', scope.allowedCompanyIds)
     const { data: companyRows, error: companiesError } = await companiesQ
     if (companiesError) throw companiesError

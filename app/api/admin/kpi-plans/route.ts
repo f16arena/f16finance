@@ -112,7 +112,7 @@ export async function GET(req: Request) {
     const priorYearStart = `${priorYear}-01-01`
     const priorYearEnd = `${priorYear}-12-31`
 
-    let cq = supabase.from('companies').select('id, name, code').order('name')
+    let cq = supabase.from('companies').select('id, name, code, exclude_from_totals').order('name')
     if (companyScope.allowedCompanyIds !== null) {
       if (companyScope.allowedCompanyIds.length === 0) {
         return json({ ok: true, data: { year, companies: [], plans: [], dailyAggregates: [], priorYearMonthly: [], priorYearDaily: [], factEnd, orgPlansAvailable: false, excludedCompanies: [] } })

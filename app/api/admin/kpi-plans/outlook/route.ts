@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     const empty: GoalsOutlookResponse = { month, nextMonth: shiftMonth(month, 1), org: { outlook: null, next: null }, companies: {} }
     if (scope.allowedCompanyIds && scope.allowedCompanyIds.length === 0) return NextResponse.json(empty)
 
-    let companiesQ: any = supabase.from('companies').select('id, name, code')
+    let companiesQ: any = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (scope.allowedCompanyIds) companiesQ = companiesQ.in('id', scope.allowedCompanyIds)
 
     const [inputs, companiesRes] = await Promise.all([

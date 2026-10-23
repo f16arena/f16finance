@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     }
     const scopeIds = companyId ? [companyId] : companyScope.allowedCompanyIds
 
-    let companiesQ: any = supabase.from('companies').select('id, name, code').order('name')
+    let companiesQ: any = supabase.from('companies').select('id, name, code, exclude_from_totals').order('name')
     if (companyScope.allowedCompanyIds) companiesQ = companiesQ.in('id', companyScope.allowedCompanyIds)
 
     // Отметки остатка — только своей организации; таблицы может ещё не быть

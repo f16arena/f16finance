@@ -10,13 +10,13 @@ type MutationBody =
   | {
       entity: 'company'
       action: 'create'
-      payload: { name: string; code?: string | null; show_in_structure?: boolean | null }
+      payload: { name: string; code?: string | null; show_in_structure?: boolean | null; exclude_from_totals?: boolean | null }
     }
   | {
       entity: 'company'
       action: 'update'
       id: string
-      payload: { name: string; code?: string | null; show_in_structure?: boolean | null }
+      payload: { name: string; code?: string | null; show_in_structure?: boolean | null; exclude_from_totals?: boolean | null }
     }
   | {
       entity: 'company'
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
     const orgId = access.activeOrganization?.id || null
     const scopeOrg = orgId || (access.isSuperAdmin ? null : '00000000-0000-0000-0000-000000000000')
 
-    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure').order('name')
+    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals').order('name')
     let staffQuery = supabase.from('staff').select('id, full_name, phone, email, role, is_active').eq('is_active', true).order('full_name')
     let categoriesQuery = supabase.from('expense_categories').select('id, name, monthly_budget, accounting_group').order('name')
     if (scopeOrg) {
@@ -218,9 +218,10 @@ export async function POST(req: Request) {
             name: companyName,
             code,
             show_in_structure: body.payload.show_in_structure !== false,
+            exclude_from_totals: body.payload.exclude_from_totals === true,
             organization_id: access.activeOrganization?.id || null,
           },
-        ]).select('id,name,code,show_in_structure').single()
+        ]).select('id,name,code,show_in_structure,exclude_from_totals').single()
         if (error) throw error
         await writeAuditLog(supabase, {
           actorUserId,
@@ -243,10 +244,14 @@ export async function POST(req: Request) {
               name: body.payload.name.trim(),
               code: body.payload.code?.trim() || null,
               show_in_structure: body.payload.show_in_structure !== false,
+              // Не прислали (старая форма) — не трогаем: иначе сбросили бы флаг F16 Extra.
+              ...(typeof body.payload.exclude_from_totals === 'boolean'
+                ? { exclude_from_totals: body.payload.exclude_from_totals }
+                : {}),
             })
             .eq('id', body.id),
         )
-          .select('id,name,code,show_in_structure')
+          .select('id,name,code,show_in_structure,exclude_from_totals')
           .single()
         if (error) throw error
         await writeAuditLog(supabase, {
@@ -254,7 +259,7 @@ export async function POST(req: Request) {
           entityType: 'company',
           entityId: String(data.id),
           action: 'update',
-          payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure },
+          payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure, exclude_from_totals: data.exclude_from_totals },
         })
         return NextResponse.json({ ok: true })
       }

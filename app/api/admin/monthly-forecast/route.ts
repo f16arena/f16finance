@@ -62,7 +62,7 @@ export async function GET(req: Request) {
     const today = kzTodayISO()
     const currentMonth = today.slice(0, 7)
 
-    let companiesQuery: any = supabase.from('companies').select('id, name, code')
+    let companiesQuery: any = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (companyScope.allowedCompanyIds !== null) companiesQuery = companiesQuery.in('id', companyScope.allowedCompanyIds)
 
     const [loadedInputs, companiesRes] = await Promise.all([

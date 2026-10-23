@@ -19,6 +19,7 @@ import {
   dayOfYear,
   normalizeRate,
 } from '@/lib/domain/tax'
+import { isExtraCompany } from '@/lib/reports/extra-company'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability } from '@/lib/server/capabilities'
 import { listOrganizationStaffIds, resolveCompanyScope } from '@/lib/server/organizations'
@@ -118,7 +119,7 @@ export async function GET(req: Request) {
       })
     }
 
-    let companiesQuery = supabase.from('companies').select('id, name, code')
+    let companiesQuery = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (companyScope.allowedCompanyIds) {
       companiesQuery = companiesQuery.in('id', companyScope.allowedCompanyIds)
     }
@@ -129,9 +130,7 @@ export async function GET(req: Request) {
     // те же правила, что на страницах `/weekly-report` и `/reports`.
     const excludedCompanies = includeExtra
       ? []
-      : (companyRows || []).filter(
-          (row: any) => String(row.code || '').toLowerCase() === 'extra' || row.name === 'F16 Extra',
-        )
+      : (companyRows || []).filter((row: any) => isExtraCompany(row))
     const excludedCompanyIds = excludedCompanies.map((row: any) => String(row.id))
 
     const yearStart = `${new Date().getFullYear()}-01-01`

@@ -107,7 +107,7 @@ export async function GET(req: Request) {
     const canOperators = await hasCapability(access, 'operator-analytics.view')
 
     // Список точек для фильтра — все точки в пределах организации.
-    let companiesQuery: any = supabase.from('companies').select('id, name, code').order('name')
+    let companiesQuery: any = supabase.from('companies').select('id, name, code, exclude_from_totals').order('name')
     if (scope.allowedCompanyIds !== null) companiesQuery = companiesQuery.in('id', scope.allowedCompanyIds)
     const companiesRes = await companiesQuery
     if (companiesRes.error) throw companiesRes.error

@@ -111,7 +111,7 @@ export async function GET(req: Request) {
 
     // Один билдер с условным .in(): раньше сначала БЕЗУСЛОВНО выполнялся запрос
     // по всем организациям, и только потом результат перезаписывался отскоупленным.
-    let companiesQuery: any = supabase.from('companies').select('id, name, code')
+    let companiesQuery: any = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (companyScope.allowedCompanyIds !== null) {
       companiesQuery = companiesQuery.in('id', companyScope.allowedCompanyIds)
     }

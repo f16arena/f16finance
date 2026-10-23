@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useToday } from '@/lib/client/use-today'
 import { toISODateLocal } from '@/lib/core/date'
+import { isExtraCompany } from '@/lib/reports/extra-company'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
@@ -181,7 +182,7 @@ export default function TaxPage() {
   }, [today, dateTo])
   // Raw incomes для гибкого расчёта по company × payment_type
   const [incomeRows, setIncomeRows] = useState<Array<{ date: string; company_id: string | null; cash_amount: number; kaspi_amount: number; online_amount: number; card_amount: number }>>([])
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string; show_in_structure?: boolean; code?: string | null }>>([])
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; show_in_structure?: boolean; code?: string | null; exclude_from_totals?: boolean | null }>>([])
 
   // Фильтр: какие источники учитывать в налогооблагаемом обороте
   // Структура: { [companyId]: { cash: bool, kaspi: bool, online: bool, card: bool } }
@@ -306,6 +307,7 @@ export default function TaxPage() {
           name: c.name,
           code: c.code || null,
           show_in_structure: c.show_in_structure !== false,
+          exclude_from_totals: typeof c.exclude_from_totals === 'boolean' ? c.exclude_from_totals : null,
         })))
       }
 
@@ -325,11 +327,9 @@ export default function TaxPage() {
     }
   }
 
-  // Detect F16 Extra компании (по code='extra' или name='F16 Extra')
+  // Точка «не в общих итогах» (настройка точки; у F16 — Extra)
   const extraCompanyId = useMemo(() => {
-    const c = companies.find(
-      (x) => (x.code || '').toLowerCase() === 'extra' || x.name === 'F16 Extra',
-    )
+    const c = companies.find(isExtraCompany)
     return c?.id ?? null
   }, [companies])
 

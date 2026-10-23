@@ -66,7 +66,7 @@ export async function GET(req: Request) {
     const scopeIds = companyId ? [companyId] : scope.allowedCompanyIds
     const include = (id: string) => (companyId ? id === companyId : !scope.allowedCompanyIds || scope.allowedCompanyIds.includes(id))
 
-    let companiesQ: any = supabase.from('companies').select('id, name, code')
+    let companiesQ: any = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (scope.allowedCompanyIds) companiesQ = companiesQ.in('id', scope.allowedCompanyIds)
     let templatesQ: any = supabase
       .from('expense_templates')

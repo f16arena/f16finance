@@ -331,7 +331,7 @@ export async function computeBusinessIntelligence(
   const now = Date.now()
 
   // 1. Точки скоупа
-  let compQ = supabase.from('companies').select('id, name, code')
+  let compQ = supabase.from('companies').select('id, name, code, exclude_from_totals')
   if (effectiveCompanyIds) compQ = compQ.in('id', effectiveCompanyIds)
   else if (organizationId) compQ = compQ.eq('organization_id', organizationId)
   const { data: compRows, error: compErr } = await compQ

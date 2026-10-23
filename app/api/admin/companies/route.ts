@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from('companies')
-      .select('id, name, code')
+      .select('id, name, code, exclude_from_totals')
       .order('name', { ascending: true })
 
     if (scope.allowedCompanyIds) {
