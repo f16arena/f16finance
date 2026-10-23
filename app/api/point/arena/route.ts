@@ -6,6 +6,7 @@ import { requirePointDevice } from '@/lib/server/point-devices'
 import { getCurrentOpenShift } from '@/lib/server/point-shifts'
 import { kzKaspiBeforeMidnight, resolveKzShift } from '@/lib/core/kz-shift'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { isExtraCompany } from '@/lib/reports/extra-company'
 import { escapeTelegramHtml } from '@/lib/telegram/message-kit'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 import { broadcastKioskCommand } from '@/lib/server/kiosk-broadcast'
@@ -19,11 +20,10 @@ function deferArenaSessionIncomes(flags: Record<string, unknown> | null | undefi
 }
 
 // Компании «Extra» по умолчанию НЕ плодят доход на каждую сессию (итог при закрытии
-// смены), даже без флага — чтобы новые точки Extra не настраивать руками.
-function isExtraCompany(company: { code?: string | null; name?: string | null } | null | undefined) {
-  const code = String(company?.code || '').toLowerCase().trim()
-  const name = String(company?.name || '').toLowerCase().trim()
-  return code === 'extra' || name.includes('extra')
+// смены), даже без флага. Признак строгий (код extra / «F16 Extra»): по подстроке
+// «extra» в имени точка клиента «Extra Store» молча уходила в отложенный доход.
+function isExtraPoint(company: { code?: string | null; name?: string | null } | null | undefined) {
+  return !!company && isExtraCompany(company)
 }
 
 function nextCalendarDateIso(isoDate: string): string {
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
 
     const todayDate = new Date().toISOString().slice(0, 10)
     const todayEndExclusive = `${nextCalendarDateIso(todayDate)}T00:00:00.000Z`
-    const deferIncomes = deferArenaSessionIncomes(device.feature_flags as Record<string, unknown>) || isExtraCompany((device as any).company)
+    const deferIncomes = deferArenaSessionIncomes(device.feature_flags as Record<string, unknown>) || isExtraPoint((device as any).company)
 
     const [
       { data: zones, error: zonesError },
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
     const { supabase, device } = point
     const projectId = device.id
     const companyId = device.company_id || null
-    const deferIncomes = deferArenaSessionIncomes(device.feature_flags as Record<string, unknown>) || isExtraCompany((device as any).company)
+    const deferIncomes = deferArenaSessionIncomes(device.feature_flags as Record<string, unknown>) || isExtraPoint((device as any).company)
 
     const body = await request.json().catch(() => null)
     if (!body?.action) return json({ error: 'action required' }, 400)

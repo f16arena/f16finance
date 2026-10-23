@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { isExtraCompany as isExtraPoint } from '@/lib/reports/extra-company'
 import { requirePointDevice } from '@/lib/server/point-devices'
 import { buildPointDailyKaspiReport } from '@/lib/server/services/point-kaspi'
 import { notifyShiftReport } from '@/lib/server/telegram'
@@ -232,9 +233,7 @@ export async function POST(request: Request) {
     // этот день/оператора (минус возвраты) — теми же фильтрами, что и привязка ниже.
     // Компании «Extra» сворачивают доход зала в смену по умолчанию (как и флаг) —
     // согласовано с point/arena, чтобы доход не терялся без ручной настройки флага.
-    const companyCodeLc = String(device.company?.code || '').toLowerCase().trim()
-    const companyNameLc = String(device.company?.name || '').toLowerCase().trim()
-    const isExtraCompany = companyCodeLc === 'extra' || companyNameLc.includes('extra')
+    const isExtraCompany = !!device.company && isExtraPoint(device.company)
     const deferArena = device.feature_flags?.arena_defer_income_to_shift === true || isExtraCompany
     let arenaCashAdd = 0
     let arenaKaspiAdd = 0

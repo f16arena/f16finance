@@ -4,6 +4,7 @@ import { arenaExtensionMinutesFromPayment } from '@/lib/core/arena-extension-min
 import { effectiveZoneExtensionHourly } from '@/lib/core/arena-zone-extension-hourly'
 import { computeTimeWindowEndsAt, isNowInTariffWindow, isTariffOfferedNow } from '@/lib/core/arena-tariff-window'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { isExtraCompany } from '@/lib/reports/extra-company'
 import { requireOperator } from '@/lib/server/operator-context'
 import { getCurrentOpenShift } from '@/lib/server/point-shifts'
 import { kzKaspiBeforeMidnight, resolveKzShift } from '@/lib/core/kz-shift'
@@ -38,10 +39,10 @@ if (typeof setInterval !== 'undefined') {
 
 // Компании «Extra» по умолчанию агрегируют доход в один при закрытии смены
 // (а не на каждую сессию) — даже без флага, чтобы не настраивать руками.
-function isExtraCompany(company: { code?: string | null; name?: string | null } | null | undefined) {
-  const code = String(company?.code || '').toLowerCase().trim()
-  const name = String(company?.name || '').toLowerCase().trim()
-  return code === 'extra' || name.includes('extra')
+// Строгий признак (код extra / имя «F16 Extra»): по подстроке «extra» в имени точка
+// клиента «Extra Store» молча уходила в отложенный доход.
+function isExtraPoint(company: { code?: string | null; name?: string | null } | null | undefined) {
+  return !!company && isExtraCompany(company)
 }
 
 /**
@@ -86,7 +87,7 @@ async function resolvePointProject(supabase: any, companyId: string) {
   return {
     id: active.project.id,
     feature_flags: { ...projectFlags, ...companyFlags },
-    isExtra: isExtraCompany(co),
+    isExtra: isExtraPoint(co),
   }
 }
 

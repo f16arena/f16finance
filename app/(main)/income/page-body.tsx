@@ -80,6 +80,7 @@ import {
 } from 'recharts'
 
 import type { Company, DateRangePreset, SessionRoleInfo } from '@/lib/core/types'
+import { isExtraCompany as isExtraCompanyStrict } from '@/lib/reports/extra-company'
 
 // --- Типы ---
 type Shift = 'day' | 'night'
@@ -272,11 +273,9 @@ class IncomeAnalytics {
 }
 
 // --- Вспомогательные функции ---
-const isExtraCompany = (c?: Company | null) => {
-  const code = String(c?.code ?? '').toLowerCase().trim()
-  const name = String(c?.name ?? '').toLowerCase().trim()
-  return code === 'extra' || name.includes('extra')
-}
+// Строгий признак (код extra / «F16 Extra»): по подстроке «extra» в имени точка
+// клиента «Extra Store» выпадала из выручки.
+const isExtraCompany = (c?: Company | null) => !!c && isExtraCompanyStrict(c)
 
 const stripExtraSuffix = (s: string) => s.replace(/\s*•\s*(PS5|VR)\s*$/i, '').trim()
 
