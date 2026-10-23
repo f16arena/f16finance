@@ -1,4 +1,4 @@
-import { DEFAULT_COMPANY_CODES, DEFAULT_SHIFT_BASE_PAY } from '@/lib/core/constants'
+import { DEFAULT_SHIFT_BASE_PAY } from '@/lib/core/constants'
 import { resolveShiftOverrides, type PointRuleRow } from './point-rules'
 
 export type AdjustmentKind = 'debt' | 'fine' | 'bonus' | 'advance'
@@ -524,14 +524,18 @@ function aggregateShifts(params: {
   options?: CalculationOptions
 }): Map<string, AggregatedShift> {
   const companyCodeMap = createCompanyCodeMap(params.companies)
-  const allowedCodes = new Set((params.options?.companyCodes || DEFAULT_COMPANY_CODES).map((item) => item.toLowerCase()))
+  // Без явного списка — все точки из входа (вызывающий уже сузил доходы до своей орг-и).
+  // Раньше по умолчанию были только коды F16 arena/ramen/extra — у других клиентов ЗП = 0.
+  const allowedCodes = params.options?.companyCodes
+    ? new Set(params.options.companyCodes.map((item) => item.toLowerCase()))
+    : null
   const aggregated = new Map<string, AggregatedShift>()
 
   for (const row of params.incomes) {
     if (!row.operator_id) continue
 
     const companyCode = companyCodeMap.get(row.company_id)
-    if (!companyCode || !allowedCodes.has(companyCode)) continue
+    if (!companyCode || (allowedCodes && !allowedCodes.has(companyCode))) continue
 
     const shift: ShiftType = row.shift === 'night' ? 'night' : 'day'
     const turnover = calculateIncomeTotal(row)
@@ -680,7 +684,9 @@ export function calculateOperatorShiftBreakdown(params: {
     assignments: params.assignments || [],
     companies: params.companies,
   })
-  const allowedCodes = new Set((params.options?.companyCodes || DEFAULT_COMPANY_CODES).map((item) => item.toLowerCase()))
+  const allowedCodes = params.options?.companyCodes
+    ? new Set(params.options.companyCodes.map((item) => item.toLowerCase()))
+    : null
   const aggregated = new Map<
     string,
     Omit<
@@ -694,7 +700,7 @@ export function calculateOperatorShiftBreakdown(params: {
     if (!row.shift) continue
 
     const companyCode = companyCodeMap.get(row.company_id)
-    if (!companyCode || !allowedCodes.has(companyCode)) continue
+    if (!companyCode || (allowedCodes && !allowedCodes.has(companyCode))) continue
 
     const key = `${row.date}_${row.shift}_${row.company_id}`
     const existing = aggregated.get(key)

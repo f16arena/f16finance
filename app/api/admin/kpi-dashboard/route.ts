@@ -224,25 +224,24 @@ export async function GET(req: Request) {
       operatorNames = Object.fromEntries(((operatorsData || []) as Array<{ id: string; name: string }>).map((item) => [item.id, item.name]))
     }
 
-    const weekdayShare: Record<CompanyCode, number> = { arena: 4 / 7, ramen: 4 / 7, extra: 4 / 7 }
-    const shareAgg: Record<CompanyCode, { wd: number; we: number }> = {
-      arena: { wd: 0, we: 0 },
-      ramen: { wd: 0, we: 0 },
-      extra: { wd: 0, we: 0 },
-    }
+    // Доля будней — по каждой точке из истории (коды любые, не только arena/ramen/extra F16).
+    // Коды F16 всегда в ответе: фронт читает их напрямую.
+    const weekdayShare: Record<string, number> = {}
+    const shareAgg: Record<string, { wd: number; we: number }> = {}
+    for (const code of COMPANIES) shareAgg[code] = { wd: 0, we: 0 }
 
     for (const row of ((hist || []) as IncomeRow[])) {
-      const companyCode = String(row.companies?.code || '').toLowerCase() as CompanyCode
-      if (!COMPANIES.includes(companyCode)) continue
+      const companyCode = String(row.companies?.code || '').toLowerCase()
+      if (!companyCode) continue
       const amount = Number(row.cash_amount || 0) + Number(row.kaspi_amount || 0) + Number(row.card_amount || 0)
       const day = parseLocalDate(row.date).getDay()
       const key = day >= 1 && day <= 4 ? 'wd' : 'we'
-      shareAgg[companyCode][key] += amount
+      ;(shareAgg[companyCode] ||= { wd: 0, we: 0 })[key] += amount
     }
 
-    for (const company of COMPANIES) {
-      const total = shareAgg[company].wd + shareAgg[company].we
-      weekdayShare[company] = total > 0 ? shareAgg[company].wd / total : 4 / 7
+    for (const [company, agg] of Object.entries(shareAgg)) {
+      const total = agg.wd + agg.we
+      weekdayShare[company] = total > 0 ? agg.wd / total : 4 / 7
     }
 
     return json({
