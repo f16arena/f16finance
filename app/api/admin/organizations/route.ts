@@ -665,7 +665,6 @@ export async function PATCH(req: Request) {
       if ((org as any).slug === 'f16') return json({ error: 'F16 нельзя архивировать/удалять' }, 403)
 
       if (body.action === 'archiveOrg') {
-        if ((org as any).billing_exempt) return json({ error: 'Организация с billing-exempt защищена от архивации' }, 403)
         if ((org as any).status !== 'suspended') {
           return json({ error: 'Архивировать можно только приостановленную (suspended) организацию. Сначала приостановите подписку.' }, 409)
         }
@@ -1003,7 +1002,7 @@ export async function DELETE(req: Request) {
 
     const slug = String((org as any).slug || '')
     if (slug === 'f16') return json({ error: 'F16 нельзя удалить' }, 403)
-    if ((org as any).billing_exempt) return json({ error: 'Организация с billing-exempt защищена от удаления' }, 403)
+    // billing_exempt («бесплатно») — про счета, не защита: тестовые орг-и тоже удаляются.
     if ((org as any).status !== 'archived') {
       return json({ error: 'Удалить можно только архивированную организацию. Сначала «Архивировать».' }, 409)
     }

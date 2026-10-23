@@ -240,15 +240,9 @@ export async function GET(req: Request) {
   const supabase = createAdminSupabaseClient()
 
   // Изоляция: каждой организации — свой обзор (по её companyIds) в её чат.
-  // Нет per-org настройки → прежнее поведение: общий env-чат, без скоупа.
+  // Общий env-чат без скоупа убран: он получал сводку по всем арендаторам.
   const orgTargets = await listOrgReportTargets()
-  const envChat = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID
-  const targets =
-    orgTargets.length > 0
-      ? orgTargets.map((t) => ({ chatId: t.chatId, companyIds: t.companyIds }))
-      : envChat
-        ? [{ chatId: envChat, companyIds: null as string[] | null }]
-        : []
+  const targets = orgTargets.map((t) => ({ chatId: t.chatId, companyIds: t.companyIds as string[] | null }))
 
   if (targets.length === 0) {
     return NextResponse.json({ ok: true, skipped: 'no report target' })

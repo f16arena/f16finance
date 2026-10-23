@@ -4,6 +4,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability } from '@/lib/server/capabilities'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { pushToOrganization } from '@/lib/server/push'
+import { getCompanyReportTarget } from '@/lib/server/report-targets'
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { sendTelegramMessage } from '@/lib/telegram/send'
@@ -247,8 +248,10 @@ export async function POST(request: Request) {
     })
 
     if (status === 'pending_approval') {
-      const ownerChatId = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID || null
-      if (ownerChatId) {
+      // Чат владельца организации этой точки — не общий env-чат (туда шли расходы всех арендаторов).
+      const target = await getCompanyReportTarget(payload.company_id)
+      const ownerChatId = target?.chatId || null
+      if (target && ownerChatId) {
         const total = Number(payload.amount_cash || 0) + Number(payload.amount_kaspi || 0)
 
         let suggestWhitelist = false
@@ -259,6 +262,7 @@ export async function POST(request: Request) {
             .from('expenses')
             .select('id, one_off_payee, status')
             .eq('document_kind', 'one_off')
+            .in('company_id', target.companyIds || [])
             .gte('date', since)
             .in('status', ['confirmed', 'approved'])
           const matches = (prior || []).filter((row: any) => {

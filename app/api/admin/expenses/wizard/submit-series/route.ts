@@ -4,6 +4,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability } from '@/lib/server/capabilities'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { pushToOrganization } from '@/lib/server/push'
+import { getCompanyReportTarget } from '@/lib/server/report-targets'
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { sendTelegramMessage } from '@/lib/telegram/send'
@@ -326,7 +327,7 @@ export async function POST(request: Request) {
 
     // Одно уведомление на всю серию — иначе владельцу прилетит N одинаковых.
     if (status === 'pending_approval') {
-      const ownerChatId = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID || null
+      const ownerChatId = (await getCompanyReportTarget(payload.company_id))?.chatId || null
       if (ownerChatId) {
         let companyName = ''
         if (payload.company_id) {

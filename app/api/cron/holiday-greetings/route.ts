@@ -111,9 +111,15 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Поздравляем только команды организаций с настроенным Telegram: остальным владелец
+  // рассылку не включал (раньше бот писал операторам всех арендаторов).
+  const orgTargets = await listOrgReportTargets()
+  const orgChatMap = new Map(orgTargets.map((t) => [t.organizationId, t.chatId]))
+
   const sent: { name: string }[] = []
   const sentByOrg = new Map<string | null, number>() // orgId → сколько поздравлено
   for (const op of (operators as any[]) || []) {
+    if (!op.organization_id || !orgChatMap.has(op.organization_id)) continue
     const profile = Array.isArray(op.operator_profiles) ? op.operator_profiles[0] : op.operator_profiles
     const displayName = profile?.full_name || op.short_name || op.name || 'друг'
     const chat = String(op.telegram_chat_id || '')
@@ -129,32 +135,17 @@ export async function GET(request: Request) {
     }
   }
 
-  // Уведомляем владельца. Изоляция: каждой организации — счётчик по её команде в её чат.
-  // Нет per-org целей → прежнее поведение (единый env-чат, общий счётчик, F16).
-  const orgTargets = await listOrgReportTargets()
-  if (orgTargets.length > 0) {
-    for (const t of orgTargets) {
-      const count = sentByOrg.get(t.organizationId) || 0
-      if (count === 0) continue
-      try {
-        await sendTelegramMessage(
-          t.chatId,
-          `${holiday.emoji} Сегодня <b>${holiday.name}</b>. Команде разослано поздравление (${count} человек).`,
-          { parseMode: 'HTML' },
-        )
-      } catch {}
-    }
-  } else {
-    const ownerChatId = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID
-    if (ownerChatId) {
-      try {
-        await sendTelegramMessage(
-          ownerChatId,
-          `${holiday.emoji} Сегодня <b>${holiday.name}</b>. Команде разослано поздравление (${sent.length} человек).`,
-          { parseMode: 'HTML' },
-        )
-      } catch {}
-    }
+  // Уведомляем владельца: каждой организации — счётчик по её команде в её чат.
+  for (const t of orgTargets) {
+    const count = sentByOrg.get(t.organizationId) || 0
+    if (count === 0) continue
+    try {
+      await sendTelegramMessage(
+        t.chatId,
+        `${holiday.emoji} Сегодня <b>${holiday.name}</b>. Команде разослано поздравление (${count} человек).`,
+        { parseMode: 'HTML' },
+      )
+    } catch {}
   }
 
   return NextResponse.json({ ok: true, holiday: holiday.name, sent: sent.length })

@@ -26,9 +26,8 @@ export async function listOrgReportTargets(): Promise<ReportTarget[]> {
  * Кому слать cron/бот-отчёты с изоляцией по арендаторам.
  *
  * 1) Каждая организация с заданным `telegram_owner_chat_id` → свой чат + свои company_id.
- * 2) Env-фолбэк: если задан `TELEGRAM_OWNER_CHAT_ID` и его орг ещё не покрыта пунктом 1 —
- *    добавляем её (скоуп по `TELEGRAM_OWNER_ORG_ID`, либо все данные, если орг не задана).
- *    Это сохраняет текущие отчёты F16 при переходе на per-org рассылку.
+ * 2) Env-фолбэк: `TELEGRAM_OWNER_CHAT_ID` + `TELEGRAM_OWNER_ORG_ID`, если эта орг ещё не
+ *    покрыта пунктом 1 (скоуп — её company_id).
  *
  * Использование в cron:
  *   for (const t of await listReportTargets()) {
@@ -61,17 +60,38 @@ export async function listReportTargets(): Promise<ReportTarget[]> {
     coveredOrgs.add(String(o.id))
   }
 
-  // Env-фолбэк (обратная совместимость, single-tenant F16).
+  // Env-фолбэк — только с указанной TELEGRAM_OWNER_ORG_ID. Без неё раньше уходила сводка
+  // по всем арендаторам сразу (companyIds = null); у F16 чат теперь в organizations.
   const envChat = (process.env.TELEGRAM_OWNER_CHAT_ID || '').trim()
   const envOrg = (process.env.TELEGRAM_OWNER_ORG_ID || '').trim()
-  if (envChat && (!envOrg || !coveredOrgs.has(envOrg))) {
-    let companyIds: string[] | null = null
-    if (envOrg) {
-      const { data: comps } = await supabase.from('companies').select('id').eq('organization_id', envOrg)
-      companyIds = (comps || []).map((c: any) => String(c.id))
-    }
-    targets.push({ organizationId: envOrg || null, chatId: envChat, companyIds, source: 'env' })
+  if (envChat && envOrg && !coveredOrgs.has(envOrg)) {
+    const { data: comps } = await supabase.from('companies').select('id').eq('organization_id', envOrg)
+    const companyIds = (comps || []).map((c: any) => String(c.id))
+    targets.push({ organizationId: envOrg, chatId: envChat, companyIds, source: 'env' })
   }
 
   return targets
+}
+
+/** Чат владельца организации, которой принадлежит точка, и все точки этой организации.
+ *  null — у организации чат не настроен (уведомление не шлём никуда). */
+export async function getCompanyReportTarget(companyId: string | null | undefined): Promise<ReportTarget | null> {
+  if (!companyId || !hasAdminSupabaseCredentials()) return null
+  const supabase = createAdminSupabaseClient()
+  const { data: company } = await supabase
+    .from('companies')
+    .select('organization_id')
+    .eq('id', companyId)
+    .maybeSingle()
+  const orgId = String((company as any)?.organization_id || '')
+  if (!orgId) return null
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('telegram_owner_chat_id')
+    .eq('id', orgId)
+    .maybeSingle()
+  const chatId = String((org as any)?.telegram_owner_chat_id || '').trim()
+  if (!chatId) return null
+  const { data: comps } = await supabase.from('companies').select('id').eq('organization_id', orgId)
+  return { organizationId: orgId, chatId, companyIds: (comps || []).map((c: any) => String(c.id)), source: 'org' }
 }

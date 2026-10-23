@@ -51,9 +51,8 @@ export async function GET(request: Request) {
   const opsList = (operators as any[]) || []
   const sent: { name: string; chat: string }[] = []
   const teamReminders: { birthdayPerson: string; notified: number }[] = []
-  const envOwnerChatId = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID
-
-  // Изоляция: владельцу-получателю по орг (per-org chat), иначе общий env-чат.
+  // Изоляция: владельцу — только чат его организации. Общий env-чат убран: туда попадали
+  // именинники организаций без своего чата.
   const orgTargets = await listOrgReportTargets()
   const orgChatMap = new Map(orgTargets.map((t) => [t.organizationId, t.chatId]))
 
@@ -80,8 +79,8 @@ export async function GET(request: Request) {
       console.error(`[birthday] personal failed for ${bd.displayName}:`, e?.message)
     }
 
-    // 2.2) Уведомление владельцу той же организации (per-org chat, иначе общий env).
-    const ownerChatId = (bd.orgId && orgChatMap.get(bd.orgId)) || envOwnerChatId
+    // 2.2) Уведомление владельцу той же организации (если у неё настроен чат).
+    const ownerChatId = bd.orgId ? orgChatMap.get(bd.orgId) : undefined
     if (ownerChatId) {
       try {
         await sendTelegramMessage(

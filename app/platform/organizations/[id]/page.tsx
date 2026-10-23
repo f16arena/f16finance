@@ -855,7 +855,7 @@ export default function OrgDetailPage() {
           </div>
 
           {/* Опасная зона: архив → удаление */}
-          {org && org.slug !== 'f16' && !billingExempt && (
+          {org && org.slug !== 'f16' && (
             <div className="rounded-2xl border border-rose-300/60 bg-rose-50/50 p-4 dark:border-rose-500/30 dark:bg-rose-500/[0.06]">
               <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-300">
                 <Trash2 className="h-4 w-4" />

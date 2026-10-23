@@ -4,18 +4,19 @@ import { ordaTelegramFrame } from '@/lib/telegram/message-kit'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID
 
 export function isTelegramConfigured(): boolean {
   return !!BOT_TOKEN
 }
 
+/** Без chatId — не шлём никуда. Общий админ-чат (TELEGRAM_ADMIN_CHAT_ID) убран: туда
+ *  падали уведомления организаций, у которых свой чат не настроен. */
 export async function sendTelegram(
   text: string,
   chatId?: string,
 ): Promise<void> {
   const token = BOT_TOKEN
-  const chat = chatId || ADMIN_CHAT_ID
+  const chat = chatId
   if (!token || !chat) return
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`
@@ -108,7 +109,7 @@ export async function notifyShiftReport(params: {
     `<pre>${preBody}</pre>`,
   ].join('\n')
 
-  // Только в чат отчётов точки (пусто — админский чат). Личная копия оператору
+  // Только в чат отчётов точки (пусто — никуда). Личная копия оператору
   // убрана по решению владельца 17.09.2026: сводка смены — для руководства.
   await sendTelegram(html, params.reportChatId || undefined)
 }

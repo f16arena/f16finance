@@ -199,20 +199,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, perOrg: true, results })
     }
 
-    // Env-фолбэк (F16): скоуп по TELEGRAM_OWNER_ORG_ID, отправка в общий env-чат.
-    const ownerChatId = process.env.TELEGRAM_OWNER_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID
-    if (!ownerChatId) {
-      return NextResponse.json({ ok: true, skipped: 'no TELEGRAM_OWNER_CHAT_ID' })
-    }
-    const ownerOrgId = process.env.TELEGRAM_OWNER_ORG_ID || null
-    let ownerCompanyIds: string[] | null = null
-    if (ownerOrgId) {
-      const { data: cos } = await supabase.from('companies').select('id').eq('organization_id', ownerOrgId)
-      ownerCompanyIds = (cos || []).map((c: any) => String(c.id))
-    }
-    const insights = await buildInsights(ownerCompanyIds, ownerOrgId)
-    const sent = await sendInsights(ownerChatId, insights)
-    return NextResponse.json({ ok: true, perOrg: false, sent, count: insights.length })
+    // Ни у одной организации не настроен чат — некому слать. Общий env-чат со сводкой
+    // по всем арендаторам убран.
+    return NextResponse.json({ ok: true, skipped: 'no report target' })
   } catch (e: any) {
     console.error('[smart-insights] error:', e?.message)
     return NextResponse.json({ ok: false, error: e?.message }, { status: 500 })

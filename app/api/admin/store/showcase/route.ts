@@ -370,7 +370,6 @@ export async function POST(request: Request) {
 
           const chatIds = [
             ...(staffRows || []).map((s: any) => String(s.telegram_chat_id)),
-            process.env.TELEGRAM_ADMIN_CHAT_ID,
           ].filter(Boolean) as string[]
 
           const uniqueChatIds = [...new Set(chatIds)]
