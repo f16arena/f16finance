@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 
 import { addDaysISO, mondayOfDate, toISODateLocal } from '@/lib/core/date'
+import { isDefaultOperatorPaySchedule } from '@/lib/core/org-settings'
+import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { getOperatorDisplayName } from '@/lib/core/operator-name'
 import { calculateOperatorWeekSummary } from '@/lib/domain/salary'
 import type { PointRuleRow } from '@/lib/domain/point-rules'
@@ -36,8 +39,17 @@ export async function GET(request: Request) {
     if ('response' in context) return context.response
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : (context.supabase as any)
-    const weekStart = getCurrentWeekStart()
-    const weekEnd = addDaysISO(weekStart, 6)
+    // Текущий период зарплаты — по графику организации оператора (у F16 — неделя пн–вс).
+    const { data: operatorOrgRow } = await supabase
+      .from('operators')
+      .select('organization_id')
+      .eq('id', context.operator.id)
+      .maybeSingle()
+    const paySchedule = (await getOrgSettings((operatorOrgRow as any)?.organization_id || null)).operatorPaySchedule
+    const debtsByDate = !isDefaultOperatorPaySchedule(paySchedule)
+    const period = operatorPayPeriodFor(toISODateLocal(new Date()), paySchedule)
+    const weekStart = period?.start || getCurrentWeekStart()
+    const weekEnd = period?.end || addDaysISO(weekStart, 6)
     const displayLabels = [
       getOperatorDisplayName(context.operator, 'Оператор'),
       context.operator.name,
@@ -64,7 +76,8 @@ export async function GET(request: Request) {
         .from('debts')
         .select('company_id')
         .eq('operator_id', context.operator.id)
-        .eq('week_start', weekStart)
+        .gte(debtsByDate ? 'date' : 'week_start', weekStart)
+        .lte(debtsByDate ? 'date' : 'week_start', debtsByDate ? weekEnd : weekStart)
         // Удержанный из зарплаты долг остаётся в расчёте, значит его точка
         // должна оставаться в скоупе — иначе расчёт потеряет её начисления.
         .or('status.eq.active,settled_via.eq.salary'),
@@ -119,6 +132,7 @@ export async function GET(request: Request) {
         dateFrom: weekStart,
         dateTo: weekEnd,
         weekStart,
+        debtsByDate,
         companyIds: operatorCompanyIds,
       }),
       listActiveOperatorLeadAssignments(context.supabase, context.operator.id),

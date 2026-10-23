@@ -2,6 +2,8 @@ import 'server-only'
 
 import { addDaysISO, mondayOfISO } from '@/lib/core/date'
 import { escapeHtml, formatMoney } from '@/lib/core/format'
+import { isDefaultOperatorPaySchedule, type OperatorPaySchedule } from '@/lib/core/org-settings'
+import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
 import { calculateOperatorSalarySummary } from '@/lib/domain/salary'
 import { findOperatorByKey, listOperatorSalaryData, listSalaryReferenceData } from '@/lib/server/repositories/salary'
 import type { AdminSupabaseClient } from '@/lib/server/supabase'
@@ -15,9 +17,13 @@ export async function getOperatorSalarySnapshot(
     dateTo: string
     weekStart?: string
     companyCode?: string
+    /** График организации; без него — неделя пн–вс, как раньше. */
+    schedule?: OperatorPaySchedule
   },
 ) {
-  const normalizedWeekStart = mondayOfISO(params.weekStart || params.dateFrom)
+  const period = params.schedule ? operatorPayPeriodFor(params.weekStart || params.dateFrom, params.schedule) : null
+  const normalizedWeekStart = period?.start || mondayOfISO(params.weekStart || params.dateFrom)
+  const isWeek = !params.schedule || isDefaultOperatorPaySchedule(params.schedule)
   const [reference, payload, operatorRow] = await Promise.all([
     listSalaryReferenceData(supabase),
     listOperatorSalaryData(supabase, {
@@ -25,6 +31,7 @@ export async function getOperatorSalarySnapshot(
       dateFrom: params.dateFrom,
       dateTo: params.dateTo,
       weekStart: normalizedWeekStart,
+      debtsByDate: !isWeek,
       companyCode: params.companyCode,
     }),
     findOperatorByKey(supabase, params.operatorId),
@@ -56,7 +63,9 @@ export async function getOperatorSalarySnapshot(
   return {
     ...summary,
     weekStart: normalizedWeekStart,
-    weekEnd: addDaysISO(normalizedWeekStart, 6),
+    weekEnd: period?.end || addDaysISO(normalizedWeekStart, 6),
+    /** Неделя пн–вс (F16) или другой период по графику — для подписи в сообщении. */
+    isWeek,
   }
 }
 
@@ -80,7 +89,7 @@ export function buildSalaryTelegramMessage(params: {
   let text = `<b>💰 Зарплата · сводка</b>\n\n`
   text += `👤 <b>${escapeHtml(operatorName)}</b>\n`
   text += `📆 Период: <code>${escapeHtml(`${dateFrom} — ${dateTo}`)}</code>\n`
-  text += `🗓 Неделя (пн-вс): <code>${escapeHtml(`${weekStart} — ${weekEnd}`)}</code>\n\n`
+  text += `🗓 ${summary.isWeek ? 'Неделя (пн-вс)' : 'Период зарплаты'}: <code>${escapeHtml(`${weekStart} — ${weekEnd}`)}</code>\n\n`
 
   if (lastItem?.name) {
     text += `🛒 Сегодня в долг: <b>${escapeHtml(lastItem.name)}</b> x${lastItem.qty} = <b>${formatMoney(lastItem.total)}</b>\n`

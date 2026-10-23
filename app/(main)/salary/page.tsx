@@ -22,7 +22,7 @@ import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/use-toast'
-import { addDaysISO, formatRuDate, mondayOfDate, toISODateLocal, todayISO } from '@/lib/core/date'
+import { addDaysISO, formatRuDate, todayISO } from '@/lib/core/date'
 import { formatMoney } from '@/lib/core/format'
 import { getOperatorDisplayName } from '@/lib/core/operator-name'
 import { getStaffRoleLabel } from '@/lib/core/access'
@@ -33,7 +33,15 @@ import {
   getStaffPeriodForMonth,
   staffPaymentPeriodMonth,
 } from '@/lib/domain/staff-salary-slot'
-import { DEFAULT_STAFF_PAY_SCHEDULE, describeStaffPaySchedule, type StaffPaySchedule } from '@/lib/core/org-settings'
+import {
+  DEFAULT_OPERATOR_PAY_SCHEDULE,
+  DEFAULT_STAFF_PAY_SCHEDULE,
+  describeStaffPaySchedule,
+  isDefaultOperatorPaySchedule,
+  type OperatorPaySchedule,
+  type StaffPaySchedule,
+} from '@/lib/core/org-settings'
+import { operatorPayPeriodFor, shiftOperatorPayPeriod } from '@/lib/domain/operator-pay-period'
 
 type CompanyOption = { id: string; code: string | null; name: string | null }
 type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
@@ -351,9 +359,16 @@ export default function SalaryPage() {
   // разметка расходилась, и React перерисовывал страницу целиком — отсюда
   // мигание при открытии зарплаты. Подробности в useToday.
   const today = useToday()
+  // Период зарплаты операторов — по графику организации (у F16 — неделя пн–вс).
+  // Ждём настройки, чтобы первый же запрос ведомости был за правильный период.
+  const { data: orgSettingsRes, error: orgSettingsError } = useApiCache<{ settings?: { operatorPaySchedule?: OperatorPaySchedule } }>('/api/admin/org-settings')
+  const opSchedule: OperatorPaySchedule | null =
+    orgSettingsRes?.settings?.operatorPaySchedule || (orgSettingsRes || orgSettingsError ? DEFAULT_OPERATOR_PAY_SCHEDULE : null)
+  const isWeekPeriod = !opSchedule || isDefaultOperatorPaySchedule(opSchedule)
+  const periodNoun = isWeekPeriod ? 'Неделя' : 'Период'
   const currentWeek = useMemo(
-    () => (today ? toISODateLocal(mondayOfDate(new Date(`${today}T12:00:00`))) : ''),
-    [today],
+    () => (today && opSchedule ? operatorPayPeriodFor(today, opSchedule)?.start || '' : ''),
+    [today, opSchedule],
   )
   const [weekStart, setWeekStart] = useState('')
 
@@ -403,7 +418,12 @@ export default function SalaryPage() {
   const [adjSuccess, setAdjSuccess] = useState(false)
   const [broadcastConfirm, setBroadcastConfirm] = useState(false)
 
-  const weekEnd = useMemo(() => (weekStart ? addDaysISO(weekStart, 6) : ''), [weekStart])
+  const weekEnd = useMemo(
+    () => (weekStart ? operatorPayPeriodFor(weekStart, opSchedule || DEFAULT_OPERATOR_PAY_SCHEDULE)?.end || addDaysISO(weekStart, 6) : ''),
+    [weekStart, opSchedule],
+  )
+  const shiftPeriod = (direction: -1 | 1) =>
+    setWeekStart(shiftOperatorPayPeriod({ start: weekStart, end: weekEnd }, direction, opSchedule || DEFAULT_OPERATOR_PAY_SCHEDULE).start)
 
   // SWR-кэш: повторное открытие страницы мгновенно показывает прошлые данные,
   // свежие подтягиваются фоном. После мутаций зовём load() (refresh — тихая перезагрузка при наличии кэша).
@@ -1207,10 +1227,10 @@ export default function SalaryPage() {
                       PDF
                     </Button>
                   )}
-                  <div className="flex rounded-xl border border-border bg-slate-100 dark:bg-black/20 p-0.5 text-xs" role="group" aria-label="Неделя">
+                  <div className="flex rounded-xl border border-border bg-slate-100 dark:bg-black/20 p-0.5 text-xs" role="group" aria-label={periodNoun}>
                     <button
                       type="button"
-                      onClick={() => setWeekStart(addDaysISO(weekStart, -7))}
+                      onClick={() => shiftPeriod(-1)}
                       className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:text-slate-900 dark:hover:text-white"
                     >
                       ←
@@ -1224,7 +1244,7 @@ export default function SalaryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setWeekStart(addDaysISO(weekStart, 7))}
+                      onClick={() => shiftPeriod(1)}
                       className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:text-slate-900 dark:hover:text-white"
                     >
                       →
@@ -1301,7 +1321,7 @@ export default function SalaryPage() {
                 {tab === 'operators' || tab === 'operator-events' ? (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                     <span className="rounded-full border border-border bg-white dark:bg-white/5 px-3 py-1">
-                      Неделя:{' '}
+                      {periodNoun}:{' '}
                       <span className="font-semibold text-foreground">
                         {/* До гидрации недели ещё нет — показываем прочерк, а
                             не «NaN.NaN.NaN» из разбора пустой даты. */}

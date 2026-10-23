@@ -5,6 +5,8 @@ import { requiredEnv } from '@/lib/server/env'
 import { buildSalaryTelegramMessage, getOperatorSalarySnapshot } from '@/lib/server/services/salary'
 import { listWeeklyTelegramOperators } from '@/lib/server/repositories/salary'
 import { listOrgReportTargets } from '@/lib/server/report-targets'
+import { isDefaultOperatorPaySchedule } from '@/lib/core/org-settings'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { ordaTelegramFrame } from '@/lib/telegram/message-kit'
 
 export const runtime = 'nodejs'
@@ -72,7 +74,13 @@ export async function GET(req: Request) {
 
   const supabase = createAdminSupabaseClient()
   // Только команды организаций с настроенным Telegram (раньше — операторы всех арендаторов).
-  const orgIds = new Set((await listOrgReportTargets()).map((t) => t.organizationId))
+  // И только с периодом зарплаты «неделя пн–вс»: рассылка идёт по понедельникам за
+  // прошлую неделю. У графика «месяц» или «две недели» недельная сводка была бы неверной.
+  const targetOrgIds = (await listOrgReportTargets()).map((t) => t.organizationId).filter(Boolean) as string[]
+  const weeklyOrgIds = await Promise.all(
+    targetOrgIds.map(async (id) => (isDefaultOperatorPaySchedule((await getOrgSettings(id)).operatorPaySchedule) ? id : null)),
+  )
+  const orgIds = new Set(weeklyOrgIds.filter(Boolean))
   const operators = (await listWeeklyTelegramOperators(supabase)).filter(
     (operator) => !!operator.organization_id && orgIds.has(operator.organization_id),
   )

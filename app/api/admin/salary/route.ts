@@ -1,6 +1,11 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 import { NextResponse } from 'next/server'
 
 import { addDaysISO } from '@/lib/core/date'
+import { DEFAULT_OPERATOR_PAY_SCHEDULE, isDefaultOperatorPaySchedule, type OperatorPaySchedule } from '@/lib/core/org-settings'
+import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { calculateOperatorWeekSummary, type SalaryOperatorMeta, type SalaryWeekCompanyAllocation } from '@/lib/domain/salary'
 import { evaluatePointRules, type PointRuleRow } from '@/lib/domain/point-rules'
 import {
@@ -357,6 +362,51 @@ async function safeDeleteExpenses(
  * Кнопка «Отметить оплаченным» остаётся — для случаев, когда долг закрывают
  * мимо зарплаты (клиент занёс деньги сам).
  */
+// ─── Период зарплаты по графику организации ────────────────────────────────
+// Период раньше был зашит как неделя пн–вс (week_end = week_start + 6). Теперь его
+// границы — по графику организации (настройки), а operator_salary_weeks.week_start/
+// week_end хранят начало и конец периода. График кладётся в контекст запроса сразу
+// после проверки доступа, чтобы не протаскивать его через каждую функцию.
+// Для F16 (неделя пн–вс) все фильтры ниже дают ровно прежний результат.
+const payScheduleStore = new AsyncLocalStorage<OperatorPaySchedule>()
+
+function currentPaySchedule(): OperatorPaySchedule {
+  return payScheduleStore.getStore() || DEFAULT_OPERATOR_PAY_SCHEDULE
+}
+
+/** Начало периода, в который попадает дата (клиенты по-старому шлют понедельник). */
+function periodStartOf(date: string | null): string | null {
+  return date ? operatorPayPeriodFor(date, currentPaySchedule())?.start || null : null
+}
+
+function periodEndOf(start: string): string {
+  return operatorPayPeriodFor(start, currentPaySchedule())?.end || addDaysISO(start, 6)
+}
+
+/** «за неделю» у F16, «за период» у остальных графиков — в подписях расходов. */
+function periodWord(): string {
+  return isDefaultOperatorPaySchedule(currentPaySchedule()) ? 'неделю' : 'период'
+}
+
+/**
+ * Фильтр долгов (debts) по периоду. debts.week_start — всегда понедельник даты долга,
+ * поэтому при неделе пн–вс фильтр по нему (как было), иначе — по самой дате долга.
+ */
+function debtPeriodFilter(start: string): { column: string; from: string; to: string } {
+  if (isDefaultOperatorPaySchedule(currentPaySchedule())) return { column: 'week_start', from: start, to: start }
+  return { column: 'date', from: start, to: periodEndOf(start) }
+}
+
+/** То же для позиций сканера: их week_start — понедельник created_at (UTC). */
+function debtItemPeriodFilter(start: string): { column: string; from: string; to: string } {
+  if (isDefaultOperatorPaySchedule(currentPaySchedule())) return { column: 'week_start', from: start, to: start }
+  return { column: 'created_at', from: `${start}T00:00:00.000Z`, to: `${periodEndOf(start)}T23:59:59.999Z` }
+}
+
+async function enterOrgPaySchedule(organizationId: string | null) {
+  payScheduleStore.enterWith((await getOrgSettings(organizationId)).operatorPaySchedule)
+}
+
 async function closeWeekDebtsIfSettled(params: {
   supabase: ReturnType<typeof createAdminSupabaseClient>
   operatorId: string
@@ -368,11 +418,13 @@ async function closeWeekDebtsIfSettled(params: {
   // Копейка допуска — та же, что в проверке «выплата превышает остаток».
   if (params.remainingAmount > 0.009) return { closed: 0, amount: 0 }
 
+  const debtPeriod = debtPeriodFilter(params.weekStart)
   let query = params.supabase
     .from('debts')
     .select('id, amount')
     .eq('operator_id', params.operatorId)
-    .eq('week_start', params.weekStart)
+    .gte(debtPeriod.column, debtPeriod.from)
+    .lte(debtPeriod.column, debtPeriod.to)
     .eq('status', 'active')
   if (params.allowedCompanyIds) query = query.in('company_id', params.allowedCompanyIds)
 
@@ -395,11 +447,13 @@ async function closeWeekDebtsIfSettled(params: {
 
   // Позиции сканера убираем так же, как это делает ручное закрытие: инвентарь
   // НЕ возвращаем, оператор рассчитался деньгами.
+  const itemPeriod = debtItemPeriodFilter(params.weekStart)
   let scannerQuery = params.supabase
     .from('point_debt_items')
     .update({ status: 'deleted', deleted_at: paidAt })
     .eq('operator_id', params.operatorId)
-    .eq('week_start', params.weekStart)
+    .gte(itemPeriod.column, itemPeriod.from)
+    .lte(itemPeriod.column, itemPeriod.to)
     .eq('status', 'active')
   if (params.allowedCompanyIds) scannerQuery = scannerQuery.in('company_id', params.allowedCompanyIds)
   await scannerQuery
@@ -494,7 +548,7 @@ async function ensureSalaryWeekSnapshot(params: {
     allocations: any[]
   }
 }) {
-  const weekEnd = addDaysISO(params.weekStart, 6)
+  const weekEnd = periodEndOf(params.weekStart)
   const references = params.references || (await listSalaryReferenceData(params.supabase, { companyIds: params.companyIds || null }))
   let operator = params.operator || null
   if (!operator) {
@@ -514,6 +568,7 @@ async function ensureSalaryWeekSnapshot(params: {
       dateFrom: params.weekStart,
       dateTo: weekEnd,
       weekStart: params.weekStart,
+      debtsByDate: !isDefaultOperatorPaySchedule(currentPaySchedule()),
       companyIds: params.companyIds || null,
     }))
 
@@ -720,6 +775,7 @@ export async function GET(req: Request) {
     if (guard) return guard
     const access = await getRequestAccessContext(req)
     if ('response' in access) return access.response
+    await enterOrgPaySchedule(access.activeOrganization?.id || null)
     const addonDenied = await requireAddon(access, 'addon.salary')
     if (addonDenied) return addonDenied
     const denied = await requireCapability(access, 'salary.view')
@@ -742,12 +798,12 @@ export async function GET(req: Request) {
     const url = new URL(req.url)
     const view = url.searchParams.get('view')
     if (view === 'weekly') {
-      const weekStart = normalizeIsoDate(url.searchParams.get('weekStart'))
+      const weekStart = periodStartOf(normalizeIsoDate(url.searchParams.get('weekStart')))
       if (!weekStart) {
         return json({ error: 'weekStart is required' }, 400)
       }
 
-      const weekEnd = addDaysISO(weekStart, 6)
+      const weekEnd = periodEndOf(weekStart)
       const supabase = createAdminSupabaseClient()
       const referencesPromise = listSalaryReferenceData(supabase, { companyIds: allowedCompanyIds || null })
       const pointRulesPromise = listSalaryPointRules(supabase, allowedCompanyIds || null)
@@ -758,6 +814,7 @@ export async function GET(req: Request) {
           data: {
             weekStart,
             weekEnd,
+            paySchedule: currentPaySchedule(),
             operators: [],
             totals: {
               grossAmount: 0,
@@ -910,6 +967,7 @@ export async function GET(req: Request) {
           dateFrom: weekStart,
           dateTo: weekEnd,
           weekStart,
+          debtsByDate: !isDefaultOperatorPaySchedule(currentPaySchedule()),
           companyIds: allowedCompanyIds || null,
         }),
         existingWeekIds.length > 0
@@ -1096,10 +1154,12 @@ export async function GET(req: Request) {
       const debtItemsByOperator = new Map<string, Array<Record<string, unknown>>>()
       if (weekOperatorIds.length > 0) {
         for (let page = 0; page < 20; page += 1) {
+          const itemPeriod = debtItemPeriodFilter(weekStart)
           let itemsQuery = supabase
             .from('point_debt_items')
             .select('id, operator_id, item_name, quantity, unit_price, total_amount, created_at, company_id, comment, status')
-            .eq('week_start', weekStart)
+            .gte(itemPeriod.column, itemPeriod.from)
+            .lte(itemPeriod.column, itemPeriod.to)
             .in('operator_id', weekOperatorIds)
             .order('created_at', { ascending: false })
             .range(page * 1000, page * 1000 + 999)
@@ -1199,6 +1259,8 @@ export async function GET(req: Request) {
         data: {
           weekStart,
           weekEnd,
+          // График периода организации: страница листает периоды по нему.
+          paySchedule: currentPaySchedule(),
           companies: references.companies,
           operators: weeklyOperators,
           totals: {
@@ -1221,7 +1283,7 @@ export async function GET(req: Request) {
 
     if (view === 'operatorWeekly') {
       const operatorId = (url.searchParams.get('operatorId') || '').trim()
-      const weekStart = normalizeIsoDate(url.searchParams.get('weekStart'))
+      const weekStart = periodStartOf(normalizeIsoDate(url.searchParams.get('weekStart')))
 
       if (!operatorId || !weekStart) {
         return json({ error: 'operatorId and weekStart are required' }, 400)
@@ -1232,7 +1294,7 @@ export async function GET(req: Request) {
         operatorId,
       })
 
-      const weekEnd = addDaysISO(weekStart, 6)
+      const weekEnd = periodEndOf(weekStart)
       const supabase = createAdminSupabaseClient()
 
       let incomesQuery = supabase
@@ -1504,6 +1566,7 @@ export async function POST(req: Request) {
     if (guard) return guard
     const access = await getRequestAccessContext(req)
     if ('response' in access) return access.response
+    await enterOrgPaySchedule(access.activeOrganization?.id || null)
     const addonDenied = await requireAddon(access, 'addon.salary')
     if (addonDenied) return addonDenied
     const allowedCompanyIds = await listOrganizationCompanyIds({
@@ -1571,7 +1634,7 @@ export async function POST(req: Request) {
     if (body.action === 'createAdvance') {
       const denied = await requireCapability(access, 'salary.create_advance')
       if (denied) return denied as any
-      const weekStart = normalizeIsoDate(body.payload.week_start)
+      const weekStart = periodStartOf(normalizeIsoDate(body.payload.week_start))
       const paymentDate = normalizeIsoDate(body.payload.payment_date)
       const split = normalizeSplit(body.payload.cash_amount, body.payload.kaspi_amount)
 
@@ -1619,7 +1682,7 @@ export async function POST(req: Request) {
 
       const expenseComment =
         body.payload.comment?.trim() ||
-        `Аванс по зарплате за неделю ${weekStart} - ${weekBeforeAdvance.weekEnd}`
+        `Аванс по зарплате за ${periodWord()} ${weekStart} - ${weekBeforeAdvance.weekEnd}`
 
       let expense: any = null
       let adjustment: any = null
@@ -1723,7 +1786,7 @@ export async function POST(req: Request) {
     if (body.action === 'createWeeklyPayment') {
       const denied = await requireCapability(access, 'salary.create_payment')
       if (denied) return denied as any
-      const weekStart = normalizeIsoDate(body.payload.week_start)
+      const weekStart = periodStartOf(normalizeIsoDate(body.payload.week_start))
       const paymentDate = normalizeIsoDate(body.payload.payment_date)
       const split = normalizeSplit(body.payload.cash_amount, body.payload.kaspi_amount)
 
@@ -1786,8 +1849,8 @@ export async function POST(req: Request) {
       const paymentComment =
         body.payload.comment?.trim() ||
         (operatorName
-          ? `Зарплата: ${operatorName} за неделю ${weekStart} - ${weekBeforePayment.weekEnd}`
-          : `Зарплата за неделю ${weekStart} - ${weekBeforePayment.weekEnd}`)
+          ? `Зарплата: ${operatorName} за ${periodWord()} ${weekStart} - ${weekBeforePayment.weekEnd}`
+          : `Зарплата за ${periodWord()} ${weekStart} - ${weekBeforePayment.weekEnd}`)
 
       const paymentResult = await supabase
         .from('operator_salary_week_payments')
@@ -1934,7 +1997,7 @@ export async function POST(req: Request) {
     if (body.action === 'createPaymentWithAdvance') {
       const denied = await requireCapability(access, 'salary.create_payment')
       if (denied) return denied as any
-      const weekStart = normalizeIsoDate(body.payload.week_start)
+      const weekStart = periodStartOf(normalizeIsoDate(body.payload.week_start))
       const paymentDate = normalizeIsoDate(body.payload.payment_date)
       const split = normalizeSplit(body.payload.cash_amount, body.payload.kaspi_amount)
 
@@ -1998,8 +2061,8 @@ export async function POST(req: Request) {
       const paymentComment =
         body.payload.comment?.trim() ||
         (operatorName
-          ? `Зарплата с авансом: ${operatorName} за неделю ${weekStart} - ${weekBeforePayment.weekEnd}`
-          : `Зарплата с авансом за неделю ${weekStart} - ${weekBeforePayment.weekEnd}`)
+          ? `Зарплата с авансом: ${operatorName} за ${periodWord()} ${weekStart} - ${weekBeforePayment.weekEnd}`
+          : `Зарплата с авансом за ${periodWord()} ${weekStart} - ${weekBeforePayment.weekEnd}`)
 
       const paymentResult = await supabase
         .from('operator_salary_week_payments')
@@ -2086,7 +2149,7 @@ export async function POST(req: Request) {
           if (linksError) throw linksError
         }
 
-        const nextWeekStart = addDaysISO(weekStart, 7)
+        const nextWeekStart = addDaysISO(periodEndOf(weekStart), 1)
         const nextWeekSnapshot = await ensureSalaryWeekSnapshot({
           supabase,
           operatorId: body.payload.operator_id,
@@ -2192,7 +2255,7 @@ export async function POST(req: Request) {
     if (body.action === 'voidPayment') {
       const denied = await requireCapability(access, 'salary.void_payment')
       if (denied) return denied as any
-      const weekStart2 = normalizeIsoDate(body.weekStart)
+      const weekStart2 = periodStartOf(normalizeIsoDate(body.weekStart))
       if (!body.paymentId || !weekStart2 || !body.operatorId) {
         return json({ error: 'paymentId, weekStart и operatorId обязательны' }, 400)
       }
@@ -2269,7 +2332,8 @@ export async function POST(req: Request) {
           .from('debts')
           .update({ status: 'active', paid_at: null, settled_via: null })
           .eq('operator_id', body.operatorId)
-          .eq('week_start', weekStart2)
+          .gte(debtPeriodFilter(weekStart2).column, debtPeriodFilter(weekStart2).from)
+          .lte(debtPeriodFilter(weekStart2).column, debtPeriodFilter(weekStart2).to)
           .eq('status', 'paid')
           // Возвращаем только то, что закрыла сама зарплата. Раньше метки не
           // было, и под возврат попадал долг, за который человек занёс деньги
@@ -2300,7 +2364,7 @@ export async function POST(req: Request) {
     if (body.action === 'voidAdjustment') {
       const denied = await requireCapability(access, 'salary.void_adjustment')
       if (denied) return denied as any
-      const weekStart2 = normalizeIsoDate(body.weekStart)
+      const weekStart2 = periodStartOf(normalizeIsoDate(body.weekStart))
       if (!body.adjustmentId || !weekStart2 || !body.operatorId) {
         return json({ error: 'adjustmentId, weekStart и operatorId обязательны' }, 400)
       }
@@ -2361,7 +2425,7 @@ export async function POST(req: Request) {
     }
 
     if (body.action === 'markDebtsPaid') {
-      const weekStart2 = normalizeIsoDate(body.weekStart)
+      const weekStart2 = periodStartOf(normalizeIsoDate(body.weekStart))
       if (!body.operatorId || !weekStart2) {
         return json({ error: 'operatorId и weekStart обязательны' }, 400)
       }
@@ -2382,7 +2446,8 @@ export async function POST(req: Request) {
         .from('debts')
         .select('id, amount')
         .eq('operator_id', body.operatorId)
-        .eq('week_start', weekStart2)
+        .gte(debtPeriodFilter(weekStart2).column, debtPeriodFilter(weekStart2).from)
+        .lte(debtPeriodFilter(weekStart2).column, debtPeriodFilter(weekStart2).to)
         .eq('status', 'active')
       if (debtScope.allowedCompanyIds) {
         activeDebtsQuery = activeDebtsQuery.in('company_id', debtScope.allowedCompanyIds)
@@ -2402,7 +2467,8 @@ export async function POST(req: Request) {
         .from('point_debt_items')
         .update({ status: 'deleted', deleted_at: paidAt })
         .eq('operator_id', body.operatorId)
-        .eq('week_start', weekStart2)
+        .gte(debtItemPeriodFilter(weekStart2).column, debtItemPeriodFilter(weekStart2).from)
+        .lte(debtItemPeriodFilter(weekStart2).column, debtItemPeriodFilter(weekStart2).to)
         .eq('status', 'active')
       if (debtScope.allowedCompanyIds) {
         scannerQuery = scannerQuery.in('company_id', debtScope.allowedCompanyIds)
@@ -2435,7 +2501,7 @@ export async function POST(req: Request) {
     if (body.action === 'unlockSalaryWeek') {
       const denied = await requireCapability(access, 'salary.unlock_week')
       if (denied) return denied as any
-      const weekStartUnlock = normalizeIsoDate(body.weekStart)
+      const weekStartUnlock = periodStartOf(normalizeIsoDate(body.weekStart))
       if (!body.operatorId || !weekStartUnlock) {
         return json({ error: 'operatorId и weekStart обязательны' }, 400)
       }

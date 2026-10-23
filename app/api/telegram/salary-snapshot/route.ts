@@ -5,6 +5,7 @@ import { requireAddon } from '@/lib/server/entitlements'
 import { ensureOrganizationOperatorAccess } from '@/lib/server/organizations'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
 import { findOperatorByKey } from '@/lib/server/repositories/salary'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { buildSalaryTelegramMessage, getOperatorSalarySnapshot } from '@/lib/server/services/salary'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
       dateFrom,
       dateTo,
       weekStart: body.weekStart,
+      schedule: (await getOrgSettings(access.activeOrganization?.id || null)).operatorPaySchedule,
     })
 
     const text = buildSalaryTelegramMessage({

@@ -31,7 +31,10 @@ import { Card } from '@/components/ui/card'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
-import { addDaysISO, formatRuDate, mondayOfDate, toISODateLocal, todayISO } from '@/lib/core/date'
+import { addDaysISO, formatRuDate, todayISO } from '@/lib/core/date'
+import { useApiCache } from '@/lib/client/use-api-cache'
+import { DEFAULT_OPERATOR_PAY_SCHEDULE, isDefaultOperatorPaySchedule, type OperatorPaySchedule } from '@/lib/core/org-settings'
+import { operatorPayPeriodFor, shiftOperatorPayPeriod } from '@/lib/domain/operator-pay-period'
 import { useToday } from '@/lib/client/use-today'
 import { formatMoney } from '@/lib/core/format'
 import { toast } from '@/hooks/use-toast'
@@ -84,9 +87,14 @@ function OperatorSalaryDetailPageContent() {
   // сборки, и вычисленная при отрисовке неделя попала бы в HTML как неделя
   // сборки. Подробности в useToday.
   const today = useToday()
+  // Период — по графику организации (у F16 — неделя пн–вс).
+  const { data: orgSettingsRes, error: orgSettingsError } = useApiCache<{ settings?: { operatorPaySchedule?: OperatorPaySchedule } }>('/api/admin/org-settings')
+  const opSchedule: OperatorPaySchedule | null =
+    orgSettingsRes?.settings?.operatorPaySchedule || (orgSettingsRes || orgSettingsError ? DEFAULT_OPERATOR_PAY_SCHEDULE : null)
+  const periodNoun = !opSchedule || isDefaultOperatorPaySchedule(opSchedule) ? 'Неделя' : 'Период'
   const currentWeek = useMemo(
-    () => (today ? toISODateLocal(mondayOfDate(new Date(`${today}T12:00:00`))) : ''),
-    [today],
+    () => (today && opSchedule ? operatorPayPeriodFor(today, opSchedule)?.start || '' : ''),
+    [today, opSchedule],
   )
   // Неделя из адреса известна сразу — она в ссылке, а не во времени.
   const weekFromUrl = useMemo(() => {
@@ -131,7 +139,18 @@ function OperatorSalaryDetailPageContent() {
   const [voidConfirm, setVoidConfirm] = useState<VoidTarget | null>(null)
   const [voidSaving, setVoidSaving] = useState(false)
 
-  const weekEnd = useMemo(() => (weekStart ? addDaysISO(weekStart, 6) : ''), [weekStart])
+  const weekEnd = useMemo(
+    () => (weekStart ? operatorPayPeriodFor(weekStart, opSchedule || DEFAULT_OPERATOR_PAY_SCHEDULE)?.end || addDaysISO(weekStart, 6) : ''),
+    [weekStart, opSchedule],
+  )
+  // Дату из ссылки (старые ссылки — понедельник) приводим к началу её периода.
+  useEffect(() => {
+    if (!weekStart || !opSchedule) return
+    const start = operatorPayPeriodFor(weekStart, opSchedule)?.start
+    if (start && start !== weekStart) setWeekStart(start)
+  }, [weekStart, opSchedule])
+  const shiftPeriod = (direction: -1 | 1) =>
+    setWeekStart(shiftOperatorPayPeriod({ start: weekStart, end: weekEnd }, direction, opSchedule || DEFAULT_OPERATOR_PAY_SCHEDULE).start)
 
   const load = useCallback(async (silent = false) => {
     // Без недели запрашивать нечего: она появится сразу после гидрации.
@@ -290,13 +309,13 @@ function OperatorSalaryDetailPageContent() {
             }
             actions={
               <>
-                <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+                <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => shiftPeriod(-1)}>
                   Прошлая неделя
                 </Button>
                 <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setWeekStart(currentWeek)}>
                   Текущая
                 </Button>
-                <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+                <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => shiftPeriod(1)}>
                   Следующая
                 </Button>
                 <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => void load()}>
@@ -308,7 +327,7 @@ function OperatorSalaryDetailPageContent() {
             toolbar={
               <div className="flex flex-wrap items-center gap-3 text-xs text-body">
                 <div className="rounded-full border border-border bg-white dark:bg-white/5 px-3 py-1.5">
-                  Неделя: <span className="font-semibold text-foreground">{formatRuDate(weekStart)} — {formatRuDate(weekEnd)}</span>
+                  {periodNoun}: <span className="font-semibold text-foreground">{formatRuDate(weekStart)} — {formatRuDate(weekEnd)}</span>
                 </div>
                 {st ? <span className={`rounded-full border px-3 py-1.5 text-xs font-medium ${st.className}`}>{st.label}</span> : null}
                 {data && data.week.status === 'paid' && can('salary.unlock_week') ? (

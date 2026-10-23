@@ -200,6 +200,11 @@ export async function listOperatorSalaryData(
     dateFrom: string
     dateTo: string
     weekStart?: string
+    /**
+     * Долги периода по дате долга, а не по week_start (понедельнику). Нужно, когда
+     * период зарплаты — не неделя пн–вс: debts.week_start всегда понедельник даты.
+     */
+    debtsByDate?: boolean
     companyCode?: string
     companyIds?: string[] | null
   },
@@ -234,9 +239,11 @@ export async function listOperatorSalaryData(
     .eq('operator_id', operatorId)
     .or('status.eq.active,settled_via.eq.salary')
 
-  const debtsQuery = weekStart
-    ? debtsBase.eq('week_start', weekStart)
-    : debtsBase.gte('week_start', dateFrom).lte('week_start', dateTo)
+  const debtsQuery = params.debtsByDate
+    ? debtsBase.gte('date', dateFrom).lte('date', dateTo)
+    : weekStart
+      ? debtsBase.eq('week_start', weekStart)
+      : debtsBase.gte('week_start', dateFrom).lte('week_start', dateTo)
 
   const [{ data: incomes, error: incomesError }, { data: adjustments, error: adjustmentsError }, { data: debts, error: debtsError }] =
     await Promise.all([incomesQuery, adjustmentsQuery, debtsQuery])
@@ -316,6 +323,8 @@ export async function listOperatorsSalaryData(
     dateFrom: string
     dateTo: string
     weekStart?: string
+    /** Как в `listOperatorSalaryData`: долги по дате, когда период — не неделя пн–вс. */
+    debtsByDate?: boolean
     companyIds?: string[] | null
   },
 ) {
@@ -372,9 +381,11 @@ export async function listOperatorsSalaryData(
         .select('operator_id,amount,company_id,status,settled_via')
         .in('operator_id', operatorIds)
         .or('status.eq.active,settled_via.eq.salary')
-      const scoped = params.weekStart
-        ? base.eq('week_start', params.weekStart)
-        : base.gte('week_start', params.dateFrom).lte('week_start', params.dateTo)
+      const scoped = params.debtsByDate
+        ? base.gte('date', params.dateFrom).lte('date', params.dateTo)
+        : params.weekStart
+          ? base.eq('week_start', params.weekStart)
+          : base.gte('week_start', params.dateFrom).lte('week_start', params.dateTo)
       return scoped.order('id').range(from, to)
     }),
   ])

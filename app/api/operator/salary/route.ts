@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 
 import { addDaysISO, mondayOfDate, toISODateLocal } from '@/lib/core/date'
 import { getOperatorDisplayName } from '@/lib/core/operator-name'
+import { isDefaultOperatorPaySchedule } from '@/lib/core/org-settings'
+import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { calculateOperatorWeekSummary } from '@/lib/domain/salary'
 import type { PointRuleRow } from '@/lib/domain/point-rules'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
@@ -65,13 +68,18 @@ async function ensureSalaryWeekSnapshotLite(params: {
   companyIds: string[]
   shiftRules?: PointRuleRow[]
   operator?: ReturnType<typeof mapOperatorMeta> | null
+  /** Конец периода по графику организации; без него — неделя (+6), как раньше. */
+  periodEnd?: string
+  /** Долги по дате долга — когда период не неделя пн–вс. */
+  debtsByDate?: boolean
 }) {
-  const weekEnd = addDaysISO(params.weekStart, 6)
+  const weekEnd = params.periodEnd || addDaysISO(params.weekStart, 6)
   const operatorData = await listOperatorSalaryData(params.supabase, {
     operatorId: params.operatorId,
     dateFrom: params.weekStart,
     dateTo: weekEnd,
     weekStart: params.weekStart,
+    debtsByDate: params.debtsByDate,
     companyIds: params.companyIds,
   })
 
@@ -199,9 +207,21 @@ export async function GET(request: Request) {
     if ('response' in context) return context.response
 
     const url = new URL(request.url)
-    const weekStart = normalizeIsoDate(url.searchParams.get('weekStart')) || currentWeekStart()
-    const weekEnd = addDaysISO(weekStart, 6)
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : (context.supabase as any)
+    // Период — по графику организации оператора (у F16 — неделя пн–вс). Присланная
+    // дата (старые клиенты шлют понедельник) приводится к началу её периода.
+    const { data: operatorOrgRow } = await supabase
+      .from('operators')
+      .select('organization_id')
+      .eq('id', context.operator.id)
+      .maybeSingle()
+    const paySchedule = (await getOrgSettings((operatorOrgRow as any)?.organization_id || null)).operatorPaySchedule
+    const debtsByDate = !isDefaultOperatorPaySchedule(paySchedule)
+    const period =
+      operatorPayPeriodFor(normalizeIsoDate(url.searchParams.get('weekStart')) || currentWeekStart(), paySchedule) ||
+      operatorPayPeriodFor(currentWeekStart(), paySchedule)!
+    const weekStart = period.start
+    const weekEnd = period.end
     const { data: operatorAssignments, error: operatorAssignmentsError } = await supabase
       .from('operator_company_assignments')
       .select('company_id')
@@ -225,7 +245,8 @@ export async function GET(request: Request) {
         .from('debts')
         .select('company_id')
         .eq('operator_id', context.operator.id)
-        .eq('week_start', weekStart)
+        .gte(debtsByDate ? 'date' : 'week_start', weekStart)
+        .lte(debtsByDate ? 'date' : 'week_start', debtsByDate ? weekEnd : weekStart)
         // Удержанный из зарплаты долг остаётся в расчёте, значит его точка
         // должна оставаться в скоупе — иначе расчёт потеряет её начисления.
         .or('status.eq.active,settled_via.eq.salary'),
@@ -257,6 +278,8 @@ export async function GET(request: Request) {
       companyIds: operatorCompanyIds,
       shiftRules,
       operator: mapOperatorMeta(context.operator),
+      periodEnd: weekEnd,
+      debtsByDate,
     })
 
     const [paymentsRes, allocationsRes, adjustmentsRes, debtsRes, recentWeeksRes, debtItemsRes] = await Promise.all([
@@ -283,7 +306,8 @@ export async function GET(request: Request) {
         .from('debts')
         .select('id,amount,comment,company_id,status,week_start,date')
         .eq('operator_id', context.operator.id)
-        .eq('week_start', weekStart)
+        .gte(debtsByDate ? 'date' : 'week_start', weekStart)
+        .lte(debtsByDate ? 'date' : 'week_start', debtsByDate ? weekEnd : weekStart)
         .eq('status', 'active')
         .order('date', { ascending: false }),
       supabase

@@ -41,6 +41,8 @@ import { extractTextFromPdf, parseExpenseFromText, parseExpenseFromImage } from 
 import { getOperatorSalarySnapshot, buildSalaryTelegramMessage } from '@/lib/server/services/salary'
 import { findOperatorByKey } from '@/lib/server/repositories/salary'
 import { mondayOfISO } from '@/lib/core/date'
+import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -2440,8 +2442,11 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
 
     if (name === 'get_operator_salary') {
       const weekStartArg = (args.week_start as string | undefined)?.trim()
-      const weekStart = weekStartArg ? mondayOfISO(weekStartArg) : mondayOfISO(todayISO())
-      const weekEnd = addDaysISO(weekStart, 6)
+      // Период — по графику организации (у F16 — неделя пн–вс, как было).
+      const paySchedule = (await getOrgSettings(scopeOrgId)).operatorPaySchedule
+      const payPeriod = operatorPayPeriodFor(weekStartArg || todayISO(), paySchedule)
+      const weekStart = payPeriod?.start || mondayOfISO(todayISO())
+      const weekEnd = payPeriod?.end || addDaysISO(weekStart, 6)
 
       // Find operator
       let operatorId = (args.operator_id as string | undefined)?.trim()
@@ -2495,6 +2500,7 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
           dateFrom: weekStart,
           dateTo: weekEnd,
           weekStart,
+          schedule: paySchedule,
         })
         return buildSalaryTelegramMessage({
           operatorName,
