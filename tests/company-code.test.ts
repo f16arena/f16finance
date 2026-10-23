@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { companyCodeBase, companyNameMatches, pickFreeCompanyCode, transliterate } from '@/lib/core/company-code'
+import { companyCodeBase, companyNameMatches, escapeLikePattern, pickFreeCompanyCode, transliterate } from '@/lib/core/company-code'
 
 test('код из кириллицы и казахских букв — латиница без пробелов', () => {
   assert.equal(companyCodeBase('Кофейня на Абая'), 'KOFEYNYANA')
@@ -26,4 +26,10 @@ test('удаление — только с точно набранным наз�
   assert.equal(companyNameMatches('F16 Test', 'F16'), false)
   assert.equal(companyNameMatches('F16 Test', ''), false)
   assert.equal(companyNameMatches('F16 Test', undefined), false)
+})
+
+test('код в ilike не расползается на чужие коды', () => {
+  assert.equal(escapeLikePattern('ARENA_1'), 'ARENA\\_1')
+  assert.equal(escapeLikePattern('A%B'), 'A\\%B')
+  assert.equal(escapeLikePattern('F16TEST'), 'F16TEST')
 })

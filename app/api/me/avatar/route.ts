@@ -34,8 +34,11 @@ export async function POST(request: Request) {
     const file = form?.get('file')
     if (!(file instanceof File)) return json({ error: 'file обязателен' }, 400)
 
-    if (!file.type.startsWith('image/')) {
-      return json({ error: 'Нужна фотография' }, 400)
+    // Только растровые форматы: бакет публичный, а SVG — это документ со
+    // скриптами, открытый по прямой ссылке он исполнился бы на нашем домене.
+    const AVATAR_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+    if (!AVATAR_TYPES[file.type]) {
+      return json({ error: 'Нужна фотография в JPG, PNG или WebP' }, 400)
     }
     if (file.size > MAX_BYTES) {
       return json({ error: 'Файл больше 5 МБ' }, 400)
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
 
-    const extension = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const extension = AVATAR_TYPES[file.type]
     const owner = operatorId || staffId
     const path = `avatars/${owner}-${Date.now()}.${extension || 'jpg'}`
     const bytes = new Uint8Array(await file.arrayBuffer())

@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { companyCodeBase, pickFreeCompanyCode } from '@/lib/core/company-code'
+import { companyCodeBase, escapeLikePattern, pickFreeCompanyCode } from '@/lib/core/company-code'
 import { INDUSTRY_CODES } from '@/lib/core/industries'
 import { writeAuditLog } from '@/lib/server/audit'
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
@@ -76,7 +76,7 @@ export async function createCompanyForOrganization(
 
   const requestedCode = String(input.code || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '')
   if (requestedCode) {
-    const { data: clash, error: clashError } = await supabase.from('companies').select('id').ilike('code', requestedCode).limit(1)
+    const { data: clash, error: clashError } = await supabase.from('companies').select('id').ilike('code', escapeLikePattern(requestedCode)).limit(1)
     if (clashError) throw clashError
     if (clash?.length) {
       return { ok: false, status: 400, error: `Код ${requestedCode} уже занят — оставьте поле пустым, подберём сами` }

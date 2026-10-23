@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { escapeLikePattern } from '@/lib/core/company-code'
+
 /**
  * История точки, из-за которой её нельзя удалять.
  *
@@ -65,7 +67,7 @@ export async function removeCompanyLeftovers(supabase: any, leftovers: { code: s
     const { data: rules, error: rulesError } = await supabase
       .from('operator_salary_rules')
       .select('id')
-      .ilike('company_code', leftovers.code)
+      .ilike('company_code', escapeLikePattern(leftovers.code))
     if (rulesError) throw rulesError
     const ruleIds = ((rules || []) as any[]).map((row) => row.id)
     if (ruleIds.length) {

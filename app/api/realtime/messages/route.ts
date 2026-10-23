@@ -37,7 +37,8 @@ export async function GET(request: Request) {
   const peerUserId = String(url.searchParams.get('peer') || '').trim()
   const userId = access.user?.id || null
 
-  if (scope === 'direct' && (!peerUserId || !userId)) {
+  // peer подставляется в фильтр .or(...) как есть — только uuid, иначе фильтр можно расширить.
+  if (scope === 'direct' && (!/^[0-9a-f-]{36}$/i.test(peerUserId) || !userId)) {
     return new Response('peer required', { status: 400 })
   }
 

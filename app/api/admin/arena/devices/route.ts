@@ -79,6 +79,15 @@ export async function POST(request: Request) {
     if (!(await projectInScope(supabase, String(device.point_project_id || ''), companyScope.allowedCompanyIds))) {
       return json({ error: 'device-not-found' }, 404)
     }
+    // Касса бывает общей на несколько точек: управляющий одной из них не должен
+    // отзывать и перевыпускать ключи устройств другой.
+    if (
+      companyScope.allowedCompanyIds &&
+      device.company_id &&
+      !companyScope.allowedCompanyIds.includes(String(device.company_id))
+    ) {
+      return json({ error: 'device-not-found' }, 404)
+    }
 
     // ── Отзыв ─────────────────────────────────────────────────────────────
     if (body.action === 'revoke') {

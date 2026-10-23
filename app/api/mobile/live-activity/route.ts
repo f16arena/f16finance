@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { resolveCompanyScope } from '@/lib/server/organizations'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
@@ -60,6 +61,21 @@ export async function POST(request: Request) {
         .eq('is_active', true)
         .maybeSingle()
       if (!assignment?.id) return json({ error: 'forbidden' }, 403)
+    } else {
+      // Владелец/сотрудник: точка своей организации и своего охвата. Раньше
+      // проверки не было вовсе — сотрудник любой организации подписывал свой
+      // телефон на выручку чужой точки, прислав её id.
+      if (!access.isSuperAdmin && !access.staffMember) return json({ error: 'forbidden' }, 403)
+      try {
+        await resolveCompanyScope({
+          activeOrganizationId: access.activeOrganization?.id || null,
+          isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
+          requestedCompanyId: companyId,
+        })
+      } catch {
+        return json({ error: 'forbidden' }, 403)
+      }
     }
 
     const { error } = await supabase.from('live_activity_tokens').upsert(

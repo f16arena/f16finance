@@ -57,7 +57,8 @@ export async function GET(req: Request) {
 
     // Прогноз на начало месяца — зафиксированный 1-го числа, если есть
     let startScenarios: Scenarios | null = null
-    if (organizationId) {
+    // Снимок «all» — прогноз по всей организации; управляющему части точек он не положен.
+    if (organizationId && !access.companyRestriction) {
       const { data, error } = await supabase
         .from('forecast_snapshots')
         .select('*')

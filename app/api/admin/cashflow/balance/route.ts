@@ -53,7 +53,13 @@ export async function GET(req: Request) {
       if (isMissingTable(error)) return json({ ok: true, data: { anchors: [], canEdit: false, available: false, hint: MIGRATION_HINT } })
       throw error
     }
-    const anchors = ((data || []) as any[]).filter((a) => !a.company_id || !scope.allowedCompanyIds || scope.allowedCompanyIds.includes(String(a.company_id)))
+    // Общий остаток организации (company_id null) — это деньги всех точек:
+    // управляющему части точек его не показываем.
+    const anchors = ((data || []) as any[]).filter((a) =>
+      a.company_id
+        ? !scope.allowedCompanyIds || scope.allowedCompanyIds.includes(String(a.company_id))
+        : !access.companyRestriction,
+    )
     return json({ ok: true, data: { anchors, canEdit: canEdit(access), available: true } })
   } catch (error: any) {
     await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/cashflow/balance GET', message: error?.message || 'error' })
@@ -80,6 +86,9 @@ export async function POST(req: Request) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) return json({ error: 'Укажите дату' }, 400)
     if (!Number.isFinite(cash) || !Number.isFinite(cashless)) return json({ error: 'Суммы должны быть числами' }, 400)
 
+    if (!companyId && access.companyRestriction) {
+      return json({ error: 'Общий остаток организации указывает тот, кто видит все точки' }, 403)
+    }
     if (companyId) {
       try {
         await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId, companyRestriction: access.companyRestriction })
@@ -136,6 +145,19 @@ export async function DELETE(req: Request) {
     if (!hasAdminSupabaseCredentials()) return json({ error: 'no admin supabase' }, 500)
 
     const supabase = createAdminSupabaseClient()
+    if (access.companyRestriction) {
+      // Управляющий части точек удаляет только остатки своих точек.
+      const { data: anchor } = await supabase
+        .from('cash_balance_anchors')
+        .select('company_id')
+        .eq('id', id)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+      const anchorCompanyId = (anchor as any)?.company_id ? String((anchor as any).company_id) : null
+      if (!anchor || !anchorCompanyId || !access.companyRestriction.includes(anchorCompanyId)) {
+        return json({ error: 'forbidden' }, 403)
+      }
+    }
     const { error } = await supabase.from('cash_balance_anchors').delete().eq('id', id).eq('organization_id', organizationId)
     if (error) throw error
     await writeAuditLog(supabase as any, { actorUserId: access.user?.id || null, entityType: 'cash-balance', entityId: id, action: 'delete', payload: {} })

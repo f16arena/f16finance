@@ -83,6 +83,8 @@ export async function GET(req: Request) {
         .lte('as_of_date', today)
       if (!error) anchors = ((data || []) as any[]).map((a) => ({ ...a, cash_amount: Number(a.cash_amount), cashless_amount: Number(a.cashless_amount) }))
     }
+    // Общий остаток организации — деньги всех точек: управляющему части точек не отдаём.
+    if (access.companyRestriction) anchors = anchors.filter((a) => !!a.company_id)
     const anchor = pickAnchor(anchors, companyId, today)
 
     const [companiesRes, templatesRes, inputs] = await Promise.all([

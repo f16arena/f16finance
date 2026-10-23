@@ -33,3 +33,8 @@ export function companyNameMatches(actual: string, typed: unknown) {
   const norm = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
   return typeof typed === 'string' && norm(typed) !== '' && norm(typed) === norm(actual)
 }
+
+/** Код точки для ilike: «_» и «%» там подстановочные — ARENA_1 совпал бы с ARENAX1 чужой организации. */
+export function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}

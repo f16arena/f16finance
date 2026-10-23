@@ -81,13 +81,13 @@ export async function GET(request: Request) {
       stationsQuery = stationsQuery.in('company_id', companyScope.allowedCompanyIds)
     }
 
-    const [{ data: stations, error: stationsError }, { data: zones }, { data: devices }, { data: runtimes }] =
+    const [{ data: stations, error: stationsError }, { data: zones }, { data: allDevices }, { data: runtimes }] =
       await Promise.all([
         stationsQuery,
         supabase.from('arena_zones').select('id, name').eq('point_project_id', projectId),
         supabase
           .from('arena_station_devices')
-          .select('id, station_id, status, last_seen_at, agent_version, reported_hostname, reported_senet_ws_num, requested_at, device_instance_id, reported_mac, revoked_at')
+          .select('id, station_id, company_id, status, last_seen_at, agent_version, reported_hostname, reported_senet_ws_num, requested_at, device_instance_id, reported_mac, revoked_at')
           .eq('point_project_id', projectId),
         supabase
           .from('arena_station_runtime')
@@ -96,6 +96,11 @@ export async function GET(request: Request) {
       ])
 
     if (stationsError) throw stationsError
+
+    // Касса общая на несколько точек: устройства (hostname, MAC) — только своих точек.
+    const devices = companyScope.allowedCompanyIds
+      ? (allDevices || []).filter((d: any) => !d.company_id || companyScope.allowedCompanyIds!.includes(String(d.company_id)))
+      : allDevices
 
     const zoneById = new Map((zones || []).map((z: any) => [String(z.id), String(z.name)]))
     const runtimeByStation = new Map((runtimes || []).map((r: any) => [String(r.station_id), r]))

@@ -224,6 +224,10 @@ export async function POST(req: Request) {
       }
 
       if (!body.id) return badRequest('id обязателен')
+      // Управляющий части точек правит только свои — как и при удалении ниже.
+      if (access.companyRestriction && !access.companyRestriction.includes(body.id)) {
+        return NextResponse.json({ error: 'forbidden-company' }, { status: 403 })
+      }
 
       if (body.action === 'update') {
         if (!body.payload.name?.trim()) return badRequest('Название компании обязательно')
@@ -349,6 +353,25 @@ export async function POST(req: Request) {
       }
 
       if (!body.id) return badRequest('id обязателен')
+
+      // Чужого охвата не трогаем: управляющий части точек видит только своих
+      // (как в GET), а карточку владельца правит только владелец.
+      const { data: targetStaff, error: targetStaffError } = await scopeOrg(
+        supabase.from('staff').select('id, role').eq('id', body.id),
+      ).maybeSingle()
+      if (targetStaffError) throw targetStaffError
+      if (!targetStaff) return NextResponse.json({ error: 'Сотрудник не найден' }, { status: 404 })
+      if (String((targetStaff as any).role || '') === 'owner' && !isOwnerActor(access)) {
+        return NextResponse.json({ error: 'Карточку владельца меняет только владелец' }, { status: 403 })
+      }
+      if (access.companyRestriction) {
+        const visibleStaffIds = await listOrganizationStaffIds({
+          activeOrganizationId: orgId,
+          isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
+        })
+        if (!visibleStaffIds.includes(body.id)) return NextResponse.json({ error: 'forbidden-staff' }, { status: 403 })
+      }
 
       if (body.action === 'update') {
         if (!body.payload.name?.trim()) return badRequest('Имя сотрудника обязательно')

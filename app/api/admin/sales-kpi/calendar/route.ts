@@ -137,6 +137,10 @@ export async function POST(request: Request) {
     const organizationId = String(company.organization_id)
     const actor = access.user?.id || null
     const action = String(body.action || '')
+    // «Для всех точек» пишет общую строку организации — это решает тот, кто видит все точки.
+    if (body.for_all_points === true && access.companyRestriction) {
+      return json({ error: 'forbidden', code: 'all-points-requires-full-scope' }, 403)
+    }
 
     /** Влияние дня: 1.00 — нейтрально, за границы не выпускаем. */
     const impact = (raw: unknown): number => {
