@@ -29,6 +29,7 @@ import {
   factTopicsForIndustry,
   operatorsOfCompanies,
 } from '@/lib/server/operator-exam-compose'
+import { getCompanyReportTarget } from '@/lib/server/report-targets'
 import { sendTelegram } from '@/lib/server/telegram'
 import { buildStoreKpiReport } from '@/lib/server/store-kpi-report'
 import type { FactTopic } from '@/lib/server/exam-facts'
@@ -149,6 +150,9 @@ export async function GET(request: Request) {
 
         const pointName = String(company.name || 'точка')
         const organizationId = String(company.organization_id)
+        // Черновик билета — в чат владельца организации. Раньше слали без чата: молчало.
+        const chatId = (await getCompanyReportTarget(companyId))?.chatId
+        const send = (text: string) => (chatId ? sendTelegram(text, chatId) : Promise.resolve())
 
         const operatorIds = await operatorsOfCompanies(supabase, [companyId])
         if (operatorIds.length === 0) {
@@ -180,7 +184,7 @@ export async function GET(request: Request) {
           report.push({ company: pointName, error: composed.error })
           // Владельцу лучше узнать, что билет не собрался, чем не узнать
           // ничего: молчащий крон выглядит как работающий.
-          await sendTelegram(
+          await send(
             `<b>${pointName}: билет на неделю не собрался</b>\n\n${composed.error}\n\n` +
               `Проверьте регламенты точки и каталог.`,
           )
@@ -232,7 +236,7 @@ export async function GET(request: Request) {
           },
         })
 
-        await sendTelegram(
+        await send(
           `<b>${pointName}: билет на неделю готов</b>\n\n` +
             `Вопросов: ${composed.pool.length}, ситуационных: ${composed.openPool.length}. ` +
             `Получателей: ${operatorIds.length}.\n\n` +

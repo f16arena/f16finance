@@ -26,6 +26,7 @@ import { NextResponse } from 'next/server'
 import { writeSystemErrorLogSafe, describeError } from '@/lib/server/audit'
 import { verifyCronRequest } from '@/lib/server/cron-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { getCompanyReportTarget } from '@/lib/server/report-targets'
 import { sendTelegram } from '@/lib/server/telegram'
 import { addDaysISO, todayISO } from '@/lib/server/store-kpi'
 import { buildStoreKpiReport } from '@/lib/server/store-kpi-report'
@@ -97,6 +98,14 @@ export async function GET(request: Request) {
         .maybeSingle()
       const pointName = company?.name || 'точка'
 
+      // Сводка точки — в чат владельца её организации. Раньше слали без чата: молчало.
+      const chatId = (await getCompanyReportTarget(companyId))?.chatId
+      if (!chatId) {
+        report.push({ company: pointName, skipped: 'у организации не задан чат владельца' })
+        continue
+      }
+      const send = (text: string) => sendTelegram(text, chatId)
+
       try {
         // ── Понедельник: что разобрать ────────────────────────────────────
         if (isMonday) {
@@ -121,7 +130,7 @@ export async function GET(request: Request) {
 
             const tail = toReview.length > 5 ? `\n…и ещё ${toReview.length - 5} на странице.` : ''
 
-            await sendTelegram(
+            await send(
               `<b>${pointName}: что разобрать за неделю</b>\n\n` +
                 `Смен с вопросом к продавцу: ${toReview.length}. Это смены, где покупатели были, ` +
                 `а отдача с каждого ниже обычного.\n\n${lines}${tail}\n\n` +
@@ -151,7 +160,7 @@ export async function GET(request: Request) {
             const total = awards.reduce((sum, a) => sum + a.amount, 0)
             const lines = awards.map((a) => `• ${a.name} — ${money(a.amount)}`).join('\n')
 
-            await sendTelegram(
+            await send(
               `<b>${pointName}: доплата за ${prev.label}</b>\n\n` +
                 `Посчитано ${awards.length} чел. на ${money(total)}:\n\n${lines}\n\n` +
                 `Это доплата за работу с покупателем, не за оборот. Начисляет человек: ` +

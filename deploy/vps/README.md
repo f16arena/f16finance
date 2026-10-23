@@ -40,6 +40,16 @@ Cron запускает копию скрипта `/opt/orda/bin/deploy.sh` (е�
 
 Кнопки на `/platform/status` («Пересобрать» — с перезапуском контейнера, подхватывает правки `web.env`, «Откатить сюда», «Вернуть автодеплой») кладут заявку в `/opt/orda/control/request.json` (смонтирована в контейнер как `/control`), её забирает `deploy.sh`. Откат закрепляет версию в `/opt/orda/control/pin` — пока файл есть, новые коммиты не выкатываются. Аварийно вернуть автодеплой с сервера: `rm /opt/orda/control/pin && FORCE=1 sh /opt/orda/bin/deploy.sh`.
 
+**Проверка после выкладки.** Перед сборкой рабочий образ помечается `orda-web:previous`. После сборки `deploy.sh` до 2 минут ждёт `200` от `/api/health/ready` (сайт жив и видит базу) и не-5xx от `/` и `/login`. Не дождался — возвращает `previous` без пересборки, репозиторий — на прежний коммит, пишет коммит в `/opt/orda/control/bad` (его сам по себе не повторяет, следующий пуш пробует снова) и шлёт тревогу в Telegram мониторинга (`TELEGRAM_MONITOR_BOT_TOKEN` / `TELEGRAM_MONITOR_CHAT_ID` из `web.env`). Упавшая сборка — тоже тревога.
+
+## Сторож
+
+`/etc/cron.d/orda-watchdog` раз в минуту запускает `/opt/orda/bin/watchdog.sh`: открывает `https://ordaops.kz/api/health/ready` через Caddy. Три провала подряд — тревога в Telegram мониторинга, восстановление — «снова отвечает». Лог провалов: `/var/log/orda-watchdog.log`.
+
+Смерть всего сервера изнутри не видна. Для неё — внешний пинг (UptimeRobot / Better Stack, бесплатно) на тот же адрес `/api/health/ready`, раз в 1–5 минут, тревога на почту или в Telegram.
+
+Утром в 09:00 (Алматы) `/api/cron/error-digest` шлёт владельцу платформы (`TELEGRAM_SUPERADMIN_CHAT_ID`) ошибки сервера за сутки и кроны, ответившие не 2xx. Ничего не сломалось — молчит.
+
 Руками: `FORCE=1 sh /opt/orda/bin/deploy.sh`. Кроны: `sh /opt/orda/app/deploy/vps/install-crons.sh` (на хосте node нет, генератор крутится в контейнере).
 
 Расписание кронов по-прежнему живёт в `vercel.json` — файл остаётся источником, хотя Vercel больше не используется.
