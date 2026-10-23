@@ -261,7 +261,7 @@ test('снятая корректировка не считается выход
 
 test('окно выплаты задним числом тянется до сегодня, а не до даты выплаты', () => {
   const period = getStaffPaymentAdjustmentPeriod('2026-09-01', 'first', '2026-09-16')
-  assert.deepEqual(period, { from: '2026-09-01', to: '2026-09-16' })
+  assert.deepEqual({ from: period?.from, to: period?.to }, { from: '2026-09-01', to: '2026-09-16' })
 
   // Долг, взятый 6-го, попадает в выплату, датированную первым числом
   const calc = calcStaffToPay(
@@ -274,7 +274,7 @@ test('окно выплаты задним числом тянется до се
 
   // Без отсечки — как было: долг после даты выплаты в расчёт не попадал
   const onPayDate = getStaffPaymentAdjustmentPeriod('2026-09-01', 'first')
-  assert.deepEqual(onPayDate, { from: '2026-09-01', to: '2026-09-01' })
+  assert.deepEqual({ from: onPayDate?.from, to: onPayDate?.to }, { from: '2026-09-01', to: '2026-09-01' })
 })
 
 // ─── Остаток неполной выплаты доплачивается следующей выплатой ──────────────

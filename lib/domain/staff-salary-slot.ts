@@ -10,9 +10,23 @@
 // приложение спрашивало /api/admin/salary, а там админы отфильтрованы
 // (is_admin_staff = false). Считать те же деньги вторым способом в Swift
 // значило бы завести вторую правду: web показывал бы одно, телефон другое.
+//
+// График выплат — настройка организации (lib/core/org-settings.ts). Без неё — две
+// половины месяца, как у F16. При «раз в месяц» период один (slot 'first'), оклад целиком.
+
+import { DEFAULT_STAFF_PAY_SCHEDULE, type StaffPaySchedule } from '@/lib/core/org-settings'
 
 export type StaffSlot = 'first' | 'second'
 export type SlotRange = { from: string; to: string }
+
+/** Период выплаты по графику: границы, месяц, за который платим, и доля оклада. */
+export type StaffPayPeriod = SlotRange & {
+  slot: StaffSlot
+  /** Месяц, за который выплата, 'YYYY-MM'. */
+  month: string
+  /** Доля месячного оклада за период: 0.5 у половины месяца, 1 у месяца. */
+  share: number
+}
 
 export type SlotStaffMember = {
   id: string
@@ -43,6 +57,8 @@ export type SlotPayment = {
   staff_id: string
   pay_date: string
   slot?: string | null
+  /** За какой месяц выплата (YYYY-MM-01). Старые выплаты без него — месяц pay_date. */
+  period_month?: string | null
   amount: number
   created_at?: string | null
 }
@@ -57,6 +73,79 @@ export function getSalarySlotRange(payDate: string, slot: StaffSlot): SlotRange 
   if (slot === 'first') return { from: `${year}-${mm}-01`, to: `${year}-${mm}-15` }
   const endDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
   return { from: `${year}-${mm}-16`, to: `${year}-${mm}-${String(endDay).padStart(2, '0')}` }
+}
+
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number)
+  const value = new Date(Date.UTC(y, m - 1 + delta, 1))
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function isMonthKey(value: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value)
+}
+
+/** Какие выплаты есть в одном месяце по графику. */
+export function staffPeriodSlots(schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE): StaffSlot[] {
+  return schedule.kind === 'monthly' ? ['first'] : ['first', 'second']
+}
+
+/** Период выплаты за месяц `month` ('YYYY-MM'). При «раз в месяц» slot не важен. */
+export function getStaffPeriodForMonth(
+  month: string,
+  slot: StaffSlot,
+  schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE,
+): StaffPayPeriod | null {
+  if (!isMonthKey(month)) return null
+  if (schedule.kind === 'monthly') {
+    const range = getSalarySlotRange(`${month}-01`, 'first')
+    const end = getSalarySlotRange(`${month}-01`, 'second')
+    if (!range || !end) return null
+    return { from: range.from, to: end.to, slot: 'first', month, share: 1 }
+  }
+  const range = getSalarySlotRange(`${month}-01`, slot)
+  return range ? { ...range, slot, month, share: 0.5 } : null
+}
+
+/**
+ * Какой период выплаты идёт на дату.
+ *
+ * «Раз в месяц до N-го»: до N-го числа включительно ещё платим за прошлый месяц,
+ * после — копится текущий.
+ */
+export function getStaffPayPeriod(
+  isoDate: string,
+  schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE,
+): StaffPayPeriod | null {
+  const month = String(isoDate || '').slice(0, 7)
+  if (!isMonthKey(month)) return null
+  if (schedule.kind === 'monthly') {
+    const day = Number(String(isoDate).slice(8, 10))
+    const target = schedule.payDay != null && day <= schedule.payDay ? shiftMonth(month, -1) : month
+    return getStaffPeriodForMonth(target, 'first', schedule)
+  }
+  return getStaffPeriodForMonth(month, slotForDate(isoDate), schedule)
+}
+
+/** За какой месяц выплата: из period_month, у старых записей — по дате (как было). */
+export function staffPaymentPeriodMonth(
+  payment: Pick<SlotPayment, 'pay_date' | 'period_month'>,
+  schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE,
+): string {
+  const stored = String(payment.period_month || '').slice(0, 7)
+  if (isMonthKey(stored)) return stored
+  const payDate = String(payment.pay_date || '')
+  if (schedule.kind === 'monthly') return getStaffPayPeriod(payDate, schedule)?.month || payDate.slice(0, 7)
+  return payDate.slice(0, 7)
+}
+
+/** Подпись периода для людей: «1–15 октября», «октябрь». */
+export function staffPeriodLabel(period: Pick<StaffPayPeriod, 'slot' | 'month'>, schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE): string {
+  const [y, m] = period.month.split('-').map(Number)
+  const monthName = new Date(Date.UTC(y, m - 1, 1)).toLocaleString('ru-RU', { month: 'long', timeZone: 'UTC' })
+  if (schedule.kind === 'monthly') return `${monthName} ${y}`
+  const genitive = new Date(Date.UTC(y, m - 1, 15)).toLocaleString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' }).replace(/^\d+\s/, '')
+  return period.slot === 'first' ? `1–15 ${genitive}` : `16–конец ${genitive}`
 }
 
 /**
@@ -76,14 +165,22 @@ export function getStaffPaymentAdjustmentPeriod(
    * (случай Олжаса, 2026-09-16). Поэтому окно тянем до этого дня.
    */
   cutoffISO?: string | null,
-): SlotRange | null {
-  const slotRange = getSalarySlotRange(payDate, slot)
-  if (!slotRange) return null
+  schedule: StaffPaySchedule = DEFAULT_STAFF_PAY_SCHEDULE,
+  /** За какой месяц платим ('YYYY-MM'); без него — по графику от даты выплаты. */
+  periodMonth?: string | null,
+): StaffPayPeriod | null {
   const payDateValue = String(payDate || '')
+  const month = String(periodMonth || '').slice(0, 7)
+  const slotRange = isMonthKey(month)
+    ? getStaffPeriodForMonth(month, slot, schedule)
+    : schedule.kind === 'monthly'
+      ? getStaffPayPeriod(payDateValue, schedule)
+      : getStaffPeriodForMonth(payDateValue.slice(0, 7), slot, schedule)
+  if (!slotRange) return null
   const base = /^\d{4}-\d{2}-\d{2}$/.test(payDateValue) ? payDateValue : slotRange.to
   const cutoff = String(cutoffISO || '')
   const to = /^\d{4}-\d{2}-\d{2}$/.test(cutoff) && cutoff > base ? cutoff : base
-  return { from: slotRange.from, to }
+  return { ...slotRange, to }
 }
 
 /** В какую половину месяца попадает дата. */
@@ -122,7 +219,7 @@ export function filterStaffAdjustmentsForSlot<A extends SlotAdjustment, P extend
   adjs: A[],
   staffId: string,
   payments: P[],
-  period?: SlotRange | null,
+  period?: (SlotRange & { share?: number }) | null,
 ): A[] {
   const periodEnd = period?.to || '9999-12-31'
   const lastPayment =
@@ -173,9 +270,11 @@ function daysInMonthOf(iso: string): number {
  * либо перестал верить цифре. День увольнения оплачивается — так же считает
  * `calculateStaffAccrualForMonth` для налогов.
  */
-export function slotAccrualBase(s: SlotStaffMember, period?: SlotRange | null): number {
+export function slotAccrualBase(s: SlotStaffMember, period?: (SlotRange & { share?: number }) | null): number {
   const salary = Number(s.monthly_salary || 0)
-  const half = Math.round(salary / 2)
+  // Доля оклада за период: половина месяца (как было) или месяц целиком по графику.
+  const share = typeof period?.share === 'number' ? period.share : 0.5
+  const half = share === 0.5 ? Math.round(salary / 2) : Math.round(salary * share)
   const dismissed = String(s.dismissal_date || s.dismissed_at || '').slice(0, 10)
   if (!dismissed || !period) return half
 
@@ -205,7 +304,7 @@ export function calcStaffToPay(
   s: SlotStaffMember,
   adjs: SlotAdjustment[],
   payments: SlotPayment[],
-  period?: SlotRange | null,
+  period?: (SlotRange & { share?: number }) | null,
 ): StaffSlotCalc {
   const active = filterStaffAdjustmentsForSlot(adjs, s.id, payments, period)
   const remainder = active
@@ -264,7 +363,9 @@ export type StaffSalaryRow = StaffSlotCalc & {
 export type StaffSalarySummary = {
   today: string
   slot: StaffSlot
-  period: SlotRange | null
+  period: StaffPayPeriod | null
+  /** График выплат организации — экраны подписывают по нему периоды. */
+  schedule: StaffPaySchedule
   rows: StaffSalaryRow[]
   totals: { toPay: number; paidThisMonth: number; remainder: number; people: number }
 }
@@ -281,17 +382,21 @@ export function buildStaffSalarySummary(args: {
   payments: SlotPayment[]
   today: string
   meStaffId?: string | null
+  schedule?: StaffPaySchedule
 }): StaffSalarySummary {
   const { staff, adjustments, payments, today } = args
+  const schedule = args.schedule || DEFAULT_STAFF_PAY_SCHEDULE
   const meStaffId = args.meStaffId ? String(args.meStaffId) : null
-  const slot = slotForDate(today)
-  const period = getSalarySlotRange(today, slot)
-  const monthPrefix = String(today).slice(0, 7)
+  const period = getStaffPayPeriod(today, schedule)
+  const slot = period?.slot || slotForDate(today)
+  // Месяц, за который сейчас платим. У двух половин — месяц сегодняшней даты, как было.
+  const monthPrefix = period?.month || String(today).slice(0, 7)
+  const periodSlots = staffPeriodSlots(schedule)
 
   const rows: StaffSalaryRow[] = staff.map((s) => {
     const calc = calcStaffToPay(s, adjustments, payments, period)
     const monthPayments = payments.filter(
-      (p) => p.staff_id === s.id && String(p.pay_date || '').slice(0, 7) === monthPrefix,
+      (p) => p.staff_id === s.id && staffPaymentPeriodMonth(p, schedule) === monthPrefix,
     )
     const paidThisMonth = monthPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
     // Доп. выход заводится премией с этой подписью — так его ставит сервер,
@@ -320,7 +425,7 @@ export function buildStaffSalarySummary(args: {
       is_active: s.is_active !== false,
       dismissal_date: (s.dismissal_date || s.dismissed_at || null)?.slice(0, 10) || null,
       paid_this_month: paidThisMonth,
-      month_closed: hasFirst && hasSecond,
+      month_closed: periodSlots.every((value) => (value === 'first' ? hasFirst : hasSecond)),
       paid_slots: [...(hasFirst ? ['first' as const] : []), ...(hasSecond ? ['second' as const] : [])],
       extra_days: extraDays,
       is_me: meStaffId ? String(s.id) === meStaffId : false,
@@ -335,6 +440,7 @@ export function buildStaffSalarySummary(args: {
     today,
     slot,
     period,
+    schedule,
     rows: ordered,
     totals: {
       toPay: ordered.reduce((sum, r) => sum + r.toPay, 0),

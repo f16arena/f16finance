@@ -29,9 +29,11 @@ import { getStaffRoleLabel } from '@/lib/core/access'
 import {
   calcStaffToPay,
   filterStaffAdjustmentsForSlot,
-  getSalarySlotRange,
   getStaffPaymentAdjustmentPeriod,
+  getStaffPeriodForMonth,
+  staffPaymentPeriodMonth,
 } from '@/lib/domain/staff-salary-slot'
+import { DEFAULT_STAFF_PAY_SCHEDULE, describeStaffPaySchedule, type StaffPaySchedule } from '@/lib/core/org-settings'
 
 type CompanyOption = { id: string; code: string | null; name: string | null }
 type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
@@ -82,7 +84,7 @@ type StaffAdjustment = {
   source_payment_id?: string | null
   closed_at?: string | null
 }
-type StaffPayment = { id: string; staff_id: string; pay_date: string; slot: string; amount: number; comment: string | null; created_at?: string | null }
+type StaffPayment = { id: string; staff_id: string; pay_date: string; slot: string; period_month?: string | null; amount: number; comment: string | null; created_at?: string | null }
 /**
  * Событие ленты административных сотрудников.
  * remainder / overpayment — авто-корректировки выплаты (bonus/advance с source_payment_id);
@@ -124,6 +126,7 @@ type StaffSalaryData = {
   payments: StaffPayment[]
   debtPayments?: StaffDebtPayment[]
   salaryRules: { company_code: string; shift_type: string; base_per_shift: number }[]
+  paySchedule?: StaffPaySchedule
   consistency?: {
     has_issues: boolean
     missing_payment_expense_count: number
@@ -678,6 +681,12 @@ export default function SalaryPage() {
   // После мутаций зовём loadStaffSalary() (refresh). API отдаёт плоский объект — хук вернёт его целиком.
   const staffSalaryUrl = showStaffArchived ? '/api/admin/staff-salary?include_archived=1' : '/api/admin/staff-salary'
   const { data: staffSalary, loading: staffSalaryLoading, refreshing: staffRefreshing, refresh: loadStaffSalary } = useApiCache<StaffSalaryData>(staffSalaryUrl)
+  // График выплат организации (настройки): две половины месяца у F16 или раз в месяц.
+  const paySchedule: StaffPaySchedule = staffSalary?.paySchedule || DEFAULT_STAFF_PAY_SCHEDULE
+  const isMonthlyPay = paySchedule.kind === 'monthly'
+  // За какой месяц проводим выплату при «раз в месяц» (null — по графику от даты).
+  const [staffPayMonth, setStaffPayMonth] = useState<string | null>(null)
+  const staffPayPeriodMonth = isMonthlyPay ? staffPayMonth : null
   const [staffAdjModal, setStaffAdjModal] = useState<StaffMember | null>(null)
   const [staffPayModal, setStaffPayModal] = useState<StaffMember | null>(null)
   const [staffAdjKind, setStaffAdjKind] = useState<'debt' | 'fine' | 'bonus' | 'advance'>('fine')
@@ -709,7 +718,7 @@ export default function SalaryPage() {
     if (!staffPayModal || !staffSalary) return null
     // Отсечка «по сегодня» — как на сервере: выплату проводят и задним числом,
     // но считают всё, что накопилось к моменту выплаты.
-    const period = getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot, todayISO())
+    const period = getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot, todayISO(), paySchedule, staffPayPeriodMonth)
     const closingAdjustments = filterStaffAdjustmentsForSlot(
       staffSalary.adjustments,
       staffPayModal.id,
@@ -736,7 +745,7 @@ export default function SalaryPage() {
       payTotal,
       companyName,
     }
-  }, [staffPayModal, staffSalary, staffPayDate, staffPaySlot, staffPayCash, staffPayKaspi, staffPayCompanyId, data?.companies])
+  }, [staffPayModal, staffSalary, staffPayDate, staffPaySlot, staffPayCash, staffPayKaspi, staffPayCompanyId, data?.companies, paySchedule, staffPayPeriodMonth])
   // ─── Лента событий административных сотрудников ─────────────────────────────
   // Настоящие записи поштучно: выплаты, корректировки (остаток и переплата по
   // выплате — отдельными типами, а не «бонус» и «аванс»), оплаты долгов и позиции
@@ -927,9 +936,9 @@ export default function SalaryPage() {
         staffPayModal,
         staffSalary?.adjustments || [],
         staffSalary?.payments || [],
-        getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot, todayISO()),
+        getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot, todayISO(), paySchedule, staffPayPeriodMonth),
       ).toPay
-      const res = await fetch('/api/admin/staff-salary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'createPayment', staff_id: staffPayModal.id, pay_date: staffPayDate, slot: staffPaySlot, company_id: staffPayCompanyId, cash_amount: cash, kaspi_amount: kaspi, expected_amount: expectedAmount, comment: staffPayComment.trim() || null }) })
+      const res = await fetch('/api/admin/staff-salary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'createPayment', staff_id: staffPayModal.id, pay_date: staffPayDate, slot: staffPaySlot, period_month: staffPayPeriodMonth, company_id: staffPayCompanyId, cash_amount: cash, kaspi_amount: kaspi, expected_amount: expectedAmount, comment: staffPayComment.trim() || null }) })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'Ошибка')
       setStaffPayModal(null); setStaffPayCash(''); setStaffPayKaspi(''); setStaffPayComment(''); setStaffPayCompanyId('')
@@ -2038,7 +2047,8 @@ export default function SalaryPage() {
               d.setMonth(d.getMonth() - i)
               return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
             })
-            const period = getSalarySlotRange(`${staffMonth}-10`, staffSlot)
+            // Период ведомости по графику: половина месяца или месяц целиком.
+            const period = getStaffPeriodForMonth(staffMonth, isMonthlyPay ? 'first' : staffSlot, paySchedule)
             const companyName = (id: string | null | undefined) =>
               (data?.companies || []).find((c) => c.id === String(id || ''))?.name || ''
             const dateTime = (iso: string) => {
@@ -2050,7 +2060,7 @@ export default function SalaryPage() {
             const rows = (sal.staff || []).map((s) => {
               const calc = calcStaffToPay(s, sal.adjustments, sal.payments, period)
               const monthPayments = sal.payments.filter(
-                (p) => p.staff_id === s.id && monthPrefixFromPaymentDate(p.pay_date) === staffMonth,
+                (p) => p.staff_id === s.id && staffPaymentPeriodMonth(p, paySchedule) === staffMonth,
               )
               return {
                 s,
@@ -2098,7 +2108,7 @@ export default function SalaryPage() {
                       <div>
                         <h2 className="text-base font-semibold text-foreground">Ведомость административных сотрудников</h2>
                         <p className="text-xs text-muted-foreground">
-                          Оклад пополам: 1–15 и 16–конец месяца. {sal.consistency?.has_issues ? (
+                          {describeStaffPaySchedule(paySchedule)}. {sal.consistency?.has_issues ? (
                             <span className="text-amber-700 dark:text-amber-300">
                               Расходы по зарплате разошлись с выплатами ({sal.consistency.missing_payment_expense_count}/{sal.consistency.orphan_payment_expense_count}).
                             </span>
@@ -2115,10 +2125,12 @@ export default function SalaryPage() {
                       >
                         {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
                       </select>
-                      <div className="flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-white/5 p-1">
-                        {slotButton('first', '1–15')}
-                        {slotButton('second', '16–конец')}
-                      </div>
+                      {!isMonthlyPay && (
+                        <div className="flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-white/5 p-1">
+                          {slotButton('first', '1–15')}
+                          {slotButton('second', '16–конец')}
+                        </div>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -2240,7 +2252,7 @@ export default function SalaryPage() {
                     : allDebtItems
                   const debtItemsTotal = debtItems.reduce((sum, i) => sum + Number(i.amount || 0), 0)
                   const debtPays = (sal.debtPayments || []).filter((p) => p.staff_id === s.id)
-                  const isMonthClosed = selected.hasFirst && selected.hasSecond
+                  const isMonthClosed = isMonthlyPay ? selected.hasFirst : selected.hasFirst && selected.hasSecond
                   const line = (label: string, value: string, cls = '') => (
                     <div className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm">
                       <span className="text-muted-foreground">{label}</span>
@@ -2274,21 +2286,21 @@ export default function SalaryPage() {
                             <Button type="button" variant="outline" className="h-9 rounded-xl border-rose-400/30 bg-rose-500/10 text-xs text-rose-700 dark:text-rose-200 hover:bg-rose-500/20" onClick={() => openPayDebt(s, calc.debts)}><Wallet className="mr-1.5 h-3.5 w-3.5" />Оплата долга ({money(calc.debts)})</Button>
                           )}
                           {!selected.dismissed && canStaffCreatePayment && (
-                            <Button type="button" disabled={!canEditStaffSalary || selected.fromOperators || isMonthClosed} className="h-9 rounded-xl bg-emerald-500 text-xs text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setStaffPayModal(s); setStaffPayDate(todayISO()); setStaffPaySlot(selected.hasFirst ? 'second' : 'first'); setStaffPayCash(calc.toPay > 0 ? String(calc.toPay) : ''); setStaffPayKaspi(''); setStaffPayComment(''); setStaffPayCompanyId(data?.companies?.[0]?.id || '') }}><Wallet className="mr-1.5 h-3.5 w-3.5" />Выплатить</Button>
+                            <Button type="button" disabled={!canEditStaffSalary || selected.fromOperators || isMonthClosed} className="h-9 rounded-xl bg-emerald-500 text-xs text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => { setStaffPayModal(s); setStaffPayDate(todayISO()); setStaffPaySlot(isMonthlyPay || !selected.hasFirst ? 'first' : 'second'); setStaffPayMonth(isMonthlyPay ? staffMonth : null); setStaffPayCash(calc.toPay > 0 ? String(calc.toPay) : ''); setStaffPayKaspi(''); setStaffPayComment(''); setStaffPayCompanyId(data?.companies?.[0]?.id || '') }}><Wallet className="mr-1.5 h-3.5 w-3.5" />Выплатить</Button>
                           )}
                         </div>
                       </div>
 
                       {isMonthClosed ? (
                         <div className="border-b border-border bg-amber-500/[0.06] px-4 py-2 text-xs text-amber-700 dark:text-amber-300 sm:px-5">
-                          {monthLabel(staffMonth)}: обе выплаты проведены. Следующая — в следующем месяце.
+                          {monthLabel(staffMonth)}: {isMonthlyPay ? 'выплата проведена' : 'обе выплаты проведены'}. Следующая — в следующем месяце.
                         </div>
                       ) : null}
 
                       <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-2">
                         {/* Откуда сумма */}
                         <div>
-                          <div className="mb-2 text-sm font-medium text-foreground">Как получилась сумма · {staffSlot === 'first' ? '1–15' : '16–конец'} {monthLabel(staffMonth).toLowerCase()}</div>
+                          <div className="mb-2 text-sm font-medium text-foreground">Как получилась сумма · {isMonthlyPay ? '' : staffSlot === 'first' ? '1–15 ' : '16–конец '}{monthLabel(staffMonth).toLowerCase()}</div>
                           <div className="divide-y divide-border rounded-xl border border-border">
                             {line('Половина оклада', money(calc.half))}
                             {calc.bonuses ? line('Бонусы', `+${money(calc.bonuses)}`, 'text-emerald-700 dark:text-emerald-300') : null}
@@ -2819,16 +2831,28 @@ export default function SalaryPage() {
       ) : null}
 
       {staffPayModal ? (
-        <Modal error={error} title="Выплата зарплаты" subtitle={`${staffPayModal.full_name} · к выплате ${money(calcStaffToPay(staffPayModal, staffSalary?.adjustments || [], staffSalary?.payments || [], getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot)).toPay)}`} onClose={() => setStaffPayModal(null)}>
+        <Modal error={error} title="Выплата зарплаты" subtitle={`${staffPayModal.full_name} · к выплате ${money(calcStaffToPay(staffPayModal, staffSalary?.adjustments || [], staffSalary?.payments || [], getStaffPaymentAdjustmentPeriod(staffPayDate, staffPaySlot, null, paySchedule, staffPayPeriodMonth)).toPay)}`} onClose={() => setStaffPayModal(null)}>
           <form className="space-y-4" onSubmit={submitStaffPayment}>
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm text-body">Слот</label>
-                <select className={selectCls} value={staffPaySlot} onChange={e => setStaffPaySlot(e.target.value as 'first' | 'second')}>
-                  <option value="first">Выплата 1-го числа</option>
-                  <option value="second">Выплата 15-го числа</option>
-                </select>
-              </div>
+              {isMonthlyPay ? (
+                <div>
+                  <label className="mb-2 block text-sm text-body">За месяц</label>
+                  <input
+                    type="month"
+                    className={selectCls}
+                    value={staffPayMonth || ''}
+                    onChange={e => setStaffPayMonth(e.target.value || null)}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-2 block text-sm text-body">Слот</label>
+                  <select className={selectCls} value={staffPaySlot} onChange={e => setStaffPaySlot(e.target.value as 'first' | 'second')}>
+                    <option value="first">Выплата 1-го числа</option>
+                    <option value="second">Выплата 15-го числа</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="mb-2 block text-sm text-body">Дата выплаты</label>
                 <DatePicker className="h-11" value={staffPayDate} onChange={setStaffPayDate} />

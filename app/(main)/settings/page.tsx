@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
+import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
 import { CardSkeleton } from '@/components/skeleton'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import {
@@ -292,6 +293,8 @@ export default function SettingsPage() {
               {error}
             </div>
           )}
+
+          <OrgPayScheduleCard />
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:gap-8">
 

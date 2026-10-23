@@ -12,9 +12,14 @@ import { createAdminSupabaseClient } from '@/lib/server/supabase'
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import {
   buildStaffSalarySummary,
+  getStaffPayPeriod,
   getStaffPaymentAdjustmentPeriod,
   slotAccrualBase,
+  staffPaymentPeriodMonth,
+  staffPeriodLabel,
+  staffPeriodSlots,
 } from '@/lib/domain/staff-salary-slot'
+import { getOrgSettings } from '@/lib/server/org-settings'
 import {
   resolveCompanyScope,
   listOrganizationStaffIds,
@@ -371,7 +376,7 @@ export async function GET(req: Request) {
     const paymentsQuery = () =>
       fetchAllPages(supabase, {
         table: 'staff_salary_payments',
-        columns: 'id, staff_id, pay_date, slot, amount, comment, created_at',
+        columns: 'id, staff_id, pay_date, slot, period_month, amount, comment, created_at',
         order: 'pay_date',
         scope: (query: any) => (allowedStaffIds ? query.in('staff_id', allowedStaffIds) : query),
       })
@@ -390,13 +395,15 @@ export async function GET(req: Request) {
       .eq('is_active', true)
     if (allowedCompanyCodes) rulesQuery.in('company_code', allowedCompanyCodes)
 
-    const [staffRes, adjustmentsAll, paymentsAll, rulesRes, adminOpsRes] = await Promise.all([
+    const [staffRes, adjustmentsAll, paymentsAll, rulesRes, adminOpsRes, orgSettings] = await Promise.all([
       staffQuery,
       adjQuery(),
       paymentsQuery(),
       rulesQuery,
       adminOpsQuery,
+      getOrgSettings(access.activeOrganization?.id || null),
     ])
+    const paySchedule = orgSettings.staffPaySchedule
 
     const paymentsRes = { data: paymentsAll, error: null as any }
 
@@ -541,6 +548,7 @@ export async function GET(req: Request) {
         payments: (paymentsRes.data ?? []) as any,
         today: new Date().toISOString().slice(0, 10),
         meStaffId: selfRowId,
+        schedule: paySchedule,
       })
       // Без права видно ровно одну строку — свою. Полный ответ здесь не
       // возвращаем никогда: в нём сырые ведомости по всем людям.
@@ -658,6 +666,8 @@ export async function GET(req: Request) {
       debtPayments: debtPaymentsData ?? [],
       payments: paymentsRes.data ?? [],
       salaryRules: rulesRes.data ?? [],
+      // График выплат организации: страница строит по нему периоды и подписи.
+      paySchedule,
       consistency: {
         has_issues:
           missingPaymentExpenseCount > 0 ||
@@ -1098,7 +1108,7 @@ export async function POST(req: Request) {
 
     // ── Create payment (1st or 15th) ────────────────────────────────────────
     if (action === 'createPayment') {
-      const { staff_id, pay_date, slot, cash_amount, kaspi_amount, expected_amount, comment, company_id } = body
+      const { staff_id, pay_date, slot, cash_amount, kaspi_amount, expected_amount, comment, company_id, period_month } = body
       if (!staff_id || !pay_date) return json({ error: 'staff_id и pay_date обязательны' }, 400)
       if (staffOutOfScope(staff_id)) return json({ error: 'forbidden' }, 403)
       if (!company_id) return json({ error: 'company_id обязателен' }, 400)
@@ -1106,27 +1116,42 @@ export async function POST(req: Request) {
       if (companyOutOfScope(company_id)) return json({ error: 'Компания вне вашей организации' }, 403)
       const total = Math.round((cash_amount || 0) + (kaspi_amount || 0))
       if (total <= 0) return json({ error: 'Сумма выплаты должна быть > 0' }, 400)
-      if (slot !== 'first' && slot !== 'second') {
-        return json({ error: 'Слот выплаты должен быть first или second' }, 400)
+      // График выплат организации: две половины месяца (F16) или раз в месяц.
+      const paySchedule = (await getOrgSettings(access.activeOrganization?.id || null)).staffPaySchedule
+      const periodSlots = staffPeriodSlots(paySchedule)
+      if (!periodSlots.includes(slot)) {
+        return json(
+          { error: paySchedule.kind === 'monthly' ? 'При выплате раз в месяц период один (first)' : 'Слот выплаты должен быть first или second' },
+          400,
+        )
       }
-      const normalizedSlot = slot
-      const monthRange = monthRangeFromDate(pay_date)
-      if (!monthRange) return json({ error: 'Некорректная дата выплаты' }, 400)
+      const normalizedSlot = slot as 'first' | 'second'
+      if (!monthRangeFromDate(pay_date)) return json({ error: 'Некорректная дата выплаты' }, 400)
+      // За какой месяц выплата. Две половины — месяц даты, как было; «раз в месяц до
+      // N-го» — 5 ноября платим за октябрь. Явный period_month с экрана важнее.
+      const requestedMonth = String(period_month || '').slice(0, 7)
+      const periodMonthKey = /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)
+        ? requestedMonth
+        : getStaffPayPeriod(String(pay_date), paySchedule)?.month || String(pay_date).slice(0, 7)
+      const monthRange = monthRangeFromDate(`${periodMonthKey}-01`)
+      if (!monthRange) return json({ error: 'Некорректный месяц выплаты' }, 400)
 
-      const { data: monthPayments, error: monthPaymentsError } = await supabase
+      const { data: staffPaymentRows, error: monthPaymentsError } = await supabase
         .from('staff_salary_payments')
-        .select('id, slot, pay_date')
+        .select('id, slot, pay_date, period_month')
         .eq('staff_id', staff_id)
-        .gte('pay_date', monthRange.from)
-        .lte('pay_date', monthRange.to)
+        .range(0, 999)
       if (monthPaymentsError) throw monthPaymentsError
+      const monthPayments = (staffPaymentRows || []).filter(
+        (row: any) => staffPaymentPeriodMonth(row, paySchedule) === monthRange.monthKey,
+      )
 
       const monthPaidSlots = new Set(
-        (monthPayments || [])
+        monthPayments
           .map((row: any) => String(row.slot || ''))
           .filter((value) => value === 'first' || value === 'second'),
       )
-      if (monthPaidSlots.has('first') && monthPaidSlots.has('second')) {
+      if (periodSlots.every((value) => monthPaidSlots.has(value))) {
         return json(
           { error: `Месяц ${monthRange.monthKey} уже закрыт по выплатам. Следующая выплата доступна в следующем месяце.` },
           409,
@@ -1134,16 +1159,7 @@ export async function POST(req: Request) {
       }
 
       // Prevent duplicate payout for the same employee/slot/month.
-      const { data: duplicatePayment, error: duplicatePaymentError } = await supabase
-        .from('staff_salary_payments')
-        .select('id, pay_date')
-        .eq('staff_id', staff_id)
-        .eq('slot', normalizedSlot)
-        .gte('pay_date', monthRange.from)
-        .lte('pay_date', monthRange.to)
-        .limit(1)
-        .maybeSingle()
-      if (duplicatePaymentError) throw duplicatePaymentError
+      const duplicatePayment = monthPayments.find((row: any) => String(row.slot || '') === normalizedSlot) as any
       if (duplicatePayment?.id) {
         return json(
           { error: `Выплата за слот "${normalizedSlot}" в ${monthRange.monthKey} уже проведена (${duplicatePayment.pay_date})` },
@@ -1168,7 +1184,10 @@ export async function POST(req: Request) {
       if (previousPaymentsError) throw previousPaymentsError
       const previousPayDate = previousPayments?.[0]?.pay_date ? String(previousPayments[0].pay_date) : null
       const previousPayCreatedAt = previousPayments?.[0]?.created_at ? String(previousPayments[0].created_at) : null
-      const slotLabel = salaryPaymentSlotLabel(normalizedSlot)
+      const slotLabel =
+        paySchedule.kind === 'monthly'
+          ? `выплата за ${staffPeriodLabel({ slot: normalizedSlot, month: monthRange.monthKey }, paySchedule)}`
+          : salaryPaymentSlotLabel(normalizedSlot)
       // Отсечка расчёта — сегодня, даже если выплату проводят задним числом
       // (задержали на несколько дней). Иначе долги и авансы, появившиеся после
       // даты выплаты, не войдут в сумму и не закроются, а разница станет
@@ -1203,6 +1222,7 @@ export async function POST(req: Request) {
           staff_id,
           pay_date,
           slot: normalizedSlot,
+          period_month: `${monthRange.monthKey}-01`,
           amount: total,
           comment: comment?.trim() || null,
         })
@@ -1344,8 +1364,8 @@ export async function POST(req: Request) {
           dismissed_at: (staffMember as any)?.dismissed_at || null,
           dismissal_date: (staffMember as any)?.dismissal_date || null,
         },
-        // Начисление — за половину месяца самой выплаты, отсечка сюда не влияет
-        getStaffPaymentAdjustmentPeriod(String(pay_date), normalizedSlot),
+        // Начисление — за период самой выплаты по графику, отсечка сюда не влияет
+        getStaffPaymentAdjustmentPeriod(String(pay_date), normalizedSlot, null, paySchedule, monthRange.monthKey),
       )
       const adjustmentTotals = adjustmentsToClose.reduce(
         (acc, row: any) => {
