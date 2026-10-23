@@ -96,6 +96,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Только точки с включённым магазином (активная локация point_display).
@@ -228,6 +229,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const body = await request.json().catch(() => null)

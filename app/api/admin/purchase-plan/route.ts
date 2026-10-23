@@ -49,6 +49,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (scope.allowedCompanyIds) {
       if (scope.allowedCompanyIds.length === 0) return json({ data: [] })
@@ -109,6 +110,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId,
         })
       } catch {
@@ -119,6 +121,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization.id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId,
         })
       } catch {

@@ -146,6 +146,7 @@ export async function POST(request: Request) {
         const allowedCompanyIds = await listOrganizationCompanyIds({
           activeOrganizationId: organizationId,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
         const foreign = requested.filter((id) => !allowedCompanyIds.includes(id))
         if (foreign.length > 0) {
@@ -191,6 +192,8 @@ export async function POST(request: Request) {
           telegram_chat_id: body.telegram_chat_id?.trim() || null,
           is_active: true,
           organization_id: organizationId,
+          // Сотрудник, заведённый управляющим части точек, получает его охват — иначе видел бы всё.
+          ...(access.companyRestriction ? { company_ids: access.companyRestriction } : {}),
         })
         .select('id')
         .single()

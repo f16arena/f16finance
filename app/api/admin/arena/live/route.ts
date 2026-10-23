@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: url.searchParams.get('company_id') || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Зоны, устройства (MAC, hostname) и runtime читаются по project_id —

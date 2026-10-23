@@ -88,6 +88,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const constants = {
@@ -172,6 +173,7 @@ export async function GET(req: Request) {
     const allowedStaffIds = await listOrganizationStaffIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     let salaries: number[] = []
     if (!allowedStaffIds || allowedStaffIds.length > 0) {

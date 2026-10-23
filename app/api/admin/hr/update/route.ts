@@ -110,12 +110,14 @@ export async function POST(request: Request) {
         await ensureOrganizationOperatorAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           operatorId: id,
         })
       } else {
         await ensureOrganizationStaffAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           staffId: id,
         })
       }
@@ -332,6 +334,7 @@ export async function POST(request: Request) {
           const allowedCompanyIds = await listOrganizationCompanyIds({
             activeOrganizationId: orgId,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
           })
           const foreign = requestedCompanyIds.filter((cid) => !allowedCompanyIds.includes(cid))
           if (foreign.length > 0) {

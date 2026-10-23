@@ -116,6 +116,7 @@ export async function GET(request: Request) {
       scope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId,
       })
     } catch (e: any) {
@@ -129,6 +130,7 @@ export async function GET(request: Request) {
     const allowedOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // 1) Активные операторы (не админ-команда).

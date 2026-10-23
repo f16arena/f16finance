@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let query = supabase
@@ -155,6 +156,7 @@ export async function POST(request: Request) {
         activeOrganizationId: access.activeOrganization?.id || null,
         requestedCompanyId: String(booking.company_id),
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       if (
         scope.allowedCompanyIds !== null &&
@@ -214,12 +216,14 @@ export async function POST(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: existing.company_id,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Полный набор точек организации — клиент может быть заведён на соседней точке.
     const orgScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Изоляция: клиент брони тоже обязан быть своим — в outbox ниже пишется

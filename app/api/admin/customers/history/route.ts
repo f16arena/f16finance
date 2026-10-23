@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // Изоляция: запрос шёл без орг-фильтра, а при company_id IS NULL проверка
     // ниже вообще пропускалась — оставался оракул существования customer_id.
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: String(customer.company_id),
       })
     }

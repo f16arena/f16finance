@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     if (entitlementGuard) return entitlementGuard
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
-    const companyScope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, requestedCompanyId: new URL(request.url).searchParams.get('company_id') || null, isSuperAdmin: access.isSuperAdmin })
+    const companyScope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, requestedCompanyId: new URL(request.url).searchParams.get('company_id') || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const inventoryScope = resolveInventoryScope(access, companyScope.allowedCompanyIds)
     const url = new URL(request.url)
     const actId = url.searchParams.get('act')
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
 
       // Операторы с ДРУГИХ точек организации — можно подключить в помощь. Подпись
       // содержит название их точки. Тенант-изоляция: только операторы своей орг.
-      const allowedOpIds = await listOrganizationOperatorIds({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin })
+      const allowedOpIds = await listOrganizationOperatorIds({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
       const thisSet = new Set(opIds)
       const otherIds = allowedOpIds.filter((id) => !thisSet.has(id))
       let otherOperators: Array<{ id: string; name: string }> = []
@@ -324,7 +324,7 @@ export async function POST(request: Request) {
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
     const actorUserId = access.user?.id || null
-    const companyScope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin })
+    const companyScope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const inventoryScope = resolveInventoryScope(access, companyScope.allowedCompanyIds)
     const body = (await request.json().catch(() => null)) as any
     const action = String(body?.action || '')
@@ -350,7 +350,7 @@ export async function POST(request: Request) {
       // создания акта, чтобы не плодить висячие акты при отказе.
       const requestedOpIds: string[] = Array.from(new Set(assignments.map((a: any) => String(a.operator_id || '').trim()).filter((id: string) => UUID_RE.test(id))))
       if (requestedOpIds.length === 0) return json({ error: 'assignments-required' }, 400)
-      const allowedOpSet = new Set(await listOrganizationOperatorIds({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin }))
+      const allowedOpSet = new Set(await listOrganizationOperatorIds({ activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction }))
       if (requestedOpIds.some((id) => !allowedOpSet.has(id))) {
         return json({ error: 'forbidden-operator', message: 'Можно назначать только операторов своей организации.' }, 403)
       }

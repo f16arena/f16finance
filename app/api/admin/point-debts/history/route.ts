@@ -71,6 +71,7 @@ export async function GET(req: Request) {
   const allowedCompanyIds = await listOrganizationCompanyIds({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   let companyIds = allowedCompanyIds
@@ -79,6 +80,7 @@ export async function GET(req: Request) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId,
       })
       companyIds = [requestedCompanyId]

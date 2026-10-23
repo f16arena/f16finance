@@ -56,6 +56,7 @@ export async function GET(req: Request) {
       activeOrganizationId: organizationId,
       requestedCompanyId: selectedCompanyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : createRequestSupabaseClient(req)

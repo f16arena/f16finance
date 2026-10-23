@@ -4,6 +4,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability, requireStaffCapability, isOwnerActor, canAssignStaffRole } from '@/lib/server/capabilities'
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
+import { listOrganizationStaffIds } from '@/lib/server/organizations'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type MutationBody =
@@ -96,6 +97,16 @@ export async function GET(req: Request) {
       companiesQuery = companiesQuery.eq('organization_id', scopeOrg)
       staffQuery = staffQuery.eq('organization_id', scopeOrg)
       categoriesQuery = categoriesQuery.eq('organization_id', scopeOrg)
+    }
+    // Охват по точкам: управляющий части точек видит только их и их сотрудников.
+    if (access.companyRestriction) {
+      companiesQuery = companiesQuery.in('id', access.companyRestriction)
+      const visibleStaffIds = await listOrganizationStaffIds({
+        activeOrganizationId: orgId,
+        isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
+      })
+      staffQuery = staffQuery.in('id', visibleStaffIds.length ? visibleStaffIds : ['00000000-0000-0000-0000-000000000000'])
     }
 
     const [companiesRes, staffRes, categoriesRes] = await Promise.allSettled([
@@ -301,6 +312,8 @@ export async function POST(req: Request) {
             email: body.payload.email?.trim() || null,
             role: requestedRole,
             organization_id: access.activeOrganization?.id || null,
+            // Сотрудник, заведённый управляющим части точек, получает его охват — иначе видел бы всё.
+            ...(access.companyRestriction ? { company_ids: access.companyRestriction } : {}),
           },
         ]).select('id,full_name,email,role').single()
         if (error) throw error

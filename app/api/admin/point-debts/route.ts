@@ -62,6 +62,7 @@ export async function GET(req: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const url = new URL(req.url)
@@ -77,6 +78,7 @@ export async function GET(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: companyFilter,
         })
         companyIds = [companyFilter]
@@ -349,6 +351,7 @@ export async function POST(req: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const allowedSet = new Set(allowedCompanyIds)
 

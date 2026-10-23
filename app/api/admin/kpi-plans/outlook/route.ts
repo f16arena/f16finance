@@ -39,7 +39,7 @@ export async function GET(req: Request) {
 
     const supabase = createAdminSupabaseClient()
     const organizationId = access.activeOrganization?.id || null
-    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin })
+    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const today = kzTodayISO()
     const month = today.slice(0, 7)
     const empty: GoalsOutlookResponse = { month, nextMonth: shiftMonth(month, 1), org: { outlook: null, next: null }, companies: {} }

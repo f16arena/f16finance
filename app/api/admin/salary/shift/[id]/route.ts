@@ -32,6 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const { data: shift, error: shiftError } = await supabase

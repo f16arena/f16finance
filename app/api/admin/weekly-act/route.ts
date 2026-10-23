@@ -75,6 +75,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds !== null && companyScope.allowedCompanyIds.length === 0) {
       return json({ ok: true, data: { from, to, days, companies: [], totals: null } })

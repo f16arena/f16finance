@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
   // пересчитаются по-новому: неделя, выплаченная по старому графику, войдёт в новый
   // месяц как невыплаченная (двойная выплата), а оплаченная «1–15» закроет весь месяц.
   if (staffChanged) {
-    const staffIds = await listOrganizationStaffIds({ activeOrganizationId: organizationId, isSuperAdmin: false })
+    const staffIds = await listOrganizationStaffIds({ activeOrganizationId: organizationId, isSuperAdmin: false, companyRestriction: null })
     if (staffIds.length > 0) {
       const { count } = await supabase
         .from('staff_salary_payments')
@@ -72,7 +72,7 @@ export async function PATCH(request: Request) {
     }
   }
   if (operatorChanged) {
-    const operatorIds = await listOrganizationOperatorIds({ activeOrganizationId: organizationId, isSuperAdmin: false, includeInactive: true })
+    const operatorIds = await listOrganizationOperatorIds({ activeOrganizationId: organizationId, isSuperAdmin: false, includeInactive: true, companyRestriction: null })
     if (operatorIds.length > 0) {
       const { count } = await supabase
         .from('operator_salary_week_payments')

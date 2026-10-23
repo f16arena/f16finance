@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url)
     const companyId = url.searchParams.get('company_id') || null
     const organizationId = access.activeOrganization?.id || null
-    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId })
+    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId, companyRestriction: access.companyRestriction })
     const today = kzTodayISO()
     const yesterday = addDaysISO(today, -1)
     const empty: CashflowOutlook = { today, payments: [], projection: null, balanceToday: null, anchor: null }

@@ -107,6 +107,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds) {
       query = query.in('company_id', companyScope.allowedCompanyIds)
@@ -154,12 +155,14 @@ export async function POST(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     for (const item of normalized) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: item.company_id,
       })
     }
@@ -171,6 +174,7 @@ export async function POST(req: Request) {
     await ensureOrganizationOperatorAccess({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       operatorId,
     })
 
@@ -204,6 +208,7 @@ export async function POST(req: Request) {
       const organizationOperatorIds = await listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       const alreadyCountedInOrganization = organizationOperatorIds?.includes(operatorId) ?? true
 

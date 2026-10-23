@@ -43,6 +43,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Изоляция: id (operator/staff) обязан принадлежать организации вызывающего,
@@ -52,12 +53,14 @@ export async function GET(req: Request) {
         await ensureOrganizationOperatorAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           operatorId: id,
         })
       } else {
         await ensureOrganizationStaffAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           staffId: id,
         })
       }

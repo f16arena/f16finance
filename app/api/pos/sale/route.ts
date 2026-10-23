@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds && companyScope.allowedCompanyIds.length === 0 && !access.isSuperAdmin) {
       return json({ error: 'forbidden-company' }, 403)

@@ -121,6 +121,7 @@ export async function POST(request: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (scope.allowedCompanyIds && scope.allowedCompanyIds.length === 0) return json({ error: 'no-companies' }, 200)
 

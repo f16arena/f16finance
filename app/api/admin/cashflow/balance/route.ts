@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     if (!organizationId || !hasAdminSupabaseCredentials()) return json({ ok: true, data: { anchors: [], canEdit: false, available: false } })
 
     const supabase = createAdminSupabaseClient()
-    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin })
+    const scope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const { data, error } = await supabase
       .from('cash_balance_anchors')
       .select('id, company_id, as_of_date, cash_amount, cashless_amount, note, created_at')
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
     if (companyId) {
       try {
-        await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId })
+        await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId, companyRestriction: access.companyRestriction })
       } catch {
         return json({ error: 'forbidden' }, 403)
       }

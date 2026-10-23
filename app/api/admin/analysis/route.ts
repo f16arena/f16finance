@@ -146,6 +146,7 @@ export async function GET(req: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId && companyId !== 'all' ? companyId : null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const allowed = companyScope.allowedCompanyIds
 

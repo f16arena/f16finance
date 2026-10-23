@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Пустой скоуп — своих точек нет, показывать нечего. Проверяем до

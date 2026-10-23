@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: operator.id,
       })
     } catch {

@@ -451,7 +451,7 @@ export async function resolveOrganizationUsage(params: {
     supabase
       .from('point_project_companies')
       .select('project_id, company:company_id(organization_id)'),
-    listOrganizationOperatorIds({ activeOrganizationId, isSuperAdmin }),
+    listOrganizationOperatorIds({ activeOrganizationId, isSuperAdmin, companyRestriction: null }),
   ])
 
   if (companiesResult.error) throw companiesResult.error
@@ -504,11 +504,28 @@ export async function assertOrganizationLimitAvailable(params: {
   )
 }
 
+/**
+ * Охват сотрудника по точкам (staff.company_ids): список точек, которые он видит;
+ * null — все точки организации (владелец и все, кому охват не задан).
+ *
+ * Параметр обязателен у всех функций скоупа ниже — чтобы компилятор показал каждое
+ * место, где его забыли передать. Системные вызовы (кроны, касса, счётчики лимитов)
+ * передают null: у них нет сотрудника-просителя.
+ */
+export type CompanyRestriction = string[] | null
+
+function applyCompanyRestriction(ids: string[], restriction: CompanyRestriction | undefined): string[] {
+  if (!restriction) return ids
+  const allowed = new Set(restriction)
+  return ids.filter((id) => allowed.has(id))
+}
+
 export async function listOrganizationCompanyIds(params: {
   activeOrganizationId?: string | null
   isSuperAdmin?: boolean
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin } = params
+  const { activeOrganizationId, isSuperAdmin, companyRestriction } = params
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : null
   if (!supabase) {
@@ -524,14 +541,15 @@ export async function listOrganizationCompanyIds(params: {
 
   const { data, error } = await query
   if (error) throw error
-  return (data || []).map((row: any) => String(row.id))
+  return applyCompanyRestriction((data || []).map((row: any) => String(row.id)), companyRestriction)
 }
 
 export async function listOrganizationCompanyCodes(params: {
   activeOrganizationId?: string | null
   isSuperAdmin?: boolean
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin } = params
+  const { activeOrganizationId, isSuperAdmin, companyRestriction } = params
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : null
   if (!supabase) {
@@ -540,21 +558,26 @@ export async function listOrganizationCompanyCodes(params: {
 
   // NEVER-pattern: обычный пользователь без валидной орг → пусто (не «все»).
   if (!LEGACY_SINGLE_TENANT_MODE && !isSuperAdmin && !activeOrganizationId) return []
-  let query = supabase.from('companies').select('code')
+  let query = supabase.from('companies').select('id, code')
   if (!LEGACY_SINGLE_TENANT_MODE && activeOrganizationId) {
     query = query.eq('organization_id', activeOrganizationId)
   }
 
   const { data, error } = await query
   if (error) throw error
-  return (data || []).map((row: any) => String(row.code || '')).filter(Boolean)
+  const allowed = companyRestriction ? new Set(companyRestriction) : null
+  return (data || [])
+    .filter((row: any) => !allowed || allowed.has(String(row.id)))
+    .map((row: any) => String(row.code || ''))
+    .filter(Boolean)
 }
 
 export async function listOrganizationStaffIds(params: {
   activeOrganizationId?: string | null
   isSuperAdmin?: boolean
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin } = params
+  const { activeOrganizationId, isSuperAdmin, companyRestriction } = params
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : null
   if (!supabase) {
@@ -563,14 +586,19 @@ export async function listOrganizationStaffIds(params: {
 
   // NEVER-pattern: обычный пользователь без валидной орг → пусто (не «все»).
   if (!LEGACY_SINGLE_TENANT_MODE && !isSuperAdmin && !activeOrganizationId) return []
-  let query = supabase.from('staff').select('id')
+  // С охватом — только сотрудники, закреплённые за этими точками (общеорганизационные,
+  // без своих точек, — владелец, бухгалтер — управляющему точки не видны).
+  let query = supabase.from('staff').select(companyRestriction ? 'id, company_ids' : 'id')
   if (!LEGACY_SINGLE_TENANT_MODE && activeOrganizationId) {
     query = query.eq('organization_id', activeOrganizationId)
   }
 
   const { data, error } = await query
   if (error) throw error
-  return (data || []).map((row: any) => String(row.id))
+  const allowed = companyRestriction ? new Set(companyRestriction) : null
+  return ((data || []) as any[])
+    .filter((row) => !allowed || ((row.company_ids || []) as string[]).some((id) => allowed.has(String(id))))
+    .map((row) => String(row.id))
 }
 
 export async function listOrganizationOperatorIds(params: {
@@ -579,8 +607,9 @@ export async function listOrganizationOperatorIds(params: {
   /** По-умолчанию false — возвращаем только активных. Передай true чтобы
    *  включить и архивных (is_active=false) — нужно для HR где надо увольнять/восстанавливать. */
   includeInactive?: boolean
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin, includeInactive } = params
+  const { activeOrganizationId, isSuperAdmin, includeInactive, companyRestriction } = params
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : null
   if (!supabase) {
@@ -598,6 +627,20 @@ export async function listOrganizationOperatorIds(params: {
 
   // NEVER-pattern: обычный пользователь без валидной орг → пусто (не «все»).
   if (!activeOrganizationId) return []
+
+  // С охватом — только операторы, назначенные на точки охвата (неназначенные на точку
+  // операторы организации видны лишь тем, у кого охват — вся организация).
+  if (companyRestriction) {
+    if (companyRestriction.length === 0) return []
+    let restrictedQuery = supabase
+      .from('operator_company_assignments')
+      .select('operator_id, company_id')
+      .in('company_id', companyRestriction)
+    if (!includeInactive) restrictedQuery = restrictedQuery.eq('is_active', true)
+    const { data: restrictedRows, error: restrictedError } = await restrictedQuery
+    if (restrictedError) throw restrictedError
+    return Array.from(new Set(((restrictedRows || []) as any[]).map((row) => String(row.operator_id || '')).filter(Boolean)))
+  }
 
   const ids = new Set<string>()
 
@@ -634,8 +677,10 @@ export async function resolveCompanyScope(params: {
   activeOrganizationId?: string | null
   requestedCompanyId?: string | null
   isSuperAdmin?: boolean
+  /** Охват сотрудника (access.companyRestriction); null — все точки организации. */
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, requestedCompanyId, isSuperAdmin } = params
+  const { activeOrganizationId, requestedCompanyId, isSuperAdmin, companyRestriction } = params
 
   // Legacy-режим и суперадмин — без фильтра (видят всё). Намеренно.
   if (LEGACY_SINGLE_TENANT_MODE || (isSuperAdmin && !activeOrganizationId)) {
@@ -658,7 +703,7 @@ export async function resolveCompanyScope(params: {
     return { allowedCompanyIds: [] as string[], organizationId: null }
   }
 
-  const allowedCompanyIds = await listOrganizationCompanyIds({ activeOrganizationId, isSuperAdmin })
+  const allowedCompanyIds = await listOrganizationCompanyIds({ activeOrganizationId, isSuperAdmin, companyRestriction })
   if (requestedCompanyId && !allowedCompanyIds.includes(requestedCompanyId)) {
     throw new Error('company-out-of-scope')
   }
@@ -673,14 +718,29 @@ export async function ensureOrganizationOperatorAccess(params: {
   activeOrganizationId?: string | null
   isSuperAdmin?: boolean
   operatorId: string
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin, operatorId } = params
+  const { activeOrganizationId, isSuperAdmin, operatorId, companyRestriction } = params
   if (isSuperAdmin && !activeOrganizationId) return
   if (LEGACY_SINGLE_TENANT_MODE) return
   if (!activeOrganizationId) throw new Error('forbidden-operator')
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : null
   if (!supabase) throw new Error('organization-scope-unavailable')
+
+  // С охватом — свой только оператор, назначенный (сейчас или раньше) на точку охвата.
+  if (companyRestriction) {
+    if (companyRestriction.length === 0) throw new Error('forbidden-operator')
+    const { data: inScope, error: inScopeErr } = await supabase
+      .from('operator_company_assignments')
+      .select('operator_id')
+      .eq('operator_id', operatorId)
+      .in('company_id', companyRestriction)
+      .limit(1)
+    if (inScopeErr) throw inScopeErr
+    if ((inScope || []).length > 0) return
+    throw new Error('forbidden-operator')
+  }
 
   // Проверяем ОДНОГО оператора точечным запросом, а не «собрать всех своих и
   // поискать в списке»: список фильтровался по is_active (уволенный выпадал) и
@@ -714,10 +774,11 @@ export async function ensureOrganizationStaffAccess(params: {
   activeOrganizationId?: string | null
   isSuperAdmin?: boolean
   staffId: string
+  companyRestriction: CompanyRestriction | undefined
 }) {
-  const { activeOrganizationId, isSuperAdmin, staffId } = params
+  const { activeOrganizationId, isSuperAdmin, staffId, companyRestriction } = params
   if (isSuperAdmin && !activeOrganizationId) return
-  const allowedStaffIds = await listOrganizationStaffIds({ activeOrganizationId, isSuperAdmin })
+  const allowedStaffIds = await listOrganizationStaffIds({ activeOrganizationId, isSuperAdmin, companyRestriction })
   if (!allowedStaffIds?.includes(staffId)) {
     throw new Error('forbidden-staff')
   }

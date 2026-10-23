@@ -64,7 +64,7 @@ export async function GET(req: Request) {
 
     let scope: { allowedCompanyIds: string[] | null }
     try {
-      scope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, requestedCompanyId: companyId, isSuperAdmin: access.isSuperAdmin })
+      scope = await resolveCompanyScope({ activeOrganizationId: access.activeOrganization?.id || null, requestedCompanyId: companyId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     } catch {
       return json({ error: 'Точка не найдена' }, 404)
     }
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
     const scopeIn = (q: any) => (scope.allowedCompanyIds ? q.in('company_id', scope.allowedCompanyIds) : q)
 
     const scopedStaffIds = scope.allowedCompanyIds
-      ? await listOrganizationStaffIds({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+      ? await listOrganizationStaffIds({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
       : null
     let staffQuery: any = supabase.from('staff').select('id, full_name, created_at, dismissed_at, monthly_salary')
     if (scopedStaffIds) staffQuery = staffQuery.in('id', scopedStaffIds)

@@ -73,6 +73,7 @@ export async function GET(req: Request) {
         const scope = await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
         ownerScopeCompanyIds = scope.allowedCompanyIds // [] или [...]; null только у суперадмина
       }

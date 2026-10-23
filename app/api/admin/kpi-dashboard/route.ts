@@ -131,6 +131,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const buildIncomesMonthQuery = (from: number, to: number) => {
@@ -174,6 +175,7 @@ export async function GET(req: Request) {
       ? await listOrganizationCompanyCodes({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       : null
     let plansQuery: any = supabase
@@ -209,6 +211,7 @@ export async function GET(req: Request) {
           await listOrganizationOperatorIds({
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
           }),
         )
         operatorIdsToFetch = operatorIdsToFetch.filter((id) => allowedOperatorIds.has(id))
@@ -286,6 +289,7 @@ export async function POST(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const incomes = await fetchAllPages((from, to) => {
@@ -306,6 +310,7 @@ export async function POST(req: Request) {
     const orgCompanyCodes = await listOrganizationCompanyCodes({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const targetCodes = Array.from(new Set(orgCompanyCodes.map((code) => code.toLowerCase()).filter(Boolean)))
     if (targetCodes.length === 0) return json({ ok: true, rows: [] })

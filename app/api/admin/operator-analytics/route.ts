@@ -28,6 +28,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // Operator-id allowlist is only used to scope when company scoping is active.
     // When scope.allowedCompanyIds is null (legacy single-tenant / superadmin) we
@@ -36,6 +37,7 @@ export async function GET(req: Request) {
       ? await listOrganizationOperatorIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           includeInactive: true,
         })
       : null

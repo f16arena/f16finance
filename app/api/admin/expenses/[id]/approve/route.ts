@@ -42,6 +42,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (scope.allowedCompanyIds && !scope.allowedCompanyIds.includes(existing.company_id)) {
       return json({ error: 'forbidden' }, 403)

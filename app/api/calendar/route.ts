@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   const allowedOperatorIds = await listOrganizationOperatorIds({
     activeOrganizationId: orgId,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   const events: CalendarEvent[] = []

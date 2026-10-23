@@ -42,6 +42,7 @@ export async function GET(req: Request) {
     const allowedOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (allowedOperatorIds) {
       if (allowedOperatorIds.length === 0) return json({ data: [] })

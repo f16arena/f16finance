@@ -54,7 +54,7 @@ async function theoreticalUsage(supabase: any, orgId: string | null, isSuperAdmi
   const usage = new Map<string, number>()
   if (!saleItemIds.length) return usage
 
-  const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin })
+  const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin, companyRestriction: null })
   const sales = await fetchAllPages((f, t) => {
     let salesQ = supabase.from('point_sales').select('id').gte('sale_date', from).lte('sale_date', to).order('id').range(f, t)
     if (scope.allowedCompanyIds) salesQ = salesQ.in('company_id', scope.allowedCompanyIds)

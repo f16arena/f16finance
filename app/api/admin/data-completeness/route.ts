@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (scope.allowedCompanyIds !== null && scope.allowedCompanyIds.length === 0) {
       return NextResponse.json({ ok: true, data: { month: prevMonth, companies: [] } })

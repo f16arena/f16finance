@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   // Сужаем выборку в БД, а не только фильтром в памяти: в select есть
@@ -133,6 +134,7 @@ export async function POST(request: Request) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
   if (scope.allowedCompanyIds) {
     const { data: validProjects } = await supabase

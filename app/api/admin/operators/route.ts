@@ -82,6 +82,7 @@ export async function GET(req: Request) {
     const allowedOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (allowedOperatorIds) {
       if (allowedOperatorIds.length === 0) return json({ data: [] })
@@ -106,6 +107,7 @@ export async function GET(req: Request) {
     const operatorCompanyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // Доходы за 30 дней легко больше 1000 строк — читаем страницами
     const incomesQuery = fetchAllRows((rangeFrom, rangeTo) => {
@@ -333,6 +335,7 @@ export async function POST(req: Request) {
         await ensureOrganizationOperatorAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           operatorId,
         })
       } catch {
@@ -372,6 +375,8 @@ export async function POST(req: Request) {
             email: (profile as any)?.email?.trim() || null,
             is_active: (operator as any).is_active !== false,
             organization_id: access.activeOrganization?.id || null,
+            // Сотрудник, заведённый управляющим части точек, получает его охват — иначе видел бы всё.
+            ...(access.companyRestriction ? { company_ids: access.companyRestriction } : {}),
           },
         ])
         .select('id')
@@ -409,6 +414,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -473,6 +479,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -501,6 +508,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -528,6 +536,7 @@ export async function POST(req: Request) {
         await ensureOrganizationOperatorAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           operatorId,
         })
       }

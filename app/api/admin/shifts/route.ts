@@ -665,7 +665,7 @@ function badRequest(message: string) {
 
 async function ensureShiftCompanyAccess(
   supabase: ReturnType<typeof createAdminSupabaseClient> | ReturnType<typeof createRequestSupabaseClient>,
-  access: { activeOrganization?: { id: string } | null; isSuperAdmin: boolean },
+  access: { activeOrganization?: { id: string } | null; isSuperAdmin: boolean; companyRestriction: string[] | null },
   companyId: string | null | undefined,
 ) {
   if (!companyId && !access.isSuperAdmin) {
@@ -676,6 +676,7 @@ async function ensureShiftCompanyAccess(
     activeOrganizationId: access.activeOrganization?.id || null,
     requestedCompanyId: companyId || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 }
 
@@ -813,6 +814,7 @@ export async function POST(req: Request) {
       const companyScope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
 
       let sourceQuery = supabase
@@ -1064,6 +1066,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Load workflow data (publications, responses, requests)
@@ -1113,6 +1116,7 @@ export async function GET(req: Request) {
     const allowedOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     if (allowedOperatorIds) {

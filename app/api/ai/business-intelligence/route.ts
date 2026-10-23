@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const body = (await request.json().catch(() => ({}))) as { company_id?: string | null; days?: number | null; from?: string | null; to?: string | null }

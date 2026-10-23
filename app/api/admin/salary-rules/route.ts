@@ -437,6 +437,7 @@ export async function GET(req: Request) {
     const allowedCompanyCodes = await listOrganizationCompanyCodes({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let rulesQuery = supabase
@@ -455,6 +456,7 @@ export async function GET(req: Request) {
     if (access.activeOrganization?.id && !access.isSuperAdmin) {
       companiesQuery = companiesQuery.eq('organization_id', access.activeOrganization.id)
     }
+    if (access.companyRestriction) companiesQuery = companiesQuery.in('id', access.companyRestriction)
 
     const [rulesRes, companiesRes, historyRes] = await Promise.all([
       rulesQuery,
@@ -567,6 +569,7 @@ export async function POST(req: Request) {
     const allowedCompanyCodes = await listOrganizationCompanyCodes({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     if (!body?.action) {

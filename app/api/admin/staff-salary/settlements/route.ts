@@ -83,11 +83,13 @@ export async function GET(request: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const allowedStaffIds = scope.allowedCompanyIds
       ? await listOrganizationStaffIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       : null
 

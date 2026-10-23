@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       requestedCompanyId: companyId,
     })
 

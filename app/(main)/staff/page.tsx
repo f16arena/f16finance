@@ -12,6 +12,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { usePersistentState } from '@/lib/client/use-persistent-state'
+import { StaffCompaniesButton } from '@/components/admin/staff-companies-button'
+import { useCompanies } from '@/hooks/use-companies'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
 import {
@@ -75,6 +77,8 @@ type Staff = {
   is_active: boolean
   phone?: string | null
   email?: string | null
+  /** Охват по точкам; null — все точки организации. */
+  company_ids?: string[] | null
 }
 
 type StaffAccountState = 'no_email' | 'no_account' | 'invited' | 'active'
@@ -212,6 +216,7 @@ export default function StaffPageSmart() {
   const canResetPassword = can('staff.reset_password')
   const canToggleStatus = can('staff.toggle_status')
   const canCreatePayment = can('salary.create_payment')
+  const { companies: orgCompanies } = useCompanies()
 
   const today = new Date()
   const initialYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
@@ -674,6 +679,11 @@ export default function StaffPageSmart() {
                     accountInfo={accountInfoByStaffId[s.id] || null}
                     inviteBusy={accountActionBusyKey === `inviteStaffAccount:${s.id}`}
                     resetBusy={accountActionBusyKey === `sendPasswordReset:${s.id}`}
+                    companiesControl={
+                      orgCompanies.length > 1 ? (
+                        <StaffCompaniesButton staffId={s.id} staffName={s.full_name || 'сотрудник'} role={s.role} companyIds={s.company_ids || null} companies={orgCompanies} onSaved={() => void loadData()} />
+                      ) : null
+                    }
                   />
                 )
               })
@@ -727,6 +737,11 @@ export default function StaffPageSmart() {
                         accountInfo={accountInfoByStaffId[s.id] || null}
                         inviteBusy={accountActionBusyKey === `inviteStaffAccount:${s.id}`}
                         resetBusy={accountActionBusyKey === `sendPasswordReset:${s.id}`}
+                        companiesControl={
+                          orgCompanies.length > 1 ? (
+                            <StaffCompaniesButton staffId={s.id} staffName={s.full_name || 'сотрудник'} role={s.role} companyIds={s.company_ids || null} companies={orgCompanies} onSaved={() => void loadData()} />
+                          ) : null
+                        }
                       />
                     )
                   })}
@@ -755,6 +770,7 @@ function StaffRow({
   accountInfo,
   inviteBusy,
   resetBusy,
+  companiesControl,
 }: any) {
   const effectiveEmail = accountInfo?.email || staff.email || null
   const accountState = (accountInfo?.accountState || (!effectiveEmail ? 'no_email' : 'no_account')) as StaffAccountState
@@ -824,6 +840,7 @@ function StaffRow({
 
         <td className="py-4 px-4">
           <div className="flex items-center justify-center gap-2">
+            {companiesControl}
             {canInviteAccount && (
               <Button
                 size="sm"
@@ -899,6 +916,7 @@ function StaffCardMobile({
   accountInfo,
   inviteBusy,
   resetBusy,
+  companiesControl,
 }: any) {
   const effectiveEmail = accountInfo?.email || staff.email || null
   const accountState = (accountInfo?.accountState || (!effectiveEmail ? 'no_email' : 'no_account')) as StaffAccountState
@@ -952,6 +970,7 @@ function StaffCardMobile({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
+        {companiesControl}
         {canInviteAccount && (
           <Button
             size="sm"

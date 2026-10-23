@@ -100,6 +100,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const { searchParams } = new URL(request.url)
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: companyId,
       })
     }
@@ -244,6 +246,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const body = await request.json().catch(() => null)
@@ -290,6 +293,7 @@ export async function POST(request: Request) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: bodyCompanyId,
       })
     }
@@ -639,6 +643,7 @@ export async function POST(request: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: analyticsCompanyId,
         })
       }

@@ -50,6 +50,7 @@ export async function PATCH(request: Request) {
     await ensureOrganizationStaffAccess({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       staffId: id,
     })
   } catch {

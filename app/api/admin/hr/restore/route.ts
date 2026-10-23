@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: id,
       })
 
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: id,
       })
 
@@ -131,6 +133,7 @@ export async function POST(req: Request) {
       const scope = await resolveCompanyScope({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       let restoreAssignments = supabase
         .from('operator_company_assignments')

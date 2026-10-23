@@ -218,6 +218,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let companiesQuery = supabase.from('companies').select('id, name, code, industry').order('name')
@@ -332,6 +333,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const companyId = String(body.company_id || '')

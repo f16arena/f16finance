@@ -94,11 +94,11 @@ async function buildSnapshotForRole(access: any, role: string, supabase: any) {
 
   // Мультитенантный скоуп: null = супер-админ (всё), массив (в т.ч. пустой) = только
   // свои компании/операторы. Пустой массив + .in() → 0 строк (NEVER-pattern).
-  const companyScope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+  const companyScope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
   const scopedCompanyIds: string[] | null = companyScope.allowedCompanyIds
   const scopedOperatorIds: string[] | null = access.isSuperAdmin
     ? null
-    : await listOrganizationOperatorIds({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+    : await listOrganizationOperatorIds({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
 
   if (role === 'operator' && access.operatorAuth) {
     const operatorId = access.operatorAuth.operator_id

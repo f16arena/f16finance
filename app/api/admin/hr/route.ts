@@ -66,10 +66,12 @@ export async function GET(req: Request) {
       listOrganizationStaffIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       }),
       listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         includeInactive: true,  // HR должна видеть архивных, чтобы их можно было восстановить или уволить
       }),
     ])

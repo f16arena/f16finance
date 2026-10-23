@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     const organizationId = access.activeOrganization?.id || null
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : createRequestSupabaseClient(req)
-    const companyScope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId })
+    const companyScope = await resolveCompanyScope({ activeOrganizationId: organizationId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId, companyRestriction: access.companyRestriction })
     if (companyScope.allowedCompanyIds !== null && companyScope.allowedCompanyIds.length === 0) {
       return json({ ok: true, data: { from, to, days: [], totals: null } })
     }

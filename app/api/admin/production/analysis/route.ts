@@ -101,7 +101,7 @@ export async function GET(request: Request) {
     }
 
     // 2) Продажи за период по точкам своей орг
-    const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+    const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const sales = await fetchAllPages((f, t) => {
       let salesQ = supabase.from('point_sales').select('id').gte('sale_date', from).lte('sale_date', to).order('id').range(f, t)
       if (scope.allowedCompanyIds) salesQ = salesQ.in('company_id', scope.allowedCompanyIds)

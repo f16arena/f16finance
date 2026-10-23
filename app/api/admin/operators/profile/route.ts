@@ -24,6 +24,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Operator must belong to the active organization's operators.
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
       const allowedOperatorIds = await listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         includeInactive: true,
       })
       if (allowedOperatorIds && !allowedOperatorIds.includes(operatorId)) {
@@ -223,6 +225,7 @@ export async function PATCH(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Operator must belong to the active organization's operators.
@@ -230,6 +233,7 @@ export async function PATCH(req: Request) {
       const allowedOperatorIds = await listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         includeInactive: true,
       })
       if (allowedOperatorIds && !allowedOperatorIds.includes(operatorId)) {
@@ -325,11 +329,13 @@ export async function POST(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (scope.allowedCompanyIds) {
       const allowedOperatorIds = await listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         includeInactive: true,
       })
       if (allowedOperatorIds && !allowedOperatorIds.includes(operatorId)) {

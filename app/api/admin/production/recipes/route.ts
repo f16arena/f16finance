@@ -224,6 +224,7 @@ export async function POST(request: Request) {
       await resolveCompanyScope({
         activeOrganizationId: orgId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: recipeCompanyId,
       })
     } catch {

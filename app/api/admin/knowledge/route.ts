@@ -178,11 +178,12 @@ function ensureEditableOrganization(rowOrganizationId: string | null | undefined
 const ARTICLE_LIST_COLUMNS =
   'id, organization_id, company_id, category_id, title, slug, summary, tags, audience, severity, related_fine_amount, related_bonus_amount, sort_order, is_published, requires_confirmation, version, updated_at'
 
-async function loadKnowledgeData(params: { organizationId: string | null; isSuperAdmin: boolean }) {
+async function loadKnowledgeData(params: { organizationId: string | null; isSuperAdmin: boolean; companyRestriction: string[] | null }) {
   const supabase = createAdminSupabaseClient()
   const allowedCompanyIds = await listOrganizationCompanyIds({
     activeOrganizationId: params.organizationId,
     isSuperAdmin: params.isSuperAdmin,
+    companyRestriction: params.companyRestriction,
   })
 
   let categoriesQuery = supabase
@@ -704,6 +705,8 @@ async function applyImport(
   const allowedCompanyIds = await listOrganizationCompanyIds({
     activeOrganizationId: organizationId,
     isSuperAdmin,
+    // Импорт базы знаний — действие владельца по всей организации.
+    companyRestriction: null,
   })
   const companyAllowed = (companyId: string | null | undefined) => {
     if (!companyId) return null
@@ -910,6 +913,7 @@ async function loadShiftChecklistStatus(access: any) {
   const companyIds = await listOrganizationCompanyIds({
     activeOrganizationId: organizationId,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   let companiesQuery = supabase.from('companies').select('id, name, code').order('name')
@@ -1003,6 +1007,7 @@ export async function GET(req: Request) {
     const data = await loadKnowledgeData({
       organizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     return json({ ok: true, data })
@@ -1042,7 +1047,7 @@ export async function POST(req: Request) {
 
     if (body.action === 'seedDefaults') {
       await seedDefaults(organizationId, user?.id || null)
-      return json({ ok: true, data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin }) })
+      return json({ ok: true, data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction }) })
     }
 
     if (body.action === 'applyImport') {
@@ -1059,7 +1064,7 @@ export async function POST(req: Request) {
       return json({
         ok: true,
         result,
-        data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin }),
+        data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction }),
       })
     }
 
@@ -1070,6 +1075,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: organizationId,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: body.payload.company_id,
         })
       }
@@ -1112,6 +1118,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: organizationId,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: body.payload.company_id,
         })
       }
@@ -1236,6 +1243,7 @@ export async function POST(req: Request) {
       await resolveCompanyScope({
         activeOrganizationId: organizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: companyId,
       })
 
@@ -1307,6 +1315,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: organizationId,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: body.payload.company_id,
         })
       }
@@ -1428,6 +1437,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: organizationId,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: targetCompanyId,
         })
       }
@@ -1489,7 +1499,7 @@ export async function POST(req: Request) {
 
       return json({
         ok: true,
-        data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin }),
+        data: await loadKnowledgeData({ organizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction }),
       })
     }
 

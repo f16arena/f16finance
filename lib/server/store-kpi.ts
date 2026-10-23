@@ -77,6 +77,7 @@ export async function resolveStoreKpiContext(
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   return { access, scope, supabase: createAdminSupabaseClient() }

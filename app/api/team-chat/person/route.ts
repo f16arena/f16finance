@@ -40,6 +40,8 @@ export async function GET(request: Request) {
     const companyIds = await listOrganizationCompanyIds({
       activeOrganizationId: orgId,
       isSuperAdmin: false,
+      // Чат — по всей организации: написать можно любому коллеге.
+      companyRestriction: null,
     })
 
     // Кто это: оператор или сотрудник офиса.

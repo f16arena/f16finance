@@ -36,6 +36,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const supabase = hasAdminSupabaseCredentials()

@@ -85,6 +85,7 @@ export async function GET(req: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds !== null && companyScope.allowedCompanyIds.length === 0) {
       return json({ ok: true, data: emptyDataResponse(dateFrom, dateTo) })

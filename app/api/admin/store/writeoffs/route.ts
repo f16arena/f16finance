@@ -61,6 +61,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: new URL(request.url).searchParams.get('company_id') || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const inventoryScope = {
       organizationId: access.activeOrganization?.id || null,
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: writeCompanyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const inventoryScope = {
       organizationId: access.activeOrganization?.id || null,

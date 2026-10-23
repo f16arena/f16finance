@@ -30,6 +30,7 @@ export async function GET(req: Request) {
       activeOrganizationId,
       requestedCompanyId: companyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let query = supabase
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
           activeOrganizationId,
           requestedCompanyId: company_id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       }
 
@@ -130,6 +132,7 @@ export async function POST(req: Request) {
           activeOrganizationId,
           requestedCompanyId: existing.company_id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       }
 
@@ -178,6 +181,7 @@ export async function POST(req: Request) {
           activeOrganizationId,
           requestedCompanyId: existing.company_id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       }
 
@@ -201,6 +205,7 @@ export async function POST(req: Request) {
           activeOrganizationId,
           requestedCompanyId: company_id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       }
 

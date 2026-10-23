@@ -297,6 +297,7 @@ async function ensureTaskCompanyAccess(
   params: {
     activeOrganizationId?: string | null
     isSuperAdmin: boolean
+    companyRestriction: string[] | null
   },
   companyId: string | null | undefined,
 ) {
@@ -312,6 +313,7 @@ async function ensureTaskCompanyAccess(
     activeOrganizationId: params.activeOrganizationId || null,
     requestedCompanyId: companyId,
     isSuperAdmin: params.isSuperAdmin,
+    companyRestriction: params.companyRestriction,
   })
 }
 
@@ -323,13 +325,14 @@ async function ensureTaskCompanyAccess(
  * сотруднику другой организации.
  */
 async function ensureTaskAssigneeAccess(
-  params: { activeOrganizationId?: string | null; isSuperAdmin: boolean },
+  params: { activeOrganizationId?: string | null; isSuperAdmin: boolean; companyRestriction: string[] | null },
   assignee: { operatorId?: string | null; staffId?: string | null },
 ) {
   if (assignee.operatorId) {
     await ensureOrganizationOperatorAccess({
       activeOrganizationId: params.activeOrganizationId || null,
       isSuperAdmin: params.isSuperAdmin,
+      companyRestriction: params.companyRestriction,
       operatorId: String(assignee.operatorId),
     })
   }
@@ -337,6 +340,7 @@ async function ensureTaskAssigneeAccess(
     await ensureOrganizationStaffAccess({
       activeOrganizationId: params.activeOrganizationId || null,
       isSuperAdmin: params.isSuperAdmin,
+      companyRestriction: params.companyRestriction,
       staffId: String(assignee.staffId),
     })
   }
@@ -642,6 +646,7 @@ export async function GET(req: Request) {
       const scope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
 
       let query = supabase
@@ -673,6 +678,7 @@ export async function GET(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         (commentedTask as any).company_id,
       )
@@ -696,6 +702,7 @@ export async function GET(req: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: companyId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Шаблоны задач: ?templates=1
@@ -876,6 +883,7 @@ export async function POST(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         body.payload.company_id,
       )
@@ -887,7 +895,7 @@ export async function POST(req: Request) {
       const assigneeOperatorId = body.payload.operator_id || null
       const assigneeStaffId = assigneeOperatorId ? null : body.payload.staff_id || null
       await ensureTaskAssigneeAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         { operatorId: assigneeOperatorId, staffId: assigneeStaffId },
       )
 
@@ -998,6 +1006,7 @@ export async function POST(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         existingContext.task.company_id,
       )
@@ -1006,12 +1015,13 @@ export async function POST(req: Request) {
           {
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
           },
           body.payload.company_id,
         )
       }
       await ensureTaskAssigneeAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         { operatorId: body.payload.operator_id, staffId: body.payload.staff_id },
       )
 
@@ -1081,6 +1091,7 @@ export async function POST(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         existingContext.task.company_id,
       )
@@ -1149,6 +1160,7 @@ export async function POST(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         existingContext.task.company_id,
       )
@@ -1218,6 +1230,7 @@ export async function POST(req: Request) {
         {
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         },
         existingContext.task.company_id,
       )
@@ -1269,7 +1282,7 @@ export async function POST(req: Request) {
       if (!body.taskId) return json({ error: 'taskId обязателен' }, 400)
       const existingContext = await loadTaskContext(supabase, body.taskId)
       await ensureTaskCompanyAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         existingContext.task.company_id,
       )
       // Суперадмин удаляет любые задачи, сотрудник — только созданные им.
@@ -1299,7 +1312,7 @@ export async function POST(req: Request) {
         return json({ error: 'Для шаблона нужно выбрать точку' }, 400)
       }
       await ensureTaskCompanyAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         t.company_id,
       )
       // Правка существующего шаблона: проверяем точку ТЕКУЩЕЙ строки, а не только
@@ -1314,7 +1327,7 @@ export async function POST(req: Request) {
         if (currentTemplateError) throw currentTemplateError
         if (!currentTemplate) return json({ error: 'Шаблон не найден' }, 404)
         await ensureTaskCompanyAccess(
-          { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+          { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
           (currentTemplate as any).company_id,
         )
       }
@@ -1342,7 +1355,7 @@ export async function POST(req: Request) {
         is_active: t.is_active !== false,
       }
       await ensureTaskAssigneeAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         { operatorId: row.operator_id, staffId: row.staff_id },
       )
 
@@ -1382,7 +1395,7 @@ export async function POST(req: Request) {
         .single()
       if (templateError) throw templateError
       await ensureTaskCompanyAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         template.company_id,
       )
       const { error } = await supabase.from('task_templates').delete().eq('id', body.templateId)
@@ -1408,7 +1421,7 @@ export async function POST(req: Request) {
         .single()
       if (templateError) throw templateError
       await ensureTaskCompanyAccess(
-        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin },
+        { activeOrganizationId: access.activeOrganization?.id || null, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction },
         template.company_id,
       )
 
@@ -1446,6 +1459,7 @@ export async function POST(req: Request) {
       {
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       },
       context.task.company_id,
     )

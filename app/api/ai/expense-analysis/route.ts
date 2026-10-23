@@ -97,6 +97,7 @@ export async function GET(request: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     // Скоуп по орг: company_id из запроса обязан быть в allowedCompanyIds (если не superadmin).

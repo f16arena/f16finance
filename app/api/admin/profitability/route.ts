@@ -204,6 +204,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let deviceQuery = supabase.from('point_devices').select('company_id, feature_flags').eq('is_active', true)

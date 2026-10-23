@@ -88,6 +88,7 @@ export async function GET(request: Request) {
     const orgStaffIds = await listOrganizationStaffIds({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     let staffQuery = supabase
       .from('staff')

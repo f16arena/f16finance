@@ -82,6 +82,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: new URL(request.url).searchParams.get('company_id') || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const requests = await fetchInventoryRequests(supabase as any, {
       organizationId: access.activeOrganization?.id || null,
@@ -460,6 +461,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const inventoryScope = {
       organizationId: access.activeOrganization?.id || null,

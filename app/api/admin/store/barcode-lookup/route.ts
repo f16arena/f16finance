@@ -155,6 +155,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const companyFilter = String(url.searchParams.get('company_id') || '').trim() || null
     if (companyFilter && companyScope.allowedCompanyIds && !companyScope.allowedCompanyIds.includes(companyFilter)) {

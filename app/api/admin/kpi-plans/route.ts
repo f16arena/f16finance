@@ -102,6 +102,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const yearStart = `${year}-01-01`
@@ -313,7 +314,7 @@ export async function POST(req: Request) {
     let planOrgId: string | null = orgId
     if (companyId) {
       try {
-        await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId })
+        await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, requestedCompanyId: companyId, companyRestriction: access.companyRestriction })
       } catch {
         return json({ error: 'forbidden' }, 403)
       }
@@ -470,7 +471,7 @@ export async function DELETE(req: Request) {
       }
       if (rows.length !== ids.length) return json({ error: 'not-found' }, 404)
       const orgId = access.activeOrganization?.id || null
-      const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+      const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
       for (const plan of rows) {
         const cId = plan.company_id ? String(plan.company_id) : null
         const allowed = cId

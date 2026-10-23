@@ -26,6 +26,7 @@ async function assertCompanyInScope(access: any, companyId: string) {
     activeOrganizationId: access.activeOrganization?.id || null,
     requestedCompanyId: companyId,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 }
 

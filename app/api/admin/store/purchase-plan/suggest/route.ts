@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // null = супер-админ, не фильтруем. Иначе company_id должен быть в списке.
     if (companyScope.allowedCompanyIds && !companyScope.allowedCompanyIds.includes(companyId)) {

@@ -99,6 +99,7 @@ export async function POST(request: Request) {
       const scope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       const cId = (existingExpense as any).company_id
       if (scope.allowedCompanyIds && (!cId || !scope.allowedCompanyIds.includes(String(cId)))) {

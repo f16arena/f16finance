@@ -45,10 +45,12 @@ export async function GET(req: Request) {
         ? await listOrganizationStaffIds({
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
           })
         : await listOrganizationOperatorIds({
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
             includeInactive: true,
           })
       : null
@@ -70,10 +72,12 @@ export async function GET(req: Request) {
           ? await listOrganizationStaffIds({
               activeOrganizationId: access.activeOrganization?.id || null,
               isSuperAdmin: access.isSuperAdmin,
+              companyRestriction: access.companyRestriction,
             })
           : await listOrganizationOperatorIds({
               activeOrganizationId: access.activeOrganization?.id || null,
               isSuperAdmin: access.isSuperAdmin,
+              companyRestriction: access.companyRestriction,
               includeInactive: true,
             })
       if (allowedPairedIds && !allowedPairedIds.includes(String(paired.id))) {

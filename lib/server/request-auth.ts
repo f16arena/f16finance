@@ -22,6 +22,7 @@ import {
   type OrganizationAccess,
 } from '@/lib/server/organizations'
 import { resolveOrganizationByHost } from '@/lib/server/tenant-hosts'
+import type { CompanyRestriction } from '@/lib/server/organizations'
 
 function parseCookies(header: string | null): Map<string, string> {
   const map = new Map<string, string>()
@@ -141,6 +142,28 @@ export type GetRequestAccessContextOptions = {
   allowCustomer?: boolean
 }
 
+/**
+ * Охват сотрудника по точкам. У владельца охвата нет — он видит организацию целиком.
+ * Колонки staff.company_ids может ещё не быть (миграция не накатана) — тогда без охвата.
+ */
+async function loadStaffCompanyRestriction(staffMember: any | null): Promise<CompanyRestriction> {
+  if (!staffMember?.id || normalizeStaffRole(staffMember.role) === 'owner') return null
+  if (!hasAdminSupabaseCredentials()) return null
+  const { data, error } = await createAdminSupabaseClient()
+    .from('staff')
+    .select('company_ids')
+    .eq('id', staffMember.id)
+    .maybeSingle()
+  if (error) {
+    // Нет колонки (миграция не накатана) — охватов ещё нет ни у кого. Любая другая
+    // ошибка — не открываем всё молча: пусть запрос упадёт.
+    if ((error as any).code === '42703' || /company_ids/.test(String(error.message || ''))) return null
+    throw error
+  }
+  const ids = Array.isArray((data as any)?.company_ids) ? ((data as any).company_ids as unknown[]).map(String).filter(Boolean) : []
+  return ids.length > 0 ? ids : null
+}
+
 export async function getRequestAccessContext(
   request: Request,
   options?: GetRequestAccessContextOptions,
@@ -154,6 +177,12 @@ export async function getRequestAccessContext(
       isSuperAdmin: boolean
       staffMember: any | null
       staffRole: StaffRole
+      /**
+       * Охват по точкам (staff.company_ids): какие точки организации видит сотрудник.
+       * null — все (владелец, суперадмин, кому охват не задан). Передаётся в
+       * resolveCompanyScope и другие функции скоупа.
+       */
+      companyRestriction: CompanyRestriction
       operatorAuth: {
         id: string
         operator_id: string
@@ -255,6 +284,7 @@ export async function getRequestAccessContext(
       isSuperAdmin: true,
       staffMember: null,
       staffRole: 'owner',
+      companyRestriction: null,
       operatorAuth: null,
       isCustomer: false,
       linkedCustomers: [],
@@ -315,6 +345,7 @@ export async function getRequestAccessContext(
     isSuperAdmin: false,
     staffMember,
     staffRole: normalizeStaffRole(staffMember?.role),
+    companyRestriction: await loadStaffCompanyRestriction(staffMember),
     operatorAuth: operatorAuth
       ? {
           id: String((operatorAuth as any).id),

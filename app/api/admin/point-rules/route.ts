@@ -74,6 +74,7 @@ export async function GET(req: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const supabase = createAdminSupabaseClient()
@@ -119,6 +120,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: body.company_id,
         })
       }
@@ -135,6 +137,7 @@ export async function POST(req: Request) {
       const testAllowedCompanyIds = await listOrganizationCompanyIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       if (body.company_id) {
         query = query.or(`company_id.is.null,company_id.eq."${body.company_id}"`)
@@ -169,6 +172,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: payload.company_id,
         })
       } else if (!access.isSuperAdmin) {
@@ -209,6 +213,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: current.company_id,
         })
       } else if (!access.isSuperAdmin) {
@@ -218,6 +223,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: payload.company_id,
         })
       } else if (!access.isSuperAdmin) {
@@ -253,6 +259,7 @@ export async function POST(req: Request) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: current.company_id,
         })
       } else if (!access.isSuperAdmin) {

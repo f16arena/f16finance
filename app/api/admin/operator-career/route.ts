@@ -34,6 +34,7 @@ export async function GET(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId,
       })
     } catch {
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId,
       })
     } catch {
@@ -136,6 +138,7 @@ export async function POST(req: Request) {
         await ensureOrganizationStaffAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           staffId: String(existingLink.staff_id),
         })
       } catch {
@@ -164,7 +167,8 @@ export async function POST(req: Request) {
     } else {
       const { data: createdStaff, error: createStaffError } = await supabase
         .from('staff')
-        .insert([staffPayload])
+        // Новый сотрудник от управляющего части точек получает его охват — иначе видел бы всё.
+        .insert([{ ...staffPayload, ...(access.companyRestriction ? { company_ids: access.companyRestriction } : {}) }])
         .select('*')
         .single()
 

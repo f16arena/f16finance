@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // null — только суперадмин; иначе массив. Пустой массив = ничего нельзя.
     const allowedCompanyIds = access.isSuperAdmin ? companyScope.allowedCompanyIds : companyScope.allowedCompanyIds || []

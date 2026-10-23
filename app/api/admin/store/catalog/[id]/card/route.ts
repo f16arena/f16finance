@@ -54,6 +54,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const allowedCompanyIds = companyScope.allowedCompanyIds // null = супер-админ (все)
 

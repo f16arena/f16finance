@@ -178,6 +178,7 @@ export async function GET(req: Request) {
       const scope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       const admin = createAdminSupabaseClient()
       let allQuery = admin.from('staff').select('id').order('full_name')
@@ -185,6 +186,7 @@ export async function GET(req: Request) {
         const allowed = await listOrganizationStaffIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
         if (allowed) {
           if (allowed.length === 0) return json({ ok: true, items: [], staff: [] })
@@ -208,6 +210,7 @@ export async function GET(req: Request) {
         const allowedStaffIds = await listOrganizationStaffIds({
           activeOrganizationId: access.activeOrganization.id,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
         if (allowedStaffIds) {
           const allowedSet = new Set(allowedStaffIds)
@@ -317,6 +320,7 @@ export async function POST(req: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: body.staffId,
       })
     } catch (scopeError: any) {

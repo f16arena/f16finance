@@ -47,6 +47,7 @@ type DismissContext = {
   supabase: any
   activeOrganizationId: string | null
   isSuperAdmin: boolean
+  companyRestriction: string[] | null
   dismissedBy: string | null
   dismissedAt: string
   dismissalDate: string
@@ -59,6 +60,7 @@ async function dismissStaff(ctx: DismissContext, id: string): Promise<string> {
   await ensureOrganizationStaffAccess({
     activeOrganizationId: ctx.activeOrganizationId,
     isSuperAdmin: ctx.isSuperAdmin,
+    companyRestriction: ctx.companyRestriction,
     staffId: id,
   })
 
@@ -104,6 +106,7 @@ async function dismissStaff(ctx: DismissContext, id: string): Promise<string> {
     const ownOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: ctx.activeOrganizationId,
       isSuperAdmin: ctx.isSuperAdmin,
+      companyRestriction: ctx.companyRestriction,
       includeInactive: true,
     })
     // null тут не бывает, но на всякий случай: пустой список = ничего не трогаем.
@@ -142,6 +145,7 @@ async function dismissOperator(ctx: DismissContext, id: string): Promise<string>
   await ensureOrganizationOperatorAccess({
     activeOrganizationId: ctx.activeOrganizationId,
     isSuperAdmin: ctx.isSuperAdmin,
+    companyRestriction: ctx.companyRestriction,
     operatorId: id,
   })
 
@@ -240,6 +244,7 @@ export async function POST(req: Request) {
       supabase,
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       dismissedBy: access.staffMember?.id || null,
       dismissedAt: new Date().toISOString(),
       dismissalDate,
@@ -264,10 +269,12 @@ export async function POST(req: Request) {
               ? await listOrganizationStaffIds({
                   activeOrganizationId: ctx.activeOrganizationId,
                   isSuperAdmin: access.isSuperAdmin,
+                  companyRestriction: access.companyRestriction,
                 })
               : await listOrganizationOperatorIds({
                   activeOrganizationId: ctx.activeOrganizationId,
                   isSuperAdmin: access.isSuperAdmin,
+                  companyRestriction: access.companyRestriction,
                   includeInactive: true,
                 })
           pairedInScope = !allowedPairedIds || allowedPairedIds.includes(String(paired.id))

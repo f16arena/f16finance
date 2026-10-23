@@ -29,6 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const { data: shift, error } = await supabase
@@ -375,6 +376,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const scope = await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: false,
+          companyRestriction: access.companyRestriction,
         })
         if (scope.allowedCompanyIds && !scope.allowedCompanyIds.includes(String((shift as any).company_id))) {
           return json({ error: 'forbidden' }, 403)

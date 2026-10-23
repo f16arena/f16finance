@@ -153,6 +153,9 @@ export async function POST(request: Request) {
       if (scopedCompanyError) throw scopedCompanyError
       if (!scopedCompany?.id) return json({ error: 'company-out-of-scope' }, 403)
     }
+    if (access.companyRestriction && !access.companyRestriction.includes(supplierCompanyId)) {
+      return json({ error: 'company-out-of-scope' }, 403)
+    }
 
     // Дедуп в пределах своей орг (по БИН или названию) — не плодим дубли.
     if (binIin) {

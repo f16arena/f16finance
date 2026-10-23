@@ -46,6 +46,7 @@ async function resolveContext(request: Request, capability: string) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   return { access, scope, supabase: createAdminSupabaseClient() }

@@ -106,6 +106,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyId && companyScope.allowedCompanyIds && !companyScope.allowedCompanyIds.includes(companyId)) {
       return json({ error: 'forbidden', code: 'company-out-of-scope' }, 403)
@@ -145,6 +146,7 @@ export async function GET(req: Request) {
     const allowedOperatorIds = await listOrganizationOperatorIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let opsQuery = supabase

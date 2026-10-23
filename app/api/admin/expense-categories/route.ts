@@ -58,6 +58,7 @@ export async function GET(req: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     if (allowedCompanyIds && allowedCompanyIds.length === 0) {

@@ -16,12 +16,13 @@ import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/se
  * null (суперадмин без орг) = можно всё, [] = нельзя ничего.
  */
 async function assertCompanyInScope(
-  access: { activeOrganization?: { id?: string | null } | null; isSuperAdmin: boolean },
+  access: { activeOrganization?: { id?: string | null } | null; isSuperAdmin: boolean; companyRestriction: string[] | null },
   companyId: string | null | undefined,
 ) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
   if (scope.allowedCompanyIds === null) return
   if (!companyId || !scope.allowedCompanyIds.includes(String(companyId))) {

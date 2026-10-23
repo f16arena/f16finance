@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   // Список доступных провайдеров
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   // Проверка доступа к компании

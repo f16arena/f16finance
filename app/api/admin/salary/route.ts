@@ -786,15 +786,18 @@ export async function GET(req: Request) {
       listOrganizationCompanyIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       }),
       listOrganizationOperatorIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       }),
     ])
     const allowedCompanyCodes = await listOrganizationCompanyCodes({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const url = new URL(req.url)
@@ -1293,6 +1296,7 @@ export async function GET(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId,
       })
 
@@ -1463,6 +1467,7 @@ export async function GET(req: Request) {
     await ensureOrganizationOperatorAccess({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       operatorId,
     })
 
@@ -1576,6 +1581,7 @@ export async function POST(req: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const requestClient = createRequestSupabaseClient(req)
@@ -1599,12 +1605,14 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.payload.operator_id,
       })
       if (body.payload.company_id) {
         await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           requestedCompanyId: body.payload.company_id,
         })
       }
@@ -1648,11 +1656,13 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.payload.operator_id,
       })
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: body.payload.company_id,
       })
       if (split.totalAmount <= 0) {
@@ -1800,6 +1810,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.payload.operator_id,
       })
       if (split.totalAmount <= 0) {
@@ -2011,6 +2022,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.payload.operator_id,
       })
       if (split.totalAmount <= 0) {
@@ -2266,6 +2278,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -2375,6 +2388,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -2436,6 +2450,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -2445,6 +2460,7 @@ export async function POST(req: Request) {
       const debtScope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       let activeDebtsQuery = supabase
         .from('debts')
@@ -2512,6 +2528,7 @@ export async function POST(req: Request) {
       await ensureOrganizationOperatorAccess({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         operatorId: body.operatorId,
       })
 
@@ -2575,6 +2592,7 @@ export async function POST(req: Request) {
     await ensureOrganizationOperatorAccess({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       operatorId: body.operatorId,
     })
 

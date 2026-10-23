@@ -63,6 +63,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds && !companyScope.allowedCompanyIds.includes((data as any).company_id)) {
       return json({ error: 'forbidden' }, 403)
@@ -99,6 +100,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (
       companyScope.allowedCompanyIds &&
@@ -153,6 +155,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           await ensureOrganizationStaffAccess({
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
             staffId: body.subject_staff_id,
           })
         } catch {

@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const status = url.searchParams.get('status')
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (companyScope.allowedCompanyIds && !companyScope.allowedCompanyIds.includes(body.company_id)) {
       return json({ error: 'company-forbidden' }, 403)
@@ -135,6 +137,7 @@ export async function POST(request: Request) {
       const allowedStaffIds = await listOrganizationStaffIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       // null-скоуп бывает только у супер-админа без организации — ему можно.
       const staffScoped = !(access.isSuperAdmin && !access.activeOrganization?.id)

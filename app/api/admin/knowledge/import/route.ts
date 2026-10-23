@@ -274,6 +274,7 @@ export async function POST(request: Request) {
       const allowedForChunk = await listOrganizationCompanyIds({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       let chunkCompaniesQuery = supabaseForChunk.from('companies').select('id, name').order('name')
       if (allowedForChunk) {
@@ -325,6 +326,7 @@ export async function POST(request: Request) {
     const allowedCompanyIds = await listOrganizationCompanyIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     let companiesQuery = supabase.from('companies').select('id, name').order('name')
     if (allowedCompanyIds) {

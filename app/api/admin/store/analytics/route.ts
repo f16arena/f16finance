@@ -30,6 +30,7 @@ export async function GET(request: Request) {
       activeOrganizationId: access.activeOrganization?.id || null,
       requestedCompanyId: new URL(request.url).searchParams.get('company_id') || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const days = Math.max(0, Math.min(365, Number(new URL(request.url).searchParams.get('days')) || 0))
     const data = await fetchStoreAnalytics(

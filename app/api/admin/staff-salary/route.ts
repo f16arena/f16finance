@@ -325,6 +325,7 @@ export async function GET(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     // staff_adjustments / staff_salary_payments scope by staff_id (no company_id),
     // debts / point_debt_items scope by operator_id. Resolve the allowed id lists
@@ -333,12 +334,14 @@ export async function GET(req: Request) {
       ? await listOrganizationStaffIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       : null
     const allowedOperatorIds = scope.allowedCompanyIds
       ? await listOrganizationOperatorIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           includeInactive: true,
         })
       : null
@@ -348,6 +351,7 @@ export async function GET(req: Request) {
       ? await listOrganizationCompanyCodes({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       : null
 
@@ -741,11 +745,13 @@ export async function POST(req: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const allowedStaffIds = scope.allowedCompanyIds
       ? await listOrganizationStaffIds({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
       : null
     // Returns true only when scoping is active AND the staff_id is out of scope.
@@ -1280,6 +1286,7 @@ export async function POST(req: Request) {
         ? await listOrganizationOperatorIds({
             activeOrganizationId: access.activeOrganization?.id || null,
             isSuperAdmin: access.isSuperAdmin,
+            companyRestriction: access.companyRestriction,
             includeInactive: true,
           })
         : null

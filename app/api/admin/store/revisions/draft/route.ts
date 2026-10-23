@@ -26,6 +26,7 @@ async function setup(request: Request) {
   const companyScope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
   const inventoryScope = {
     organizationId: access.activeOrganization?.id || null,

@@ -466,6 +466,9 @@ export async function POST(request: Request) {
           .maybeSingle()
         if (targetErr) throw targetErr
         if (!targetCompany?.id) return json({ error: 'company-out-of-scope' }, 403)
+        if (access.companyRestriction && !access.companyRestriction.includes(importCompanyId)) {
+          return json({ error: 'company-out-of-scope' }, 403)
+        }
       }
 
       // Ensure all categories exist (в точке)

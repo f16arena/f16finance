@@ -43,12 +43,14 @@ export async function GET(req: Request) {
         await ensureOrganizationOperatorAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           operatorId: id,
         })
       } else {
         await ensureOrganizationStaffAccess({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
           staffId: id,
         })
       }

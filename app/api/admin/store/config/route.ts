@@ -65,6 +65,7 @@ export async function GET(request: Request) {
     const scope = await resolveCompanyScope({
       activeOrganizationId: orgId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     const companies = await loadCompanies(supabase, scope.allowedCompanyIds)
@@ -106,7 +107,7 @@ export async function PUT(request: Request) {
     const body = await request.json().catch(() => ({})) as { store_company_id?: string | null; store_enabled_ids?: string[] }
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
-    const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+    const scope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const allowed = scope.allowedCompanyIds
 
     // ── Флаги «точка = магазин» (store_enabled) для точек орг ────────────────

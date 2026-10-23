@@ -66,7 +66,7 @@ export async function GET(req: Request) {
 
     const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : createRequestSupabaseClient(req)
     const orgId = access.activeOrganization?.id || null
-    const companyScope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin })
+    const companyScope = await resolveCompanyScope({ activeOrganizationId: orgId, isSuperAdmin: access.isSuperAdmin, companyRestriction: access.companyRestriction })
     const empty = { months: [], previous: null, companies: [], incompleteMonths: [], extra: { names: [], included: includeExtra } }
     if (companyScope.allowedCompanyIds !== null && companyScope.allowedCompanyIds.length === 0) return json({ ok: true, data: empty })
     // Без организации не-суперадмин не видит ничего: фильтры ниже иначе исчезли бы

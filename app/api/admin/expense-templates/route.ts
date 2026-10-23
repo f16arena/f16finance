@@ -28,6 +28,7 @@ export async function GET(req: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     let query = supabase
       .from('expense_templates')
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         requestedCompanyId: String(body.company_id),
       })
     }
@@ -94,6 +96,7 @@ export async function DELETE(req: Request) {
       const scope = await resolveCompanyScope({
         activeOrganizationId: access.activeOrganization?.id || null,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
       })
       const existingCompanyId = (existing as any).company_id
       if (

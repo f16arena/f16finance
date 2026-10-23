@@ -74,6 +74,7 @@ export async function GET(req: Request) {
         const planScope = await resolveCompanyScope({
           activeOrganizationId: access.activeOrganization?.id || null,
           isSuperAdmin: access.isSuperAdmin,
+          companyRestriction: access.companyRestriction,
         })
         let planQuery = supabase
           .from('purchase_plan_items')

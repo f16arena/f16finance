@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     if (!(await projectInScope(supabase, String(device.point_project_id || ''), companyScope.allowedCompanyIds))) {
       return json({ error: 'device-not-found' }, 404)

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { assertOrganizationLimitAvailable, ensureOrganizationStaffAccess, listOrganizationOperatorIds, listOrganizationStaffIds } from '@/lib/server/organizations'
+import { assertOrganizationLimitAvailable, ensureOrganizationStaffAccess, listOrganizationCompanyIds, listOrganizationOperatorIds, listOrganizationStaffIds } from '@/lib/server/organizations'
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability, canAssignStaffRole, isOwnerActor } from '@/lib/server/capabilities'
 import { createRequestSupabaseClient, getRequestAccessContext, requireStaffCapabilityRequest } from '@/lib/server/request-auth'
@@ -31,6 +31,12 @@ type Body =
         amount: number
         comment?: string | null
       }
+    }
+  | {
+      /** Охват сотрудника по точкам: null или [] — все точки организации. */
+      action: 'setStaffCompanies'
+      staffId: string
+      companyIds: string[] | null
     }
   | {
       action: 'toggleStaffStatus'
@@ -76,6 +82,8 @@ async function scopeOperatorIdsToOrganization(params: {
     activeOrganizationId,
     isSuperAdmin,
     includeInactive: true,
+    // Здесь граница — организация (связь оператор↔сотрудник), не охват по точкам.
+    companyRestriction: null,
   })
   const ownSet = new Set((ownIds || []).map((v) => String(v)))
   return operatorIds.filter((id) => ownSet.has(id))
@@ -102,6 +110,7 @@ export async function GET(req: Request) {
     const allowedStaffIds = await listOrganizationStaffIds({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
 
     let staffQuery = supabase
@@ -127,8 +136,25 @@ export async function GET(req: Request) {
     if (staffRes.error) throw staffRes.error
     if (paymentsRes.error) throw paymentsRes.error
 
+    // Охват по точкам — отдельным запросом: пока колонки staff.company_ids нет
+    // (миграция не накатана), страница сотрудников работает как раньше.
+    const staffRows = (staffRes.data ?? []) as any[]
+    const companyIdsByStaff = new Map<string, string[] | null>()
+    if (staffRows.length > 0) {
+      const { data: scopeRows, error: scopeError } = await supabase
+        .from('staff')
+        .select('id, company_ids')
+        .in('id', staffRows.map((row) => String(row.id)))
+      if (!scopeError) {
+        for (const row of (scopeRows || []) as any[]) {
+          const ids = Array.isArray(row.company_ids) ? row.company_ids.map(String) : []
+          companyIdsByStaff.set(String(row.id), ids.length ? ids : null)
+        }
+      }
+    }
+
     return json({
-      staff: staffRes.data ?? [],
+      staff: staffRows.map((row) => ({ ...row, company_ids: companyIdsByStaff.get(String(row.id)) ?? null })),
       payments: paymentsRes.data ?? [],
     })
   } catch (error: any) {
@@ -193,6 +219,8 @@ export async function POST(req: Request) {
             // Привязка к организации — иначе сотрудник «ничей»: не пройдёт RLS
             // staff_select_own_org и не попадёт в listOrganizationStaffIds.
             organization_id: activeOrganizationId,
+            // Сотрудник, заведённый управляющим части точек, получает его охват — иначе видел бы всё.
+            ...(access.companyRestriction ? { company_ids: access.companyRestriction } : {}),
           },
         ])
         .select('*')
@@ -236,6 +264,7 @@ export async function POST(req: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: body.staffId,
       })
       if (!payload.full_name?.trim()) {
@@ -315,6 +344,56 @@ export async function POST(req: Request) {
       return json({ ok: true, data })
     }
 
+    // ── Охват по точкам: какие точки организации видит сотрудник ──
+    // Это граница доступа, поэтому — только владелец. Владельцу охват не задаётся.
+    if (body.action === 'setStaffCompanies') {
+      if (!isOwnerActor(access)) {
+        return json({ error: 'Задавать точки сотрудника может только владелец', reason: 'owner-only' }, 403)
+      }
+      if (!body.staffId?.trim()) return json({ error: 'staffId обязателен' }, 400)
+      await ensureOrganizationStaffAccess({
+        activeOrganizationId,
+        isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: null,
+        staffId: body.staffId,
+      })
+      const { data: target, error: targetError } = await supabase
+        .from('staff')
+        .select('id, full_name, role, company_ids')
+        .eq('id', body.staffId)
+        .single()
+      if (targetError) throw targetError
+      if (String((target as any).role || '') === 'owner') {
+        return json({ error: 'Владелец видит все точки — ограничить его нельзя' }, 400)
+      }
+
+      const requested = Array.isArray(body.companyIds) ? Array.from(new Set(body.companyIds.map(String).filter(Boolean))) : []
+      if (requested.length > 0) {
+        const orgCompanyIds = new Set(
+          await listOrganizationCompanyIds({ activeOrganizationId, isSuperAdmin: access.isSuperAdmin, companyRestriction: null }),
+        )
+        if (requested.some((id) => !orgCompanyIds.has(id))) {
+          return json({ error: 'Точка не из вашей организации' }, 403)
+        }
+      }
+      const nextCompanyIds = requested.length > 0 ? requested : null
+
+      const { error: updateError } = await supabase
+        .from('staff')
+        .update({ company_ids: nextCompanyIds })
+        .eq('id', body.staffId)
+      if (updateError) throw updateError
+
+      await writeAuditLog(supabase, {
+        actorUserId: user?.id || null,
+        entityType: 'staff',
+        entityId: String(body.staffId),
+        action: 'set-companies',
+        payload: { full_name: (target as any).full_name, before: (target as any).company_ids || null, after: nextCompanyIds },
+      })
+      return json({ ok: true, data: { company_ids: nextCompanyIds } })
+    }
+
     if (body.action === 'toggleStaffStatus') {
       const denied = await requireCapability(access, 'staff.toggle_status')
       if (denied) return denied as any
@@ -324,6 +403,7 @@ export async function POST(req: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: body.staffId,
       })
 
@@ -469,6 +549,7 @@ export async function POST(req: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: String(existing.staff_id),
       })
 
@@ -498,6 +579,7 @@ export async function POST(req: Request) {
     await ensureOrganizationStaffAccess({
       activeOrganizationId,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
       staffId: payload.staff_id,
     })
     if (!Number.isFinite(payload.amount) || payload.amount <= 0) {

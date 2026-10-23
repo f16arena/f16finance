@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const data = await fetchConsumableDashboard(supabase as any, {
       organizationId: access.activeOrganization?.id || null,
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
     const companyScope = await resolveCompanyScope({
       activeOrganizationId: access.activeOrganization?.id || null,
       isSuperAdmin: access.isSuperAdmin,
+      companyRestriction: access.companyRestriction,
     })
     const inventoryScope = {
       organizationId: access.activeOrganization?.id || null,

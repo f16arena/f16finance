@@ -29,6 +29,7 @@ export async function GET(request: Request) {
   const scope = await resolveCompanyScope({
     activeOrganizationId: access.activeOrganization?.id || null,
     isSuperAdmin: access.isSuperAdmin,
+    companyRestriction: access.companyRestriction,
   })
 
   // Если super-admin без активной org — отдаём kaspi по умолчанию

@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       await ensureOrganizationStaffAccess({
         activeOrganizationId: orgId,
         isSuperAdmin: access.isSuperAdmin,
+        companyRestriction: access.companyRestriction,
         staffId: String(body.staff_id),
       })
     } catch {
