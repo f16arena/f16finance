@@ -39,6 +39,56 @@ export async function countCompanyHistory(supabase: any, companyId: string) {
   return { items, hasHistory: items.length > 0 }
 }
 
+/**
+ * Что не уходит каскадом вместе с точкой, но без неё теряет смысл.
+ *
+ * Ставки зарплаты привязаны к КОДУ точки, а не к id: оставшись, они
+ * прицепились бы к следующей точке с тем же кодом (так и вышло на пробной
+ * «F16 Test»: второй мастер упёрся в «дубликат» и получил чужие ставки).
+ * Касса без точек сохраняла рабочий токен.
+ * Вызывать до удаления компании — пока связь касс с точкой ещё видна.
+ */
+export async function collectCompanyLeftovers(supabase: any, company: { id: string; code: string | null }) {
+  const { data: links, error } = await supabase
+    .from('point_project_companies')
+    .select('project_id')
+    .eq('company_id', company.id)
+  if (error) throw error
+  return {
+    code: String(company.code || '').trim(),
+    projectIds: Array.from(new Set(((links || []) as any[]).map((row) => String(row.project_id || '')).filter(Boolean))),
+  }
+}
+
+export async function removeCompanyLeftovers(supabase: any, leftovers: { code: string; projectIds: string[] }) {
+  if (leftovers.code) {
+    const { data: rules, error: rulesError } = await supabase
+      .from('operator_salary_rules')
+      .select('id')
+      .ilike('company_code', leftovers.code)
+    if (rulesError) throw rulesError
+    const ruleIds = ((rules || []) as any[]).map((row) => row.id)
+    if (ruleIds.length) {
+      const { error: versionsError } = await supabase.from('operator_salary_rule_versions').delete().in('rule_id', ruleIds)
+      if (versionsError) throw versionsError
+      const { error: deleteError } = await supabase.from('operator_salary_rules').delete().in('id', ruleIds)
+      if (deleteError) throw deleteError
+    }
+  }
+
+  for (const projectId of leftovers.projectIds) {
+    const { count, error: countError } = await supabase
+      .from('point_project_companies')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', projectId)
+    if (countError) throw countError
+    // Касса обслуживала и другие точки — остаётся им.
+    if ((count ?? 0) > 0) continue
+    const { error: projectError } = await supabase.from('point_projects').delete().eq('id', projectId)
+    if (projectError) throw projectError
+  }
+}
+
 export function describeCompanyHistory(items: CompanyHistoryItem[]) {
   return items
     .map((item) => (item.count < 0 ? `${item.label}: не удалось проверить` : `${item.count.toLocaleString('ru-RU')} ${item.label}`))

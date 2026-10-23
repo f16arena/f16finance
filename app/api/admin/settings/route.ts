@@ -6,7 +6,13 @@ import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/serv
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
 import { createCompanyForOrganization } from '@/lib/server/company-create'
-import { companyNameMatches, countCompanyHistory, describeCompanyHistory } from '@/lib/server/company-delete'
+import {
+  collectCompanyLeftovers,
+  companyNameMatches,
+  countCompanyHistory,
+  describeCompanyHistory,
+  removeCompanyLeftovers,
+} from '@/lib/server/company-delete'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type MutationBody =
@@ -287,14 +293,16 @@ export async function POST(req: Request) {
         )
       }
 
+      const leftovers = await collectCompanyLeftovers(supabase, { id: String(target.id), code: target.code })
       const { error } = await scopeOrg(supabase.from('companies').delete().eq('id', body.id))
       if (error) throw error
+      await removeCompanyLeftovers(supabase, leftovers)
       await writeAuditLog(supabase, {
         actorUserId,
         entityType: 'company',
         entityId: body.id,
         action: 'delete',
-        payload: { name: target.name, code: target.code },
+        payload: { name: target.name, code: target.code, removed_projects: leftovers.projectIds },
       })
       return NextResponse.json({ ok: true })
     }

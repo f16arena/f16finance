@@ -160,6 +160,13 @@ export async function requirePointDevice(request: Request): Promise<
     }
   }
 
+  // Касса без единой точки — хвост удалённой точки или организации: токен не должен работать.
+  if (!Array.isArray((data as any).point_project_companies) || (data as any).point_project_companies.length === 0) {
+    return {
+      response: NextResponse.json({ error: 'point-device-has-no-point' }, { status: 403 }),
+    }
+  }
+
   const requestedCompanyId = request.headers.get('x-point-company-id')?.trim() || ''
 
   /**
