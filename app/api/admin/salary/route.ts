@@ -403,8 +403,8 @@ function debtItemPeriodFilter(start: string): { column: string; from: string; to
   return { column: 'created_at', from: `${start}T00:00:00.000Z`, to: `${periodEndOf(start)}T23:59:59.999Z` }
 }
 
-async function enterOrgPaySchedule(organizationId: string | null) {
-  payScheduleStore.enterWith((await getOrgSettings(organizationId)).operatorPaySchedule)
+async function loadOrgPaySchedule(organizationId: string | null): Promise<OperatorPaySchedule> {
+  return (await getOrgSettings(organizationId)).operatorPaySchedule
 }
 
 async function closeWeekDebtsIfSettled(params: {
@@ -775,7 +775,9 @@ export async function GET(req: Request) {
     if (guard) return guard
     const access = await getRequestAccessContext(req)
     if ('response' in access) return access.response
-    await enterOrgPaySchedule(access.activeOrganization?.id || null)
+    // enterWith — именно здесь, в самом обработчике: вызванный во вложенной
+    // async-функции, он не виден вызывающему после await.
+    payScheduleStore.enterWith(await loadOrgPaySchedule(access.activeOrganization?.id || null))
     const addonDenied = await requireAddon(access, 'addon.salary')
     if (addonDenied) return addonDenied
     const denied = await requireCapability(access, 'salary.view')
@@ -1566,7 +1568,9 @@ export async function POST(req: Request) {
     if (guard) return guard
     const access = await getRequestAccessContext(req)
     if ('response' in access) return access.response
-    await enterOrgPaySchedule(access.activeOrganization?.id || null)
+    // enterWith — именно здесь, в самом обработчике: вызванный во вложенной
+    // async-функции, он не виден вызывающему после await.
+    payScheduleStore.enterWith(await loadOrgPaySchedule(access.activeOrganization?.id || null))
     const addonDenied = await requireAddon(access, 'addon.salary')
     if (addonDenied) return addonDenied
     const allowedCompanyIds = await listOrganizationCompanyIds({
