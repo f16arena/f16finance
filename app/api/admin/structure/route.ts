@@ -5,6 +5,7 @@ import {
   listOrganizationOperatorIds,
   listOrganizationStaffIds,
 } from '@/lib/server/organizations'
+import { hasAssignmentPositionColumn } from '@/lib/server/assignment-positions'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability } from '@/lib/server/capabilities'
 import { createRequestSupabaseClient, getRequestAccessContext, requireStaffCapabilityRequest } from '@/lib/server/request-auth'
@@ -87,9 +88,11 @@ export async function GET(req: Request) {
       .order('name', { ascending: true })
     if (allowedOperatorIds) operatorsQuery = operatorsQuery.in('id', allowedOperatorIds)
 
+    // position_id — после миграции 20261024_point_positions, до неё колонки нет.
+    const withPosition = await hasAssignmentPositionColumn(supabase)
     let assignmentsQuery = supabase
       .from('operator_company_assignments')
-      .select('id, operator_id, company_id, role_in_company, is_primary, is_active, notes, created_at, updated_at')
+      .select(('id, operator_id, company_id, role_in_company, is_primary, is_active, notes, created_at, updated_at' + (withPosition ? ', position_id' : '')) as string)
       .eq('is_active', true)
       .order('is_primary', { ascending: false })
       .order('created_at', { ascending: true })

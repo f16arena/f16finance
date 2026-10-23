@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
+import { PositionSelect, positionLabel, usePointPositions } from '@/components/admin/position-select'
 import { getOperatorDisplayName } from '@/lib/core/operator-name'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useModalEscape } from '@/lib/client/use-modal-escape'
@@ -71,6 +72,7 @@ type Assignment = {
   notes: string | null
   created_at: string
   updated_at: string
+  position_id?: string | null
 }
 
 type CareerLink = {
@@ -104,6 +106,8 @@ type AssignmentEditorRow = {
   id?: string
   company_id: string
   role_in_company: CompanyOperatorRole
+  /** Своя должность; ключа нет — сервер оставляет прежнюю. */
+  position_id?: string | null
   is_primary: boolean
   is_active: boolean
   notes: string
@@ -632,6 +636,7 @@ export default function StructurePage() {
   const [editingOperator, setEditingOperator] = useState<Operator | null>(null)
   useModalEscape(!!editingOperator, () => setEditingOperator(null))
   const [editorRows, setEditorRows] = useState<AssignmentEditorRow[]>([])
+  const pointPositions = usePointPositions()
   const [savingAssignments, setSavingAssignments] = useState(false)
   const [companyFilter, setCompanyFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState<'all' | CompanyOperatorRole>('all')
@@ -744,6 +749,7 @@ export default function StructurePage() {
         id: assignment.id,
         company_id: assignment.company_id,
         role_in_company: assignment.role_in_company,
+        ...(assignment.position_id !== undefined ? { position_id: assignment.position_id ?? null } : {}),
         is_primary: assignment.is_primary,
         is_active: assignment.is_active,
         notes: assignment.notes || '',
@@ -787,6 +793,7 @@ export default function StructurePage() {
           operator_id: row.operator_id,
           company_id: row.company_id,
           role_in_company: row.role_in_company,
+          position_id: row.position_id,
           is_primary: row.is_primary,
           is_active: row.is_active,
           notes: row.notes,
@@ -1073,7 +1080,7 @@ export default function StructurePage() {
                                     })}
                                   </div>
                                   <div className="mt-1 text-sm text-muted-foreground">
-                                    {company?.name} • {COMPANY_ROLE_LABEL[assignment.role_in_company]}
+                                    {company?.name} • {positionLabel(pointPositions, assignment.position_id, assignment.role_in_company)}
                                   </div>
                                 </div>
                                 {assignment.is_primary ? (
@@ -1201,21 +1208,20 @@ export default function StructurePage() {
 
                     <div>
                       <label className="mb-2 block text-xs uppercase tracking-[0.16em] text-slate-500">Роль</label>
-                      <select
-                        value={row.role_in_company}
-                        onChange={(event) =>
+<PositionSelect
+                        companyId={row.company_id}
+                        role={row.role_in_company}
+                        positionId={row.position_id}
+                        positions={pointPositions}
+                        onChange={(next) =>
                           setEditorRows((prev) =>
                             prev.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, role_in_company: event.target.value as CompanyOperatorRole } : item,
+                              itemIndex === index ? { ...item, role_in_company: next.role, position_id: next.position_id } : item,
                             ),
                           )
                         }
-                        className="h-10 w-full rounded-xl border border-border bg-white dark:bg-slate-900/70 px-3 text-sm text-foreground outline-none focus:border-amber-400/50"
-                      >
-                        <option value="operator">Оператор</option>
-                        <option value="senior_operator">Старший оператор</option>
-                        <option value="senior_cashier">Старший кассир</option>
-                      </select>
+                        className="h-10 rounded-xl"
+                      />
                     </div>
 
                     <label className="flex items-center gap-3 rounded-xl border border-border bg-white dark:bg-slate-900/70 px-3 text-sm text-body">

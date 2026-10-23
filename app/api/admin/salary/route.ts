@@ -21,6 +21,7 @@ import { listOperatorSalaryData, listOperatorsSalaryData, listSalaryReferenceDat
 import { createRequestSupabaseClient, getRequestAccessContext, requireStaffCapabilityRequest } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
+import { attachPositionBonuses } from '@/lib/server/assignment-positions'
 
 type AdjustmentKind = 'debt' | 'fine' | 'bonus' | 'advance'
 
@@ -1543,7 +1544,7 @@ export async function GET(req: Request) {
         operator,
         companies: companies || [],
         rules: rules || [],
-        assignments: assignments || [],
+        assignments: await attachPositionBonuses(supabase, (assignments || []) as any[]),
         incomes: incomes || [],
         payouts: payouts || [],
       },

@@ -7,6 +7,7 @@ import {
   resolveCompanyScope,
 } from '@/lib/server/organizations'
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
+import { hasAssignmentPositionColumn, loadAssignablePositions } from '@/lib/server/assignment-positions'
 import { requireCapability } from '@/lib/server/capabilities'
 import { createRequestSupabaseClient, getRequestAccessContext, requireStaffCapabilityRequest } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
@@ -20,12 +21,22 @@ type AssignmentPayload = {
   is_primary?: boolean
   is_active?: boolean
   notes?: string | null
+  /** Своя должность (point_positions); права берутся из её base_role. */
+  position_id?: string | null
 }
 
 type Body = {
   action: 'saveAssignments'
   operatorId: string
   assignments: AssignmentPayload[]
+}
+
+// Должность — только после миграции 20261024_point_positions (до неё колонки нет).
+function assignmentSelect(withPosition: boolean): string {
+  return (
+    'id, operator_id, company_id, role_in_company, is_primary, is_active, notes, created_at, updated_at, company:company_id(id, name, code)' +
+    (withPosition ? ', position_id, position:position_id(id, name, shift_bonus, base_role, is_active)' : '')
+  )
 }
 
 function json(data: unknown, status = 200) {
@@ -42,6 +53,9 @@ function normalizeAssignments(assignments: AssignmentPayload[]) {
       is_primary: !!item.is_primary,
       is_active: item.is_active !== false,
       notes: item.notes?.trim() || null,
+      // Нет ключа — страница о должностях не знает (структура, старый клиент):
+      // прежняя должность остаётся как есть. null — снять должность.
+      position_id: 'position_id' in item ? item.position_id?.trim() || null : undefined,
     }))
 
   const uniqueCompanyIds = new Set<string>()
@@ -97,9 +111,10 @@ export async function GET(req: Request) {
     const operatorId = searchParams.get('operatorId')?.trim()
     if (!operatorId) return json({ error: 'operatorId обязателен' }, 400)
 
+    const withPosition = await hasAssignmentPositionColumn(supabase)
     let query = supabase
       .from('operator_company_assignments')
-      .select('id, operator_id, company_id, role_in_company, is_primary, is_active, notes, created_at, updated_at, company:company_id(id, name, code)')
+      .select(assignmentSelect(withPosition))
       .eq('operator_id', operatorId)
       .order('is_primary', { ascending: false })
       .order('created_at', { ascending: true })
@@ -178,11 +193,30 @@ export async function POST(req: Request) {
       operatorId,
     })
 
+    // Должности: своей организации, подходят к точке, права — из базовой роли
+    // должности (не из присланного role_in_company). До миграции колонки нет —
+    // должности молча не пишутся.
+    const withPosition = await hasAssignmentPositionColumn(supabase)
+    const requestedPositionIds = normalized.map((item) => item.position_id).filter(Boolean) as string[]
+    if (requestedPositionIds.length && !withPosition) {
+      return json({ error: 'Должности ещё не включены: нужна миграция 20261024_point_positions' }, 409)
+    }
+    const positions = await loadAssignablePositions(supabase, access.activeOrganization?.id || null, requestedPositionIds)
+    if (!positions) return json({ error: 'Должность не найдена в этой организации' }, 400)
+    for (const item of normalized) {
+      if (!item.position_id) continue
+      const position = positions.get(item.position_id)!
+      if (position.company_id && position.company_id !== item.company_id) {
+        return json({ error: `Должность «${position.name}» заведена для другой точки` }, 400)
+      }
+      item.role_in_company = position.base_role
+    }
+
     // Существующие назначения читаем только по своим точкам: иначе в deleteIds
     // и в массовый сброс is_primary попадали строки чужих компаний.
     let existingQuery = supabase
       .from('operator_company_assignments')
-      .select('id, company_id, role_in_company, is_primary, is_active, notes, company:company_id(organization_id)')
+      .select(('id, company_id, role_in_company, is_primary, is_active, notes, company:company_id(organization_id)' + (withPosition ? ', position_id' : '')) as string)
       .eq('operator_id', operatorId)
     if (companyScope.allowedCompanyIds) {
       existingQuery = existingQuery.in('company_id', companyScope.allowedCompanyIds)
@@ -222,9 +256,18 @@ export async function POST(req: Request) {
       }
     }
 
-    const existingById = new Map((existingRows || []).map((row) => [row.id as string, row]))
+    const existingById = new Map(((existingRows || []) as any[]).map((row) => [row.id as string, row]))
+    // Архивную должность можно оставить там, где она уже стоит, но не выдать заново.
+    for (const item of normalized) {
+      if (!item.position_id) continue
+      const position = positions.get(item.position_id)!
+      const keepsSame = item.id && String(existingById.get(item.id)?.position_id || '') === item.position_id
+      if (!position.is_active && !keepsSame) {
+        return json({ error: `Должность «${position.name}» в архиве` }, 400)
+      }
+    }
     const keepIds = new Set(normalized.map((item) => item.id).filter(Boolean) as string[])
-    const deleteIds = (existingRows || [])
+    const deleteIds = ((existingRows || []) as any[])
       .filter((row) => !keepIds.has(String(row.id)))
       .map((row) => String(row.id))
 
@@ -250,6 +293,7 @@ export async function POST(req: Request) {
         is_active: item.is_active,
         notes: item.notes,
         assigned_by: user?.id || null,
+        ...(withPosition && item.position_id !== undefined ? { position_id: item.position_id } : {}),
       }
 
       if (item.id && existingById.has(item.id)) {
@@ -279,7 +323,7 @@ export async function POST(req: Request) {
     // названия компаний другой организации.
     let freshQuery = supabase
       .from('operator_company_assignments')
-      .select('id, operator_id, company_id, role_in_company, is_primary, is_active, notes, created_at, updated_at, company:company_id(id, name, code)')
+      .select(assignmentSelect(withPosition))
       .eq('operator_id', operatorId)
       .order('is_primary', { ascending: false })
       .order('created_at', { ascending: true })

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { attachPositionBonuses } from '@/lib/server/assignment-positions'
 import type { AdminSupabaseClient } from '@/lib/server/supabase'
 import type {
   SalaryAdjustmentRow,
@@ -188,7 +189,7 @@ export async function listSalaryReferenceData(
   return {
     companies: (companies || []) as SalaryCompany[],
     rules: rulesWithVersions as SalaryRule[],
-    assignments: (assignments || []) as SalaryOperatorCompanyAssignment[],
+    assignments: await attachPositionBonuses(supabase, (assignments || []) as SalaryOperatorCompanyAssignment[]),
     seniorityTiers: (seniorityTiersError ? [] : seniorityTiersData || []) as SalarySeniorityTier[],
   }
 }

@@ -11,13 +11,14 @@ import { CopyText } from '@/components/ui/copy-text'
 import { Input } from '@/components/ui/input'
 import { MoneyInput } from '@/components/ui/money-input'
 import { NativeSelect } from '@/components/ui/native-select'
+import { PositionSelect, usePointPositions } from '@/components/admin/position-select'
 import { transliterate } from '@/lib/core/company-code'
 import { listIndustries } from '@/lib/core/industries'
 
 type CompanyRole = 'operator' | 'senior_operator' | 'senior_cashier'
 
-type NewPerson = { key: string; name: string; username: string; usernameTouched: boolean; role: CompanyRole }
-type ExistingPick = { id: string; name: string; role: CompanyRole }
+type NewPerson = { key: string; name: string; username: string; usernameTouched: boolean; role: CompanyRole; positionId: string | null }
+type ExistingPick = { id: string; name: string; role: CompanyRole; positionId: string | null }
 type ExistingOperator = { id: string; name: string; is_active?: boolean }
 
 type StepStatus = 'pending' | 'running' | 'done' | 'skipped' | 'failed'
@@ -29,12 +30,6 @@ type Result = {
   companyName: string
   token: string | null
   logins: Login[]
-}
-
-const ROLE_LABELS: Record<CompanyRole, string> = {
-  operator: 'Оператор',
-  senior_operator: 'Старший оператор',
-  senior_cashier: 'Старший кассир',
 }
 
 const MODE_OPTIONS = [
@@ -103,6 +98,8 @@ function StepIcon({ status }: { status: StepStatus }) {
  */
 export default function NewPointWizardPage() {
   const industries = useMemo(() => listIndustries(), [])
+  // Мастер создаёт новую точку — подходят только должности «на всех точках».
+  const positions = usePointPositions()
 
   const [name, setName] = useState('')
   const [industry, setIndustry] = useState('')
@@ -151,7 +148,7 @@ export default function NewPointWizardPage() {
   }, [industry])
 
   function addPerson() {
-    setPeople((list) => [...list, { key: crypto.randomUUID(), name: '', username: '', usernameTouched: false, role: list.length === 0 ? 'senior_operator' : 'operator' }])
+    setPeople((list) => [...list, { key: crypto.randomUUID(), name: '', username: '', usernameTouched: false, role: list.length === 0 ? 'senior_operator' : 'operator', positionId: null }])
   }
 
   function updatePerson(key: string, patch: Partial<NewPerson>) {
@@ -167,7 +164,7 @@ export default function NewPointWizardPage() {
   }
 
   function togglePicked(op: ExistingOperator) {
-    setPicked((list) => (list.some((p) => p.id === op.id) ? list.filter((p) => p.id !== op.id) : [...list, { id: op.id, name: op.name, role: 'operator' }]))
+    setPicked((list) => (list.some((p) => p.id === op.id) ? list.filter((p) => p.id !== op.id) : [...list, { id: op.id, name: op.name, role: 'operator', positionId: null }]))
   }
 
   const invalidPerson = people.find((p) => !p.name.trim() || p.username.trim().length < 3)
@@ -269,7 +266,7 @@ export default function NewPointWizardPage() {
       const assignRes = await postJson('/api/admin/operator-company-assignments', {
         action: 'saveAssignments',
         operatorId,
-        assignments: [{ company_id: company.id, role_in_company: person.role, is_primary: true, is_active: true }],
+        assignments: [{ company_id: company.id, role_in_company: person.role, position_id: person.positionId, is_primary: true, is_active: true }],
       })
       if (accRes.ok && accRes.data?.password) logins.push({ name: person.name.trim(), username: accRes.data.username, password: accRes.data.password })
       const problems = [
@@ -304,7 +301,7 @@ export default function NewPointWizardPage() {
             is_active: row.is_active,
             notes: row.notes,
           })),
-          { company_id: company.id, role_in_company: pick.role, is_primary: activeCount === 0, is_active: true },
+          { company_id: company.id, role_in_company: pick.role, position_id: pick.positionId, is_primary: activeCount === 0, is_active: true },
         ],
       })
       setStep(key, assignRes.ok ? { status: 'done' } : { status: 'failed', note: assignRes.data?.error || 'ошибка' })
@@ -487,11 +484,13 @@ export default function NewPointWizardPage() {
             <div key={person.key} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1fr_10rem_11rem_auto] sm:items-center">
               <Input value={person.name} onChange={(e) => updatePerson(person.key, { name: e.target.value })} placeholder="Имя и фамилия" />
               <Input value={person.username} onChange={(e) => updatePerson(person.key, { username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''), usernameTouched: true })} placeholder="логин" className="font-mono" />
-              <NativeSelect value={person.role} onChange={(e) => updatePerson(person.key, { role: e.target.value as CompanyRole })}>
-                {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </NativeSelect>
+              <PositionSelect
+                companyId=""
+                role={person.role}
+                positionId={person.positionId}
+                positions={positions}
+                onChange={(next) => updatePerson(person.key, { role: next.role, positionId: next.position_id })}
+              />
               <Button variant="ghost" size="icon" onClick={() => setPeople((list) => list.filter((p) => p.key !== person.key))} aria-label="Убрать">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -512,15 +511,14 @@ export default function NewPointWizardPage() {
                   <span key={op.id} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm ${pick ? 'border-blue-500/50 bg-blue-500/10' : 'border-border'}`}>
                     <button type="button" onClick={() => togglePicked(op)} className="text-foreground">{op.name}</button>
                     {pick && (
-                      <select
-                        value={pick.role}
-                        onChange={(e) => setPicked((list) => list.map((p) => (p.id === op.id ? { ...p, role: e.target.value as CompanyRole } : p)))}
-                        className="bg-transparent text-xs text-muted-foreground outline-none"
-                      >
-                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
+                      <PositionSelect
+                        companyId=""
+                        role={pick.role}
+                        positionId={pick.positionId}
+                        positions={positions}
+                        onChange={(next) => setPicked((list) => list.map((p) => (p.id === op.id ? { ...p, role: next.role, positionId: next.position_id } : p)))}
+                        className="h-7 border-0 bg-transparent px-1 text-xs text-muted-foreground shadow-none"
+                      />
                     )}
                   </span>
                 )
