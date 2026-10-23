@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/server/supabase'
 import { requiredEnv } from '@/lib/server/env'
 import { buildSalaryTelegramMessage, getOperatorSalarySnapshot } from '@/lib/server/services/salary'
 import { listWeeklyTelegramOperators } from '@/lib/server/repositories/salary'
+import { listOrgReportTargets } from '@/lib/server/report-targets'
 import { ordaTelegramFrame } from '@/lib/telegram/message-kit'
 
 export const runtime = 'nodejs'
@@ -64,11 +65,17 @@ export async function GET(req: Request) {
   }
 
   const dryRun = new URL(req.url).searchParams.get('dryRun') === '1'
-  const companyCode = process.env.SUPABASE_COMPANY_CODE || 'arena'
+  // Все точки оператора (как на /salary). Раньше по умолчанию считалась только arena F16 —
+  // смены в других точках в сообщение не попадали. Сузить можно env SUPABASE_COMPANY_CODE.
+  const companyCode = process.env.SUPABASE_COMPANY_CODE || undefined
   const { from, to, weekMonday } = getPrevWeekKZ()
 
   const supabase = createAdminSupabaseClient()
-  const operators = await listWeeklyTelegramOperators(supabase)
+  // Только команды организаций с настроенным Telegram (раньше — операторы всех арендаторов).
+  const orgIds = new Set((await listOrgReportTargets()).map((t) => t.organizationId))
+  const operators = (await listWeeklyTelegramOperators(supabase)).filter(
+    (operator) => !!operator.organization_id && orgIds.has(operator.organization_id),
+  )
 
   let sent = 0
   let failed = 0

@@ -15,6 +15,7 @@ import type {
 
 type MaybeRoleOperator = SalaryOperatorMeta & {
   role?: string | null
+  organization_id?: string | null
 }
 
 function isOptionalSalarySchemaError(error: any) {
@@ -281,7 +282,7 @@ export async function listWeeklyTelegramOperators(
 ) {
   const { data, error } = await supabase
     .from('operators')
-    .select('id,name,short_name,telegram_chat_id,is_active,role,operator_profiles(*)')
+    .select('id,name,short_name,telegram_chat_id,is_active,role,organization_id,operator_profiles(*)')
     .eq('is_active', true)
 
   if (error) throw error
