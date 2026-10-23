@@ -44,7 +44,7 @@ Cron запускает копию скрипта `/opt/orda/bin/deploy.sh` (е�
 
 ## Сторож
 
-`/etc/cron.d/orda-watchdog` раз в минуту запускает `/opt/orda/bin/watchdog.sh`: открывает `https://ordaops.kz/api/health/ready` через Caddy. Три провала подряд — тревога в Telegram мониторинга, восстановление — «снова отвечает». Лог провалов: `/var/log/orda-watchdog.log`.
+`/etc/cron.d/orda-watchdog` раз в минуту запускает `/opt/orda/bin/watchdog.sh`: открывает `https://www.ordaops.kz/api/health/ready` (голый домен отвечает 308 на www) через Caddy. Три провала подряд — тревога в Telegram мониторинга, восстановление — «снова отвечает». Лог провалов: `/var/log/orda-watchdog.log`.
 
 Смерть всего сервера изнутри не видна. Для неё — внешний пинг (UptimeRobot / Better Stack, бесплатно) на тот же адрес `/api/health/ready`, раз в 1–5 минут, тревога на почту или в Telegram.
 

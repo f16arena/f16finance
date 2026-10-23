@@ -1,10 +1,10 @@
 #!/bin/sh
-# Сторож Orda: раз в минуту (/etc/cron.d/orda-watchdog) открывает ordaops.kz/api/health/ready
+# Сторож Orda: раз в минуту (/etc/cron.d/orda-watchdog) открывает www.ordaops.kz/api/health/ready
 # через Caddy, как обычный посетитель. Три провала подряд — тревога в Telegram мониторинга,
 # первый успешный ответ после тревоги — «починилось». Ничего не перезапускает.
 # Смерть всего сервера отсюда не видна — для неё нужен сторож снаружи (README, «Сторож»).
 set -u
-URL=https://ordaops.kz/api/health/ready
+URL=https://www.ordaops.kz/api/health/ready
 STATE=/opt/orda/control/watchdog.state
 LIMIT=3
 
