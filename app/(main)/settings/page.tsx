@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ import {
   Phone,
   Mail,
   Settings,
+  Sparkles,
 } from 'lucide-react'
 
 // --- Типы ---
@@ -433,6 +435,18 @@ export default function SettingsPage() {
                                     Лимит точек исчерпан ({companies.length} из {companyLimit}). Чтобы добавить ещё одну точку — докупите дополнительную точку в пакете.
                                 </span>
                             </div>
+                        )}
+                        {!(companyLimit !== null && companies.length >= companyLimit) && (
+                            <Link
+                                href="/settings/new-point"
+                                className="mb-3 flex items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-700 transition hover:bg-blue-500/15 dark:text-blue-200"
+                            >
+                                <Sparkles className="h-4 w-4 shrink-0" />
+                                <span>
+                                    <span className="font-medium">Мастер новой точки</span>
+                                    <span className="block text-xs opacity-80">Точка, касса, люди и ставки за один раз. Ниже — только название.</span>
+                                </span>
+                            </Link>
                         )}
                         <form onSubmit={handleAddCompany} className="flex flex-wrap gap-2">
                             <input

@@ -5,6 +5,7 @@ import { requireCapability, requireStaffCapability, isOwnerActor, canAssignStaff
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
+import { createCompanyForOrganization } from '@/lib/server/company-create'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type MutationBody =
@@ -201,47 +202,16 @@ export async function POST(req: Request) {
       if (denied) return denied as any
 
       if (body.action === 'create') {
-        const companyName = body.payload.name?.trim()
-        if (!companyName) return badRequest('Название компании обязательно')
-
-        // Лимит точек: нельзя создать компанию сверх company_limit орг.
-        // Супер-админ без активной орг (платформенный контекст) — без лимита.
-        const limitOrgId = access.activeOrganization?.id || null
-        if (limitOrgId) {
-          const [{ count: currentCount }, limit] = await Promise.all([
-            supabase.from('companies').select('id', { count: 'exact', head: true }).eq('organization_id', limitOrgId),
-            resolveCompanyLimit(limitOrgId),
-          ])
-          if ((currentCount ?? 0) >= limit) {
-            return NextResponse.json(
-              { error: `Лимит точек исчерпан (${currentCount}/${limit}). Докупите точку, чтобы добавить ещё одну.`, code: 'company-limit-reached' },
-              { status: 402 },
-            )
-          }
-        }
-        // code NOT NULL: если не задан — генерируем из названия (латиница) или фолбэк.
-        const code =
-          body.payload.code?.trim().toUpperCase() ||
-          companyName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 10) ||
-          `POINT${Date.now().toString().slice(-5)}`
-        const { data, error } = await supabase.from('companies').insert([
-          {
-            name: companyName,
-            code,
-            show_in_structure: body.payload.show_in_structure !== false,
-            exclude_from_totals: body.payload.exclude_from_totals === true,
-            organization_id: access.activeOrganization?.id || null,
-          },
-        ]).select('id,name,code,show_in_structure,exclude_from_totals').single()
-        if (error) throw error
-        await writeAuditLog(supabase, {
-          actorUserId,
-          entityType: 'company',
-          entityId: String(data.id),
-          action: 'create',
-          payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure },
+        const created = await createCompanyForOrganization(supabase, access, {
+          name: body.payload.name,
+          code: body.payload.code,
+          showInStructure: body.payload.show_in_structure,
+          excludeFromTotals: body.payload.exclude_from_totals,
         })
-        return NextResponse.json({ ok: true })
+        if (!created.ok) {
+          return NextResponse.json({ error: created.error, code: created.code }, { status: created.status })
+        }
+        return NextResponse.json({ ok: true, company: created.company })
       }
 
       if (!body.id) return badRequest('id обязателен')

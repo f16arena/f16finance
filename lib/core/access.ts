@@ -667,6 +667,8 @@ const MOVED_PATHS: Record<string, string> = {
   '/regulations/guide': '/knowledge-admin',
   '/regulations/exams': '/operator-exams',
   '/regulations/setup': '/knowledge-setup',
+  // Мастер новой точки — часть настроек: открыт тем, у кого открыты «Настройки».
+  '/settings/new-point': '/settings',
   // Игровая зона переехала со страницы проекта /stations/<id> в разделы меню
   '/arena': '/stations/arena',
   '/arena/hall': '/stations/arena',

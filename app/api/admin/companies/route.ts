@@ -5,6 +5,7 @@ import { resolveCompanyScope } from '@/lib/server/organizations'
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { requireCapability } from '@/lib/server/capabilities'
+import { createCompanyForOrganization } from '@/lib/server/company-create'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -58,49 +59,30 @@ export async function POST(req: Request) {
     const denied = await requireCapability(access, 'settings.manage_companies')
     if (denied) return denied
 
-    const body = (await req.json().catch(() => null)) as { name?: string | null; code?: string | null; showInStructure?: boolean | null } | null
-    const name = String(body?.name || '').trim()
-    const showInStructure = body?.showInStructure !== false
-
-    if (!name) {
-      return json({ error: 'Название точки обязательно' }, 400)
-    }
-
-    // code NOT NULL: если не задан — генерируем из названия (латиница) или фолбэк.
-    const code =
-      String(body?.code || '').trim().toUpperCase() ||
-      name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 10) ||
-      `POINT${Date.now().toString().slice(-5)}`
+    const body = (await req.json().catch(() => null)) as {
+      name?: string | null
+      code?: string | null
+      showInStructure?: boolean | null
+      excludeFromTotals?: boolean | null
+      industry?: string | null
+      address?: string | null
+    } | null
 
     const supabase = hasAdminSupabaseCredentials()
       ? createAdminSupabaseClient()
       : createRequestSupabaseClient(req)
 
-    // Привязываем точку к активной организации — иначе она «ничья» и не попадёт
-    // в скоуп организации (новый клиент не увидит свою же точку).
-    const organizationId = access.activeOrganization?.id || null
-    // Без организации точка создавалась «ничьей»: её не видит ни один орг-скоуп,
-    // а при откате LEGACY_SINGLE_TENANT_MODE она стала бы видна всем тенантам.
-    if (!organizationId && !access.isSuperAdmin) {
-      return json({ error: 'Требуется активная организация' }, 400)
-    }
-
-    const { data, error } = await supabase
-      .from('companies')
-      .insert([{ name, code, show_in_structure: showInStructure, organization_id: organizationId }])
-      .select('id, name, code')
-      .single()
-
-    if (error) throw error
-
-    return json({
-      ok: true,
-      company: {
-        id: String((data as any).id),
-        name: String((data as any).name || ''),
-        code: (data as any).code || null,
-      },
+    const created = await createCompanyForOrganization(supabase, access, {
+      name: String(body?.name || ''),
+      code: body?.code,
+      showInStructure: body?.showInStructure,
+      excludeFromTotals: body?.excludeFromTotals,
+      industry: body?.industry,
+      address: body?.address,
     })
+    if (!created.ok) return json({ error: created.error, code: created.code }, created.status)
+
+    return json({ ok: true, company: created.company })
   } catch (error: any) {
     await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/companies POST', message: error?.message || 'error' })
     return json({ error: error?.message || 'Ошибка сервера' }, 500)
