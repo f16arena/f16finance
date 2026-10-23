@@ -8,6 +8,7 @@ import { AutoTheme } from '@/components/auto-theme'
 import { RecoveryHashCatcher } from '@/components/auth/recovery-hash-catcher'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { NAV_LAYOUT_BOOT_SCRIPT } from '@/lib/core/nav-layout-boot'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/core/site'
 import './globals.css'
 
@@ -107,7 +108,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <head />
+      <head>
+        {/* Вид меню (сверху/слева) — до отрисовки, иначе страница моргает. */}
+        <script dangerouslySetInnerHTML={{ __html: NAV_LAYOUT_BOOT_SCRIPT }} />
+      </head>
       <body className={`${inter.variable} ${manrope.variable} ${ibmPlexMono.variable} app-shell font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           {/* Следит за временем и переключает тему, если человек это включил

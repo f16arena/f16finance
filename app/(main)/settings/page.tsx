@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/use-toast'
 import { Button } from '@/components/ui/button'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
+import { NavLayoutPicker } from '@/components/nav-layout-picker'
 import { CardSkeleton } from '@/components/skeleton'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import {
@@ -293,6 +294,8 @@ export default function SettingsPage() {
               {error}
             </div>
           )}
+
+          <NavLayoutPicker />
 
           <OrgPayScheduleCard />
 

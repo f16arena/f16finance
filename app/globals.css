@@ -449,6 +449,37 @@
   padding-top: 4rem;
 }
 
+/* Вид меню (lib/client/nav-layout.ts): сверху — как было; слева — колонка SideNav.
+   data-nav ставит скрипт в <head> до отрисовки, поэтому без мигания. На телефоне —
+   всегда выдвижное меню, колонка только с 768px. */
+.app-side-nav {
+  width: 15.5rem;
+}
+html[data-nav-collapsed='1'] .app-side-nav {
+  width: 4.5rem;
+}
+.nav-side-only {
+  display: none;
+}
+@media (min-width: 768px) {
+  html[data-nav='side'] .app-side-nav {
+    display: flex;
+  }
+  /* Сдвиг — только там, где колонка есть (в «Магазине» своё меню, TopNav не рисуется) */
+  html[data-nav='side'] .app-shell-layout:has(> .app-side-nav) {
+    padding-left: 15.5rem;
+  }
+  html[data-nav='side'][data-nav-collapsed='1'] .app-shell-layout:has(> .app-side-nav) {
+    padding-left: 4.5rem;
+  }
+  html[data-nav='side'] .nav-top-only {
+    display: none !important;
+  }
+  html[data-nav='side'] .nav-side-only {
+    display: block;
+  }
+}
+
 /* Мобильный портал: таблицы скроллятся пальцем вбок, а не разъезжают страницу;
    поля ввода не мельче 16px — иначе iOS приближает экран при фокусе. */
 @media (max-width: 767px) {

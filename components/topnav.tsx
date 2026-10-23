@@ -9,6 +9,7 @@ import {
   Command,
   LifeBuoy,
   LogOut,
+  PanelLeft,
   Search,
   Shield,
   User,
@@ -16,6 +17,8 @@ import {
 
 import { AppLogoMark } from '@/components/app-brand-mark'
 import { NotificationsBell } from '@/components/notifications-bell'
+import { SideNav } from '@/components/side-nav'
+import { useNavLayout } from '@/lib/client/nav-layout'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { APP_VERSION, SITE_NAME } from '@/lib/core/site'
@@ -331,6 +334,7 @@ function UserMenu({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
+  const { changeLayout } = useNavLayout()
 
   useEffect(() => {
     if (!open) return
@@ -388,6 +392,18 @@ function UserMenu({
             Мой профиль
             <span className="ml-auto text-[10px] text-slate-500">пароль · email · имя</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              changeLayout('side')
+            }}
+            className="mt-2 flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 dark:border-white/5 dark:bg-slate-800/50 px-3 py-2 text-sm text-body transition-all duration-300 hover:border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-300"
+          >
+            <PanelLeft className="h-4 w-4" />
+            Меню слева
+            <span className="ml-auto text-[10px] text-slate-500">вернуть — в профиле</span>
+          </button>
           <Button
             variant="ghost"
             onClick={async () => {
@@ -542,9 +558,10 @@ export function TopNav() {
     <>
       <header className="sticky top-0 z-40 hidden border-b border-slate-200 bg-white/90 dark:border-white/5 dark:bg-slate-950/90 backdrop-blur-xl md:block">
         <div className="flex h-14 items-center gap-3 px-4 xl:px-6">
+          {/* nav-top-only — прячется, когда сотрудник выбрал меню слева (CSS по data-nav) */}
           <Link
             href="/dashboard"
-            className="flex items-center gap-3"
+            className="nav-top-only flex items-center gap-3"
             title={`${SITE_NAME} · v${APP_VERSION}`}
           >
             <AppLogoMark logoUrl={session.activeOrganization?.logoUrl || session.organizations[0]?.logoUrl} />
@@ -559,7 +576,8 @@ export function TopNav() {
             </div>
           </Link>
 
-          <nav className="ml-2 flex flex-1 items-center gap-1">
+          <div className="nav-side-only flex-1" />
+          <nav className="nav-top-only ml-2 flex flex-1 items-center gap-1">
             {visibleSections.map((section, index) => {
               const align: 'start' | 'center' | 'end' =
                 index === 0 ? 'start' : index >= visibleSections.length - 2 ? 'end' : 'start'
@@ -580,7 +598,7 @@ export function TopNav() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900/70 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-amber-500/20 hover:text-slate-900 dark:hover:text-white"
+            className="nav-top-only flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900/70 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-amber-500/20 hover:text-slate-900 dark:hover:text-white"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Поиск</span>
@@ -593,14 +611,18 @@ export function TopNav() {
 
           <NotificationsBell />
 
-          <UserMenu
-            onLogout={session.handleLogout}
-            email={session.userEmail}
-            displayName={session.displayName}
-            roleLabel={session.roleLabel}
-          />
+          <div className="nav-top-only">
+            <UserMenu
+              onLogout={session.handleLogout}
+              email={session.userEmail}
+              displayName={session.displayName}
+              roleLabel={session.roleLabel}
+            />
+          </div>
         </div>
       </header>
+
+      <SideNav sections={visibleSections} pathname={pathname} session={session} onSearch={() => setSearchOpen(true)} />
 
       <SearchPalette
         open={searchOpen}
