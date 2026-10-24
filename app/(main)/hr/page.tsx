@@ -136,7 +136,8 @@ function csvCell(v: string | null | undefined): string {
 }
 
 function kindLabel(e: HrEmployee) {
-  if (e.is_hybrid) return 'Оператор + админ'
+  // Учётка оператора у админ-состава нужна только кассе (долги) — по факту это администрация.
+  if (e.is_hybrid) return 'Администрация'
   // Повышение до старшего хранится в закреплении за точкой — показываем его.
   if (e.point_role === 'senior_operator') return 'Старший оператор'
   if (e.point_role === 'senior_cashier') return 'Старший кассир'

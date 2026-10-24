@@ -779,6 +779,7 @@ export async function GET(req: Request) {
             .from('operators')
             .select('id, name, short_name, telegram_chat_id, role, is_active, operator_profiles(*)')
             .eq('is_active', true)
+            .not('is_admin_staff', 'is', true)
         : (async () => {
             // Операторы доступных точек (по закреплениям) + уже назначенные на задачи
             // (чтобы имена в старых задачах не терялись). Раньше грузились только
@@ -797,10 +798,13 @@ export async function GET(req: Request) {
             const operatorIds = Array.from(new Set([...assignedIds, ...referencedIds]))
             if (!operatorIds.length) return { data: [], error: null } as any
 
-            return supabase
+            const referenced = new Set(referencedIds.map(String))
+            const result = await supabase
               .from('operators')
-              .select('id, name, short_name, telegram_chat_id, role, is_active, operator_profiles(*)')
+              .select('id, name, short_name, telegram_chat_id, role, is_active, is_admin_staff, operator_profiles(*)')
               .in('id', operatorIds)
+            if (result.error) return result
+            return { ...result, data: (result.data || []).filter((op: any) => op.is_admin_staff !== true || referenced.has(String(op.id))) }
           })(),
       access.isSuperAdmin && !access.activeOrganization?.id
         ? supabase.from('staff').select('id, full_name, short_name, telegram_chat_id, is_active, dismissed_at').order('full_name')

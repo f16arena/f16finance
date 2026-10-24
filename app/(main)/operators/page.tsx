@@ -120,7 +120,12 @@ export default function OperatorsPage() {
   // Гибкие права — у любой роли которой выдан operators.create
   const canManageOperators = canCreate || canDelete
 
-  const rows = useMemo(() => (Array.isArray(operatorRows) ? operatorRows : []), [operatorRows])
+  // Админ-состав с учёткой оператора (она нужна кассе для долгов) — не операторы:
+  // их место в «Команде» и в зарплате администрации.
+  const rows = useMemo(
+    () => (Array.isArray(operatorRows) ? operatorRows.filter((row: any) => row?.is_admin_staff !== true) : []),
+    [operatorRows],
+  )
 
   const operators = useMemo<Operator[]>(
     () =>

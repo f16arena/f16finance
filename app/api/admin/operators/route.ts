@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from('operators')
-      .select('id, name, short_name, is_active, role, telegram_chat_id, created_at, operator_profiles(full_name, phone, email, hire_date, position, photo_url)')
+      .select('id, name, short_name, is_active, role, telegram_chat_id, created_at, is_admin_staff, operator_profiles(full_name, phone, email, hire_date, position, photo_url)')
       .order('name', { ascending: true })
 
     if (activeOnly) query = query.eq('is_active', true)

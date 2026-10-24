@@ -85,6 +85,8 @@ export async function GET(req: Request) {
       .from('operators')
       .select('id, name, short_name, is_active, telegram_chat_id, operator_profiles(full_name, phone, email, position, photo_url, hire_date)')
       .eq('is_active', true)
+      // Админ-состав с учёткой оператора (для долгов на кассе) — в «Руководстве», не в точках.
+      .not('is_admin_staff', 'is', true)
       .order('name', { ascending: true })
     if (allowedOperatorIds) operatorsQuery = operatorsQuery.in('id', allowedOperatorIds)
 
