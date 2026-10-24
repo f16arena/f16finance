@@ -26,6 +26,13 @@ function escapeHtml(s: string) {
 
 type Group = { area: string; count: number; message: string }
 
+// Не поломки: человек ошибся паролем, у телефона истекла сессия, браузер
+// прервал анимацию в свёрнутой вкладке. В сводке они только приучают её не читать.
+const NOISE = [/invalid-credentials/i, /\(401\)/, /Transition was aborted/i]
+
+// Пока контейнер перезапускается при выкладке, кроны получают «000» — это не сбой.
+const DEPLOY_WINDOW_MS = 6 * 60 * 1000
+
 export async function GET(request: Request) {
   if (!verifyCronRequest(request)) return json({ error: 'unauthorized' }, 401)
   if (!hasAdminSupabaseCredentials()) return json({ error: 'no admin supabase' }, 503)
@@ -43,6 +50,7 @@ export async function GET(request: Request) {
 
   const groups = new Map<string, Group>()
   for (const row of (data || []) as any[]) {
+    if (NOISE.some((re) => re.test(String(row.payload?.message || '')))) continue
     const area = String(row.payload?.area || row.entity_id || 'без места')
     const group = groups.get(area)
     if (group) group.count += 1
@@ -52,12 +60,21 @@ export async function GET(request: Request) {
   const errors = [...groups.values()].sort((a, b) => b.count - a.count)
   const errorTotal = errors.reduce((sum, g) => sum + g.count, 0)
 
+  // Начала выкладок: «2026-10-24T02:15:02Z deploy 5a7e76c -> fb0ece6».
+  const deployStarts = (await tailFile(HOST_LOGS.deploy, 2000).catch(() => ''))
+    .split('\n')
+    .filter((line) => / deploy [0-9a-f]+ -> /.test(line))
+    .map((line) => new Date(line.split(' ')[0]).getTime())
+    .filter((t) => Number.isFinite(t))
+  const duringDeploy = (t: number) => deployStarts.some((start) => t >= start && t - start <= DEPLOY_WINDOW_MS)
+
   // Строка лога кронов: «2026-10-23T04:00:01Z 500 http://127.0.0.1:3200/api/cron/x».
   const failedCrons = new Map<string, { count: number; code: string }>()
   for (const line of (await tailFile(HOST_LOGS.cron, 5000).catch(() => '')).split('\n')) {
     const [at, code, url] = line.trim().split(' ')
     if (!at || !code || !url || code.startsWith('2')) continue
     if (new Date(at) < since) continue
+    if (code === '000' && duringDeploy(new Date(at).getTime())) continue
     const name = url.replace(/^https?:\/\/[^/]+\/api\/cron\//, '')
     const item = failedCrons.get(name)
     if (item) {
