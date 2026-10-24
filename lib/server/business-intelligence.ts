@@ -336,10 +336,15 @@ export async function computeBusinessIntelligence(
   else if (organizationId) compQ = compQ.eq('organization_id', organizationId)
   const { data: compRows, error: compErr } = await compQ
   if (compErr) throw compErr
-  const companies = ((compRows || []) as Array<{ id: string; name: string | null; code: string | null }>).map((c) => ({
+  // exclude_from_totals передаём дальше — без него isExtraCompany судит по
+  // старому коду «extra», и Extra выпадала из выручки вопреки настройке точки.
+  const companies = (
+    (compRows || []) as Array<{ id: string; name: string | null; code: string | null; exclude_from_totals?: boolean | null }>
+  ).map((c) => ({
     id: String(c.id),
     name: String(c.name || '—'),
     code: c.code,
+    exclude_from_totals: c.exclude_from_totals ?? null,
   }))
   const companyName = new Map(companies.map((c) => [c.id, c.name]))
   // Как в /reports: точка-экстра не входит в «все точки», только если выбрана явно

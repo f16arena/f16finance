@@ -164,7 +164,7 @@ export default function TaxPage() {
     return localStorage.getItem('tax_include_self_social') === '1'
   })
 
-  // Включать F16 Extra (компании с code='extra') в налогооблагаемый оборот.
+  // Включать точки «вне общих итогов» (флаг точки exclude_from_totals) в налогооблагаемый оборот.
   // По дефолту OFF — те же правила что в /weekly-report, /reports.
   const [includeExtra, setIncludeExtra] = useState<boolean>(false)
   // Период — после гидрации: страница готовится заранее, во время сборки, и
