@@ -73,11 +73,12 @@ export async function queueCreateDebt(
   return result.id
 }
 
-export async function queueDeleteDebt(itemId: string, companyId?: string | null): Promise<number> {
+export async function queueDeleteDebt(itemId: string, companyId?: string | null, operatorId?: string | null): Promise<number> {
   const ref = localRef()
   const result = await enqueue({
     type: 'delete_debt',
-    payload: { itemId, _company_id: companyId || null },
+    // Кто удалил — сервер проверяет: свой долг, свежая запись или право должности.
+    payload: { itemId, operatorId: operatorId || null, _company_id: companyId || null },
     localRef: ref,
   })
   return result.id
@@ -346,7 +347,7 @@ async function processQueueItem(config: AppConfig, item: QueueItem): Promise<voi
   }
 
   if (item.type === 'delete_debt') {
-    await api.deleteDebt(config, p.itemId as string, companyId)
+    await api.deleteDebt(config, p.itemId as string, companyId, (p.operatorId as string | null) || null)
     return
   }
 

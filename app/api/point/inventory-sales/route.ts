@@ -7,6 +7,8 @@ import { createPointInventorySale } from '@/lib/server/repositories/inventory'
 import { requirePointDevice, resolveCompanyOrganizationId } from '@/lib/server/point-devices'
 import { buildSaleReceiptUrl } from '@/lib/server/sale-receipt'
 import { requireCurrentOpenShiftId } from '@/lib/server/point-shifts'
+import { requirePointPermission } from '@/lib/server/point-permission-check'
+import { BIG_DISCOUNT_PERCENT } from '@/lib/core/point-permissions'
 import { checkAndNotifyLowStock } from '@/lib/server/low-stock-notifier'
 
 type CreateSaleBody = {
@@ -504,6 +506,13 @@ async function handleCorrectPayment(params: {
   device: any
   body: CorrectPaymentBody
 }) {
+  const correctDenied = await requirePointPermission({
+    request: params.request,
+    supabase: params.supabase,
+    companyId: params.device.company_id,
+    permission: 'kassa_correct_payment',
+  })
+  if (correctDenied) return correctDenied
   const actor = await resolveActor({ request: params.request, supabase: params.supabase, companyId: params.device.company_id })
   const saleId = String(params.body.payload?.sale_id || '').trim()
   const reason = String(params.body.payload?.reason || '').trim()
@@ -966,6 +975,23 @@ export async function POST(request: Request) {
       if (existing) {
         return json({ ok: true, data: { sale_id: existing.id, total_amount: existing.total_amount, idempotent: true } })
       }
+    }
+
+    // Права кассы. Скидка считается по ценам каталога: сумма товаров − оплата −
+    // списанные бонусы лояльности (бонусы — не скидка кассира).
+    if (requestedItems.some((item) => !item.item_id)) {
+      const freePriceDenied = await requirePointPermission({ request, supabase, companyId: device.company_id, permission: 'kassa_free_price' })
+      if (freePriceDenied) return freePriceDenied
+    }
+    const catalogPrice = new Map(((dbItems || []) as any[]).map((row) => [String(row.id), normalizeMoney(row.sale_price)]))
+    const baseSubtotal = requestedItems.reduce(
+      (sum, item) => sum + item.quantity * (item.item_id ? catalogPrice.get(item.item_id) || 0 : normalizeMoney(item.unit_price || 0)),
+      0,
+    )
+    const manualDiscount = baseSubtotal - paymentTotal - loyaltyDiscountAmount
+    if (baseSubtotal > 0 && manualDiscount / baseSubtotal > BIG_DISCOUNT_PERCENT / 100 + 0.0001) {
+      const discountDenied = await requirePointPermission({ request, supabase, companyId: device.company_id, permission: 'kassa_big_discount' })
+      if (discountDenied) return discountDenied
     }
 
     const sale = await createPointInventorySale(supabase, {

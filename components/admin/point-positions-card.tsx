@@ -8,7 +8,15 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { toast } from '@/components/ui/use-toast'
 import { invalidatePointPositions } from '@/components/admin/position-select'
 import { peopleCountLabel, type PointBaseRole } from '@/lib/core/positions'
-import { POINT_PERMISSIONS, assignmentPointPermissions, type PointPermission } from '@/lib/core/point-permissions'
+import {
+  ALL_KASSA_PERMISSIONS,
+  ALL_LEAD_PERMISSIONS,
+  DEFAULT_KASSA_PERMISSIONS,
+  KASSA_PERMISSIONS,
+  LEAD_PERMISSIONS,
+  assignmentPointPermissions,
+  type PointPermission,
+} from '@/lib/core/point-permissions'
 
 export type BaseRole = PointBaseRole
 
@@ -55,7 +63,8 @@ export type PointPositionDraft = {
 }
 
 export function emptyPointDraft(): PointPositionDraft {
-  return { id: null, name: '', company_id: '', permissions: [], bonusMode: 'rules:operator', bonusAmount: '0' }
+  // Права кассы — как сейчас у всех; права старшего — по выбору.
+  return { id: null, name: '', company_id: '', permissions: [...DEFAULT_KASSA_PERMISSIONS], bonusMode: 'rules:operator', bonusAmount: '0' }
 }
 
 export function draftFromPosition(position: PointPosition): PointPositionDraft {
@@ -90,9 +99,38 @@ function payDescription(position: PointPosition) {
 
 function permissionsDescription(position: PointPosition) {
   const granted = assignmentPointPermissions({ position: { ...position, is_active: true } })
-  if (granted.length === 0) return 'без прав старшего'
-  if (granted.length === POINT_PERMISSIONS.length) return 'все права старшего'
-  return POINT_PERMISSIONS.filter((p) => granted.includes(p.key)).map((p) => p.label.toLowerCase()).join(', ')
+  const lead = ALL_LEAD_PERMISSIONS.filter((p) => granted.includes(p)).length
+  const kassa = ALL_KASSA_PERMISSIONS.filter((p) => granted.includes(p)).length
+  const leadText = lead === 0 ? 'не старший' : lead === ALL_LEAD_PERMISSIONS.length ? 'старший' : `старший: ${lead} из ${ALL_LEAD_PERMISSIONS.length}`
+  const kassaText = kassa === ALL_KASSA_PERMISSIONS.length ? 'касса без ограничений' : `касса: ${kassa} из ${ALL_KASSA_PERMISSIONS.length} прав`
+  return `${leadText}, ${kassaText}`
+}
+
+function PermissionGroup(props: {
+  title: string
+  items: ReadonlyArray<{ key: PointPermission; label: string; hint: string }>
+  selected: PointPermission[]
+  onToggle: (key: PointPermission) => void
+}) {
+  return (
+    <fieldset className="space-y-1.5">
+      <legend className="mb-1 text-xs text-slate-400">{props.title}</legend>
+      {props.items.map((permission) => (
+        <label key={permission.key} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
+          <input
+            type="checkbox"
+            checked={props.selected.includes(permission.key)}
+            onChange={() => props.onToggle(permission.key)}
+            className="mt-0.5 rounded border-border"
+          />
+          <span>
+            <span className="block font-medium text-foreground">{permission.label}</span>
+            <span className="block text-xs text-muted-foreground">{permission.hint}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  )
 }
 
 /** Поля должности на точке — одни и те же при создании и при правке. */
@@ -128,22 +166,11 @@ export function PointPositionFields(props: { draft: PointPositionDraft; onChange
           <MoneyInput value={draft.bonusAmount} onValueChange={(v) => onChange({ ...draft, bonusAmount: v })} />
         </label>
       )}
-      <fieldset className="space-y-1.5 sm:col-span-2">
-        <legend className="mb-1 text-xs text-slate-400">Что можно на точке</legend>
-        {POINT_PERMISSIONS.map((permission) => (
-          <label key={permission.key} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
-            <input
-              type="checkbox"
-              checked={draft.permissions.includes(permission.key)}
-              onChange={() => togglePermission(permission.key)}
-              className="mt-0.5 rounded border-border"
-            />
-            <span>
-              <span className="block font-medium text-foreground">{permission.label}</span>
-              <span className="block text-xs text-muted-foreground">{permission.hint}</span>
-            </span>
-          </label>
-        ))}
+      <div className="grid gap-3 sm:col-span-2 lg:grid-cols-2">
+        <PermissionGroup title="Старший на точке" items={LEAD_PERMISSIONS} selected={draft.permissions} onToggle={togglePermission} />
+        <PermissionGroup title="Касса" items={KASSA_PERMISSIONS} selected={draft.permissions} onToggle={togglePermission} />
+      </div>
+      <fieldset className="sm:col-span-2">
         <p className="text-xs text-muted-foreground">Продавать, открывать и закрывать смену может любой человек на точке.</p>
       </fieldset>
     </div>

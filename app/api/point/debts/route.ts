@@ -6,6 +6,7 @@ import { requirePointDevice } from '@/lib/server/point-devices'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { buildPointDebtTelegramMessage, sendOperatorDebtTelegramSnapshot } from '@/lib/server/services/salary'
 import { validateAdminToken } from '@/lib/server/admin-tokens'
+import { pointOperatorFromRequest, requirePointPermission } from '@/lib/server/point-permission-check'
 import { sendTelegram } from '@/lib/server/telegram'
 
 type CreateDebtBody = {
@@ -727,19 +728,24 @@ export async function POST(request: Request) {
     const isAdmin = adminToken ? validateAdminToken(adminToken) : false
 
     if (!isAdmin) {
-      // Разрешаем удаление: либо сам должник, либо тот кто добавил долг
-      const requestingOperatorId = (body as DeleteDebtBody).operatorId?.trim() || null
-      const isDebtor = item.operator_id && requestingOperatorId && item.operator_id === requestingOperatorId
-      const isCreator = item.created_by_operator_id && requestingOperatorId && item.created_by_operator_id === requestingOperatorId
-      if (item.operator_id && requestingOperatorId && !isDebtor && !isCreator) {
-        return json({ error: 'debt-belongs-to-another-operator' }, 403)
-      }
-      // Creator (not the debtor) can only delete within 15 minutes
-      if (isCreator && !isDebtor) {
-        const createdAt = new Date((item as any).created_at).getTime()
-        if (Date.now() - createdAt > 15 * 60_000) {
-          return json({ error: 'debt-delete-window-expired' }, 403)
-        }
+      // Удалить можно: свой долг; записанный тобой — в первые 15 минут; любой —
+      // с правом должности «Удалять чужие долги». Раньше без operatorId (и у долгов
+      // клиентов, где operator_id пуст) проверка не срабатывала вовсе.
+      const requestingOperatorId = pointOperatorFromRequest(request, (body as DeleteDebtBody).operatorId)
+      const isDebtor = !!item.operator_id && !!requestingOperatorId && item.operator_id === requestingOperatorId
+      const isCreator = !!item.created_by_operator_id && !!requestingOperatorId && item.created_by_operator_id === requestingOperatorId
+      const createdAt = new Date((item as any).created_at).getTime()
+      const freshOwnRecord = isCreator && Date.now() - createdAt <= 15 * 60_000
+      if (!isDebtor && !freshOwnRecord) {
+        const denied = await requirePointPermission({
+          request,
+          supabase,
+          companyId: device.company_id,
+          permission: 'kassa_delete_debts',
+          operatorId: requestingOperatorId,
+          strict: true,
+        })
+        if (denied) return denied
       }
     }
 

@@ -305,7 +305,7 @@ export default function ScannerPage({ config, bootstrap, session, isOffline: ini
     try {
       await api.deleteDebt(config, itemId, session.company.id, session.operator.operator_id)
     } catch {
-      await queueDeleteDebt(itemId, session.company.id)
+      await queueDeleteDebt(itemId, session.company.id, session.operator.operator_id)
       setPendingCount(await getPendingCount())
     }
     setDebts(prev => prev.filter(d => d.id !== itemId))

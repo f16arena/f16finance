@@ -22,7 +22,7 @@ import {
   type OrganizationAccess,
 } from '@/lib/server/organizations'
 import { resolveOrganizationByHost } from '@/lib/server/tenant-hosts'
-import { assignmentPointPermissions, type PointPermission } from '@/lib/core/point-permissions'
+import { assignmentPointPermissions, hasLeadPermission, type PointPermission } from '@/lib/core/point-permissions'
 import type { CompanyRestriction } from '@/lib/server/organizations'
 
 function parseCookies(header: string | null): Map<string, string> {
@@ -537,7 +537,8 @@ export async function listActiveOperatorLeadAssignments(supabase: ReturnType<typ
         position_name: position && position.is_active !== false ? String(position.name) : null,
       }
     })
-    .filter((item) => item.permissions.length > 0) as OperatorLeadAssignment[]
+    // Кабинет старшего — только при праве старшего; права кассы его не дают.
+    .filter((item) => hasLeadPermission(item.permissions)) as OperatorLeadAssignment[]
 }
 
 /** Должности на точке по id: название, права, роль. Ошибка — пустая карта (права по ролям). */

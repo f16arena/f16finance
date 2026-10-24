@@ -9,6 +9,8 @@ import { writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { isExtraCompany } from '@/lib/reports/extra-company'
 import { escapeTelegramHtml } from '@/lib/telegram/message-kit'
 import { sendTelegramMessage } from '@/lib/telegram/send'
+import { requirePointPermission } from '@/lib/server/point-permission-check'
+import { BIG_DISCOUNT_PERCENT } from '@/lib/core/point-permissions'
 import { broadcastKioskCommand } from '@/lib/server/kiosk-broadcast'
 
 function json(data: unknown, status = 200) {
@@ -246,6 +248,18 @@ export async function POST(request: Request) {
         discount_percent = 0,
       } = body
       if (!stationId || !tariffId) return json({ error: 'stationId and tariffId required' }, 400)
+      // Скидка на сеанс: 0–100 %, больше BIG_DISCOUNT_PERCENT — право должности.
+      const requestedDiscount = Math.min(100, Math.max(0, Number(discount_percent) || 0))
+      if (requestedDiscount > BIG_DISCOUNT_PERCENT && companyId) {
+        const discountDenied = await requirePointPermission({
+          request,
+          supabase,
+          companyId,
+          permission: 'kassa_big_discount',
+          operatorId: operatorId ? String(operatorId) : null,
+        })
+        if (discountDenied) return discountDenied
+      }
 
       // Ensure station is not already occupied (в пределах своего проекта)
       const { data: existing } = await supabase
@@ -297,7 +311,7 @@ export async function POST(request: Request) {
       }
 
       // Calculate discounted price
-      const discPct = Number(discount_percent) || 0
+      const discPct = requestedDiscount
       const discountedPrice = Math.round(Number(tariff.price) * (1 - discPct / 100))
 
       // Resolve cash/kaspi amounts

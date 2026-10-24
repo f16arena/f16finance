@@ -4,6 +4,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { humanizeDbError } from '@/lib/server/db-error-humanize'
 import { createPointInventoryReturn } from '@/lib/server/repositories/inventory'
 import { requirePointDevice } from '@/lib/server/point-devices'
+import { requirePointPermission } from '@/lib/server/point-permission-check'
 import { requireCurrentOpenShiftId } from '@/lib/server/point-shifts'
 
 type ReturnBody = {
@@ -330,6 +331,9 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as ReturnBody | null
     if (body?.action !== 'createReturn') return json({ error: 'invalid-action' }, 400)
+    // Возврат — право должности «Делать возвраты» (по умолчанию есть у всех).
+    const refundDenied = await requirePointPermission({ request, supabase, companyId: device.company_id, permission: 'kassa_refunds' })
+    if (refundDenied) return refundDenied
 
     const location = await resolvePointLocation(supabase, device.company_id)
     // v8: catalog_total больше не нужна; возврат пишется в point_display через RPC
