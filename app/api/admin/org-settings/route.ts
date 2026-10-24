@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { normalizeHolidaySettings } from '@/lib/core/holidays'
 import {
   normalizeOperatorPaySchedule,
   normalizeStaffPaySchedule,
@@ -37,8 +38,8 @@ export async function PATCH(request: Request) {
   const organizationId = access.activeOrganization?.id || null
   if (!organizationId) return json({ error: 'Выберите организацию' }, 400)
 
-  const body = (await request.json().catch(() => null)) as { staffPaySchedule?: unknown; operatorPaySchedule?: unknown } | null
-  if (!body || (body.staffPaySchedule === undefined && body.operatorPaySchedule === undefined)) {
+  const body = (await request.json().catch(() => null)) as { staffPaySchedule?: unknown; operatorPaySchedule?: unknown; holidays?: unknown } | null
+  if (!body || (body.staffPaySchedule === undefined && body.operatorPaySchedule === undefined && body.holidays === undefined)) {
     return json({ error: 'Нечего сохранять' }, 400)
   }
 
@@ -96,6 +97,10 @@ export async function PATCH(request: Request) {
     const operatorPaySchedule = nextOperator
     settings.operator_pay_schedule = serializeOperatorPaySchedule(operatorPaySchedule)
     changes.operatorPaySchedule = { before: before.operatorPaySchedule, after: operatorPaySchedule }
+  }
+  if (body.holidays !== undefined) {
+    settings.holidays = normalizeHolidaySettings(body.holidays)
+    changes.holidays = settings.holidays
   }
   const { error } = await supabase.from('organizations').update({ settings }).eq('id', organizationId)
   if (error) return json({ error: error.message }, 500)

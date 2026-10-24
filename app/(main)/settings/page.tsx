@@ -8,6 +8,7 @@ import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
+import { HolidaysCard } from '@/components/admin/holidays-card'
 import { DeleteCompanyDialog } from '@/components/admin/delete-company-dialog'
 import { listIndustries } from '@/lib/core/industries'
 import { activeZones } from '@/lib/core/revenue-zones'
@@ -85,6 +86,14 @@ export default function SettingsPage() {
   const companies = useMemo(() => allCompanies.filter((c) => !c.archived_at), [allCompanies])
   const closedCompanies = useMemo(() => allCompanies.filter((c) => !!c.archived_at), [allCompanies])
   const [zonesCompany, setZonesCompany] = useState<Company | null>(null)
+  // Настройки организации (праздники) меняет владелец — как и на сервере.
+  const [isOwner, setIsOwner] = useState(false)
+  useEffect(() => {
+    fetch('/api/auth/session-role')
+      .then((r) => r.json())
+      .then((d) => setIsOwner(d?.staffRole === 'owner' || !!d?.isSuperAdmin))
+      .catch(() => {})
+  }, [])
   const [staff, setStaff] = useState<Staff[]>([])
   const [companyLimit, setCompanyLimit] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -369,6 +378,8 @@ export default function SettingsPage() {
           />
 
           <OrgPayScheduleCard />
+
+          <HolidaysCard canEdit={isOwner} />
 
           {/* Должности (офис и точки) — одна страница «Должности и доступ». */}
           <Link

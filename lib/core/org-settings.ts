@@ -4,6 +4,8 @@
 // F16 и у всех, кто ничего не менял, поведение прежнее. Новый клиент выставляет своё
 // на /settings. Здесь только чистая логика: разбор, значения по умолчанию, подписи.
 
+import { DEFAULT_HOLIDAY_SETTINGS, normalizeHolidaySettings, type HolidaySettings } from './holidays'
+
 /**
  * График выплаты оклада админ-составу.
  *
@@ -49,6 +51,8 @@ export type OrgSettings = {
   positionLabels: Record<string, string>
   /** Налог (упрощёнка 910): ставка маслихата, реквизиты, что входит в оборот. */
   tax: OrgTaxSettings
+  /** Поздравления команды с праздниками (lib/core/holidays.ts). */
+  holidays: HolidaySettings
 }
 
 export type TaxableChannels = { cash: boolean; kaspi: boolean; online: boolean; card: boolean }
@@ -111,6 +115,7 @@ export const DEFAULT_ORG_SETTINGS: OrgSettings = {
   currency: DEFAULT_ORG_CURRENCY,
   positionLabels: {},
   tax: DEFAULT_TAX_SETTINGS,
+  holidays: DEFAULT_HOLIDAY_SETTINGS,
 }
 
 /** Встроенные должности, чью подпись организация может поменять. */
@@ -207,6 +212,7 @@ export function normalizeOrgSettings(raw: unknown): OrgSettings {
     currency: normalizeOrgCurrency(value.currency),
     positionLabels: normalizePositionLabels(value.position_labels),
     tax: normalizeTaxSettings(value.tax),
+    holidays: normalizeHolidaySettings(value.holidays),
   }
 }
 
