@@ -7,6 +7,7 @@ import type { OpenShiftInfo } from '@/lib/api'
 import { toastInfo } from '@/lib/toast'
 import { applyBranding } from '@/lib/branding'
 import { getQueueCounts, QUEUE_CHANGED_EVENT, OPEN_QUEUE_EVENT } from '@/lib/offline'
+import { getUiVersion, UI_VERSION_EVENT, type UiVersion } from '@/lib/preferences'
 import type { AppConfig, AppView, CompanyOption, OperatorSession, AdminSession, BootstrapData, AppUpdateState, QueueCounts, WorkReturnTo } from '@/types'
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
@@ -20,6 +21,8 @@ const InventorySalesPage = lazy(() =>
     ? import('@/pages/InventorySalesPage')
     : import('@/pages/InventorySalesPageMinimal'),
 )
+// Новый вид кассы (src/v2) — включается переключателем, классический остаётся запасным.
+const SaleScreenV2 = lazy(() => import('@/v2/sale/SaleScreenV2'))
 const InventoryReturnsPage = lazy(() => import('@/pages/InventoryReturnsPage'))
 const ScannerPage = lazy(() => import('@/pages/ScannerPage'))
 const InventoryRequestPage = lazy(() => import('@/pages/InventoryRequestPage'))
@@ -445,6 +448,12 @@ function QueueBadge({ counts, onClick }: { counts: QueueCounts; onClick: () => v
 
 export default function App() {
   const [view, setView] = useState<AppView>({ screen: 'booting' })
+  const [uiVersion, setUiVersionState] = useState<UiVersion>(() => getUiVersion())
+  useEffect(() => {
+    const sync = () => setUiVersionState(getUiVersion())
+    window.addEventListener(UI_VERSION_EVENT, sync)
+    return () => window.removeEventListener(UI_VERSION_EVENT, sync)
+  }, [])
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [isOffline, setIsOffline] = useState(false)
   const [updateState, setUpdateState] = useState<AppUpdateState | null>(null)
@@ -969,6 +978,25 @@ export default function App() {
 
   if (view.screen === 'inventory-sale') {
     const nav = buildWorkNav(view.bootstrap, view.session, 'sale')
+    if (uiVersion === 'v2') {
+      return withUpdateBanner(
+        <ErrorBoundary pageName="sale-v2">
+          <SaleScreenV2
+            config={config!}
+            bootstrap={view.bootstrap}
+            session={view.session}
+            onLogout={handleLogout}
+            onSwitchToShift={nav.onSwitchToShift}
+            onSwitchToReturn={nav.onSwitchToReturn}
+            onSwitchToScanner={nav.onSwitchToScanner}
+            onSwitchToRequest={nav.onSwitchToRequest}
+            onSwitchToHistory={nav.onSwitchToHistory}
+            onSwitchToArena={nav.onSwitchToArena}
+            onOpenCabinet={nav.onOpenCabinet}
+          />
+        </ErrorBoundary>,
+      )
+    }
     return withUpdateBanner(
       <InventorySalesPage
         config={config!}

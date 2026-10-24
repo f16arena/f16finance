@@ -105,3 +105,23 @@ export function applyAllPreferences() {
     } catch { /* ignore */ }
   }
 }
+
+/**
+ * Вид кассы: 'v2' — новый дизайн (src/v2), 'classic' — прежние экраны.
+ * Пока новый вид проверяется на точках, по умолчанию — классический; оператор
+ * переключает кнопкой в шапке, вернуться можно в одно касание.
+ */
+export type UiVersion = 'v2' | 'classic'
+const KEY_UI_VERSION = 'orda.uiVersion'
+export const UI_VERSION_EVENT = 'orda:ui-version'
+
+export function getUiVersion(): UiVersion {
+  if (typeof window === 'undefined') return 'classic'
+  return window.localStorage.getItem(KEY_UI_VERSION) === 'v2' ? 'v2' : 'classic'
+}
+
+export function setUiVersion(version: UiVersion) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(KEY_UI_VERSION, version)
+  window.dispatchEvent(new CustomEvent(UI_VERSION_EVENT))
+}

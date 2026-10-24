@@ -34,6 +34,7 @@ import {
   Trash2,
   UserCircle2,
   X,
+  Sparkles,
 } from 'lucide-react'
 
 import WorkModeSwitch from '@/components/WorkModeSwitch'
@@ -57,7 +58,7 @@ import {
   type SaleReceiptPreview,
 } from '@/lib/receipt-html'
 import { resolveRuntimeShift } from '@/lib/shift-runtime'
-import { getSalesLayout, type SalesLayout } from '@/lib/preferences'
+import { getSalesLayout, setUiVersion, type SalesLayout } from '@/lib/preferences'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { formatMoney, localRef, parseMoney } from '@/lib/utils'
 import { ReceiptEmailBox } from '@/components/ReceiptEmailBox'
@@ -1230,6 +1231,16 @@ export default function InventorySalesPageMinimal({
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{loading ? 'Синхронизирую…' : 'Синхронизировать'}</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setUiVersion('v2')}
+            className="h-9 gap-2 border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20 dark:text-sky-300"
+            title="Попробовать новый вид кассы — вернуться можно кнопкой в его шапке"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Новый вид</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowPreferences(true)} className="h-9 w-9 p-0" title="Настройки">
             <Settings className="h-4 w-4" />
