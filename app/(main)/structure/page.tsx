@@ -257,8 +257,11 @@ function CompanyBranch({
   onEditOperator?: (operator: Operator) => void
   canEdit?: boolean
 }) {
-  const leadAssignments = assignments.filter((item) => item.role_in_company !== 'operator')
-  const operatorAssignments = assignments.filter((item) => item.role_in_company === 'operator')
+  // Считаем только тех, кого показываем: закрепления уволенных/выключенных
+  // операторов остаются в базе, и счётчик «12» при 6 строках путал.
+  const shown = assignments.filter((item) => operatorsById.has(item.operator_id))
+  const leadAssignments = shown.filter((item) => item.role_in_company !== 'operator')
+  const operatorAssignments = shown.filter((item) => item.role_in_company === 'operator')
   const row = (assignment: Assignment) => {
     const operator = operatorsById.get(assignment.operator_id)
     if (!operator) return null
@@ -280,7 +283,7 @@ function CompanyBranch({
           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
           <h3 className="truncate text-sm font-semibold">{company.name}</h3>
         </div>
-        <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{assignments.length} чел.</span>
+        <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{shown.length} чел.</span>
       </div>
 
       <div className="px-1 pt-2">
