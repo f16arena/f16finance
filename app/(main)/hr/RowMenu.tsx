@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MoreVertical, Pencil, RefreshCw, UserCheck, UserMinus, type LucideIcon } from 'lucide-react'
+import { officePositionLabel } from '@/lib/core/positions'
 
 export type MenuAction = {
   label: string
@@ -187,7 +188,7 @@ export function InlineRoleDropdown({
                 p.name === current ? 'text-indigo-600 dark:text-indigo-300 bg-indigo-500/5' : 'text-slate-700 dark:text-gray-300'
               }`}
             >
-              {p.label || p.name}
+              {officePositionLabel(p.name, p.label)}
             </button>
           ))}
         </div>,

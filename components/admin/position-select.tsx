@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react'
 
 import { NativeSelect } from '@/components/ui/native-select'
 import type { BaseRole, PointPosition } from '@/components/admin/point-positions-card'
-
-const ROLE_LABELS: Record<BaseRole, string> = {
-  operator: 'Оператор',
-  senior_operator: 'Старший оператор',
-  senior_cashier: 'Старший кассир',
-}
+import { POINT_BASE_ROLE_LABELS as ROLE_LABELS } from '@/lib/core/positions'
 
 let cache: Promise<PointPosition[]> | null = null
+
+/** После правки должностей — следующий usePointPositions прочитает список заново. */
+export function invalidatePointPositions() {
+  cache = null
+}
 
 /** Должности организации — один запрос на страницу, сколько бы списков на ней ни было. */
 export function usePointPositions() {

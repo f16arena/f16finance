@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
 import { DeleteCompanyDialog } from '@/components/admin/delete-company-dialog'
-import { PointPositionsCard } from '@/components/admin/point-positions-card'
 import { listIndustries } from '@/lib/core/industries'
 import { activeZones } from '@/lib/core/revenue-zones'
 import { RevenueZonesDialog } from '@/components/admin/revenue-zones-dialog'
@@ -21,6 +20,8 @@ import {
   Pencil,
   Trash2,
   Archive,
+  Briefcase,
+  ChevronRight,
   Layers,
   RotateCcw,
   Save,
@@ -369,7 +370,22 @@ export default function SettingsPage() {
 
           <OrgPayScheduleCard />
 
-          <PointPositionsCard companies={companies} canEdit={can('salary-rules.edit')} />
+          {/* Должности (офис и точки) — одна страница «Должности и доступ». */}
+          <Link
+            href="/access"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-violet-500/40"
+          >
+            <span className="flex items-center gap-3">
+              <Briefcase className="h-5 w-5 text-violet-500" />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">Должности</span>
+                <span className="block text-xs text-muted-foreground">
+                  В офисе и на точках — названия, права, доплата за смену. Всё на странице «Должности и доступ».
+                </span>
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:gap-8">
 

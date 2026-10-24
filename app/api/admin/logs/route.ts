@@ -369,7 +369,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/dashboard': 'Дашборд',
   '/staff': 'Сотрудники',
   '/shifts': 'Смены',
-  '/access': 'Права доступа',
+  '/access': 'Должности и доступ',
   '/platform': 'Панель платформы',
   '/store': 'Склад',
   '/store/catalog': 'Каталог товаров',

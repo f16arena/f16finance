@@ -544,7 +544,7 @@ export const ACCESS_PAGE_GROUPS: readonly AccessPageGroup[] = [
     pages: [
       { path: '/settings', label: 'Настройки системы' },
       { path: '/server-monitor', label: 'Мониторинг сервера' },
-      { path: '/access', label: 'Права и пароли' },
+      { path: '/access', label: 'Должности и доступ' },
       { path: '/telegram', label: 'Telegram Bot' },
       { path: '/point-devices', label: 'Точки и устройства' },
       { path: '/logs', label: 'Логирование' },

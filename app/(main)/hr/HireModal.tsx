@@ -27,6 +27,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
 import { useModalEscape } from '@/lib/client/use-modal-escape'
+import { usePointPositions } from '@/components/admin/position-select'
+import { POINT_BASE_ROLE_LABELS, officePositionLabel } from '@/lib/core/positions'
 
 type HireType = 'operator' | 'staff'
 
@@ -89,6 +91,9 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
   const [companyIds, setCompanyIds] = useState<string[]>([])
   // Основная точка (is_primary) — куда оператор попадёт в веб-кассе по умолчанию.
   const [primaryCompanyId, setPrimaryCompanyId] = useState<string>('')
+  // Должность на точке (point_positions); пусто — обычный оператор.
+  const [pointPositionId, setPointPositionId] = useState('')
+  const pointPositions = usePointPositions()
   // staff-only
   const [monthlySalary, setMonthlySalary] = useState('')
 
@@ -96,6 +101,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
   useEffect(() => {
     if (!open) return
     setType('operator')
+    setPointPositionId('')
     setFullName('')
     setShortName('')
     setRole('')
@@ -186,6 +192,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
     }
     if (type === 'operator') {
       body.username = username.trim() || undefined
+      if (pointPositionId) body.position_id = pointPositionId
       // Основная точка — первой в массиве (бэкенд ставит is_primary на idx 0).
       body.company_ids =
         primaryCompanyId && companyIds.includes(primaryCompanyId)
@@ -353,7 +360,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
                     {positions.length === 0 && <option value="">Загрузка…</option>}
                     {positions.map((p) => (
                       <option key={p.id} value={p.name}>
-                        {p.label || p.name}
+                        {officePositionLabel(p.name, p.label)}
                       </option>
                     ))}
                   </select>
@@ -540,6 +547,25 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
                 Оператор будет прикреплён к точке{' '}
                 <b className="text-foreground">{companies[0].name}</b>
               </span>
+            </div>
+          )}
+
+          {/* Operator: должность на точке */}
+          {type === 'operator' && pointPositions.some((p) => p.is_active) && (
+            <div>
+              <SectionLabel icon={<Briefcase className="w-3.5 h-3.5" />}>Должность на точке</SectionLabel>
+              <select value={pointPositionId} onChange={(e) => setPointPositionId(e.target.value)} className={inputClass + ' mt-2'}>
+                <option value="">Оператор (без своей должности)</option>
+                {pointPositions
+                  .filter((p) => p.is_active && (!p.company_id || companyIds.length === 0 || companyIds.includes(p.company_id)))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — права {POINT_BASE_ROLE_LABELS[p.base_role].toLowerCase()}
+                      {p.shift_bonus > 0 ? `, +${Math.round(p.shift_bonus).toLocaleString('ru-RU')} ₸ за смену` : ''}
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Должность точки ставится на те точки, для которых она заведена.</p>
             </div>
           )}
 

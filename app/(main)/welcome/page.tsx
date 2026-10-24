@@ -185,7 +185,7 @@ export default function WelcomePage() {
             <p className="mt-2 text-sm text-amber-800/90 dark:text-amber-200/80">
               Вашей роли ещё не выданы права. Попросите владельца открыть нужные разделы на странице{' '}
               <Link href="/access" className="font-medium underline underline-offset-2 hover:opacity-80">
-                «Управление доступом»
+                «Должности и доступ»
               </Link>.
             </p>
           </div>
@@ -250,7 +250,7 @@ export default function WelcomePage() {
             Этот список собран из ваших прав и включённых функций тарифа. Чтобы изменить, какие разделы видит роль —
             откройте{' '}
             <Link href="/access" className="font-medium text-amber-600 underline underline-offset-2 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300">
-              Управление доступом
+              Должности и доступ
             </Link>.
           </p>
         </div>

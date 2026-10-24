@@ -39,6 +39,7 @@ import HireModal from './HireModal'
 import HrAnalytics from './HrAnalytics'
 import PositionsOverview from './PositionsOverview'
 import { InlineRoleDropdown, RowMenu } from './RowMenu'
+import { officePositionLabel } from '@/lib/core/positions'
 
 // ─── Типы и справочники ──────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ export default function HrPage() {
     void load()
     fetch('/api/admin/positions')
       .then((r) => r.json())
-      .then((d) => setPositions((d.data || []).map((p: any) => ({ name: p.name, label: p.label || p.name }))))
+      .then((d) => setPositions((d.data || []).map((p: any) => ({ name: p.name, label: officePositionLabel(p.name, p.label) }))))
       .catch(() => {})
     fetch('/api/admin/companies')
       .then((r) => r.json())

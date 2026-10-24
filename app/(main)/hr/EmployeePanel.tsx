@@ -31,6 +31,7 @@ import { Card } from '@/components/ui/card'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { DatePicker } from '@/components/ui/date-picker'
 import { useModalEscape } from '@/lib/client/use-modal-escape'
+import { officePositionLabel } from '@/lib/core/positions'
 
 type Position = { id: string; name: string; description: string | null; label?: string | null }
 type Company = { id: string; name: string; code: string | null }
@@ -430,7 +431,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
                   {positions.length === 0 && <option>{role || 'Загрузка…'}</option>}
                   {positions.map((p) => (
                     <option key={p.id} value={p.name}>
-                      {p.label || p.name}
+                      {officePositionLabel(p.name, p.label)}
                     </option>
                   ))}
                 </select>

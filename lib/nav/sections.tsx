@@ -224,7 +224,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: '/settings', label: 'Настройки системы', icon: Settings2, note: 'Компании и справочники' },
       { href: '/subscription', label: 'Подписка', icon: CreditCard, note: 'Тариф, модули и счета' },
-      { href: '/access', label: 'Права и пароли', icon: Shield, note: 'Доступ ролей и аккаунты' },
+      { href: '/access', label: 'Должности и доступ', icon: Shield, note: 'Должности офиса и точек, права, аккаунты' },
       { href: '/telegram', label: 'Telegram Bot', icon: MessageSquareText, note: 'Уведомления и команды', badge: 'new', badgeColor: 'blue' },
       { href: '/server-monitor', label: 'Мониторинг сервера', icon: Activity, note: 'Состояние Windows Server и аварии', badge: 'live', badgeColor: 'green', isNew: true },
       { href: '/point-devices', label: 'Точки и устройства', icon: Building2, note: 'Токены и программы точек' },
@@ -362,7 +362,7 @@ export function buildOwnerNavSections(): NavSection[] {
       subtitle: 'Точки, компании и доступ команды',
       accentColor: 'slate',
       icon: Settings2,
-      // /access («Права и пароли») — управление доступом, доступно только владельцу.
+      // /access («Должности и доступ») — управление доступом, доступно только владельцу.
       // /telegram — бот и чат для отчётов: настраивает клиент сам, не через SQL.
       // Платформенные пункты (/platform, /logs, /debug) владельцу не отдаём.
       items: [settingsItem, ...ARENA_ITEMS, telegramItem, serverMonitorItem, accessItem].filter(Boolean) as NavItem[],

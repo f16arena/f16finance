@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
+import { officePositionLabel } from '@/lib/core/positions'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -181,8 +182,7 @@ function RoleCard({ position, active, total }: { position: Position; active: num
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <h3 className="font-semibold text-foreground text-sm truncate">{position.label || position.name}</h3>
-            <span className="text-[10px] text-gray-500 font-mono">{position.name}</span>
+            <h3 className="font-semibold text-foreground text-sm truncate">{officePositionLabel(position.name, position.label)}</h3>
           </div>
           {position.description && (
             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{position.description}</p>

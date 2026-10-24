@@ -4,14 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Search, ShieldCheck, ShieldX, RotateCcw, X } from 'lucide-react'
 
 import { CAPABILITY_GROUPS } from '@/lib/core/capabilities'
+import { OFFICE_BUILTIN_LABELS } from '@/lib/core/positions'
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: 'Владелец',
-  manager: 'Руководитель',
-  marketer: 'Маркетолог',
-  other: 'Прочие',
-  super_admin: 'Супер-админ',
-}
+// Подписи ролей — общие для всех страниц (lib/core/positions.ts).
+const ROLE_LABELS: Record<string, string> = { ...OFFICE_BUILTIN_LABELS, super_admin: 'Супер-админ' }
 
 function roleLabel(role: string | null): string {
   if (!role) return '—'

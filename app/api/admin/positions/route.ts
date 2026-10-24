@@ -62,7 +62,22 @@ export async function GET(req: Request) {
       throw error
     }
 
-    return json({ data: data ?? [], tableExists: true })
+    // Сколько людей на каждой должности — чтобы список отвечал «кто тут есть».
+    const people = new Map<string, number>()
+    if (orgId) {
+      const { data: staffRows } = await supabase
+        .from('staff')
+        .select('role')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+      for (const row of (staffRows || []) as any[]) {
+        const role = String(row.role || '')
+        if (role) people.set(role, (people.get(role) || 0) + 1)
+      }
+    }
+    const rows = ((data ?? []) as any[]).map((row) => ({ ...row, people: people.get(String(row.name)) || 0 }))
+
+    return json({ data: rows, tableExists: true })
   } catch (e: any) {
     return json({ error: e?.message || 'Error' }, 500)
   }

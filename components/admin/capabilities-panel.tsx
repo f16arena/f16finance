@@ -8,19 +8,15 @@ import { CAPABILITY_GROUPS, isDenyByDefault, type Capability, type CapabilityPag
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useNavSession } from '@/lib/nav/use-nav-session'
 import { getPathFeature } from '@/lib/nav/sections'
+import { OFFICE_BUILTIN_LABELS } from '@/lib/core/positions'
 
 type RoleCapability = { role: string; capability: string; granted: boolean }
 
 // Soft modern: тёмный, плавные закругления, мягкие тени, изумруд/синий акценты.
 const card = 'rounded-2xl border border-border bg-white dark:bg-slate-900/60 shadow-lg shadow-black/20'
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: 'Владелец',
-  manager: 'Руководитель',
-  marketer: 'Маркетолог',
-  other: 'Прочие',
-  super_admin: 'Супер-админ',
-}
+// Подписи ролей — общие для всех страниц (lib/core/positions.ts).
+const ROLE_LABELS: Record<string, string> = { ...OFFICE_BUILTIN_LABELS, super_admin: 'Супер-админ' }
 
 function roleLabel(role: string): string {
   return ROLE_LABELS[role] || role.charAt(0).toUpperCase() + role.slice(1)

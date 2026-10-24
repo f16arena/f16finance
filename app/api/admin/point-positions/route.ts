@@ -81,7 +81,21 @@ export async function GET(request: Request) {
       throw error
     }
 
-    return json({ ok: true, data: ((data || []) as any[]).filter((row) => visible(row, ctx.allowedCompanyIds)) })
+    const rows = ((data || []) as any[]).filter((row) => visible(row, ctx.allowedCompanyIds))
+    // Сколько людей сейчас назначено на каждую должность.
+    const people = new Map<string, number>()
+    if (rows.length > 0) {
+      const { data: assigned } = await ctx.supabase
+        .from('operator_company_assignments')
+        .select('position_id')
+        .in('position_id', rows.map((row) => row.id))
+        .eq('is_active', true)
+      for (const row of (assigned || []) as any[]) {
+        const id = String(row.position_id || '')
+        if (id) people.set(id, (people.get(id) || 0) + 1)
+      }
+    }
+    return json({ ok: true, data: rows.map((row) => ({ ...row, people: people.get(String(row.id)) || 0 })) })
   } catch (error: any) {
     await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/point-positions GET', message: error?.message || 'error' })
     return json({ error: error?.message || 'Ошибка сервера' }, 500)

@@ -89,6 +89,8 @@ type HireBody = {
   // operator only:
   username?: string
   company_ids?: string[]
+  /** Должность на точке (point_positions) — права в кассе и доплата. */
+  position_id?: string | null
   // staff only:
   monthly_salary?: number
 }
@@ -271,13 +273,30 @@ export async function POST(request: Request) {
 
     // 4. Назначения на компании/точки (company_ids уже проверены на принадлежность орг)
     if (assignmentCompanyIds.length > 0) {
-      const assignments = assignmentCompanyIds.map((companyId, idx) => ({
-        operator_id: operatorId,
-        company_id: companyId,
-        role_in_company: 'operator',
-        is_primary: idx === 0,
-        is_active: true,
-      }))
+      // Должность на точке: только своей организации и действующая. Ставится на те
+      // точки, для которых она заведена (company_id null — на всех).
+      let position: { id: string; company_id: string | null; base_role: string } | null = null
+      if (body.position_id && organizationId) {
+        const { data } = await supabase
+          .from('point_positions')
+          .select('id, company_id, base_role')
+          .eq('id', String(body.position_id))
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .maybeSingle()
+        position = (data as any) || null
+      }
+      const assignments = assignmentCompanyIds.map((companyId, idx) => {
+        const fits = !!position && (!position.company_id || position.company_id === companyId)
+        return {
+          operator_id: operatorId,
+          company_id: companyId,
+          role_in_company: fits ? position!.base_role : 'operator',
+          ...(fits ? { position_id: position!.id } : {}),
+          is_primary: idx === 0,
+          is_active: true,
+        }
+      })
       const { data: insertedAssign, error: assignErr } = await supabase
         .from('operator_company_assignments')
         .insert(assignments)

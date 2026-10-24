@@ -8,14 +8,18 @@ import { toast } from '@/hooks/use-toast'
 import { UserOverridesPanel } from '@/components/admin/user-overrides-panel'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { CardSkeleton } from '@/components/skeleton'
+import { MoneyInput } from '@/components/ui/money-input'
+import { NativeSelect } from '@/components/ui/native-select'
+import { BASE_ROLE_LABELS, PointPositionsList, postPointPosition, type BaseRole } from '@/components/admin/point-positions-card'
+import { OFFICE_BUILTIN_LABELS, POSITION_KIND_LABELS, officePositionLabel, peopleCountLabel, type PositionKind } from '@/lib/core/positions'
 import {
   CheckCircle2, Copy, Eye, EyeOff, KeyRound, Loader2,
   Lock, Pencil, Plus, RefreshCw, Shield, Trash2, Users, X, Briefcase, Save, SlidersHorizontal,
-  ChevronDown, Info, ArrowRight,
+  ChevronDown, Info, ArrowRight, Building2, Store,
 } from 'lucide-react'
 
 // ==================== TYPES ====================
-type Position = { id: string; name: string; description: string | null; is_builtin: boolean; created_at: string | null }
+type Position = { id: string; name: string; label?: string | null; description: string | null; is_builtin: boolean; created_at: string | null; people?: number }
 type StaffRow = {
   id: string
   full_name: string | null
@@ -38,12 +42,7 @@ type GeneratedPassword = {
 }
 
 // ==================== CONSTANTS ====================
-const BUILTIN_LABELS: Record<string, string> = {
-  manager: 'Руководитель',
-  marketer: 'Маркетолог',
-  owner: 'Владелец',
-  other: 'Прочие',
-}
+const BUILTIN_LABELS = OFFICE_BUILTIN_LABELS
 
 const SQL_POSITIONS = `create table if not exists positions (
   id uuid primary key default gen_random_uuid(),
@@ -81,13 +80,18 @@ function accountStateLabel(state: AccountInfo['accountState']) {
 }
 
 function posLabel(pos: Position) {
-  return pos.is_builtin ? (BUILTIN_LABELS[pos.name] ?? pos.name) : pos.name
+  return officePositionLabel(pos.name, pos.label)
 }
 
 // ==================== PAGE ====================
 export default function AccessPage() {
   const { can } = useCapabilities()
   const [tab, setTab] = useState<'positions' | 'permissions' | 'accounts'>('positions')
+  // ?tab=permissions|accounts — чтобы на нужную вкладку вели ссылки из Настроек и HR.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab')
+    if (requested === 'permissions' || requested === 'accounts') setTab(requested)
+  }, [])
   // Суперадмин правит глобальный дефолт (role_capabilities), владелец орг — свой
   // слой (org_role_capabilities). Определяем по session-role.
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null)
@@ -130,6 +134,20 @@ export default function AccessPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [posCopied, setPosCopied] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string>('')
+
+  // Одна форма для обоих видов должностей: в офисе (портал) и на точке (касса).
+  const [createKind, setCreateKind] = useState<PositionKind>('office')
+  const [pointCompanies, setPointCompanies] = useState<Array<{ id: string; name: string }>>([])
+  const [newPointCompany, setNewPointCompany] = useState('')
+  const [newPointRole, setNewPointRole] = useState<BaseRole>('operator')
+  const [newPointBonus, setNewPointBonus] = useState('0')
+  const [pointReloadKey, setPointReloadKey] = useState(0)
+  useEffect(() => {
+    fetch('/api/admin/companies?open=1', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setPointCompanies(((d?.data || []) as any[]).map((c) => ({ id: String(c.id), name: String(c.name) }))))
+      .catch(() => {})
+  }, [])
 
   // --- Accounts state ---
   const [staff, setStaff] = useState<StaffRow[]>([])
@@ -192,6 +210,22 @@ export default function AccessPage() {
     const name = newPosName.trim()
     if (!name) return
     setCreatingPos(true)
+    if (createKind === 'point') {
+      try {
+        await postPointPosition({
+          action: 'create',
+          payload: { name, company_id: newPointCompany || null, base_role: newPointRole, shift_bonus: Number(newPointBonus || 0) },
+        })
+        setNewPosName('')
+        setNewPointBonus('0')
+        setPointReloadKey((k) => k + 1)
+        toast({ title: 'Должность на точке создана', description: 'Назначить её можно в «Структуре», при найме и в мастере точки.' })
+      } catch (e: any) {
+        toast({ title: 'Не удалось создать должность', description: e?.message, variant: 'destructive' })
+      }
+      setCreatingPos(false)
+      return
+    }
     try {
       const res = await fetch('/api/admin/positions', {
         method: 'POST',
@@ -435,8 +469,8 @@ export default function AccessPage() {
               <Shield className="h-5 w-5" aria-hidden />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">Доступ</h1>
-              <p className="mt-0.5 text-sm text-slate-400">Должности, права на страницы и аккаунты сотрудников</p>
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">Должности и доступ</h1>
+              <p className="mt-0.5 text-sm text-slate-400">Должности в офисе и на точках, права на страницы и аккаунты сотрудников</p>
             </div>
           </div>
           <Link href="/" className="rounded-xl border border-border bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-xs text-body transition-colors hover:bg-slate-200 dark:hover:bg-white/10">
@@ -493,7 +527,7 @@ export default function AccessPage() {
             <ol className="space-y-2.5">
               <li className="flex gap-3">
                 <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">1</span>
-                <span><span className="font-medium text-foreground">Должность</span> (роль) — набор прав. Создайте нужные во вкладке «Должности»: например «Бухгалтер», «Кассир-старший». Новая должность создаётся <span className="font-medium text-foreground">пустой</span> — без доступа.</span>
+                <span><span className="font-medium text-foreground">Должность</span> бывает двух видов. <span className="font-medium text-foreground">В офисе</span> («Бухгалтер», «SMM») — какие страницы портала видно; создаётся <span className="font-medium text-foreground">пустой</span>, без доступа. <span className="font-medium text-foreground">На точке</span> («Бариста», «Старший смены») — права в кассе и доплата за смену.</span>
               </li>
               <li className="flex gap-3">
                 <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">2</span>
@@ -516,7 +550,7 @@ export default function AccessPage() {
         <>
           <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-muted-foreground">
             <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-            Должности — это роли с набором прав. Базовые (Владелец, Руководитель, Маркетолог) менять нельзя. Создавайте свои под задачи; права настраиваются во вкладке «Права».
+            Все должности организации в одном месте. Офисные решают, какие страницы портала видно (права — во вкладке «Права»); должности на точке — права в кассе и доплату. Базовые (Владелец, Руководитель, Маркетолог) менять нельзя.
           </p>
           {posTableExists === false && (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-5">
@@ -543,15 +577,38 @@ export default function AccessPage() {
               <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"><Plus className="h-4 w-4" /></span>
               Создать должность
             </h2>
+            <div className="mb-3 inline-flex gap-1 rounded-2xl border border-border bg-slate-50 dark:bg-slate-950/50 p-1" role="tablist" aria-label="Где работает">
+              {(['office', 'point'] as PositionKind[]).map((kind) => {
+                const active = createKind === kind
+                const KindIcon = kind === 'office' ? Building2 : Store
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setCreateKind(kind)}
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-sm font-medium transition-all ${
+                      active ? 'bg-white dark:bg-white/10 text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <KindIcon className="h-4 w-4" aria-hidden />
+                    {POSITION_KIND_LABELS[kind].title}
+                    <span className="hidden text-xs font-normal text-muted-foreground sm:inline">· {POSITION_KIND_LABELS[kind].hint}</span>
+                  </button>
+                )
+              })}
+            </div>
             <div className="flex flex-wrap gap-3">
               <input
                 type="text"
-                placeholder="Название (напр. бухгалтер)"
+                placeholder={createKind === 'office' ? 'Название (напр. Бухгалтер)' : 'Название (напр. Бариста)'}
                 value={newPosName}
                 onChange={e => setNewPosName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleCreatePosition()}
                 className={`${inputCls} min-w-40 flex-1`}
               />
+              {createKind === 'office' && (
               <input
                 type="text"
                 placeholder="Описание (необязательно)"
@@ -559,15 +616,42 @@ export default function AccessPage() {
                 onChange={e => setNewPosDesc(e.target.value)}
                 className={`${inputCls} min-w-48 flex-1`}
               />
+              )}
               <button
                 onClick={handleCreatePosition}
-                disabled={!newPosName.trim() || creatingPos || posTableExists === false || (newPosSeed === 'copy_from' && !newPosCopyFrom)}
+                disabled={!newPosName.trim() || creatingPos || (createKind === 'office' && (posTableExists === false || (newPosSeed === 'copy_from' && !newPosCopyFrom)))}
                 className={btnPrimary}
               >
                 {creatingPos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Создать
               </button>
             </div>
+            {createKind === 'point' && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <label className="space-y-1 text-xs text-slate-400">
+                  <span>Где</span>
+                  <NativeSelect value={newPointCompany} onChange={(e) => setNewPointCompany(e.target.value)}>
+                    <option value="">На всех точках</option>
+                    {pointCompanies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </NativeSelect>
+                </label>
+                <label className="space-y-1 text-xs text-slate-400">
+                  <span>Права в кассе</span>
+                  <NativeSelect value={newPointRole} onChange={(e) => setNewPointRole(e.target.value as BaseRole)}>
+                    {(Object.keys(BASE_ROLE_LABELS) as BaseRole[]).map((role) => (
+                      <option key={role} value={role}>{BASE_ROLE_LABELS[role]}</option>
+                    ))}
+                  </NativeSelect>
+                </label>
+                <label className="space-y-1 text-xs text-slate-400">
+                  <span>Доплата за смену, ₸ (заменяет бонус старшего)</span>
+                  <MoneyInput value={newPointBonus} onValueChange={setNewPointBonus} />
+                </label>
+              </div>
+            )}
+            {createKind === 'office' && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-400">Стартовые права:</span>
               <select
@@ -598,8 +682,14 @@ export default function AccessPage() {
                 <span className="text-xs text-slate-500">роль без доступа — включите нужное во вкладке «Права»</span>
               )}
             </div>
+            )}
           </div>
           )}
+
+          <h2 className="flex items-center gap-2 px-1 pt-2 text-sm font-semibold text-foreground">
+            <Building2 className="h-4 w-4 text-emerald-500" /> {POSITION_KIND_LABELS.office.title}
+            <span className="font-normal text-muted-foreground">· {POSITION_KIND_LABELS.office.hint}</span>
+          </h2>
 
           {/* Positions list */}
           {positionsLoading ? (
@@ -644,7 +734,9 @@ export default function AccessPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-foreground">{posLabel(pos)}</p>
-                            <span className="font-mono text-xs text-slate-500">{pos.name}</span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-slate-100 dark:bg-white/5 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              <Users className="h-3 w-3" /> {peopleCountLabel(pos.people || 0)}
+                            </span>
                             {pos.is_builtin && (
                               <span className="rounded-full border border-border bg-slate-100 dark:bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">базовая</span>
                             )}
@@ -687,6 +779,12 @@ export default function AccessPage() {
               )}
             </div>
           )}
+
+          <h2 className="flex items-center gap-2 px-1 pt-2 text-sm font-semibold text-foreground">
+            <Store className="h-4 w-4 text-violet-500" /> {POSITION_KIND_LABELS.point.title}
+            <span className="font-normal text-muted-foreground">· {POSITION_KIND_LABELS.point.hint}</span>
+          </h2>
+          <PointPositionsList companies={pointCompanies} canEdit={can('access.create_role')} reloadKey={pointReloadKey} />
         </>
       )}
 
