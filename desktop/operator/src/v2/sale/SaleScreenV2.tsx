@@ -3,6 +3,10 @@ import {
   ArrowRightLeft,
   BadgePercent,
   Check,
+  Gift,
+  PauseCircle,
+  RotateCw,
+  UserRound,
   Clock,
   Cookie,
   CupSoda,
@@ -22,7 +26,7 @@ import {
 } from 'lucide-react'
 
 import { buildReceiptHtmlForPreview, formatShiftLabel, printReceiptFromIframe } from '@/lib/receipt-html'
-import type { AppConfig, BootstrapData, OperatorSession, PointInventorySaleItem } from '@/types'
+import type { AppConfig, BootstrapData, Customer, OperatorSession, PointInventorySaleItem, PointInventorySaleRow } from '@/types'
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
 import { useSaleEngine } from './useSaleEngine'
@@ -105,7 +109,16 @@ export default function SaleScreenV2(props: Props) {
   const engine = useSaleEngine({ config: props.config, bootstrap: props.bootstrap, session: props.session })
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
-  const [sheet, setSheet] = useState<null | 'mixed' | 'discount' | 'universal'>(null)
+  const [sheet, setSheet] = useState<null | 'mixed' | 'discount' | 'universal' | 'customer' | 'parked' | 'correct'>(null)
+  const [pane, setPane] = useState<'catalog' | 'sales'>('catalog')
+  const [promoDraft, setPromoDraft] = useState('')
+  const [customerQuery, setCustomerQuery] = useState('')
+  const [customerResults, setCustomerResults] = useState<Customer[]>([])
+  const [customerLoading, setCustomerLoading] = useState(false)
+  const [correctSale, setCorrectSale] = useState<PointInventorySaleRow | null>(null)
+  const [correctMethod, setCorrectMethod] = useState<'cash' | 'kaspi' | 'mixed'>('cash')
+  const [correctCash, setCorrectCash] = useState('')
+  const [correctReason, setCorrectReason] = useState('')
   const [mixedCash, setMixedCash] = useState('')
   const [discountDraft, setDiscountDraft] = useState('')
   const [uniName, setUniName] = useState('')
@@ -175,6 +188,40 @@ export default function SaleScreenV2(props: Props) {
     }
   }
 
+  // Поиск клиента по имени, телефону или карте — с паузой 300 мс, как раньше.
+  useEffect(() => {
+    if (sheet !== 'customer') return
+    const q = customerQuery.trim()
+    if (q.length < 2) {
+      setCustomerResults([])
+      return
+    }
+    let cancelled = false
+    const t = setTimeout(async () => {
+      setCustomerLoading(true)
+      try {
+        const found = await engine.searchCustomers(q)
+        if (!cancelled) setCustomerResults(found)
+      } catch {
+        /* тихо — оператор просто не увидит результатов */
+      } finally {
+        if (!cancelled) setCustomerLoading(false)
+      }
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [customerQuery, sheet])
+
+  function openCorrection(sale: PointInventorySaleRow) {
+    setCorrectSale(sale)
+    setCorrectMethod(sale.payment_method || 'cash')
+    setCorrectCash(String(Math.round(Number(sale.cash_amount || 0))))
+    setCorrectReason('')
+    setSheet('correct')
+  }
+
   // Сканер штрихкода печатает как клавиатура и жмёт Enter — ловим ввод,
   // даже если фокус не в поиске (кроме полей шторок).
   useEffect(() => {
@@ -234,6 +281,22 @@ export default function SaleScreenV2(props: Props) {
         {/* ── Каталог ─────────────────────────────────────────────────── */}
         <main className="flex min-h-0 flex-col gap-3">
           <div className="flex items-center gap-3">
+            <div className="fill flex shrink-0 items-center gap-1 rounded-[14px] p-1">
+              {([
+                ['catalog', 'Товары'],
+                ['sales', `Продажи смены · ${engine.sales.length}`],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPane(id)}
+                  className={`press h-10 rounded-[11px] px-3.5 text-[14px] font-medium ${pane === id ? 'pill-active' : 'ink-2'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {pane === 'catalog' ? (
             <label className="surface flex h-12 flex-1 items-center gap-2.5 rounded-[14px] px-4">
               <Search className="muted h-[18px] w-[18px]" />
               <input
@@ -252,11 +315,49 @@ export default function SaleScreenV2(props: Props) {
                 <kbd className="fill muted rounded-md px-1.5 text-[12px]">F2</kbd>
               )}
             </label>
-            <button type="button" onClick={() => setSheet('universal')} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
-              <PenLine className="t-blue h-[18px] w-[18px]" /> Свободная цена
-            </button>
+            ) : (
+              <div className="flex-1" />
+            )}
+            {pane === 'catalog' ? (
+              <button type="button" onClick={() => setSheet('universal')} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
+                <PenLine className="t-blue h-[18px] w-[18px]" /> Свободная цена
+              </button>
+            ) : (
+              <button type="button" onClick={() => void engine.reload()} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
+                <RotateCw className="t-blue h-[18px] w-[18px]" /> Обновить
+              </button>
+            )}
           </div>
 
+          {pane === 'sales' ? (
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+              {engine.sales.length === 0 ? (
+                <div className="muted flex h-full items-center justify-center text-[16px]">За эту смену продаж ещё нет</div>
+              ) : (
+                engine.sales.map((sale) => {
+                  const names = (sale.items || []).map((it) => `${it.item?.name || 'Товар'} × ${it.quantity}`).join(', ')
+                  const method =
+                    sale.payment_method === 'cash' ? 'Наличные' : sale.payment_method === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная'
+                  return (
+                    <div key={sale.id} className="surface flex items-center gap-4 rounded-[18px] p-4">
+                      <div className="w-14 shrink-0 text-[17px] font-semibold">
+                        {new Date(sale.sold_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-medium">{names || 'Продажа'}</div>
+                        <div className="muted text-[13px]">{method}</div>
+                      </div>
+                      <div className="text-[18px] font-semibold">{money(sale.total_amount)} ₸</div>
+                      <button type="button" onClick={() => openCorrection(sale)} className="press fill h-10 rounded-[12px] px-3 text-[14px] font-medium">
+                        Исправить оплату
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          ) : (
+          <>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((c) => {
               const look = c === 'all' ? { icon: LayoutGrid, color: '#8e8e93' } : lookFor(c)
@@ -339,12 +440,21 @@ export default function SaleScreenV2(props: Props) {
               </div>
             )}
           </div>
+          </>
+          )}
         </main>
 
         {/* ── Заказ ───────────────────────────────────────────────────── */}
         <aside className="glass relative flex min-h-0 flex-col rounded-[28px] p-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-[22px] font-bold tracking-tight">Заказ</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-[22px] font-bold tracking-tight">Заказ</h2>
+              {engine.parked.length > 0 ? (
+                <button type="button" onClick={() => setSheet('parked')} className="press flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--orange)' }}>
+                  <PauseCircle className="h-4 w-4" /> Отложено · {engine.parked.length}
+                </button>
+              ) : null}
+            </div>
             <button type="button" onClick={engine.clear} disabled={engine.cart.length === 0} className="press t-red flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium">
               <Trash2 className="h-4 w-4" /> Очистить
             </button>
@@ -379,21 +489,45 @@ export default function SaleScreenV2(props: Props) {
             ))}
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          {engine.customer ? (
+            <button type="button" onClick={() => setSheet('customer')} className="press surface mt-3 flex items-center gap-3 rounded-[16px] p-3 text-left">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: 'color-mix(in srgb, var(--blue) 15%, transparent)' }}>
+                <UserRound className="t-blue h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-medium">{engine.customer.name}</div>
+                <div className="muted text-[13px]">
+                  {engine.loyaltyActive
+                    ? `${money(engine.customer.loyalty_points || 0)} бонусов${engine.loyaltyDiscountAmount ? ` · списать ${money(engine.loyaltyDiscountAmount)}` : ''} · +${money(engine.pointsEarned)} за покупку`
+                    : engine.customer.phone || 'клиент'}
+                </div>
+              </div>
+              <Gift className="muted h-5 w-5" />
+            </button>
+          ) : null}
+
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            <button type="button" onClick={() => setSheet('customer')} className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium" style={engine.customer ? { color: 'var(--blue)' } : undefined}>
+              <UserRound className="h-4 w-4" /> Клиент
+            </button>
             <button
               type="button"
               onClick={() => {
-                setDiscountDraft(engine.discountPercent ? String(engine.discountPercent) : '')
+                setDiscountDraft(engine.manualDiscount ? String(engine.manualDiscount) : '')
+                setPromoDraft(engine.promo?.code || '')
                 setSheet('discount')
               }}
               disabled={engine.cart.length === 0}
               className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium"
               style={discountOn ? { color: 'var(--blue)' } : undefined}
             >
-              <BadgePercent className="h-4 w-4" /> {discountOn ? `Скидка ${engine.discountPercent}%` : 'Скидка'}
+              <BadgePercent className="h-4 w-4" /> {discountOn ? `${Math.round(engine.discountPercent)}%` : 'Скидка'}
             </button>
-            <button type="button" onClick={() => setSheet('mixed')} disabled={engine.cart.length === 0} className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium">
-              <ArrowRightLeft className="h-4 w-4" /> Смешанная · F4
+            <button type="button" onClick={() => engine.park()} disabled={engine.cart.length === 0} className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium" title="Отложить корзину до конца смены">
+              <PauseCircle className="h-4 w-4" /> Отложить
+            </button>
+            <button type="button" onClick={() => setSheet('mixed')} disabled={engine.cart.length === 0} className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium" title="Смешанная оплата (F4)">
+              <ArrowRightLeft className="h-4 w-4" /> F4
             </button>
           </div>
 
@@ -402,7 +536,8 @@ export default function SaleScreenV2(props: Props) {
               <div className="muted text-[14px]">Итого</div>
               <div className="muted text-[13px]">
                 {engine.cart.length} {plural(engine.cart.length, 'позиция', 'позиции', 'позиций')} · {engine.pieces} шт
-                {discountOn ? ` · −${money(engine.discountAmount)} ₸` : ''}
+                {discountOn ? ` · скидка −${money(engine.discountAmount)} ₸` : ''}
+                {engine.loyaltyDiscountAmount ? ` · бонусы −${money(engine.loyaltyDiscountAmount)} ₸` : ''}
               </div>
             </div>
             <div className="text-[44px] font-bold leading-none tracking-tight">{money(engine.total)} ₸</div>
@@ -442,11 +577,33 @@ export default function SaleScreenV2(props: Props) {
                 ))}
               </div>
               <MoneyField label="Свой процент" value={discountDraft} onChange={(v) => setDiscountDraft(String(Math.min(99, Number(v || 0)) || ''))} suffix="%" />
+              <label className="mt-3 block">
+                <span className="muted text-[13px]">Или промокод{engine.promo ? ` · сейчас «${engine.promo.code}»` : ''}</span>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    value={promoDraft}
+                    onChange={(e) => setPromoDraft(e.target.value.toUpperCase())}
+                    className="surface h-12 flex-1 rounded-[14px] px-4 text-[17px] font-semibold tracking-wide outline-none"
+                    placeholder="SUMMER10"
+                  />
+                  <button
+                    type="button"
+                    disabled={!promoDraft.trim()}
+                    onClick={async () => {
+                      if (await engine.applyPromo(promoDraft)) setSheet(null)
+                    }}
+                    className="press btn-blue h-12 rounded-[14px] px-5 text-[15px] font-semibold"
+                  >
+                    Применить
+                  </button>
+                </div>
+              </label>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    engine.setDiscountPercent(0)
+                    engine.setDiscount(0)
+                    engine.clearPromo()
                     setSheet(null)
                   }}
                   className="press fill h-12 rounded-[14px] text-[15px] font-medium"
@@ -456,7 +613,7 @@ export default function SaleScreenV2(props: Props) {
                 <button
                   type="button"
                   onClick={() => {
-                    engine.setDiscountPercent(Number(discountDraft || 0))
+                    engine.setDiscount(Number(discountDraft || 0))
                     setSheet(null)
                   }}
                   className="press btn-blue h-12 rounded-[14px] text-[15px] font-semibold"
@@ -494,6 +651,156 @@ export default function SaleScreenV2(props: Props) {
                 className="press btn-blue mt-4 h-14 w-full rounded-[16px] text-[17px] font-semibold"
               >
                 Добавить в заказ
+              </button>
+            </Sheet>
+          ) : null}
+
+          {sheet === 'customer' ? (
+            <Sheet title="Клиент" onClose={() => setSheet(null)}>
+              {engine.customer ? (
+                <div className="space-y-3">
+                  <div className="surface rounded-[16px] p-4">
+                    <div className="text-[17px] font-semibold">{engine.customer.name}</div>
+                    <div className="muted text-[14px]">{engine.customer.phone || engine.customer.card_number || 'без телефона'}</div>
+                    {engine.loyaltyActive ? (
+                      <div className="mt-2 text-[15px]">
+                        Бонусов: <b>{money(engine.customer.loyalty_points || 0)}</b> · можно списать до {money(engine.maxRedeemablePoints)}
+                      </div>
+                    ) : null}
+                  </div>
+                  {engine.loyaltyActive && engine.maxRedeemablePoints > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[0, Math.floor(engine.maxRedeemablePoints / 2), engine.maxRedeemablePoints].map((pts, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => engine.setPointsToSpend(pts)}
+                          className={`press h-12 rounded-[14px] text-[15px] font-semibold ${engine.pointsToSpend === pts ? 'btn-blue' : 'fill'}`}
+                        >
+                          {pts === 0 ? 'Не списывать' : `Списать ${money(pts)}`}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => engine.setCustomer(null)} className="press fill h-12 rounded-[14px] text-[15px] font-medium">
+                      Убрать клиента
+                    </button>
+                    <button type="button" onClick={() => setSheet(null)} className="press btn-blue h-12 rounded-[14px] text-[15px] font-semibold">
+                      Готово
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="surface flex h-12 items-center gap-2.5 rounded-[14px] px-4">
+                    <Search className="muted h-[18px] w-[18px]" />
+                    <input
+                      value={customerQuery}
+                      onChange={(e) => setCustomerQuery(e.target.value)}
+                      autoFocus
+                      placeholder="Имя, телефон или карта"
+                      className="placeholder-muted h-full flex-1 bg-transparent text-[16px] outline-none"
+                    />
+                    {customerLoading ? <Loader2 className="muted h-4 w-4 animate-spin" /> : null}
+                  </div>
+                  <div className="mt-3 max-h-64 space-y-2 overflow-auto">
+                    {customerResults.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          engine.setCustomer(c)
+                          setCustomerQuery('')
+                          setCustomerResults([])
+                        }}
+                        className="press surface flex w-full items-center justify-between rounded-[14px] p-3 text-left"
+                      >
+                        <span>
+                          <span className="block text-[15px] font-medium">{c.name}</span>
+                          <span className="muted block text-[13px]">{c.phone || c.card_number || ''}</span>
+                        </span>
+                        <span className="muted text-[13px]">{money(c.loyalty_points || 0)} бонусов</span>
+                      </button>
+                    ))}
+                    {customerQuery.trim().length >= 2 && !customerLoading && customerResults.length === 0 ? (
+                      <p className="muted px-1 text-[14px]">Никого не нашли</p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </Sheet>
+          ) : null}
+
+          {sheet === 'parked' ? (
+            <Sheet title="Отложенные корзины" onClose={() => setSheet(null)}>
+              <div className="max-h-80 space-y-2 overflow-auto">
+                {engine.parked.length === 0 ? <p className="muted text-[15px]">Отложенных корзин нет</p> : null}
+                {engine.parked.map((p) => {
+                  const sum = p.items.reduce((acc, it) => acc + it.quantity * it.unit_price, 0)
+                  return (
+                    <div key={p.id} className="surface flex items-center gap-3 rounded-[16px] p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-medium">{p.label}</div>
+                        <div className="muted text-[13px]">
+                          {new Date(p.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} · {p.items.length} поз. · {money(sum)} ₸
+                          {p.customer ? ` · ${p.customer.name}` : ''}
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => engine.removeParked(p.id)} className="press fill grid h-10 w-10 place-items-center rounded-full" aria-label="Удалить отложку">
+                        <Trash2 className="t-red h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={engine.cart.length > 0}
+                        title={engine.cart.length > 0 ? 'Сначала оплатите или отложите текущий заказ' : 'Вернуть в заказ'}
+                        onClick={() => {
+                          engine.restoreParked(p.id)
+                          setSheet(null)
+                        }}
+                        className="press btn-blue h-10 rounded-[12px] px-4 text-[14px] font-semibold"
+                      >
+                        Вернуть
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </Sheet>
+          ) : null}
+
+          {sheet === 'correct' && correctSale ? (
+            <Sheet title={`Исправить оплату · ${money(correctSale.total_amount)} ₸`} onClose={() => setSheet(null)}>
+              <div className="fill grid grid-cols-3 gap-1 rounded-[14px] p-1">
+                {(['cash', 'kaspi', 'mixed'] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setCorrectMethod(m)} className={`press h-11 rounded-[11px] text-[14px] font-medium ${correctMethod === m ? 'pill-active' : 'ink-2'}`}>
+                    {m === 'cash' ? 'Наличные' : m === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная'}
+                  </button>
+                ))}
+              </div>
+              {correctMethod === 'mixed' ? (
+                <div className="mt-3">
+                  <MoneyField label="Наличными" value={correctCash} onChange={setCorrectCash} />
+                </div>
+              ) : null}
+              <label className="mt-3 block">
+                <span className="muted text-[13px]">Причина (обязательно)</span>
+                <input
+                  value={correctReason}
+                  onChange={(e) => setCorrectReason(e.target.value)}
+                  className="surface mt-1 h-12 w-full rounded-[14px] px-4 text-[16px] outline-none"
+                  placeholder="Например, покупатель оплатил Kaspi, а пробили наличными"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={correctReason.trim().length < 3}
+                onClick={async () => {
+                  if (await engine.correctPayment(correctSale, correctMethod, Number(correctCash || 0), correctReason)) setSheet(null)
+                }}
+                className="press btn-blue mt-4 h-14 w-full rounded-[16px] text-[17px] font-semibold"
+              >
+                Сохранить исправление
               </button>
             </Sheet>
           ) : null}
