@@ -63,12 +63,12 @@ export async function GET(req: Request) {
         ).catch(() => [])
       : []
 
+    // Подпись — название должности; без своей должности — по роли, как раньше.
     const leadRoleLabel =
-      leadAssignments[0]?.role_in_company === 'senior_cashier'
+      leadAssignments[0]?.position_name ||
+      (leadAssignments[0]?.role_in_company === 'senior_cashier'
         ? 'Старший кассир'
-        : leadAssignments[0]?.role_in_company === 'senior_operator'
-          ? 'Старший оператор'
-          : null
+        : leadAssignments[0] ? 'Старший оператор' : null)
 
     const displayName =
       (isSuperAdmin ? null : staffMember?.full_name || staffMember?.short_name) ||

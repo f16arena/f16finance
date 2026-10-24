@@ -22,6 +22,7 @@ import {
   type OrganizationAccess,
 } from '@/lib/server/organizations'
 import { resolveOrganizationByHost } from '@/lib/server/tenant-hosts'
+import { assignmentPointPermissions, type PointPermission } from '@/lib/core/point-permissions'
 import type { CompanyRestriction } from '@/lib/server/organizations'
 
 function parseCookies(header: string | null): Map<string, string> {
@@ -492,10 +493,14 @@ export type OperatorLeadAssignment = {
   id: string
   operator_id: string
   company_id: string
-  role_in_company: 'senior_operator' | 'senior_cashier'
+  role_in_company: string
   is_primary: boolean
   is_active: boolean
   notes: string | null
+  /** Что можно на этой точке — по галочкам должности (lib/core/point-permissions.ts). */
+  permissions: PointPermission[]
+  /** Название должности, если она своя («Старший смены»). */
+  position_name: string | null
   company?: {
     id: string
     name: string
@@ -503,21 +508,70 @@ export type OperatorLeadAssignment = {
   } | null
 }
 
+/**
+ * Точки, где у оператора есть хоть одно право старшего. Права — по галочкам
+ * должности; без должности — по роли, как раньше (старший — всё).
+ */
 export async function listActiveOperatorLeadAssignments(supabase: ReturnType<typeof createRequestSupabaseClient>, operatorId: string) {
   const { data, error } = await supabase
     .from('operator_company_assignments')
-    .select('id, operator_id, company_id, role_in_company, is_primary, is_active, notes, company:company_id(id, name, code)')
+    .select('id, operator_id, company_id, role_in_company, position_id, is_primary, is_active, notes, company:company_id(id, name, code)')
     .eq('operator_id', operatorId)
     .eq('is_active', true)
-    .in('role_in_company', ['senior_operator', 'senior_cashier'])
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return ((data || []) as unknown[]).map((item: any) => ({
-    ...item,
-    company: Array.isArray(item.company) ? item.company[0] || null : item.company || null,
-  })) as OperatorLeadAssignment[]
+  const rows = (data || []) as any[]
+  const positions = await loadPointPositionsById(
+    supabase,
+    rows.map((row) => row.position_id),
+  )
+  return rows
+    .map((item) => {
+      const position = item.position_id ? positions.get(String(item.position_id)) || null : null
+      return {
+        ...item,
+        company: Array.isArray(item.company) ? item.company[0] || null : item.company || null,
+        permissions: assignmentPointPermissions({ role_in_company: item.role_in_company, position }),
+        position_name: position && position.is_active !== false ? String(position.name) : null,
+      }
+    })
+    .filter((item) => item.permissions.length > 0) as OperatorLeadAssignment[]
+}
+
+/** Должности на точке по id: название, права, роль. Ошибка — пустая карта (права по ролям). */
+export async function loadPointPositionsById(supabase: any, ids: unknown[]) {
+  const unique = Array.from(new Set(ids.filter(Boolean).map(String)))
+  const map = new Map<string, { id: string; name: string; base_role: string; permissions: unknown; is_active: boolean }>()
+  if (unique.length === 0) return map
+  // Оператор под своим входом point_positions не читает (RLS — только участники
+  // организации), а id берутся из его же назначений — читаем служебным клиентом.
+  const client = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : supabase
+  const { data, error } = await client.from('point_positions').select('id, name, base_role, permissions, is_active').in('id', unique)
+  if (error) return map
+  for (const row of (data || []) as any[]) map.set(String(row.id), row)
+  return map
+}
+
+/** Операторы точки с этим правом — например, кому слать заявки на смену. */
+export async function listCompanyOperatorsWithPermission(supabase: any, companyId: string, permission: PointPermission) {
+  const { data, error } = await supabase
+    .from('operator_company_assignments')
+    .select('operator_id, role_in_company, position_id')
+    .eq('company_id', companyId)
+    .eq('is_active', true)
+  if (error) throw error
+  const rows = (data || []) as any[]
+  const positions = await loadPointPositionsById(supabase, rows.map((row) => row.position_id))
+  return rows
+    .filter((row) =>
+      assignmentPointPermissions({
+        role_in_company: row.role_in_company,
+        position: row.position_id ? positions.get(String(row.position_id)) || null : null,
+      }).includes(permission),
+    )
+    .map((row) => String(row.operator_id))
 }
 
 export async function getRequestOperatorLeadContext(request: Request): Promise<

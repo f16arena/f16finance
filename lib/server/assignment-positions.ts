@@ -32,8 +32,11 @@ export async function attachPositionBonuses<T extends SalaryOperatorCompanyAssig
   if (positionsError || !positions?.length) return assignments
 
   // Должность в архиве больше не платит — человек считается по базовой роли.
+  // Доплата null — «как в правилах зарплаты»: бонус старшего по роли, свою не подставляем.
   const bonusByPosition = new Map(
-    (positions as any[]).filter((row) => row.is_active !== false).map((row) => [String(row.id), Number(row.shift_bonus || 0)]),
+    (positions as any[])
+      .filter((row) => row.is_active !== false && row.shift_bonus != null)
+      .map((row) => [String(row.id), Number(row.shift_bonus)]),
   )
   const bonusByAssignment = new Map<string, number>()
   for (const link of links as any[]) {

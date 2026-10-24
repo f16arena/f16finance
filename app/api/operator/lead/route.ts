@@ -292,9 +292,12 @@ export async function POST(req: Request) {
         return json({ error: 'Запрос по смене не найден' }, 404)
       }
 
-      const allowedCompanyIds = new Set(context.leadAssignments.map((assignment) => assignment.company_id))
+      // Разбирать заявки по графику — право должности «schedule_requests».
+      const allowedCompanyIds = new Set(
+        context.leadAssignments.filter((a) => a.permissions.includes('schedule_requests')).map((a) => a.company_id),
+      )
       if (!allowedCompanyIds.has(String(requestRow.company_id))) {
-        return json({ error: 'У вас нет доступа к этой точке' }, 403)
+        return json({ error: 'Ваша должность на этой точке не разбирает заявки по графику' }, 403)
       }
 
       if (!['open', 'awaiting_reason'].includes(String(requestRow.status || ''))) {
@@ -389,7 +392,10 @@ export async function POST(req: Request) {
         return json({ error: 'taskId и status обязательны' }, 400)
       }
 
-      const allowedCompanyIds = new Set(context.leadAssignments.map((assignment) => assignment.company_id))
+      // Вести задачи точки — право должности «point_tasks».
+      const allowedCompanyIds = new Set(
+        context.leadAssignments.filter((a) => a.permissions.includes('point_tasks')).map((a) => a.company_id),
+      )
       const { data: taskRow, error: taskError } = await supabase
         .from('tasks')
         .select('id, title, status, company_id, task_number')

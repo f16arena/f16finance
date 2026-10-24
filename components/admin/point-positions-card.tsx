@@ -7,7 +7,8 @@ import { MoneyInput } from '@/components/ui/money-input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { toast } from '@/components/ui/use-toast'
 import { invalidatePointPositions } from '@/components/admin/position-select'
-import { POINT_BASE_ROLE_LABELS, peopleCountLabel, type PointBaseRole } from '@/lib/core/positions'
+import { peopleCountLabel, type PointBaseRole } from '@/lib/core/positions'
+import { POINT_PERMISSIONS, assignmentPointPermissions, type PointPermission } from '@/lib/core/point-permissions'
 
 export type BaseRole = PointBaseRole
 
@@ -16,7 +17,10 @@ export type PointPosition = {
   company_id: string | null
   name: string
   base_role: BaseRole
-  shift_bonus: number
+  /** null — бонус старшего из правил зарплаты по base_role. */
+  shift_bonus: number | null
+  /** null — права по base_role (старший — всё). */
+  permissions?: string[] | null
   is_active: boolean
   /** Сколько людей сейчас на этой должности (GET /api/admin/point-positions). */
   people?: number
@@ -30,7 +34,121 @@ export const BASE_ROLE_LABELS: Record<BaseRole, string> = {
 }
 
 type Company = { id: string; name: string }
-type Draft = { id: string; name: string; company_id: string; base_role: BaseRole; shift_bonus: string }
+
+/** Откуда доплата: правила зарплаты (с бонусом старшего или без) или своя сумма. */
+export type BonusMode = 'rules:operator' | 'rules:senior_operator' | 'rules:senior_cashier' | 'fixed'
+
+const BONUS_MODES: Array<{ value: BonusMode; label: string }> = [
+  { value: 'rules:operator', label: 'Ставка из правил зарплаты, без бонуса старшего' },
+  { value: 'rules:senior_operator', label: 'Ставка + бонус старшего оператора из правил' },
+  { value: 'rules:senior_cashier', label: 'Ставка + бонус старшего кассира из правил' },
+  { value: 'fixed', label: 'Ставка + своя доплата за смену' },
+]
+
+export type PointPositionDraft = {
+  id: string | null
+  name: string
+  company_id: string
+  permissions: PointPermission[]
+  bonusMode: BonusMode
+  bonusAmount: string
+}
+
+export function emptyPointDraft(): PointPositionDraft {
+  return { id: null, name: '', company_id: '', permissions: [], bonusMode: 'rules:operator', bonusAmount: '0' }
+}
+
+export function draftFromPosition(position: PointPosition): PointPositionDraft {
+  return {
+    id: position.id,
+    name: position.name,
+    company_id: position.company_id || '',
+    permissions: assignmentPointPermissions({ position: { ...position, is_active: true } }),
+    bonusMode: position.shift_bonus == null ? (`rules:${position.base_role}` as BonusMode) : 'fixed',
+    bonusAmount: String(position.shift_bonus ?? 0),
+  }
+}
+
+/** base_role теперь только про деньги: какой бонус старшего брать из правил. */
+export function draftToPayload(draft: PointPositionDraft) {
+  const fixed = draft.bonusMode === 'fixed'
+  return {
+    name: draft.name,
+    company_id: draft.company_id || null,
+    permissions: draft.permissions,
+    base_role: fixed ? (draft.permissions.length > 0 ? 'senior_operator' : 'operator') : draft.bonusMode.slice('rules:'.length),
+    shift_bonus: fixed ? Number(draft.bonusAmount || 0) : null,
+  }
+}
+
+function payDescription(position: PointPosition) {
+  if (position.shift_bonus != null) return position.shift_bonus > 0 ? `+${money(position.shift_bonus)} за смену` : 'без доплаты'
+  if (position.base_role === 'senior_cashier') return 'бонус старшего кассира из правил'
+  if (position.base_role === 'senior_operator') return 'бонус старшего оператора из правил'
+  return 'ставка из правил'
+}
+
+function permissionsDescription(position: PointPosition) {
+  const granted = assignmentPointPermissions({ position: { ...position, is_active: true } })
+  if (granted.length === 0) return 'без прав старшего'
+  if (granted.length === POINT_PERMISSIONS.length) return 'все права старшего'
+  return POINT_PERMISSIONS.filter((p) => granted.includes(p.key)).map((p) => p.label.toLowerCase()).join(', ')
+}
+
+/** Поля должности на точке — одни и те же при создании и при правке. */
+export function PointPositionFields(props: { draft: PointPositionDraft; onChange: (next: PointPositionDraft) => void; companies: Company[] }) {
+  const { draft, onChange } = props
+  const togglePermission = (key: PointPermission) =>
+    onChange({
+      ...draft,
+      permissions: draft.permissions.includes(key) ? draft.permissions.filter((p) => p !== key) : [...draft.permissions, key],
+    })
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <label className="space-y-1 text-sm">
+        <span className="text-xs text-slate-400">Где</span>
+        <NativeSelect value={draft.company_id} onChange={(e) => onChange({ ...draft, company_id: e.target.value })}>
+          <option value="">На всех точках</option>
+          {props.companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </NativeSelect>
+      </label>
+      <label className="space-y-1 text-sm">
+        <span className="text-xs text-slate-400">Деньги за смену</span>
+        <NativeSelect value={draft.bonusMode} onChange={(e) => onChange({ ...draft, bonusMode: e.target.value as BonusMode })}>
+          {BONUS_MODES.map((mode) => (
+            <option key={mode.value} value={mode.value}>{mode.label}</option>
+          ))}
+        </NativeSelect>
+      </label>
+      {draft.bonusMode === 'fixed' && (
+        <label className="space-y-1 text-sm sm:col-start-2">
+          <span className="text-xs text-slate-400">Доплата за смену, ₸ (вместо бонуса старшего)</span>
+          <MoneyInput value={draft.bonusAmount} onValueChange={(v) => onChange({ ...draft, bonusAmount: v })} />
+        </label>
+      )}
+      <fieldset className="space-y-1.5 sm:col-span-2">
+        <legend className="mb-1 text-xs text-slate-400">Что можно на точке</legend>
+        {POINT_PERMISSIONS.map((permission) => (
+          <label key={permission.key} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
+            <input
+              type="checkbox"
+              checked={draft.permissions.includes(permission.key)}
+              onChange={() => togglePermission(permission.key)}
+              className="mt-0.5 rounded border-border"
+            />
+            <span>
+              <span className="block font-medium text-foreground">{permission.label}</span>
+              <span className="block text-xs text-muted-foreground">{permission.hint}</span>
+            </span>
+          </label>
+        ))}
+        <p className="text-xs text-muted-foreground">Продавать, открывать и закрывать смену может любой человек на точке.</p>
+      </fieldset>
+    </div>
+  )
+}
 
 function money(value: number) {
   return `${Math.round(value).toLocaleString('ru-RU')} ₸`
@@ -63,7 +181,7 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
   const [positions, setPositions] = useState<PointPosition[]>([])
   const [loading, setLoading] = useState(true)
   const [migrationPending, setMigrationPending] = useState(false)
-  const [draft, setDraft] = useState<Draft | null>(null)
+  const [draft, setDraft] = useState<PointPositionDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
 
@@ -84,19 +202,10 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
   }, [load, props.reloadKey])
 
   async function save() {
-    if (!draft) return
+    if (!draft?.id) return
     setSaving(true)
     try {
-      await postPointPosition({
-        action: 'update',
-        id: draft.id,
-        payload: {
-          name: draft.name,
-          company_id: draft.company_id || null,
-          base_role: draft.base_role,
-          shift_bonus: Number(draft.shift_bonus || 0),
-        },
-      })
+      await postPointPosition({ action: 'update', id: draft.id, payload: draftToPayload(draft) })
       toast({ title: 'Должность сохранена' })
       setDraft(null)
       await load()
@@ -144,9 +253,9 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
 
       {visible.map((position) =>
         draft?.id === position.id ? (
-          <div key={position.id} className={`${row} grid gap-2 sm:grid-cols-2`}>
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground">Название</span>
+          <div key={position.id} className={`${row} space-y-3`}>
+            <label className="block space-y-1 text-sm">
+              <span className="text-xs text-slate-400">Название</span>
               <input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -154,28 +263,8 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
                 autoFocus
               />
             </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground">Где</span>
-              <NativeSelect value={draft.company_id} onChange={(e) => setDraft({ ...draft, company_id: e.target.value })}>
-                <option value="">На всех точках</option>
-                {props.companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground">Права в кассе</span>
-              <NativeSelect value={draft.base_role} onChange={(e) => setDraft({ ...draft, base_role: e.target.value as BaseRole })}>
-                {(Object.keys(BASE_ROLE_LABELS) as BaseRole[]).map((role) => (
-                  <option key={role} value={role}>{BASE_ROLE_LABELS[role]}</option>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground">Доплата за смену, ₸</span>
-              <MoneyInput value={draft.shift_bonus} onValueChange={(v) => setDraft({ ...draft, shift_bonus: v })} />
-            </label>
-            <div className="flex gap-2 sm:col-span-2">
+            <PointPositionFields draft={draft} onChange={setDraft} companies={props.companies} />
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={save}
@@ -207,9 +296,8 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
                     )}
                   </div>
                   <p className="truncate text-xs text-slate-400">
-                    {position.company_id ? companyName.get(position.company_id) || 'одна точка' : 'все точки'} · права{' '}
-                    {POINT_BASE_ROLE_LABELS[position.base_role].toLowerCase()} ·{' '}
-                    {position.shift_bonus > 0 ? `+${money(position.shift_bonus)} за смену` : 'без доплаты'}
+                    {position.company_id ? companyName.get(position.company_id) || 'одна точка' : 'все точки'} · {permissionsDescription(position)} ·{' '}
+                    {payDescription(position)}
                   </p>
                 </div>
               </div>
@@ -220,15 +308,7 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
                       type="button"
                       className={iconBtn}
                       aria-label="Изменить"
-                      onClick={() =>
-                        setDraft({
-                          id: position.id,
-                          name: position.name,
-                          company_id: position.company_id || '',
-                          base_role: position.base_role,
-                          shift_bonus: String(position.shift_bonus || 0),
-                        })
-                      }
+                      onClick={() => setDraft(draftFromPosition(position))}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>

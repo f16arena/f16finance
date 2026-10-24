@@ -68,19 +68,19 @@ export function PositionSelect(props: {
         }
       }}
     >
-      {(Object.keys(ROLE_LABELS) as BaseRole[]).map((role) => (
-        <option key={role} value={`role:${role}`}>{ROLE_LABELS[role]}</option>
+      {/* Должности организации — единственный список. Старые три роли видны,
+          только пока должностей нет или у назначения своей ещё нет. */}
+      {available.length === 0
+        ? (Object.keys(ROLE_LABELS) as BaseRole[]).map((role) => (
+            <option key={role} value={`role:${role}`}>{ROLE_LABELS[role]}</option>
+          ))
+        : !props.positionId && <option value={`role:${props.role}`}>{ROLE_LABELS[props.role]} (без должности)</option>}
+      {available.map((p) => (
+        <option key={p.id} value={`pos:${p.id}`}>
+          {p.name}
+          {p.shift_bonus != null && p.shift_bonus > 0 ? ` (+${Math.round(p.shift_bonus).toLocaleString('ru-RU')} ₸)` : ''}
+        </option>
       ))}
-      {available.length > 0 && (
-        <optgroup label="Свои должности">
-          {available.map((p) => (
-            <option key={p.id} value={`pos:${p.id}`}>
-              {p.name}
-              {p.shift_bonus > 0 ? ` (+${Math.round(p.shift_bonus).toLocaleString('ru-RU')} ₸)` : ''}
-            </option>
-          ))}
-        </optgroup>
-      )}
     </NativeSelect>
   )
 }

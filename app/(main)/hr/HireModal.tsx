@@ -28,7 +28,7 @@ import { Card } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
 import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { usePointPositions } from '@/components/admin/position-select'
-import { POINT_BASE_ROLE_LABELS, officePositionLabel } from '@/lib/core/positions'
+import { officePositionLabel } from '@/lib/core/positions'
 
 type HireType = 'operator' | 'staff'
 
@@ -555,13 +555,13 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
             <div>
               <SectionLabel icon={<Briefcase className="w-3.5 h-3.5" />}>Должность на точке</SectionLabel>
               <select value={pointPositionId} onChange={(e) => setPointPositionId(e.target.value)} className={inputClass + ' mt-2'}>
-                <option value="">Оператор (без своей должности)</option>
+                <option value="">Без должности (как обычный оператор)</option>
                 {pointPositions
                   .filter((p) => p.is_active && (!p.company_id || companyIds.length === 0 || companyIds.includes(p.company_id)))
                   .map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} — права {POINT_BASE_ROLE_LABELS[p.base_role].toLowerCase()}
-                      {p.shift_bonus > 0 ? `, +${Math.round(p.shift_bonus).toLocaleString('ru-RU')} ₸ за смену` : ''}
+                      {p.name}
+                      {p.shift_bonus != null && p.shift_bonus > 0 ? ` (+${Math.round(p.shift_bonus).toLocaleString('ru-RU')} ₸ за смену)` : ''}
                     </option>
                   ))}
               </select>

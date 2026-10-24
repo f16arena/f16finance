@@ -4,6 +4,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireCapability } from '@/lib/server/capabilities'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
+import { sanitizePointPermissions } from '@/lib/core/point-permissions'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type BaseRole = 'operator' | 'senior_operator' | 'senior_cashier'
@@ -13,7 +14,9 @@ type PositionPayload = {
   name?: string
   company_id?: string | null
   base_role?: string
+  /** null или '' — бонус старшего из правил зарплаты по base_role. */
   shift_bonus?: number | string | null
+  permissions?: unknown
 }
 
 type Body =
@@ -21,7 +24,7 @@ type Body =
   | { action: 'update'; id: string; payload: PositionPayload }
   | { action: 'archive' | 'restore'; id: string }
 
-const SELECT = 'id, organization_id, company_id, name, base_role, shift_bonus, is_active, sort_order, created_at'
+const SELECT = 'id, organization_id, company_id, name, base_role, shift_bonus, permissions, is_active, sort_order, created_at'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -36,12 +39,14 @@ function isMissingTable(error: any) {
 function normalizePayload(payload: PositionPayload) {
   const name = String(payload.name || '').trim().replace(/\s+/g, ' ')
   const baseRole = BASE_ROLES.includes(payload.base_role as BaseRole) ? (payload.base_role as BaseRole) : 'operator'
+  const fromRules = payload.shift_bonus === null || payload.shift_bonus === ''
   const bonus = Number(payload.shift_bonus ?? 0)
   return {
     name,
     company_id: payload.company_id ? String(payload.company_id) : null,
     base_role: baseRole,
-    shift_bonus: Number.isFinite(bonus) ? Math.round(bonus) : NaN,
+    shift_bonus: fromRules ? null : Number.isFinite(bonus) ? Math.round(bonus) : NaN,
+    permissions: sanitizePointPermissions(payload.permissions),
   }
 }
 
@@ -153,7 +158,7 @@ export async function POST(request: Request) {
     const payload = normalizePayload(('payload' in body ? body.payload : null) || {})
     if (!payload.name) return json({ error: 'Укажите название должности' }, 400)
     if (payload.name.length > 60) return json({ error: 'Название — до 60 символов' }, 400)
-    if (!Number.isFinite(payload.shift_bonus) || payload.shift_bonus < 0) {
+    if (payload.shift_bonus !== null && (!Number.isFinite(payload.shift_bonus) || payload.shift_bonus < 0)) {
       return json({ error: 'Доплата за смену — 0 или больше' }, 400)
     }
 
@@ -176,6 +181,7 @@ export async function POST(request: Request) {
       name: payload.name,
       base_role: payload.base_role,
       shift_bonus: payload.shift_bonus,
+      permissions: payload.permissions,
       updated_at: new Date().toISOString(),
     }
     const query =
@@ -194,7 +200,7 @@ export async function POST(request: Request) {
       entityType: 'point-position',
       entityId: String(data.id),
       action: body.action,
-      payload: { name: data.name, company_id: data.company_id, base_role: data.base_role, shift_bonus: data.shift_bonus },
+      payload: { name: data.name, company_id: data.company_id, base_role: data.base_role, shift_bonus: data.shift_bonus, permissions: data.permissions },
     })
     return json({ ok: true, data })
   } catch (error: any) {

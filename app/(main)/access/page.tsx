@@ -8,9 +8,14 @@ import { toast } from '@/hooks/use-toast'
 import { UserOverridesPanel } from '@/components/admin/user-overrides-panel'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { CardSkeleton } from '@/components/skeleton'
-import { MoneyInput } from '@/components/ui/money-input'
-import { NativeSelect } from '@/components/ui/native-select'
-import { BASE_ROLE_LABELS, PointPositionsList, postPointPosition, type BaseRole } from '@/components/admin/point-positions-card'
+import {
+  PointPositionFields,
+  PointPositionsList,
+  draftToPayload,
+  emptyPointDraft,
+  postPointPosition,
+  type PointPositionDraft,
+} from '@/components/admin/point-positions-card'
 import { OFFICE_BUILTIN_LABELS, POSITION_KIND_LABELS, officePositionLabel, peopleCountLabel, type PositionKind } from '@/lib/core/positions'
 import {
   CheckCircle2, Copy, Eye, EyeOff, KeyRound, Loader2,
@@ -138,9 +143,7 @@ export default function AccessPage() {
   // Одна форма для обоих видов должностей: в офисе (портал) и на точке (касса).
   const [createKind, setCreateKind] = useState<PositionKind>('office')
   const [pointCompanies, setPointCompanies] = useState<Array<{ id: string; name: string }>>([])
-  const [newPointCompany, setNewPointCompany] = useState('')
-  const [newPointRole, setNewPointRole] = useState<BaseRole>('operator')
-  const [newPointBonus, setNewPointBonus] = useState('0')
+  const [pointDraft, setPointDraft] = useState<PointPositionDraft>(emptyPointDraft)
   const [pointReloadKey, setPointReloadKey] = useState(0)
   useEffect(() => {
     fetch('/api/admin/companies?open=1', { cache: 'no-store' })
@@ -212,12 +215,9 @@ export default function AccessPage() {
     setCreatingPos(true)
     if (createKind === 'point') {
       try {
-        await postPointPosition({
-          action: 'create',
-          payload: { name, company_id: newPointCompany || null, base_role: newPointRole, shift_bonus: Number(newPointBonus || 0) },
-        })
+        await postPointPosition({ action: 'create', payload: draftToPayload({ ...pointDraft, name }) })
         setNewPosName('')
-        setNewPointBonus('0')
+        setPointDraft(emptyPointDraft())
         setPointReloadKey((k) => k + 1)
         toast({ title: 'Должность на точке создана', description: 'Назначить её можно в «Структуре», при найме и в мастере точки.' })
       } catch (e: any) {
@@ -627,28 +627,8 @@ export default function AccessPage() {
               </button>
             </div>
             {createKind === 'point' && (
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <label className="space-y-1 text-xs text-slate-400">
-                  <span>Где</span>
-                  <NativeSelect value={newPointCompany} onChange={(e) => setNewPointCompany(e.target.value)}>
-                    <option value="">На всех точках</option>
-                    {pointCompanies.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </NativeSelect>
-                </label>
-                <label className="space-y-1 text-xs text-slate-400">
-                  <span>Права в кассе</span>
-                  <NativeSelect value={newPointRole} onChange={(e) => setNewPointRole(e.target.value as BaseRole)}>
-                    {(Object.keys(BASE_ROLE_LABELS) as BaseRole[]).map((role) => (
-                      <option key={role} value={role}>{BASE_ROLE_LABELS[role]}</option>
-                    ))}
-                  </NativeSelect>
-                </label>
-                <label className="space-y-1 text-xs text-slate-400">
-                  <span>Доплата за смену, ₸ (заменяет бонус старшего)</span>
-                  <MoneyInput value={newPointBonus} onValueChange={setNewPointBonus} />
-                </label>
+              <div className="mt-3">
+                <PointPositionFields draft={pointDraft} onChange={setPointDraft} companies={pointCompanies} />
               </div>
             )}
             {createKind === 'office' && (

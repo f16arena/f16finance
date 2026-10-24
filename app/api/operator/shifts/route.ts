@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getOperatorDisplayName } from '@/lib/core/operator-name'
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
-import { getRequestOperatorContext } from '@/lib/server/request-auth'
+import { getRequestOperatorContext, listCompanyOperatorsWithPermission } from '@/lib/server/request-auth'
 import {
   confirmShiftPublicationWeekByOperator,
   createShiftIssueByOperator,
@@ -239,16 +239,9 @@ export async function POST(req: Request) {
       // приложение: человек написал «не смогу выйти» и ждёт ответа, а его
       // никто не видел. Отправка best-effort — заявка уже записана.
       try {
-        const { data: leads } = await supabase
-          .from('operator_company_assignments')
-          .select('operator_id')
-          .eq('company_id', result.companyId)
-          .eq('is_active', true)
-          .in('role_in_company', ['senior_operator', 'senior_cashier'])
-
-        const leadIds = ((leads as any[]) || [])
-          .map((row) => String(row.operator_id || ''))
-          .filter((id) => id && id !== String(context.operator.id))
+        // Кому слать — по галочке должности «уведомления о заявках на смену».
+        const leads = await listCompanyOperatorsWithPermission(supabase, String(result.companyId), 'shift_request_alerts')
+        const leadIds = leads.filter((id) => id && id !== String(context.operator.id))
 
         if (leadIds.length > 0) {
           await pushToOperators(supabase as any, leadIds, {
