@@ -771,8 +771,10 @@ export async function GET(req: Request) {
       return json({ data: taskRows, page, pageSize, hasMore: taskRows.length === pageSize })
     }
 
+    // Суперадмин внутри организации видит её людей, а не всех операторов
+    // платформы (в списке были чужие и «ничейные» тестовые операторы).
     const [operatorsResult, staffResult, companiesResult] = await Promise.all([
-      access.isSuperAdmin
+      companyScope.allowedCompanyIds === null
         ? supabase
             .from('operators')
             .select('id, name, short_name, telegram_chat_id, role, is_active, operator_profiles(*)')
@@ -800,7 +802,7 @@ export async function GET(req: Request) {
               .select('id, name, short_name, telegram_chat_id, role, is_active, operator_profiles(*)')
               .in('id', operatorIds)
           })(),
-      access.isSuperAdmin
+      access.isSuperAdmin && !access.activeOrganization?.id
         ? supabase.from('staff').select('id, full_name, short_name, telegram_chat_id, is_active, dismissed_at').order('full_name')
         : access.activeOrganization?.id
           ? supabase
@@ -837,7 +839,9 @@ export async function GET(req: Request) {
 
     return json({
       data: taskRows,
-      operators: operatorsResult.data || [],
+      operators: [...(operatorsResult.data || [])].sort((a: any, b: any) =>
+        String(a.name || a.short_name || '').localeCompare(String(b.name || b.short_name || ''), 'ru'),
+      ),
       staff: staffResult.data || [],
       companies: companiesResult.data || [],
       viewer: {
