@@ -1506,7 +1506,13 @@ export default function SalaryPage() {
                               <td className="px-3 py-2.5 text-right text-sm font-semibold tabular-nums text-foreground">{money(w.netAmount)}</td>
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.paidAmount, 'text-sky-700 dark:text-sky-300')}</td>
                               <td className="px-3 py-2.5 text-right text-sm font-semibold tabular-nums">{moneyCell(w.remainingAmount, 'text-foreground')}</td>
-                              <td className="px-3 py-2.5 text-center"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${st.className}`}>{st.label}</span></td>
+                              <td className="px-3 py-2.5 text-center">
+                                {w.netAmount < -0.009 && w.paidAmount <= 0 ? (
+                                  <span title="Удержаний больше, чем начислено за неделю" className="inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-medium text-rose-700 dark:text-rose-300">В минусе</span>
+                                ) : (
+                                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${st.className}`}>{st.label}</span>
+                                )}
+                              </td>
                             </tr>
                           )
                         })}
@@ -1584,6 +1590,18 @@ export default function SalaryPage() {
                   const openDebt = openDebtAmount(w)
                   const debtItems = w.debtItems || []
                   const debtItemsTotal = debtItems.reduce((sum, d) => sum + Number(d.amount || 0), 0)
+                  // Ручные начисления и удержания недели — с причиной и отменой.
+                  const adjItems = [...(w.adjustments || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+                  const adjEvent = (a: OperatorAdjustmentItem): OperatorTimelineEvent => ({
+                    id: `adj:${a.id}`,
+                    operator_id: item.operator.id,
+                    operator_name: title,
+                    date: a.date,
+                    kind: (['advance', 'bonus', 'fine', 'debt'] as const).find((k) => k === a.kind) || 'fine',
+                    amount: Number(a.amount || 0),
+                    comment: [a.comment, companyTitle(a.companyId)].filter(Boolean).join(' · ') || null,
+                    status: a.status === 'voided' ? 'voided' : 'active',
+                  })
                   const line = (label: string, value: string, cls = '') => (
                     <div className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm">
                       <span className="text-muted-foreground">{label}</span>
@@ -1739,6 +1757,56 @@ export default function SalaryPage() {
                         </div>
 
                         <div className="space-y-4">
+                          {/* Бонусы, штрафы, долги, авансы — каждая строка со своей причиной */}
+                          <div>
+                            <div className="mb-2 text-sm font-medium text-foreground">
+                              Бонусы, штрафы, долги и авансы {adjItems.length ? <span className="font-normal text-muted-foreground">· {adjItems.length}</span> : null}
+                            </div>
+                            {adjItems.length === 0 ? (
+                              <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">За эту неделю ничего не добавляли.</div>
+                            ) : (
+                              <div className="divide-y divide-border rounded-xl border border-border">
+                                {adjItems.map((a) => {
+                                  const ev = adjEvent(a)
+                                  const voided = ev.status === 'voided'
+                                  const carryover = a.kind === 'advance' && /^Перенос переплаты/.test(a.comment || '')
+                                  const meta = OPERATOR_EVENT_KIND_META[ev.kind]
+                                  const plus = a.kind === 'bonus'
+                                  return (
+                                    <div key={a.id} className={`flex items-start justify-between gap-3 px-3 py-2 ${voided ? 'opacity-60' : ''}`}>
+                                      <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${meta.tone}`}>{carryover ? 'переплата прошлой недели' : meta.label}</span>
+                                          <span className="text-[11px] text-slate-500">{formatRuDate(a.date)}{companyTitle(a.companyId) ? ` · ${companyTitle(a.companyId)}` : ''}</span>
+                                          {voided ? <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">отменено</span> : null}
+                                        </div>
+                                        <div className={`mt-0.5 text-sm ${a.comment ? 'text-foreground' : 'italic text-muted-foreground'}`}>
+                                          {carryover ? 'В прошлую неделю выдали больше, чем полагалось — разница удерживается сейчас' : a.comment || 'без комментария'}
+                                        </div>
+                                      </div>
+                                      <div className="flex shrink-0 items-center gap-2">
+                                        <span className={`text-sm font-medium tabular-nums ${voided ? 'text-muted-foreground line-through' : plus ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}>
+                                          {plus ? '+' : '−'}{money(ev.amount)}
+                                        </span>
+                                        {canVoidEvent(ev) ? (
+                                          <button
+                                            type="button"
+                                            title="Отменить"
+                                            disabled={voidingEventId === ev.id}
+                                            onClick={() => void voidOperatorEvent(ev)}
+                                            className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                                          >
+                                            {voidingEventId === ev.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+
                           {/* Что взял в долг и когда */}
                           <div>
                             <div className="mb-2 text-sm font-medium text-foreground">
