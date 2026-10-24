@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { pointProfile } from '@/lib/core/point-profile'
 import {
   BriefcaseBusiness,
   Building2,
@@ -44,6 +45,7 @@ type Company = {
   id: string
   name: string
   code: string | null
+  industry?: string | null
 }
 
 type Operator = {
@@ -147,7 +149,7 @@ function getPersonName(person: { full_name?: string | null; short_name?: string 
 }
 
 function getCompanyLeadTitle(company: Company) {
-  return (company.code || '').toLowerCase() === 'ramen' ? 'Старший кассир' : 'Старший оператор'
+  return pointProfile(company).seniorLabel
 }
 
 function getStaffRoleLabel(role: StaffRole | 'other') {

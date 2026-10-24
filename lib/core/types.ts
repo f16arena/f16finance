@@ -11,6 +11,8 @@ export type Company = {
   code: string | null
   /** Не складывать в общие итоги по умолчанию (было: «F16 Extra» в коде). */
   exclude_from_totals?: boolean | null
+  /** Ниша точки — от неё поведение (lib/core/point-profile.ts), а не от кода. */
+  industry?: string | null
 }
 
 export type SessionOrganizationAccessRole =

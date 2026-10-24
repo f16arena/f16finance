@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { pointProfile } from '@/lib/core/point-profile'
 
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { isExtraCompany as isExtraPoint } from '@/lib/reports/extra-company'
@@ -66,15 +67,15 @@ const KNOWN_ZONES = new Set(['pc', 'ps5', 'vr', 'ramen', 'cafe', 'other', 'extra
 function resolveIncomeZone(params: {
   requestedZone?: string | null
   companyCode?: string | null
+  industry?: string | null
   pointMode?: string | null
 }) {
   const requested = params.requestedZone?.trim().toLowerCase()
   if (requested) return KNOWN_ZONES.has(requested) ? requested : 'other'
 
-  const companyCode = (params.companyCode || '').trim().toLowerCase()
-  if (companyCode === 'arena') return 'pc'
-  if (companyCode === 'ramen') return 'ramen'
-  if (companyCode === 'extra') return 'extra'
+  // Зона — по нише точки (у F16 без ниши — по старым кодам arena/ramen/extra).
+  const profile = pointProfile({ code: params.companyCode, industry: params.industry })
+  if (profile.incomeZone !== 'other') return profile.incomeZone
 
   const pointMode = (params.pointMode || '').trim().toLowerCase()
   if (pointMode === 'cash-desk' || pointMode === 'shift-report') return 'pc'
@@ -212,6 +213,7 @@ export async function POST(request: Request) {
       zone: resolveIncomeZone({
         requestedZone: payload.zone,
         companyCode: device.company?.code || null,
+        industry: device.company?.industry || null,
         pointMode: device.point_mode,
       }),
       cash_amount: payload.cash_amount ?? 0,

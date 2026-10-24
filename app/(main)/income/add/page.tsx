@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, FormEvent, useCallback } from 'react'
+import { pointProfile } from '@/lib/core/point-profile'
 import { useRouter } from 'next/navigation'
 import {
   Calendar,
@@ -37,6 +38,7 @@ type Company = {
   id: string
   name: string
   code: string
+  industry?: string | null
 }
 
 type Operator = {
@@ -151,16 +153,15 @@ export default function AddIncomePage() {
 
   const selectedCompany = useMemo(() => companies.find((c) => c.id === companyId) || null, [companies, companyId])
 
-  const isExtra = selectedCompany?.code === 'extra'
-  const isArena = selectedCompany?.code === 'arena'
-  const isRamen = selectedCompany?.code === 'ramen'
-  const showOnline = isArena
+  // Поля формы — по нише точки (клуб, PS-зал, магазин), а не по кодам F16.
+  const profile = pointProfile(selectedCompany)
+  const isExtra = profile.splitPsVr
+  const showOnline = profile.showOnline
 
   const getZone = useCallback((): ZoneType => {
-    if (isArena) return 'pc'
-    if (isRamen) return 'ramen'
+    if (profile.incomeZone === 'pc' || profile.incomeZone === 'ramen') return profile.incomeZone
     return 'other'
-  }, [isArena, isRamen])
+  }, [profile.incomeZone])
 
   // ---- умный сброс полей при смене компании ----
   useEffect(() => {
@@ -394,13 +395,14 @@ export default function AddIncomePage() {
     let Icon = Building2
     let color = 'from-gray-500 to-gray-600'
     
-    if (c.code === 'extra') {
+    const kind = pointProfile(c).kind
+    if (kind === 'ps_club') {
       Icon = Gamepad2
       color = 'from-purple-500 to-pink-500'
-    } else if (c.code === 'ramen') {
+    } else if (kind === 'shop' || kind === 'food') {
       Icon = Store
       color = 'from-orange-500 to-red-500'
-    } else if (c.code === 'arena') {
+    } else if (kind === 'club') {
       Icon = Eye
       color = 'from-blue-500 to-cyan-500'
     }

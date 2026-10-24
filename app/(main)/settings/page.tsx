@@ -10,6 +10,7 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
 import { DeleteCompanyDialog } from '@/components/admin/delete-company-dialog'
 import { PointPositionsCard } from '@/components/admin/point-positions-card'
+import { listIndustries } from '@/lib/core/industries'
 import { NavLayoutPicker } from '@/components/nav-layout-picker'
 import { CardSkeleton } from '@/components/skeleton'
 import { useCapabilities } from '@/lib/client/use-capabilities'
@@ -32,6 +33,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 
+const INDUSTRY_OPTIONS = listIndustries()
+
 // --- Типы ---
 type Company = {
   id: string
@@ -43,6 +46,7 @@ type Company = {
   /** Закрыта владельцем: история в отчётах, но не в выборе точки и не в лимите. */
   archived_at?: string | null
   archive_reason?: string | null
+  industry?: string | null
 }
 
 type Staff = {
@@ -90,7 +94,7 @@ export default function SettingsPage() {
 
   // Редактирование
   const [editCompId, setEditCompId] = useState<string | null>(null)
-  const [editCompData, setEditCompData] = useState({ name: '', code: '', show_in_structure: true, exclude_from_totals: false })
+  const [editCompData, setEditCompData] = useState({ name: '', code: '', show_in_structure: true, exclude_from_totals: false, industry: '' })
 
   const [editStaffId, setEditStaffId] = useState<string | null>(null)
   const [editStaffData, setEditStaffData] = useState({ name: '', phone: '', email: '', role: 'other' })
@@ -192,6 +196,7 @@ export default function SettingsPage() {
           code: editCompData.code || null,
           show_in_structure: editCompData.show_in_structure,
           exclude_from_totals: editCompData.exclude_from_totals,
+          industry: editCompData.industry || null,
         },
       })
       setEditCompId(null)
@@ -409,6 +414,17 @@ export default function SettingsPage() {
                                             className="bg-input border border-border rounded px-2 py-1 text-sm w-20 uppercase"
                                             placeholder="CODE"
                                         />
+                                        <select
+                                            value={editCompData.industry}
+                                            onChange={e => setEditCompData({ ...editCompData, industry: e.target.value })}
+                                            className="bg-input border border-border rounded px-2 py-1 text-sm"
+                                            title="Тип точки: от него поля выручки, ночная смена и название старшего"
+                                        >
+                                            <option value="">Тип не выбран</option>
+                                            {INDUSTRY_OPTIONS.map((i) => (
+                                                <option key={i.code} value={i.code}>{i.label}</option>
+                                            ))}
+                                        </select>
                                         <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
                                             <input
                                                 type="checkbox"
@@ -447,6 +463,9 @@ export default function SettingsPage() {
                                                 <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     {c.code && <span className="text-[10px] text-muted-foreground bg-slate-100 dark:bg-white/5 px-1.5 rounded uppercase tracking-wider">{c.code}</span>}
+                                                    <span className={`text-[10px] px-1.5 rounded border ${c.industry ? 'text-violet-700 dark:text-violet-300 border-violet-500/30 bg-violet-500/10' : 'text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10'}`}>
+                                                        {INDUSTRY_OPTIONS.find((i) => i.code === c.industry)?.label || 'Тип не выбран'}
+                                                    </span>
                                                     <span className={`text-[10px] px-1.5 rounded border ${c.show_in_structure ? 'text-cyan-700 dark:text-cyan-300 border-cyan-500/30 bg-cyan-500/10' : 'text-gray-500 border-border bg-slate-100 dark:bg-white/5'}`}>
                                                         {c.show_in_structure ? 'В структуре' : 'Скрыта'}
                                                     </span>
@@ -460,7 +479,7 @@ export default function SettingsPage() {
                                         </div>
                                         <div className="flex shrink-0 gap-1">
                                             {can('settings.manage_companies') && (
-                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-blue-400" onClick={() => { setEditCompId(c.id); setEditCompData({ name: c.name, code: c.code || '', show_in_structure: c.show_in_structure, exclude_from_totals: c.exclude_from_totals === true }) }}>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-blue-400" onClick={() => { setEditCompId(c.id); setEditCompData({ name: c.name, code: c.code || '', show_in_structure: c.show_in_structure, exclude_from_totals: c.exclude_from_totals === true, industry: c.industry || '' }) }}>
                                                     <Pencil className="w-3 h-3" />
                                                 </Button>
                                             )}

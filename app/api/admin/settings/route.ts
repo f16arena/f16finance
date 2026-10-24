@@ -6,6 +6,7 @@ import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/serv
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
 import { countOpenCompanies, createCompanyForOrganization } from '@/lib/server/company-create'
+import { INDUSTRY_CODES } from '@/lib/core/industries'
 import {
   collectCompanyLeftovers,
   companyNameMatches,
@@ -25,7 +26,14 @@ type MutationBody =
       entity: 'company'
       action: 'update'
       id: string
-      payload: { name: string; code?: string | null; show_in_structure?: boolean | null; exclude_from_totals?: boolean | null }
+      payload: {
+        name: string
+        code?: string | null
+        show_in_structure?: boolean | null
+        exclude_from_totals?: boolean | null
+        /** Тип точки (ниша): от него поля выручки, ночная смена, название старшего. */
+        industry?: string | null
+      }
     }
   | {
       entity: 'company'
@@ -106,7 +114,7 @@ export async function GET(req: Request) {
     const orgId = access.activeOrganization?.id || null
     const scopeOrg = orgId || (access.isSuperAdmin ? null : '00000000-0000-0000-0000-000000000000')
 
-    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals, archived_at, archive_reason').order('name')
+    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals, archived_at, archive_reason, industry').order('name')
     let staffQuery = supabase.from('staff').select('id, full_name, phone, email, role, is_active').eq('is_active', true).order('full_name')
     let categoriesQuery = supabase.from('expense_categories').select('id, name, monthly_budget, accounting_group').order('name')
     if (scopeOrg) {
@@ -237,6 +245,10 @@ export async function POST(req: Request) {
 
       if (body.action === 'update') {
         if (!body.payload.name?.trim()) return badRequest('Название компании обязательно')
+        const industry = body.payload.industry
+        if (industry !== undefined && industry !== null && !(INDUSTRY_CODES as string[]).includes(industry)) {
+          return badRequest('Неизвестный тип точки')
+        }
         const { data, error } = await scopeOrg(
           supabase
             .from('companies')
@@ -248,10 +260,11 @@ export async function POST(req: Request) {
               ...(typeof body.payload.exclude_from_totals === 'boolean'
                 ? { exclude_from_totals: body.payload.exclude_from_totals }
                 : {}),
+              ...(industry !== undefined ? { industry } : {}),
             })
             .eq('id', body.id),
         )
-          .select('id,name,code,show_in_structure,exclude_from_totals')
+          .select('id,name,code,show_in_structure,exclude_from_totals,industry')
           .single()
         if (error) throw error
         await writeAuditLog(supabase, {
@@ -259,7 +272,7 @@ export async function POST(req: Request) {
           entityType: 'company',
           entityId: String(data.id),
           action: 'update',
-          payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure, exclude_from_totals: data.exclude_from_totals },
+          payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure, exclude_from_totals: data.exclude_from_totals, industry: data.industry },
         })
         return NextResponse.json({ ok: true })
       }

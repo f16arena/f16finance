@@ -1089,7 +1089,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, ...workflow })
     }
 
-    let companiesQuery = supabase.from('companies').select('id, name, code').order('name')
+    let companiesQuery = supabase.from('companies').select('id, name, code, industry').order('name')
     let shiftsQuery = supabase
       .from('shifts')
       .select('id, date, operator_name, shift_type, company_id')

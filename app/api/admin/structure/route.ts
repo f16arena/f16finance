@@ -76,7 +76,7 @@ export async function GET(req: Request) {
 
     let companiesQuery = supabase
       .from('companies')
-      .select('id, name, code, show_in_structure')
+      .select('id, name, code, show_in_structure, industry')
       .eq('show_in_structure', true)
       .order('name', { ascending: true })
     if (allowedCompanyIds) companiesQuery = companiesQuery.in('id', allowedCompanyIds)

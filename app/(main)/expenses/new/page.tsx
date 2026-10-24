@@ -258,7 +258,7 @@ function ExpenseWizardPageContent() {
 
   useEffect(() => {
     if (payload.company_id || companies.length === 0) return
-    const preferred = companies.find((c) => String(c.code || '').toLowerCase() === 'arena') || companies[0]
+    const preferred = companies[0]
     if (preferred?.id) {
       setPayload((prev) => ({ ...prev, company_id: preferred.id }))
     }

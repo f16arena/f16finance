@@ -36,6 +36,7 @@ import {
 import { ru } from 'date-fns/locale/ru'
 
 import type { Company } from '@/lib/core/types'
+import { pointProfile } from '@/lib/core/point-profile'
 import { useUrlState } from '@/lib/hooks/use-url-state'
 
 type Shift = {
@@ -223,7 +224,8 @@ const getWeekDetails = (date: Date): { range: string; days: WeekDay[] } => {
 
 const normalizeOperatorName = (value: string | null | undefined) => (value || '').trim().toLowerCase()
 const getCellKey = (companyId: string, date: string, shiftType: 'day' | 'night') => `${companyId}|${date}|${shiftType}`
-const hasNightShift = (company: Company) => (company.code || '').toLowerCase() !== 'extra'
+// Ночная смена — по нише точки (PS-зал работает одну смену), а не по коду F16 Extra.
+const hasNightShift = (company: Company) => pointProfile(company).hasNightShift
 const formatShiftDate = (isoDate: string) =>
   new Date(`${isoDate}T12:00:00`).toLocaleDateString('ru-RU', {
     day: 'numeric',
