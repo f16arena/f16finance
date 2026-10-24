@@ -74,8 +74,12 @@ type DisplayEvent =
       lines: CartLine[]
       loyalty?: PaidLoyalty
       reviewUrl?: string | null
+      /** Оплаченные услуги со временем: «Теннис — до 15:40» (аддитивное поле). */
+      timers?: PaidTimer[]
     }
   | { kind: 'clear' }
+
+type PaidTimer = { title: string; endsAt: string }
 
 type PaidView = {
   total: number
@@ -83,6 +87,7 @@ type PaidView = {
   lines: CartLine[]
   loyalty: PaidLoyalty
   reviewUrl: string | null
+  timers: PaidTimer[]
 }
 
 /** Товар для витрины в простое (из локального кэша каталога кассы) */
@@ -253,9 +258,11 @@ export default function CustomerDisplay() {
           lines: event.lines,
           loyalty: event.loyalty || null,
           reviewUrl: paidReviewUrl,
+          timers: Array.isArray(event.timers) ? event.timers : [],
         })
-        // С QR держим экран дольше (~12 c), чтобы клиент успел отсканировать
-        const holdMs = paidReviewUrl ? 12_000 : 5_000
+        // С QR или временем игры держим экран дольше (~12 c), чтобы клиент успел
+        // отсканировать или запомнить, до скольки играет
+        const holdMs = paidReviewUrl || event.timers?.length ? 12_000 : 5_000
         paidTimerRef.current = window.setTimeout(() => {
           paidTimerRef.current = null
           setPaid(null)
@@ -324,6 +331,19 @@ export default function CustomerDisplay() {
           <p className="mt-8 text-[7.5rem] font-bold leading-none tabular-nums tracking-tight cd-fade-up cd-d-2">
             {formatMoney(paid.total)} <span className="text-6xl text-white/80">₸</span>
           </p>
+          {paid.timers.length > 0 ? (
+            <div className="mt-6 flex flex-col items-center gap-3 cd-fade-up cd-d-3">
+              {paid.timers.map((t, i) => (
+                <div key={`${t.title}-${i}`} className="flex items-baseline gap-4 rounded-3xl bg-white/15 px-8 py-4 backdrop-blur-xl ring-1 ring-white/25">
+                  <span className="text-3xl font-semibold">{t.title}</span>
+                  <span className="text-2xl text-white/80">ваше время до</span>
+                  <span className="text-5xl font-bold tabular-nums">
+                    {new Date(t.endsAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {loyalty && loyalty.earned > 0 ? (
             <div className="mt-6 flex items-center gap-3 rounded-full bg-white/15 px-7 py-3 backdrop-blur-xl ring-1 ring-white/25 cd-fade-up cd-d-3">
               <span className="text-3xl">⭐</span>

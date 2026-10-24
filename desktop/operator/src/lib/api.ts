@@ -16,6 +16,7 @@ import type {
   ShiftRecord,
   PointInventoryRequestContext,
   PointInventorySaleContext,
+  PointServiceSession,
   PointInventorySaleShiftSummary,
   PointInventoryReturnContext,
   PointReceiptSettings,
@@ -895,6 +896,8 @@ export async function createPointInventorySale(
     items: Array<{
       item_id?: string | null
       universal_name?: string | null
+      service_variant_id?: string | null
+      extend_session_id?: string | null
       quantity: number
       unit_price: number
       comment?: string | null
@@ -907,6 +910,7 @@ export async function createPointInventorySale(
   customer_id: string | null
   loyalty_points_earned: number
   loyalty_points_spent: number
+  service_sessions?: PointServiceSession[]
 }> {
   const data = await request<{
     ok: boolean
@@ -917,6 +921,7 @@ export async function createPointInventorySale(
       customer_id: string | null
       loyalty_points_earned: number
       loyalty_points_spent: number
+      service_sessions?: PointServiceSession[]
     }
   }>(
     config,
@@ -929,6 +934,27 @@ export async function createPointInventorySale(
     operatorHeaders(session),
   )
   return data.data
+}
+
+// ─── Таймеры услуг ────────────────────────────────────────────────────────────
+// Запускаются продажей варианта со временем; здесь список и «Завершить».
+
+export async function getServiceSessions(
+  config: AppConfig,
+  session: OperatorSession,
+): Promise<{ sessions: PointServiceSession[]; server_time: string }> {
+  const data = await request<{ ok: boolean; data: { sessions: PointServiceSession[]; server_time: string } }>(
+    config,
+    'GET',
+    '/api/point/service-sessions',
+    undefined,
+    operatorHeaders(session),
+  )
+  return data.data
+}
+
+export async function finishServiceSession(config: AppConfig, session: OperatorSession, sessionId: string): Promise<void> {
+  await request(config, 'POST', '/api/point/service-sessions', { action: 'finish', session_id: sessionId }, operatorHeaders(session))
 }
 
 export async function correctPointInventorySalePayment(

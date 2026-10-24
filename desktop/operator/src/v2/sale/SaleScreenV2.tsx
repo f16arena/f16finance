@@ -32,6 +32,7 @@ import { V2Shell, type V2Nav } from '../ui/V2Shell'
 import { categoryLook } from '../ui/category-look'
 import { ReceiptModal } from '../ui/ReceiptModal'
 import { useSaleEngine } from './useSaleEngine'
+import { RunningTimers, SERVICE_COLOR, ServiceGrid } from './ServicesPanel'
 
 type Props = {
   config: AppConfig
@@ -61,7 +62,9 @@ function plural(n: number, one: string, few: string, many: string) {
   return many
 }
 
-/** Шторка поверх панели заказа — для смешанной оплаты, скидки, свободной цены. */
+const SERVICES = '__services__'
+
+/** Шторка поверх панели заказа — для смешанной оплаты, скидки, универсального товара. */
 function Sheet(props: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="sheet-in glass absolute inset-x-3 bottom-3 z-20 rounded-[24px] p-5" style={{ boxShadow: 'var(--shadow-lift)' }}>
@@ -130,13 +133,25 @@ export default function SaleScreenV2(props: Props) {
   const categories = useMemo(() => {
     const names = new Set<string>()
     for (const it of engine.items) names.add(it.category?.name || 'Без категории')
-    return ['all', ...Array.from(names).sort((a, b) => a.localeCompare(b, 'ru'))]
-  }, [engine.items])
+    const sorted = Array.from(names).sort((a, b) => a.localeCompare(b, 'ru'))
+    return engine.services.length ? ['all', SERVICES, ...sorted] : ['all', ...sorted]
+  }, [engine.items, engine.services.length])
+
+  // Услуги: своя категория; при поиске находятся и из «Все».
+  const visibleServices = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (category === SERVICES) return engine.services.filter((s) => !q || s.name.toLowerCase().includes(q))
+    if (category === 'all' && q) return engine.services.filter((s) => s.name.toLowerCase().includes(q))
+    return []
+  }, [engine.services, category, query])
+
+  const serviceQty = (variantId: string) =>
+    engine.cart.filter((l) => l.service_variant_id === variantId && !l.extend_session_id).reduce((n, l) => n + l.quantity, 0)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return engine.items
-      .filter((it) => category === 'all' || (it.category?.name || 'Без категории') === category)
+      .filter((it) => category !== SERVICES && (category === 'all' || (it.category?.name || 'Без категории') === category))
       .filter((it) => !q || it.name.toLowerCase().includes(q) || (it.barcode || '').includes(q))
       .sort((a, b) => {
         const av = Number(a.display_qty || 0) > 0 ? 1 : 0
@@ -310,7 +325,7 @@ export default function SaleScreenV2(props: Props) {
             )}
             {pane === 'catalog' ? (
               <button type="button" onClick={() => setSheet('universal')} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
-                <PenLine className="t-blue h-[18px] w-[18px]" /> Свободная цена
+                <PenLine className="t-blue h-[18px] w-[18px]" /> Универсальный товар
               </button>
             ) : (
               <button type="button" onClick={() => void engine.reload()} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
@@ -325,7 +340,7 @@ export default function SaleScreenV2(props: Props) {
                 <div className="muted flex h-full items-center justify-center text-[16px]">За эту смену продаж ещё нет</div>
               ) : (
                 engine.sales.map((sale) => {
-                  const names = (sale.items || []).map((it) => `${it.item?.name || 'Товар'} × ${it.quantity}`).join(', ')
+                  const names = (sale.items || []).map((it) => `${it.item?.name || (it as any).universal_name || 'Товар'} × ${it.quantity}`).join(', ')
                   const method =
                     sale.payment_method === 'cash' ? 'Наличные' : sale.payment_method === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная'
                   return (
@@ -348,9 +363,15 @@ export default function SaleScreenV2(props: Props) {
             </div>
           ) : (
           <>
+          <RunningTimers
+            sessions={engine.sessions}
+            services={engine.services}
+            onExtend={(service, variant, session) => engine.addService(service, variant, session)}
+            onFinish={(id) => void engine.finishSession(id)}
+          />
           <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((c) => {
-              const look = c === 'all' ? { icon: LayoutGrid, color: '#8e8e93' } : lookFor(c)
+              const look = c === 'all' ? { icon: LayoutGrid, color: '#8e8e93' } : c === SERVICES ? { icon: Clock, color: SERVICE_COLOR } : lookFor(c)
               const Icon = look.icon
               const active = c === category
               return (
@@ -362,7 +383,7 @@ export default function SaleScreenV2(props: Props) {
                   style={active ? { boxShadow: `inset 0 0 0 2px ${look.color}` } : undefined}
                 >
                   <Icon className="h-[18px] w-[18px]" style={{ color: look.color }} />
-                  {c === 'all' ? 'Все' : c}
+                  {c === 'all' ? 'Все' : c === SERVICES ? 'Услуги' : c}
                 </button>
               )
             })}
@@ -380,12 +401,18 @@ export default function SaleScreenV2(props: Props) {
                   Повторить
                 </button>
               </div>
-            ) : visible.length === 0 ? (
+            ) : visible.length === 0 && visibleServices.length === 0 ? (
               <div className="muted flex h-full flex-col items-center justify-center gap-2">
                 <Search className="h-8 w-8" />
                 <p className="text-[16px]">{query ? `Ничего не нашлось по «${query}»` : 'В этой категории пусто'}</p>
               </div>
             ) : (
+              <>
+              {visibleServices.length ? (
+                <div className={visible.length ? 'mb-3' : ''}>
+                  <ServiceGrid services={visibleServices} inCart={serviceQty} onAdd={(service, variant) => engine.addService(service, variant)} />
+                </div>
+              ) : null}
               <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
                 {visible.map((item) => {
                   const inCart = qtyOf(item.id)
@@ -428,6 +455,7 @@ export default function SaleScreenV2(props: Props) {
                   )
                 })}
               </div>
+              </>
             )}
           </div>
           </>
@@ -615,7 +643,7 @@ export default function SaleScreenV2(props: Props) {
           ) : null}
 
           {sheet === 'universal' ? (
-            <Sheet title="Товар по свободной цене" onClose={() => setSheet(null)}>
+            <Sheet title="Универсальный товар" onClose={() => setSheet(null)}>
               <label className="block">
                 <span className="muted text-[13px]">Название</span>
                 <input
@@ -623,7 +651,7 @@ export default function SaleScreenV2(props: Props) {
                   onChange={(e) => setUniName(e.target.value)}
                   autoFocus
                   className="surface mt-1 h-12 w-full rounded-[14px] px-4 text-[17px] outline-none"
-                  placeholder="Например, ремонт джойстика"
+                  placeholder="Например, товар до оприходования"
                 />
               </label>
               <div className="mt-3">

@@ -3,7 +3,7 @@
 import { usePersistentState } from '@/lib/client/use-persistent-state'
 import dynamic from 'next/dynamic'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
-import { Warehouse, Store, History, Tags } from 'lucide-react'
+import { Warehouse, Store, History, Tags, Sparkles } from 'lucide-react'
 import { PageSkeleton } from '@/components/skeleton'
 
 const fallback = () => <PageSkeleton stats={0} rows={8} cols={5} />
@@ -11,14 +11,16 @@ const fallback = () => <PageSkeleton stats={0} rows={8} cols={5} />
 const WarehouseTab = dynamic(() => import('@/app/(main)/store/warehouse/page'), { ssr: false, loading: fallback })
 const Showcase = dynamic(() => import('@/app/(main)/store/showcase/page'), { ssr: false, loading: fallback })
 const Movements = dynamic(() => import('@/app/(main)/store/movements/page'), { ssr: false, loading: fallback })
+const Services = dynamic(() => import('@/components/store/services-tab').then((m) => m.ServicesTab), { ssr: false, loading: fallback })
 const Catalog = dynamic(() => import('@/components/store/catalog-page').then((m) => m.CatalogPageContent), { ssr: false, loading: fallback })
 
-type Tab = 'warehouse' | 'showcase' | 'movements' | 'catalog'
+type Tab = 'warehouse' | 'showcase' | 'movements' | 'catalog' | 'services'
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'warehouse', label: 'Склад', icon: Warehouse },
   { key: 'showcase', label: 'Витрина', icon: Store },
   { key: 'movements', label: 'Движения', icon: History },
   { key: 'catalog', label: 'Каталог', icon: Tags },
+  { key: 'services', label: 'Услуги', icon: Sparkles },
 ]
 
 export default function StoreStockPage() {
@@ -28,7 +30,7 @@ export default function StoreStockPage() {
     <div className="app-page-wide space-y-4">
       <AdminPageHeader
         title="Склад"
-        description="Склад, витрина, движения и каталог"
+        description="Склад, витрина, движения, каталог и услуги"
         icon={<Warehouse className="h-5 w-5" />}
         accent="emerald"
         backHref="/store"
@@ -53,6 +55,7 @@ export default function StoreStockPage() {
       {tab === 'showcase' && <Showcase embedded />}
       {tab === 'movements' && <Movements embedded />}
       {tab === 'catalog' && <Catalog embedded />}
+      {tab === 'services' && <Services />}
     </div>
   )
 }

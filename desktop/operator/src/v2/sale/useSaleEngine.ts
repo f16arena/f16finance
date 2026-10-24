@@ -20,6 +20,9 @@ import type {
   PointInventorySaleContext,
   PointInventorySaleItem,
   PointInventorySaleRow,
+  PointService,
+  PointServiceSession,
+  PointServiceVariant,
 } from '@/types'
 
 /**
@@ -39,11 +42,18 @@ export type CartLine = {
   quantity: number
   unit_price: number
   comment?: string | null
+  /** Строка-услуга: цену и название подтверждает сервер. */
+  service_variant_id?: string | null
+  /** Минуты таймера на единицу (для экрана покупателя и подписи). */
+  duration_minutes?: number | null
+  /** Продление идущего таймера. */
+  extend_session_id?: string | null
 }
 
 export type PayMethod = 'cash' | 'kaspi' | 'mixed'
 
 const UNIVERSAL_PREFIX = 'universal:'
+const SERVICE_PREFIX = 'service:'
 
 export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapData; session: OperatorSession }) {
   const { config, bootstrap, session } = params
@@ -159,6 +169,29 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
     setCart((prev) => [...prev, { id: `${UNIVERSAL_PREFIX}${localRef()}`, item_id: null, name: clean, quantity: 1, unit_price: Math.round(price) }])
   }, [])
 
+  /** Услуга: без остатка, количество не ограничено. Продление — отдельной строкой. */
+  const addService = useCallback((service: PointService, variant: PointServiceVariant, extend?: PointServiceSession | null) => {
+    const lineId = `${SERVICE_PREFIX}${variant.id}${extend ? `:${extend.id}` : ''}`
+    setCart((prev) => {
+      const existing = prev.find((l) => l.id === lineId)
+      if (existing) return prev.map((l) => (l.id === lineId ? { ...l, quantity: l.quantity + 1 } : l))
+      return [
+        ...prev,
+        {
+          id: lineId,
+          item_id: null,
+          name: `${service.name} · ${variant.name}${extend ? ' (продление)' : ''}`,
+          quantity: 1,
+          unit_price: Number(variant.price || 0),
+          service_variant_id: variant.id,
+          duration_minutes: variant.duration_minutes,
+          extend_session_id: extend?.id || null,
+        },
+      ]
+    })
+    beep('ok')
+  }, [])
+
   const changeQty = useCallback(
     (lineId: string, quantity: number) => {
       setCart((prev) =>
@@ -202,6 +235,38 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
       return false
     },
     [items, addItem],
+  )
+
+  // ── Услуги и таймеры ───────────────────────────────────────────────────
+  const services: PointService[] = context?.services || []
+  const [sessions, setSessions] = useState<PointServiceSession[]>([])
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await api.getServiceSessions(config, session)
+      setSessions(data.sessions || [])
+    } catch {
+      /* старый сервер или нет сети — таймеры просто не видны */
+    }
+  }, [config, session])
+
+  // Таймеры видят все кассы точки: продажу могли пробить на соседней.
+  useEffect(() => {
+    void loadSessions()
+    const id = window.setInterval(() => void loadSessions(), 30_000)
+    return () => window.clearInterval(id)
+  }, [loadSessions])
+
+  const finishSession = useCallback(
+    async (id: string) => {
+      setSessions((prev) => prev.filter((x) => x.id !== id))
+      try {
+        await api.finishServiceSession(config, session, id)
+      } catch (err: any) {
+        toastError(err?.message || 'Не удалось завершить таймер')
+        void loadSessions()
+      }
+    },
+    [config, session, loadSessions],
   )
 
   // ── Суммы (формулы старого экрана) ─────────────────────────────────────
@@ -275,7 +340,18 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
           id: `park-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           label: name,
           createdAt: new Date().toISOString(),
-          items: cart.map((l) => ({ id: l.id, item_id: l.item_id, name: l.name, unit: l.unit || null, quantity: l.quantity, unit_price: l.unit_price, comment: l.comment || null })),
+          items: cart.map((l) => ({
+            id: l.id,
+            item_id: l.item_id,
+            name: l.name,
+            unit: l.unit || null,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            comment: l.comment || null,
+            ...(l.service_variant_id
+              ? { service_variant_id: l.service_variant_id, duration_minutes: l.duration_minutes ?? null, extend_session_id: l.extend_session_id || null }
+              : {}),
+          })),
           customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
           comment: comment.trim() || null,
         },
@@ -411,6 +487,8 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
         items: cart.map((l) => ({
           item_id: l.item_id,
           universal_name: l.item_id ? null : l.name,
+          service_variant_id: l.service_variant_id || null,
+          extend_session_id: l.extend_session_id || null,
           quantity: l.quantity,
           unit_price: l.unit_price,
           comment: l.comment || null,
@@ -463,6 +541,7 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
               }
             : null,
           reviewUrl: receiptSettings?.review_url?.trim() || null,
+          timers: serviceTimersForDisplay(snapshot.cart, sessions),
         })
       } catch {
         /* нет экрана покупателя */
@@ -497,6 +576,11 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
         toastSuccess('Продажа сохранена')
         beep('ok')
         void load(true)
+        const started = (result as any)?.service_sessions as PointServiceSession[] | undefined
+        if (started?.length) {
+          setSessions((prev) => mergeSessions(prev, started))
+          void loadSessions()
+        }
         return true
       } catch (err: any) {
         const network =
@@ -527,6 +611,7 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
     [
       cart, total, subtotal, discountAmount, loyaltyDiscountAmount, loyaltyActive, pointsEarned, manualDiscount, promo, customer, pointsToSpend, comment,
       runtimeShift.shift, isNightAfterMidnight, operatorName, session, context, receiptSettings, cashLabels.providerName, itemsById, clear, config, load,
+      sessions, loadSessions,
     ],
   )
 
@@ -541,6 +626,10 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
     cart,
     addItem,
     addUniversal,
+    addService,
+    services,
+    sessions,
+    finishSession,
     changeQty,
     clear,
     scan,
@@ -581,4 +670,28 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
     runtimeShift,
     parseMoney,
   }
+}
+
+function mergeSessions(prev: PointServiceSession[], next: PointServiceSession[]) {
+  const byId = new Map(prev.map((x) => [x.id, x]))
+  for (const row of next) byId.set(row.id, row)
+  return [...byId.values()].sort((a, b) => a.ends_at.localeCompare(b.ends_at))
+}
+
+/**
+ * «Ваше время до 15:40» на экране покупателя. Чек показывается до ответа
+ * сервера, поэтому время считаем сами: новая игра — от «сейчас», продление —
+ * от конца текущего таймера.
+ */
+function serviceTimersForDisplay(cart: CartLine[], sessions: PointServiceSession[]) {
+  const now = Date.now()
+  const out: Array<{ title: string; endsAt: string }> = []
+  for (const line of cart) {
+    const minutes = Number(line.duration_minutes || 0) * line.quantity
+    if (!line.service_variant_id || !(minutes > 0)) continue
+    const current = line.extend_session_id ? sessions.find((x) => x.id === line.extend_session_id) : null
+    const from = current ? Math.max(now, new Date(current.ends_at).getTime()) : now
+    out.push({ title: (current?.title || line.name.split(' · ')[0]).trim(), endsAt: new Date(from + minutes * 60_000).toISOString() })
+  }
+  return out
 }

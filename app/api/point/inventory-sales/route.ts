@@ -10,6 +10,7 @@ import { requireCurrentOpenShiftId } from '@/lib/server/point-shifts'
 import { requirePointPermission } from '@/lib/server/point-permission-check'
 import { BIG_DISCOUNT_PERCENT } from '@/lib/core/point-permissions'
 import { checkAndNotifyLowStock } from '@/lib/server/low-stock-notifier'
+import { loadPointServices, serviceLineName, startSessionsForSale, type StoreService } from '@/lib/server/store-services'
 
 type CreateSaleBody = {
   action: 'createSale'
@@ -30,6 +31,10 @@ type CreateSaleBody = {
     items: Array<{
       item_id?: string | null
       universal_name?: string | null
+      /** Вариант услуги: название и цену сервер берёт из справочника. */
+      service_variant_id?: string | null
+      /** Продлить идущий таймер вместо нового. */
+      extend_session_id?: string | null
       quantity: number
       unit_price: number
       comment?: string | null
@@ -108,21 +113,47 @@ function roundLineTotal(quantity: number, unitPrice: number) {
   return normalizeMoney(quantity * unitPrice)
 }
 
+type ServiceVariantRef = { service: StoreService; variant: StoreService['variants'][number] }
+
+function buildServiceVariantMap(services: StoreService[]) {
+  const map = new Map<string, ServiceVariantRef>()
+  for (const service of services) for (const variant of service.variants) map.set(variant.id, { service, variant })
+  return map
+}
+
 function buildAuthoritativeSaleLines(params: {
   requestedItems: Array<{
     item_id?: string | null
     universal_name?: string | null
+    service_variant_id?: string | null
     quantity: number
     unit_price?: number
     comment?: string | null
   }>
   dbItems: Array<{ id: string; name: string; sale_price: number; is_active: boolean; item_type?: string | null }>
   showcaseBalances: Map<string, number>
+  serviceVariants: Map<string, ServiceVariantRef>
   paymentTotal: number
 }) {
   const itemMap = new Map(params.dbItems.map((row) => [row.id, row]))
 
   const baseLines = params.requestedItems.map((item) => {
+    // Услуга: название и цена из справочника, остатка нет
+    if (item.service_variant_id) {
+      const ref = params.serviceVariants.get(item.service_variant_id)
+      if (!ref) throw new Error('Услуга недоступна на этой точке — обновите кассу')
+      const unitPrice = normalizeMoney(ref.variant.price)
+      return {
+        item_id: null as string | null,
+        universal_name: serviceLineName(ref.service, ref.variant) as string | null,
+        service_variant_id: ref.variant.id as string | null,
+        quantity: item.quantity,
+        base_unit_price: unitPrice,
+        base_total: roundLineTotal(item.quantity, unitPrice),
+        comment: item.comment?.trim() || null,
+      }
+    }
+
     // Универсальный товар: цена и название от оператора, без проверки остатков
     if (!item.item_id && item.universal_name) {
       const unitPrice = normalizeMoney(item.unit_price || 0)
@@ -131,7 +162,8 @@ function buildAuthoritativeSaleLines(params: {
       }
       return {
         item_id: null as string | null,
-        universal_name: item.universal_name.trim(),
+        universal_name: item.universal_name.trim() as string | null,
+        service_variant_id: null as string | null,
         quantity: item.quantity,
         base_unit_price: unitPrice,
         base_total: roundLineTotal(item.quantity, unitPrice),
@@ -160,6 +192,7 @@ function buildAuthoritativeSaleLines(params: {
     return {
       item_id: item.item_id,
       universal_name: null as string | null,
+      service_variant_id: null as string | null,
       quantity: item.quantity,
       base_unit_price: unitPrice,
       base_total: roundLineTotal(item.quantity, unitPrice),
@@ -177,6 +210,7 @@ function buildAuthoritativeSaleLines(params: {
     return baseLines.map((line) => ({
       item_id: line.item_id,
       universal_name: line.universal_name,
+      service_variant_id: line.service_variant_id,
       quantity: line.quantity,
       unit_price: line.base_unit_price,
       comment: line.comment,
@@ -186,6 +220,7 @@ function buildAuthoritativeSaleLines(params: {
   const lines = baseLines.map((line) => ({
     item_id: line.item_id,
     universal_name: line.universal_name,
+    service_variant_id: line.service_variant_id,
     quantity: line.quantity,
     unit_price: line.base_unit_price,
     comment: line.comment,
@@ -803,7 +838,7 @@ export async function GET(request: Request) {
     const catalogOrgId = (companyRow as any)?.organization_id || (await resolveCompanyOrganizationId(supabase, device.company_id))
     const isStore = (companyRow as any)?.store_enabled === true
 
-    const [items, showcaseMap, { data: sales, error: salesError }] =
+    const [items, showcaseMap, { data: sales, error: salesError }, services] =
       await Promise.all([
         fetchAllPages((from, to) => {
           let q = supabase
@@ -824,6 +859,9 @@ export async function GET(request: Request) {
           .eq('location_id', location.id)
           .order('sold_at', { ascending: false })
           .limit(20),
+        catalogOrgId
+          ? loadPointServices(supabase, catalogOrgId, device.company_id).catch(() => [] as StoreService[])
+          : Promise.resolve([] as StoreService[]),
       ])
 
     if (salesError) throw salesError
@@ -840,6 +878,11 @@ export async function GET(request: Request) {
         items: (items || []).map((item: any) => ({
           ...item,
           display_qty: showcaseMap.get(item.id) || 0,
+        })),
+        services: services.map((s) => ({
+          id: s.id,
+          name: s.name,
+          variants: s.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, duration_minutes: v.duration_minutes })),
         })),
         sales: sales || [],
       },
@@ -886,6 +929,8 @@ export async function POST(request: Request) {
     const requestedItems: Array<{
       item_id: string | null
       universal_name: string | null
+      service_variant_id: string | null
+      extend_session_id: string | null
       unit_price?: number
       quantity: number
       comment: string | null
@@ -894,11 +939,13 @@ export async function POST(request: Request) {
           .map((item: any) => ({
             item_id: String(item.item_id || '').trim() || null,
             universal_name: String(item.universal_name || '').trim() || null,
+            service_variant_id: String(item.service_variant_id || '').trim() || null,
+            extend_session_id: String(item.extend_session_id || '').trim() || null,
             unit_price: normalizeMoney(item.unit_price || 0),
             quantity: normalizeQty(item.quantity),
             comment: item.comment?.trim() || null,
           }))
-          .filter((item: any) => (item.item_id || item.universal_name) && item.quantity > 0)
+          .filter((item: any) => (item.item_id || item.universal_name || item.service_variant_id) && item.quantity > 0)
       : []
 
     if (requestedItems.length === 0) return json({ error: 'point-sale-items-required' }, 400)
@@ -931,8 +978,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const [{ data: dbItems, error: itemError }, showcaseBalances, customerContext] = await Promise.all([
-      resolveCompanyOrganizationId(supabase, device.company_id).then((orgId) =>
+    const saleOrgId = await resolveCompanyOrganizationId(supabase, device.company_id)
+    const hasServiceLines = requestedItems.some((item) => item.service_variant_id)
+    const [{ data: dbItems, error: itemError }, showcaseBalances, customerContext, pointServices] = await Promise.all([
+      Promise.resolve(saleOrgId).then((orgId) =>
         supabase
           .from('inventory_items')
           .select('id, name, sale_price, is_active, item_type')
@@ -952,14 +1001,17 @@ export async function POST(request: Request) {
         customerId,
         loyaltyPointsSpent,
       }),
+      hasServiceLines && saleOrgId ? loadPointServices(supabase, saleOrgId, device.company_id) : Promise.resolve([] as StoreService[]),
     ])
 
     if (itemError) throw itemError
+    const serviceVariants = buildServiceVariantMap(pointServices)
 
     const items = buildAuthoritativeSaleLines({
       requestedItems,
       dbItems: dbItems || [],
       showcaseBalances,
+      serviceVariants,
       paymentTotal,
     })
 
@@ -979,13 +1031,20 @@ export async function POST(request: Request) {
 
     // Права кассы. Скидка считается по ценам каталога: сумма товаров − оплата −
     // списанные бонусы лояльности (бонусы — не скидка кассира).
-    if (requestedItems.some((item) => !item.item_id)) {
+    if (requestedItems.some((item) => !item.item_id && !item.service_variant_id)) {
       const freePriceDenied = await requirePointPermission({ request, supabase, companyId: device.company_id, permission: 'kassa_free_price' })
       if (freePriceDenied) return freePriceDenied
     }
     const catalogPrice = new Map(((dbItems || []) as any[]).map((row) => [String(row.id), normalizeMoney(row.sale_price)]))
     const baseSubtotal = requestedItems.reduce(
-      (sum, item) => sum + item.quantity * (item.item_id ? catalogPrice.get(item.item_id) || 0 : normalizeMoney(item.unit_price || 0)),
+      (sum, item) =>
+        sum +
+        item.quantity *
+          (item.item_id
+            ? catalogPrice.get(item.item_id) || 0
+            : item.service_variant_id
+              ? normalizeMoney(serviceVariants.get(item.service_variant_id)?.variant.price || 0)
+              : normalizeMoney(item.unit_price || 0)),
       0,
     )
     const manualDiscount = baseSubtotal - paymentTotal - loyaltyDiscountAmount
@@ -1035,6 +1094,29 @@ export async function POST(request: Request) {
 
     if (sale?.sale_id) {
       await supabase.from('point_sales').update({ shift_id: shiftIdAttach }).eq('id', sale.sale_id)
+    }
+
+    // Таймеры услуг со временем. Продажа уже прошла — сбой таймера её не отменяет.
+    let serviceSessions: Awaited<ReturnType<typeof startSessionsForSale>> = []
+    if (sale?.sale_id && hasServiceLines) {
+      try {
+        serviceSessions = await startSessionsForSale({
+          supabase,
+          companyId: device.company_id,
+          saleId: String(sale.sale_id),
+          operatorId: actor.operatorId,
+          lines: requestedItems.flatMap((item) => {
+            const ref = item.service_variant_id ? serviceVariants.get(item.service_variant_id) : null
+            return ref ? [{ service: ref.service, variant: ref.variant, quantity: item.quantity, extend_session_id: item.extend_session_id }] : []
+          }),
+        })
+      } catch (sessionError: any) {
+        await writeSystemErrorLogSafe({
+          scope: 'server',
+          area: 'point-inventory-sales:service-sessions',
+          message: sessionError?.message || 'Service session start error',
+        })
+      }
     }
 
     const { data: savedSale } = await supabase
@@ -1111,6 +1193,7 @@ export async function POST(request: Request) {
         customer_id: loyaltyResult?.customerId || null,
         loyalty_points_earned: loyaltyResult?.pointsEarned || 0,
         loyalty_points_spent: loyaltyResult?.pointsSpent || 0,
+        service_sessions: serviceSessions,
       },
     })
   } catch (error: any) {

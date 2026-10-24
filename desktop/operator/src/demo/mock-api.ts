@@ -43,6 +43,67 @@ const LOYALTY = {
   max_redeem_percent: 30, max_redeem_percent_per_purchase: 30, is_active: true,
 }
 
+
+// ── Услуги (демо): теннис по времени и печать без времени ──
+const DEMO_SERVICES = [
+  {
+    id: 'svc-tennis',
+    name: 'Теннис',
+    variants: [
+      { id: 'svc-tennis-30', name: '30 мин', price: 1000, duration_minutes: 30 },
+      { id: 'svc-tennis-60', name: '1 час', price: 2000, duration_minutes: 60 },
+    ],
+  },
+  {
+    id: 'svc-print',
+    name: 'Печать',
+    variants: [
+      { id: 'svc-print-1', name: '1 лист', price: 50, duration_minutes: null },
+      { id: 'svc-print-color', name: 'Цветная', price: 150, duration_minutes: null },
+    ],
+  },
+]
+
+type DemoSession = { id: string; service_id: string; variant_id: string; sale_id: string; title: string; started_at: string; ends_at: string; finished_at: string | null }
+// Один таймер уже идёт — чтобы полоса «Идут сейчас» была видна сразу.
+const demoSessions: DemoSession[] = [
+  {
+    id: 'sess-demo-1', service_id: 'svc-tennis', variant_id: 'svc-tennis-60', sale_id: 'demo-old',
+    title: 'Теннис', started_at: new Date(Date.now() - 56 * 60_000).toISOString(), ends_at: new Date(Date.now() + 4 * 60_000).toISOString(), finished_at: null,
+  },
+]
+
+function findDemoVariant(variantId: string) {
+  for (const service of DEMO_SERVICES) {
+    const variant = service.variants.find((v) => v.id === variantId)
+    if (variant) return { service, variant }
+  }
+  return null
+}
+
+function startDemoSessions(lines: Array<{ service_variant_id?: string; extend_session_id?: string; quantity: number }>, saleId: string) {
+  const out: DemoSession[] = []
+  const now = Date.now()
+  for (const l of lines) {
+    const ref = l.service_variant_id ? findDemoVariant(l.service_variant_id) : null
+    const minutes = Number(ref?.variant.duration_minutes || 0) * l.quantity
+    if (!ref || !minutes) continue
+    const current = l.extend_session_id ? demoSessions.find((x) => x.id === l.extend_session_id && !x.finished_at) : null
+    if (current) {
+      current.ends_at = new Date(Math.max(now, new Date(current.ends_at).getTime()) + minutes * 60_000).toISOString()
+      out.push(current)
+      continue
+    }
+    const row: DemoSession = {
+      id: `sess-${Math.random().toString(36).slice(2, 8)}`, service_id: ref.service.id, variant_id: ref.variant.id, sale_id: saleId,
+      title: ref.service.name, started_at: new Date(now).toISOString(), ends_at: new Date(now + minutes * 60_000).toISOString(), finished_at: null,
+    }
+    demoSessions.push(row)
+    out.push(row)
+  }
+  return out
+}
+
 function toSaleRow(s: HistorySale) {
   return {
     id: s.id, sale_date: s.sale_date, shift: s.shift, payment_method: s.payment_method,
@@ -144,7 +205,7 @@ function handle(method: string, path: string, query: URLSearchParams, body: Json
         return {
           json: {
             ok: true,
-            data: { company: COMPANY, location: LOC, items: ITEMS, sales: state.sales.map(toSaleRow) },
+            data: { company: COMPANY, location: LOC, items: ITEMS, services: DEMO_SERVICES, sales: state.sales.map(toSaleRow) },
           },
         }
       }
@@ -152,7 +213,13 @@ function handle(method: string, path: string, query: URLSearchParams, body: Json
       if (body.action === 'correctPayment') {
         return { json: { ok: true, data: { ...payload } } }
       }
-      const lines = (payload.items as Array<{ item_id?: string; universal_name?: string; quantity: number; unit_price: number }>) || []
+      const lines = (
+        (payload.items as Array<{ item_id?: string; universal_name?: string; service_variant_id?: string; extend_session_id?: string; quantity: number; unit_price: number }>) || []
+      ).map((l) => {
+        // Как сервер: цена и название услуги из справочника
+        const ref = l.service_variant_id ? findDemoVariant(l.service_variant_id) : null
+        return ref ? { ...l, universal_name: `${ref.service.name} · ${ref.variant.name}`, unit_price: ref.variant.price } : l
+      })
       const discount = Number(payload.discount_amount || 0) + Number(payload.loyalty_discount_amount || 0)
       const total = Math.max(0, lines.reduce((a, l) => a + l.quantity * l.unit_price, 0) - discount)
       const pm = String(payload.payment_method || 'cash')
@@ -181,9 +248,24 @@ function handle(method: string, path: string, query: URLSearchParams, body: Json
             customer_id: (payload.customer_id as string) || null,
             loyalty_points_earned: payload.customer_id ? Math.floor(total / 100) * LOYALTY.points_per_100_tenge : 0,
             loyalty_points_spent: Number(payload.loyalty_points_spent || 0),
+            service_sessions: startDemoSessions(lines, id),
           },
         },
       }
+    }
+    case '/api/point/service-sessions': {
+      if (method === 'GET') {
+        const since = Date.now() - 30 * 60_000
+        return {
+          json: {
+            ok: true,
+            data: { sessions: demoSessions.filter((x) => !x.finished_at && new Date(x.ends_at).getTime() >= since), server_time: new Date().toISOString() },
+          },
+        }
+      }
+      const found = demoSessions.find((x) => x.id === body.session_id)
+      if (found) found.finished_at = new Date().toISOString()
+      return { json: { ok: true } }
     }
     case '/api/point/sales-history': {
       const q = (query.get('q') || '').trim().toLowerCase()

@@ -473,7 +473,35 @@ export interface PointInventorySaleContext {
   company: { id: string; name: string; code: string | null }
   location: { id: string; name: string; code: string | null; location_type: string }
   items: PointInventorySaleItem[]
+  /** Услуги без остатка (сайт: Магазин → Склад → Услуги). Нет у старых серверов. */
+  services?: PointService[]
   sales: PointInventorySaleRow[]
+}
+
+export interface PointServiceVariant {
+  id: string
+  name: string
+  price: number
+  /** Минуты таймера; null — услуга без времени. */
+  duration_minutes: number | null
+}
+
+export interface PointService {
+  id: string
+  name: string
+  variants: PointServiceVariant[]
+}
+
+/** Идущий таймер услуги: с продажи до ends_at. */
+export interface PointServiceSession {
+  id: string
+  service_id: string | null
+  variant_id: string | null
+  sale_id: string | null
+  title: string
+  started_at: string
+  ends_at: string
+  finished_at: string | null
 }
 
 export interface PointInventoryReturnRow {
