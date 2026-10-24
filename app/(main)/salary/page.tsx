@@ -13,7 +13,7 @@ import { SortableTh } from '@/components/ui/sortable-th'
 import { useModalEscape } from '@/lib/client/use-modal-escape'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CreditCard, DollarSign, Download, Loader2, MessageCircle, Pencil, Plus, RefreshCw, Send, TrendingDown, Users, Wallet, X } from 'lucide-react'
+import { Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, CreditCard, DollarSign, Download, Loader2, MessageCircle, Pencil, Plus, RefreshCw, Send, Trash2, TrendingDown, Users, Wallet, X } from 'lucide-react'
 
 import { AdminPageHeader, AdminTableViewport, adminTableStickyTheadClass } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
@@ -345,6 +345,7 @@ export default function SalaryPage() {
   const canCreatePayment = can('salary.create_payment')
   const canCreateAdjustment = can('salary.create_adjustment')
   const canVoidPayment = can('salary.void_payment')
+  const canVoidAdjustment = can('salary.void_adjustment')
   const canUpdateChatId = can('salary.update_chat_id')
   // Доступ к вкладкам/действиям административных сотрудников
   const canViewStaffSalary = can('staff.view')
@@ -589,6 +590,34 @@ export default function SalaryPage() {
   // Ошибки действий в окнах — уведомлением поверх окна. Карточка ошибок наверху
   // страницы пряталась за открытым окном и гасла через 6 секунд: «кнопка не работает».
   const notifyError = (title: string, description?: string) => { toast({ title, description, variant: 'destructive' }) }
+  // Отмена бонуса/штрафа/долга/аванса прямо из ленты. Раньше это было только
+  // в карточке оператора, и в общей ленте отменить было нечем.
+  const [voidingEventId, setVoidingEventId] = useState<string | null>(null)
+  const voidOperatorEvent = async (ev: OperatorTimelineEvent) => {
+    const adjustmentId = ev.id.startsWith('adj:') ? ev.id.slice(4) : null
+    if (!adjustmentId || voidingEventId) return
+    const label = OPERATOR_EVENT_KIND_META[ev.kind].label
+    const ok = await confirmDialog({
+      title: `Отменить: ${label.toLowerCase()} ${money(ev.amount)}?`,
+      description:
+        `${ev.operator_name}${ev.comment ? ` · ${ev.comment}` : ''}. Сумма уйдёт из расчёта недели.` +
+        (ev.kind === 'advance' ? ' Расход аванса тоже удалится.' : ''),
+      confirmLabel: 'Отменить',
+      destructive: true,
+    })
+    if (!ok) return
+    setVoidingEventId(ev.id)
+    try {
+      await post({ action: 'voidAdjustment', adjustmentId, weekStart, operatorId: ev.operator_id })
+      toast({ title: `${label} отменён`, description: `${ev.operator_name} · ${money(ev.amount)}` })
+      await load()
+    } catch (e: any) {
+      notifyError('Не удалось отменить', e?.message)
+    } finally {
+      setVoidingEventId(null)
+    }
+  }
+  const canVoidEvent = (ev: OperatorTimelineEvent) => canVoidAdjustment && ev.status === 'active' && ev.id.startsWith('adj:')
   const submitAdvance = async (e: FormEvent) => { e.preventDefault(); if (!advanceTarget || advanceSaving) return; const cash = parseMoney(advanceCash), kaspi = parseMoney(advanceKaspi); if (!advanceCompanyId) return notifyError('Для аванса нужно выбрать точку'); if (cash + kaspi <= 0) return notifyError('Сумма аванса должна быть больше 0'); setAdvanceSaving(true); setError(null); try { await post({ action: 'createAdvance', payload: { operator_id: advanceTarget.operator.id, week_start: weekStart, company_id: advanceCompanyId, payment_date: advanceDate, cash_amount: cash, kaspi_amount: kaspi, comment: advanceComment.trim() || null } }); setAdvanceTarget(null); toast({ title: 'Аванс выдан' }); await load() } catch (e: any) { console.error(e); notifyError('Не удалось выдать аванс', e?.message) } finally { setAdvanceSaving(false) } }
   const submitPayment = async (e: FormEvent) => {
     e.preventDefault()
@@ -1971,6 +2000,7 @@ export default function SalaryPage() {
                             {head('Сумма', 'amount', 'right')}
                             {head('Статус', 'status', 'center')}
                             {head('Комментарий', 'comment')}
+                            <th className="w-12 px-3 py-2" />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -1993,6 +2023,19 @@ export default function SalaryPage() {
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-2 text-center text-[11px] text-muted-foreground">{statusLabel(ev)}</td>
                                 <td className="max-w-[380px] truncate px-3 py-2 text-xs text-muted-foreground" title={ev.comment || undefined}>{ev.comment || '—'}</td>
+                                <td className="px-3 py-2 text-right">
+                                  {canVoidEvent(ev) ? (
+                                    <button
+                                      type="button"
+                                      title="Отменить"
+                                      disabled={voidingEventId === ev.id}
+                                      onClick={(e) => { e.stopPropagation(); void voidOperatorEvent(ev) }}
+                                      className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                                    >
+                                      {voidingEventId === ev.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                    </button>
+                                  ) : null}
+                                </td>
                               </tr>
                             )
                           })}
@@ -2005,11 +2048,13 @@ export default function SalaryPage() {
                       {sortedOperatorEvents.map((ev) => {
                         const meta = OPERATOR_EVENT_KIND_META[ev.kind]
                         return (
-                          <button
+                          <div
                             key={ev.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => openOperator(ev)}
-                            className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left ${ev.status === 'active' ? '' : 'opacity-60'}`}
+                            onKeyDown={(e) => { if (e.key === 'Enter') openOperator(ev) }}
+                            className={`flex w-full cursor-pointer items-start justify-between gap-3 px-4 py-3 text-left ${ev.status === 'active' ? '' : 'opacity-60'}`}
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
@@ -2022,8 +2067,21 @@ export default function SalaryPage() {
                                 {ev.comment ? ` · ${ev.comment}` : ''}
                               </div>
                             </div>
-                            <span className={`shrink-0 text-sm font-medium tabular-nums ${ev.status === 'voided' ? 'text-slate-400 line-through' : 'text-foreground'}`}>{money(ev.amount)}</span>
-                          </button>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className={`text-sm font-medium tabular-nums ${ev.status === 'voided' ? 'text-slate-400 line-through' : 'text-foreground'}`}>{money(ev.amount)}</span>
+                              {canVoidEvent(ev) ? (
+                                <button
+                                  type="button"
+                                  aria-label="Отменить"
+                                  disabled={voidingEventId === ev.id}
+                                  onClick={(e) => { e.stopPropagation(); void voidOperatorEvent(ev) }}
+                                  className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-500 disabled:opacity-50"
+                                >
+                                  {voidingEventId === ev.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
                         )
                       })}
                     </div>

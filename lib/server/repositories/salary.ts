@@ -226,7 +226,8 @@ export async function listOperatorSalaryData(
 
   const adjustmentsQuery = supabase
     .from('operator_salary_adjustments')
-    .select('operator_id,amount,kind,company_id,status')
+    // date/comment — для квитка в Telegram (за что бонус/штраф/аванс).
+    .select('id,operator_id,amount,kind,company_id,status,date,comment')
     .eq('operator_id', operatorId)
     .gte('date', dateFrom)
     .lte('date', dateTo)
@@ -236,7 +237,7 @@ export async function listOperatorSalaryData(
   // «Частично». Подробности — в `isDebtDeductedFromSalary`.
   const debtsBase = supabase
     .from('debts')
-    .select('operator_id,amount,company_id,status,settled_via')
+    .select('id,operator_id,amount,company_id,status,settled_via,date,comment')
     .eq('operator_id', operatorId)
     .or('status.eq.active,settled_via.eq.salary')
 

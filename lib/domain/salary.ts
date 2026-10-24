@@ -88,6 +88,8 @@ export type SalaryAdjustmentRow = {
   kind: AdjustmentKind
   company_id?: string | null
   status?: string | null
+  date?: string | null
+  comment?: string | null
 }
 
 export type SalaryDebtRow = {
@@ -96,6 +98,8 @@ export type SalaryDebtRow = {
   company_id?: string | null
   status?: string | null
   settled_via?: string | null
+  date?: string | null
+  comment?: string | null
 }
 
 export type SalaryOperatorMeta = {
