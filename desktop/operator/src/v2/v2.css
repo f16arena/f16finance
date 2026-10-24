@@ -1,79 +1,99 @@
 /*
- * Касса v2 — швейцарская система.
- * Один шрифт (Helvetica Neue → Arial), один акцент (International Orange),
- * сетка из волосяных линий 1 px вместо карточек и теней, прямые углы.
- * Две темы: светлая (белый) и тёмная (почти чёрный) — логика та же.
+ * Касса v2 — «как Apple»: мягкие скруглённые карточки, стекло с размытием,
+ * воздух, пружинящие нажатия. Системный шрифт (Segoe UI Variable на Windows).
+ * Две темы: светлая (серый фон + белые карточки) и тёмная (чёрный + графит).
  */
 
 .v2 {
-  --v2-bg: #ffffff;
-  --v2-bg-2: #f7f7f8;
-  --v2-ink: #111111;
-  --v2-muted: #6b6b6b;
-  --v2-rule: #e3e3e5;
-  --v2-rule-strong: #111111;
-  --v2-accent: #ff4f00;
-  --v2-accent-ink: #ffffff;
-  --v2-danger: #d70015;
-  --v2-ok: #0a7d3b;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --card-2: #f7f7fa;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-line: rgba(0, 0, 0, 0.06);
+  --ink: #1c1c1e;
+  --ink-2: #3a3a3c;
+  --muted: #8e8e93;
+  --line: rgba(60, 60, 67, 0.12);
+  --fill: rgba(120, 120, 128, 0.12);
+  --green: #34c759;
+  --blue: #0a84ff;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.06), 0 16px 40px rgba(0, 0, 0, 0.1);
 
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  background: var(--v2-bg);
-  color: var(--v2-ink);
+  font-family: 'Segoe UI Variable Display', 'Segoe UI Variable', -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
 
 .v2[data-theme='dark'] {
-  --v2-bg: #0a0a0a;
-  --v2-bg-2: #141414;
-  --v2-ink: #f5f5f5;
-  --v2-muted: #8a8a8a;
-  --v2-rule: #262626;
-  --v2-rule-strong: #f5f5f5;
-  --v2-accent: #ff4f00;
-  --v2-accent-ink: #0a0a0a;
-  --v2-danger: #ff453a;
-  --v2-ok: #30d158;
+  --bg: #000000;
+  --card: #1c1c1e;
+  --card-2: #2c2c2e;
+  --glass: rgba(28, 28, 30, 0.72);
+  --glass-line: rgba(255, 255, 255, 0.08);
+  --ink: #f5f5f7;
+  --ink-2: #d1d1d6;
+  --muted: #8e8e93;
+  --line: rgba(84, 84, 88, 0.45);
+  --fill: rgba(118, 118, 128, 0.24);
+  --green: #30d158;
+  --blue: #0a84ff;
+  --red: #ff453a;
+  --orange: #ff9f0a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
 
-.v2 * { border-radius: 0; }
+.v2 button { cursor: pointer; font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+.v2 button:disabled { cursor: default; opacity: 0.4; }
+.v2 button:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 2px; }
 
-.v2 .v2-folio {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--v2-muted);
+/* Поверхности */
+.v2 .surface { background: var(--card); box-shadow: var(--shadow); }
+.v2 .surface-2 { background: var(--card-2); }
+.v2 .glass {
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--glass-line);
 }
+.v2 .fill { background: var(--fill); }
+.v2 .line { border-color: var(--line); }
+.v2 .ink { color: var(--ink); }
+.v2 .ink-2 { color: var(--ink-2); }
+.v2 .muted { color: var(--muted); }
+.v2 .t-green { color: var(--green); }
+.v2 .t-blue { color: var(--blue); }
+.v2 .t-red { color: var(--red); }
+.v2 .placeholder-muted::placeholder { color: var(--muted); }
 
-.v2 .v2-display {
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 0.9;
-}
+.v2 .btn-green { background: var(--green); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--green) 35%, transparent); }
+.v2 .btn-blue { background: var(--blue); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--blue) 35%, transparent); }
+.v2 .pill-active { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04); }
+.v2[data-theme='dark'] .pill-active { background: #636366; color: #fff; }
+.v2 .badge { background: var(--blue); color: #fff; }
 
-.v2 button { cursor: pointer; font: inherit; color: inherit; }
-.v2 button:disabled { cursor: default; opacity: 0.35; }
-.v2 button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+/* Пружинящее нажатие */
+.v2 .press { transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease, background-color 200ms ease; }
+.v2 .press:active:not(:disabled) { transform: scale(0.96); }
+.v2 .lift:hover:not(:disabled) { box-shadow: var(--shadow-lift); }
 
-/* Нажатие — короткая вспышка акцентом по ячейке (сигнал «добавлено»). */
-@keyframes v2-hit { from { box-shadow: inset 0 0 0 3px var(--v2-accent); } to { box-shadow: inset 0 0 0 0 var(--v2-accent); } }
-.v2 .v2-hit { animation: v2-hit 420ms ease-out 1; }
+/* Строка корзины плавно выезжает */
+@keyframes v2-slide { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.v2 .slide-in { animation: v2-slide 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
-.v2 ::-webkit-scrollbar { width: 6px; height: 6px; }
-.v2 ::-webkit-scrollbar-thumb { background: var(--v2-rule); }
+/* Цифра «сколько в корзине» на карточке — мягко прыгает */
+@keyframes v2-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.v2 .pop { animation: v2-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
-/* Цвета темы — обычными классами: arbitrary-классы Tailwind с var() двусмысленны. */
-.v2 .rule { border-color: var(--v2-rule); }
-.v2 .bg-2 { background: var(--v2-bg-2); }
-.v2 .hover-bg-2:hover { background: var(--v2-bg-2); }
-.v2 .bg-accent { background: var(--v2-accent); color: var(--v2-accent-ink); }
-.v2 .bg-ink { background: var(--v2-ink); color: var(--v2-bg); }
-.v2 .bg-accent-bar { background: var(--v2-accent); }
-.v2 .ink { color: var(--v2-ink); }
-.v2 .muted { color: var(--v2-muted); }
-.v2 .hover-ink:hover { color: var(--v2-ink); }
-.v2 .accent { color: var(--v2-accent); }
-.v2 .danger { color: var(--v2-danger); }
-.v2 .ok { color: var(--v2-ok); }
-.v2 .placeholder-muted::placeholder { color: var(--v2-muted); }
+/* Шторка «Оплачено» снизу */
+@keyframes v2-sheet { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.v2 .sheet-in { animation: v2-sheet 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.v2 ::-webkit-scrollbar { width: 8px; height: 8px; }
+.v2 ::-webkit-scrollbar-thumb { background: var(--fill); border-radius: 8px; }

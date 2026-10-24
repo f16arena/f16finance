@@ -1,17 +1,61 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Minus, Moon, Plus, ScanBarcode, Search, Sun, X } from 'lucide-react'
+import {
+  ArrowRightLeft,
+  BadgePercent,
+  Check,
+  ClipboardList,
+  Clock,
+  Cookie,
+  CupSoda,
+  Gamepad2,
+  History,
+  LayoutGrid,
+  Minus,
+  Moon,
+  PauseCircle,
+  Plus,
+  Printer,
+  ReceiptText,
+  RotateCcw,
+  ScanBarcode,
+  Search,
+  ShoppingBag,
+  Sun,
+  Trash2,
+  UserRound,
+  UtensilsCrossed,
+  Wallet,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 
 import { ITEMS, OPERATOR } from '@/demo/fixtures'
 import type { PointInventorySaleItem } from '@/types'
 
 /**
- * Концепция экрана продажи для кассы v2 — только внешний вид и поведение
- * рук оператора, без сервера. Данные — подставные товары демо-стенда.
+ * Концепция экрана продажи кассы v2 в стиле Apple — только внешний вид и
+ * поведение рук оператора, без сервера. Данные — подставные товары стенда.
  */
 
 type Line = { item: PointInventorySaleItem; qty: number }
 
-const TABS = ['Смена', 'Продажа', 'Возврат', 'История', 'Долги', 'Заявка', 'Зал', 'Профиль']
+const TABS: Array<{ label: string; icon: LucideIcon }> = [
+  { label: 'Смена', icon: ReceiptText },
+  { label: 'Продажа', icon: ShoppingBag },
+  { label: 'Возврат', icon: RotateCcw },
+  { label: 'История', icon: History },
+  { label: 'Долги', icon: Wallet },
+  { label: 'Заявка', icon: ClipboardList },
+  { label: 'Зал', icon: Gamepad2 },
+]
+
+const CATEGORY_LOOK: Record<string, { icon: LucideIcon; color: string }> = {
+  all: { icon: LayoutGrid, color: '#8e8e93' },
+  'cat-drinks': { icon: CupSoda, color: '#0a84ff' },
+  'cat-snacks': { icon: Cookie, color: '#ff9500' },
+  'cat-food': { icon: UtensilsCrossed, color: '#ff3b30' },
+  'cat-time': { icon: Clock, color: '#af52de' },
+}
 
 function money(value: number) {
   return Math.round(value).toLocaleString('ru-RU')
@@ -31,11 +75,11 @@ function plural(n: number, one: string, few: string, many: string) {
 
 export default function SaleConcept() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  const [category, setCategory] = useState<string>('all')
+  const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
   const [cart, setCart] = useState<Line[]>([])
-  const [hitId, setHitId] = useState<string | null>(null)
-  const [done, setDone] = useState<{ total: number; method: string } | null>(null)
+  const [popId, setPopId] = useState<{ id: string; n: number } | null>(null)
+  const [paid, setPaid] = useState<{ total: number; method: 'cash' | 'kaspi' } | null>(null)
   const [now, setNow] = useState(() => new Date())
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -45,15 +89,9 @@ export default function SaleConcept() {
   }, [])
 
   const categories = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; count: number }>()
-    for (const item of ITEMS) {
-      const c = item.category
-      if (!c) continue
-      const entry = map.get(c.id) || { id: c.id, name: c.name, count: 0 }
-      entry.count += 1
-      map.set(c.id, entry)
-    }
-    return [{ id: 'all', name: 'Все товары', count: ITEMS.length }, ...map.values()]
+    const map = new Map<string, { id: string; name: string }>()
+    for (const item of ITEMS) if (item.category) map.set(item.category.id, item.category)
+    return [{ id: 'all', name: 'Все' }, ...map.values()]
   }, [])
 
   const visible = ITEMS.filter((item) => {
@@ -62,29 +100,28 @@ export default function SaleConcept() {
     return true
   })
 
-  const total = cart.reduce((sum, line) => sum + line.qty * line.item.sale_price, 0)
-  const pieces = cart.reduce((sum, line) => sum + line.qty, 0)
+  const total = cart.reduce((s, l) => s + l.qty * l.item.sale_price, 0)
+  const pieces = cart.reduce((s, l) => s + l.qty, 0)
   const qtyOf = (id: string) => cart.find((l) => l.item.id === id)?.qty || 0
 
   function add(item: PointInventorySaleItem) {
     if (item.display_qty <= 0) return
-    setDone(null)
-    setCart((prev) => {
-      const found = prev.find((l) => l.item.id === item.id)
-      if (found) return prev.map((l) => (l.item.id === item.id ? { ...l, qty: l.qty + 1 } : l))
-      return [...prev, { item, qty: 1 }]
-    })
-    setHitId(null)
-    requestAnimationFrame(() => setHitId(item.id))
+    setPaid(null)
+    setCart((prev) =>
+      prev.some((l) => l.item.id === item.id)
+        ? prev.map((l) => (l.item.id === item.id ? { ...l, qty: l.qty + 1 } : l))
+        : [...prev, { item, qty: 1 }],
+    )
+    setPopId((p) => ({ id: item.id, n: (p?.n || 0) + 1 }))
   }
 
   function change(id: string, delta: number) {
     setCart((prev) => prev.flatMap((l) => (l.item.id !== id ? [l] : l.qty + delta <= 0 ? [] : [{ ...l, qty: l.qty + delta }])))
   }
 
-  function pay(method: 'Наличными' | 'Kaspi') {
+  function pay(method: 'cash' | 'kaspi') {
     if (cart.length === 0) return
-    setDone({ total, method })
+    setPaid({ total, method })
     setCart([])
   }
 
@@ -93,144 +130,163 @@ export default function SaleConcept() {
       if (e.key === 'F2') {
         e.preventDefault()
         searchRef.current?.focus()
-      }
-      if (e.key === 'F5' || e.key === 'F6') {
+      } else if (e.key === 'F5' || e.key === 'F6') {
         e.preventDefault()
-        pay(e.key === 'F5' ? 'Наличными' : 'Kaspi')
+        pay(e.key === 'F5' ? 'cash' : 'kaspi')
+      } else if (e.key === 'Escape') {
+        setPaid(null)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const rule = 'rule'
-
   return (
-    <div className="v2 flex h-screen flex-col select-none" data-theme={theme}>
-      {/* ── Шапка: точка, вкладки с номерами, время ───────────────────── */}
-      <header className={`grid h-16 shrink-0 grid-cols-[260px_1fr_auto] items-stretch border-b ${rule}`}>
-        <div className={`flex flex-col justify-center border-r px-5 ${rule}`}>
-          <span className="text-[17px] font-bold leading-tight">Demo Club</span>
-          <span className="v2-folio">Касса 1 · {OPERATOR.short_name || OPERATOR.name}</span>
+    <div className="v2 flex h-screen flex-col select-none overflow-hidden" data-theme={theme}>
+      {/* ── Шапка ─────────────────────────────────────────────────────── */}
+      <header className="glass z-10 mx-4 mt-3 flex h-16 shrink-0 items-center gap-4 rounded-[22px] px-3">
+        <div className="flex min-w-0 items-center gap-3 pl-1">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#5ac8fa] to-[#0a84ff] text-[15px] font-semibold text-white">
+            DC
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[16px] font-semibold leading-tight">Demo Club</div>
+            <div className="muted truncate text-[13px] leading-tight">Касса 1 · {OPERATOR.short_name || OPERATOR.name}</div>
+          </div>
         </div>
-        <nav className="flex items-stretch overflow-x-auto">
+
+        <nav className="fill mx-auto flex items-center gap-1 rounded-[14px] p-1">
           {TABS.map((tab, i) => {
-            const active = tab === 'Продажа'
+            const active = tab.label === 'Продажа'
+            const Icon = tab.icon
             return (
               <button
-                key={tab}
+                key={tab.label}
                 type="button"
-                className={`relative flex min-w-[104px] flex-col justify-center border-r px-4 text-left ${rule} ${active ? '' : 'muted hover-ink'}`}
-                title={`${tab} (Alt+${i + 1})`}
+                title={`${tab.label} (Alt+${i + 1})`}
+                className={`press flex h-10 items-center gap-2 rounded-[11px] px-3.5 text-[14px] font-medium ${active ? 'pill-active' : 'ink-2'}`}
               >
-                <span className="v2-folio">{pad(i + 1)}</span>
-                <span className={`text-[16px] leading-tight ${active ? 'font-bold' : 'font-medium'}`}>{tab}</span>
-                {active ? <span className="absolute inset-x-0 bottom-0 h-[3px] bg-accent-bar" /> : null}
+                <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                <span className="hidden xl:inline">{tab.label}</span>
               </button>
             )
           })}
         </nav>
-        <div className={`flex items-center gap-5 border-l px-5 ${rule}`}>
-          <div className="text-right">
-            <div className="text-[22px] font-bold leading-none">
+
+        <div className="flex items-center gap-3 pr-1">
+          <div className="text-right leading-tight">
+            <div className="text-[17px] font-semibold">
               {pad(now.getHours())}:{pad(now.getMinutes())}
             </div>
-            <div className="v2-folio mt-1 ok">Онлайн · дневная смена</div>
+            <div className="flex items-center justify-end gap-1.5 text-[12px]">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--green)' }} />
+              <span className="muted">Дневная смена</span>
+            </div>
           </div>
           <button
             type="button"
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            className={`grid h-11 w-11 place-items-center border ${rule}`}
+            className="press fill grid h-10 w-10 place-items-center rounded-full"
             aria-label={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
             title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
           >
-            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            {theme === 'light' ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
+          </button>
+          <button type="button" className="press fill grid h-10 w-10 place-items-center rounded-full" aria-label="Профиль" title="Профиль (Alt+8)">
+            <UserRound className="h-[18px] w-[18px]" />
           </button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[260px_1fr_440px]">
-        {/* ── Категории ────────────────────────────────────────────────── */}
-        <aside className={`flex min-h-0 flex-col border-r ${rule}`}>
-          {categories.map((c, i) => {
-            const active = c.id === category
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCategory(c.id)}
-                className={`relative flex h-16 items-center justify-between border-b px-5 text-left ${rule} ${active ? 'bg-2' : ''}`}
-              >
-                {active ? <span className="absolute inset-y-0 left-0 w-[3px] bg-accent-bar" /> : null}
-                <span className="flex items-baseline gap-3">
-                  <span className="v2-folio w-5">{pad(i)}</span>
-                  <span className={`text-[17px] ${active ? 'font-bold' : 'font-medium'}`}>{c.name}</span>
-                </span>
-                <span className="v2-folio">{c.count}</span>
-              </button>
-            )
-          })}
-          <div className={`mt-auto border-t px-5 py-4 text-[13px] muted ${rule}`}>
-            Сканер штрихкода работает на любом экране продажи.
+      <div className="grid min-h-0 flex-1 grid-cols-[1fr_420px] gap-4 p-4">
+        {/* ── Каталог ──────────────────────────────────────────────────── */}
+        <main className="flex min-h-0 flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <label className="surface flex h-12 flex-1 items-center gap-2.5 rounded-[14px] px-4">
+              <Search className="muted h-[18px] w-[18px]" />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Поиск или штрихкод"
+                className="placeholder-muted h-full flex-1 bg-transparent text-[16px] outline-none"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery('')} className="fill grid h-6 w-6 place-items-center rounded-full" aria-label="Очистить поиск">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <kbd className="fill muted rounded-md px-1.5 text-[12px]">F2</kbd>
+              )}
+            </label>
+            <button type="button" className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
+              <ScanBarcode className="t-blue h-[18px] w-[18px]" /> Свободная цена
+            </button>
           </div>
-        </aside>
 
-        {/* ── Товары ───────────────────────────────────────────────────── */}
-        <main className="flex min-h-0 flex-col">
-          <label className={`flex h-16 shrink-0 items-center gap-3 border-b px-5 ${rule}`}>
-            <Search className="h-5 w-5 muted" />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Поиск по названию или штрихкоду"
-              className="h-full flex-1 bg-transparent text-[18px] outline-none placeholder-muted"
-            />
-            {query ? (
-              <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск" className="grid h-11 w-11 place-items-center">
-                <X className="h-5 w-5" />
-              </button>
-            ) : (
-              <span className="v2-folio">F2</span>
-            )}
-          </label>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {categories.map((c) => {
+              const look = CATEGORY_LOOK[c.id] || CATEGORY_LOOK.all
+              const Icon = look.icon
+              const active = c.id === category
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCategory(c.id)}
+                  className={`press flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[15px] font-medium ${active ? 'surface' : 'fill'}`}
+                  style={active ? { boxShadow: `inset 0 0 0 2px ${look.color}` } : undefined}
+                >
+                  <Icon className="h-[18px] w-[18px]" style={{ color: look.color }} />
+                  {c.name}
+                </button>
+              )
+            })}
+          </div>
 
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto pr-1">
             {visible.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 muted">
-                <ScanBarcode className="h-8 w-8" />
+              <div className="muted flex h-full flex-col items-center justify-center gap-2">
+                <Search className="h-8 w-8" />
                 <p className="text-[16px]">Ничего не нашлось по «{query}»</p>
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
                 {visible.map((item) => {
                   const inCart = qtyOf(item.id)
                   const out = item.display_qty <= 0
+                  const look = CATEGORY_LOOK[item.category?.id || 'all'] || CATEGORY_LOOK.all
+                  const Icon = look.icon
                   return (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => add(item)}
                       disabled={out}
-                      className={`relative flex h-36 flex-col justify-between border-b border-r p-4 text-left transition-colors ${rule} ${
-                        inCart ? 'bg-2' : 'hover-bg-2'
-                      } ${hitId === item.id ? 'v2-hit' : ''}`}
+                      className="press lift surface relative flex h-[148px] flex-col rounded-[22px] p-4 text-left"
+                      style={inCart ? { boxShadow: `0 0 0 2px var(--blue), var(--shadow)` } : undefined}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="line-clamp-2 text-[16px] font-medium leading-snug">{item.name}</span>
-                        {inCart ? (
-                          <span className="v2-display -mt-1 text-[34px] accent">{inCart}</span>
-                        ) : null}
+                      <div
+                        className="grid h-11 w-11 place-items-center rounded-[13px]"
+                        style={{ background: `color-mix(in srgb, ${look.color} 14%, transparent)` }}
+                      >
+                        <Icon className="h-[22px] w-[22px]" style={{ color: look.color }} />
                       </div>
-                      <div className="flex items-end justify-between">
-                        <span className="v2-display text-[30px]">
-                          {money(item.sale_price)}
-                          <span className="ml-1 text-[16px] font-medium tracking-normal">₸</span>
+                      {inCart ? (
+                        <span
+                          key={popId?.id === item.id ? popId.n : 0}
+                          className="badge pop absolute right-3 top-3 grid h-7 min-w-7 place-items-center rounded-full px-2 text-[14px] font-semibold"
+                        >
+                          {inCart}
                         </span>
-                        <span className={`v2-folio ${out ? 'danger' : ''}`}>
-                          {out ? 'нет в наличии' : item.display_qty >= 999 ? item.unit : `${item.display_qty} ${item.unit}`}
+                      ) : null}
+                      <span className="mt-auto line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
+                      <span className="mt-1 flex items-baseline justify-between">
+                        <span className="text-[19px] font-semibold">{money(item.sale_price)} ₸</span>
+                        <span className={`text-[12px] ${out ? 't-red' : 'muted'}`}>
+                          {out ? 'нет' : item.display_qty >= 999 ? item.unit : `${item.display_qty} ${item.unit}`}
                         </span>
-                      </div>
+                      </span>
                     </button>
                   )
                 })}
@@ -239,102 +295,98 @@ export default function SaleConcept() {
           </div>
         </main>
 
-        {/* ── Чек: сумма, строки, оплата ───────────────────────────────── */}
-        <section className={`flex min-h-0 flex-col border-l ${rule}`}>
-          <div className={`border-b px-6 pb-5 pt-4 ${rule}`}>
-            <div className="v2-folio">К оплате</div>
-            <div className="v2-display mt-2 text-[88px]">
-              {money(total)}
-              <span className="ml-2 text-[32px] font-medium tracking-normal">₸</span>
-            </div>
-            <div className="v2-folio mt-2">
-              {cart.length} {plural(cart.length, 'позиция', 'позиции', 'позиций')} · {pieces} шт
-            </div>
+        {/* ── Заказ ────────────────────────────────────────────────────── */}
+        <aside className="glass relative flex min-h-0 flex-col rounded-[28px] p-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[22px] font-bold tracking-tight">Заказ</h2>
+            <button type="button" onClick={() => setCart([])} disabled={cart.length === 0} className="press t-red flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium">
+              <Trash2 className="h-4 w-4" /> Очистить
+            </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto">
-            {done ? (
-              <div className="border-b rule px-6 py-5">
-                <div className="v2-folio ok">Продажа проведена</div>
-                <div className="mt-1 text-[22px] font-bold">
-                  {money(done.total)} ₸ · {done.method}
+          <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-auto">
+            {cart.length === 0 && !paid ? (
+              <div className="muted flex h-full flex-col items-center justify-center gap-3 text-center">
+                <div className="fill grid h-16 w-16 place-items-center rounded-full">
+                  <ShoppingBag className="h-7 w-7" />
                 </div>
-                <button type="button" className="mt-2 text-[15px] font-medium underline underline-offset-4">
-                  Печатать чек
-                </button>
+                <p className="max-w-[240px] text-[15px] leading-relaxed">Нажмите на товар или отсканируйте штрихкод</p>
               </div>
             ) : null}
-            {cart.length === 0 && !done ? (
-              <p className="px-6 py-6 text-[16px] leading-relaxed muted">
-                Нажмите на товар или отсканируйте штрихкод.
-              </p>
-            ) : null}
-            {cart.map((line, i) => (
-              <div key={line.item.id} className={`grid grid-cols-[32px_1fr_auto] items-center gap-3 border-b px-6 py-3 ${rule}`}>
-                <span className="v2-folio">{pad(i + 1)}</span>
-                <div className="min-w-0">
-                  <div className="truncate text-[16px] font-medium">{line.item.name}</div>
-                  <div className="v2-folio">
-                    {money(line.item.sale_price)} ₸ × {line.qty}
-                  </div>
+            {cart.map((line) => (
+              <div key={line.item.id} className="slide-in surface flex items-center gap-3 rounded-[18px] p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[15px] font-medium">{line.item.name}</div>
+                  <div className="muted text-[13px]">{money(line.item.sale_price)} ₸</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center border ${rule}`}>
-                    <button type="button" onClick={() => change(line.item.id, -1)} className="grid h-12 w-12 place-items-center" aria-label="Меньше">
-                      <Minus className="h-5 w-5" />
-                    </button>
-                    <span className="w-8 text-center text-[18px] font-bold">{line.qty}</span>
-                    <button type="button" onClick={() => change(line.item.id, 1)} className="grid h-12 w-12 place-items-center" aria-label="Больше">
-                      <Plus className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <span className="w-20 text-right text-[18px] font-bold">{money(line.qty * line.item.sale_price)}</span>
+                <div className="fill flex items-center rounded-full p-1">
+                  <button type="button" onClick={() => change(line.item.id, -1)} className="press surface grid h-10 w-10 place-items-center rounded-full" aria-label="Меньше">
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="w-9 text-center text-[16px] font-semibold">{line.qty}</span>
+                  <button type="button" onClick={() => change(line.item.id, 1)} className="press surface grid h-10 w-10 place-items-center rounded-full" aria-label="Больше">
+                    <Plus className="h-4 w-4" />
+                  </button>
                 </div>
+                <div className="w-[76px] text-right text-[16px] font-semibold">{money(line.qty * line.item.sale_price)} ₸</div>
               </div>
             ))}
           </div>
 
-          <div className={`grid grid-cols-4 border-t text-[15px] font-medium ${rule}`}>
-            {['Клиент', 'Скидка', 'Отложить', 'Очистить'].map((label, i) => (
-              <button
-                key={label}
-                type="button"
-                onClick={label === 'Очистить' ? () => setCart([]) : undefined}
-                disabled={cart.length === 0 && label !== 'Клиент'}
-                className={`h-14 ${i < 3 ? `border-r ${rule}` : ''} hover-bg-2`}
-              >
-                {label}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              { label: 'Клиент', icon: UserRound },
+              { label: 'Скидка', icon: BadgePercent },
+              { label: 'Отложить', icon: PauseCircle },
+            ].map(({ label, icon: Icon }) => (
+              <button key={label} type="button" disabled={cart.length === 0 && label !== 'Клиент'} className="press fill flex h-11 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium">
+                <Icon className="h-4 w-4" /> {label}
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-2">
-            <button
-              type="button"
-              onClick={() => pay('Наличными')}
-              disabled={cart.length === 0}
-              className="flex h-24 flex-col items-start justify-between bg-accent px-5 py-4 text-left"
-            >
-              <span className="flex w-full justify-between text-[15px] font-medium">
-                Наличные <span className="opacity-70">F5</span>
-              </span>
-              <span className="v2-display text-[30px]">{money(total)} ₸</span>
+
+          <div className="mt-4 flex items-end justify-between px-1">
+            <div>
+              <div className="muted text-[14px]">Итого</div>
+              <div className="muted text-[13px]">
+                {cart.length} {plural(cart.length, 'позиция', 'позиции', 'позиций')} · {pieces} шт
+              </div>
+            </div>
+            <div className="text-[44px] font-bold leading-none tracking-tight">{money(total)} ₸</div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => pay('cash')} disabled={cart.length === 0} className="press btn-green flex h-[72px] flex-col items-center justify-center rounded-[20px]">
+              <span className="text-[17px] font-semibold">Наличные</span>
+              <span className="text-[12px] opacity-80">F5</span>
             </button>
-            <button
-              type="button"
-              onClick={() => pay('Kaspi')}
-              disabled={cart.length === 0}
-              className="flex h-24 flex-col items-start justify-between bg-ink px-5 py-4 text-left"
-            >
-              <span className="flex w-full justify-between text-[15px] font-medium">
-                Kaspi <span className="opacity-70">F6</span>
-              </span>
-              <span className="v2-display text-[30px]">{money(total)} ₸</span>
+            <button type="button" onClick={() => pay('kaspi')} disabled={cart.length === 0} className="press btn-blue flex h-[72px] flex-col items-center justify-center rounded-[20px]">
+              <span className="text-[17px] font-semibold">Kaspi</span>
+              <span className="text-[12px] opacity-80">F6</span>
             </button>
           </div>
-          <button type="button" disabled={cart.length === 0} className={`h-12 border-t text-[15px] font-medium muted ${rule}`}>
-            Смешанная оплата · проверить чек (F4)
+          <button type="button" disabled={cart.length === 0} className="press t-blue mt-2 flex h-10 items-center justify-center gap-1.5 rounded-[14px] text-[14px] font-medium">
+            <ArrowRightLeft className="h-4 w-4" /> Смешанная оплата · проверить чек (F4)
           </button>
-        </section>
+
+          {paid ? (
+            <div className="sheet-in glass absolute inset-x-3 bottom-3 rounded-[24px] p-5 text-center" style={{ boxShadow: 'var(--shadow-lift)' }}>
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full" style={{ background: 'var(--green)' }}>
+                <Check className="h-7 w-7 text-white" strokeWidth={3} />
+              </div>
+              <div className="mt-3 text-[20px] font-bold">Оплачено {money(paid.total)} ₸</div>
+              <div className="muted text-[14px]">{paid.method === 'cash' ? 'Наличными' : 'Kaspi'}</div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button type="button" className="press fill flex h-12 items-center justify-center gap-2 rounded-[14px] text-[15px] font-medium">
+                  <Printer className="h-[18px] w-[18px]" /> Печать чека
+                </button>
+                <button type="button" onClick={() => setPaid(null)} className="press btn-blue flex h-12 items-center justify-center rounded-[14px] text-[15px] font-semibold">
+                  Новая продажа
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </aside>
       </div>
     </div>
   )
