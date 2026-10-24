@@ -15,6 +15,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useToday } from '@/lib/client/use-today'
 import { toISODateLocal } from '@/lib/core/date'
 import { isExtraCompany } from '@/lib/reports/extra-company'
+import { nextTaxPayment, previousTaxHalfYear, taxHalfYearOf, type TaxHalfYear } from '@/lib/domain/tax'
+import { toast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
@@ -144,11 +146,11 @@ function startOfYearISO() { return `${new Date().getFullYear()}-01-01` }
 
 export default function TaxPage() {
   const { can } = useCapabilities()
-  const [iknRate, setIknRate] = useState(() => {
-    if (typeof window === 'undefined') return 2
-    const saved = localStorage.getItem('tax_ikn_rate')
-    return saved ? Number(saved) : 2
-  })
+  // Ставка, реквизиты и что входит в оборот — настройки организации на сервере
+  // (/api/admin/tax/settings). Раньше жили в браузере: с телефона налог был 2 %.
+  const [iknRate, setIknRate] = useState(2)
+  const [rateChosen, setRateChosen] = useState(true)
+  const [canEditTax, setCanEditTax] = useState(false)
 
   // Учитывать сотрудников в итоговом расчёте
   const [includeEmployees, setIncludeEmployees] = useState<boolean>(() => {
@@ -164,10 +166,7 @@ export default function TaxPage() {
 
   // Включать F16 Extra (компании с code='extra') в налогооблагаемый оборот.
   // По дефолту OFF — те же правила что в /weekly-report, /reports.
-  const [includeExtra, setIncludeExtra] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('tax_include_extra') === '1'
-  })
+  const [includeExtra, setIncludeExtra] = useState<boolean>(false)
   // Период — после гидрации: страница готовится заранее, во время сборки, и
   // «сегодня» с «началом года» попали бы в готовый HTML из дня сборки.
   // Подробности в useToday.
@@ -175,11 +174,26 @@ export default function TaxPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
+  // По умолчанию — полугодие ближайшего платежа: упрощёнку платят два раза в год,
+  // и считать «с 1 января по сегодня» значит смешать два разных налога.
   useEffect(() => {
     if (!today || dateTo) return
-    setDateFrom(`${today.slice(0, 4)}-01-01`)
-    setDateTo(today)
+    const period = nextTaxPayment(today)
+    setDateFrom(period.from)
+    setDateTo(period.to < today ? period.to : today)
   }, [today, dateTo])
+  const selectHalfYear = (period: TaxHalfYear) => {
+    setDateFrom(period.from)
+    setDateTo(today && period.to > today ? today : period.to)
+  }
+  const halfYearOptions = useMemo(() => {
+    if (!today) return [] as TaxHalfYear[]
+    const current = taxHalfYearOf(today)
+    const previous = previousTaxHalfYear(current)
+    return [previousTaxHalfYear(previous), previous, current]
+  }, [today])
+  const activeHalfYear = halfYearOptions.find((h) => h.from === dateFrom && (h.to === dateTo || (today && dateTo === today && h.to > today))) || null
+  const upcomingPayment = today ? nextTaxPayment(today) : null
   // Raw incomes для гибкого расчёта по company × payment_type
   const [incomeRows, setIncomeRows] = useState<Array<{ date: string; company_id: string | null; cash_amount: number; kaspi_amount: number; online_amount: number; card_amount: number }>>([])
   const [companies, setCompanies] = useState<Array<{ id: string; name: string; show_in_structure?: boolean; code?: string | null; exclude_from_totals?: boolean | null }>>([])
@@ -187,22 +201,89 @@ export default function TaxPage() {
   // Фильтр: какие источники учитывать в налогооблагаемом обороте
   // Структура: { [companyId]: { cash: bool, kaspi: bool, online: bool, card: bool } }
   // По умолчанию — всё учитывается
-  const [taxableFilter, setTaxableFilter] = useState<Record<string, { cash: boolean; kaspi: boolean; online: boolean; card: boolean }>>(() => {
-    if (typeof window === 'undefined') return {}
-    try { return JSON.parse(localStorage.getItem('tax_filter') || '{}') } catch { return {} }
-  })
+  const [taxableFilter, setTaxableFilter] = useState<Record<string, { cash: boolean; kaspi: boolean; online: boolean; card: boolean }>>({})
 
   // Настройки бизнеса (ИИН/БИН, ОКЭД, флаг плательщика НДС)
-  const [bizSettings, setBizSettings] = useState<{ bin: string; oked: string; ipnRate: number; vatPayer: boolean; companyFullName: string }>(() => {
-    if (typeof window === 'undefined') return { bin: '', oked: '93290', ipnRate: 2, vatPayer: false, companyFullName: '' }
-    try { return { bin: '', oked: '93290', ipnRate: 2, vatPayer: false, companyFullName: '', ...JSON.parse(localStorage.getItem('tax_business_settings') || '{}') } }
-    catch { return { bin: '', oked: '93290', ipnRate: 2, vatPayer: false, companyFullName: '' } }
-  })
-  function updateBizSettings(patch: Partial<typeof bizSettings>) {
-    const next = { ...bizSettings, ...patch }
-    setBizSettings(next)
-    localStorage.setItem('tax_business_settings', JSON.stringify(next))
+  const [bizSettings, setBizSettings] = useState<{ bin: string; oked: string; vatPayer: boolean; companyFullName: string }>(
+    { bin: '', oked: '', vatPayer: false, companyFullName: '' },
+  )
+
+  async function saveTax(patch: Record<string, unknown>) {
+    const response = await fetch('/api/admin/tax/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tax: patch }),
+    }).catch(() => null)
+    if (!response?.ok) {
+      const json = await response?.json().catch(() => null)
+      toast({ title: 'Не сохранилось', description: json?.error || 'Настройки налога не записаны', variant: 'destructive' })
+    }
   }
+  function updateBizSettings(patch: Partial<typeof bizSettings>) {
+    setBizSettings((prev) => ({ ...prev, ...patch }))
+    saveTax(patch)
+  }
+  function chooseRate(rate: number) {
+    setIknRate(rate)
+    setRateChosen(true)
+    saveTax({ rate })
+  }
+
+  // Настройки налога с сервера. Если там пусто, а в этом браузере остались старые
+  // значения, — один раз переносим их на сервер, чтобы ничего не потерять.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/tax/settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.tax) return
+        const tax = json.tax
+        setCanEditTax(!!json.canEdit)
+        let local: any = {}
+        try {
+          local = {
+            rate: localStorage.getItem('tax_ikn_rate'),
+            biz: JSON.parse(localStorage.getItem('tax_business_settings') || 'null'),
+            filter: JSON.parse(localStorage.getItem('tax_filter') || 'null'),
+            extra: localStorage.getItem('tax_include_extra'),
+          }
+        } catch {}
+        const serverEmpty = tax.rate == null && !tax.companyFullName && !tax.bin && Object.keys(tax.taxableFilter || {}).length === 0
+        const hasLocal = local.rate || local.biz || local.filter || local.extra
+        if (serverEmpty && hasLocal && json.canEdit) {
+          const migrated = {
+            rate: local.rate ? Number(local.rate) : local.biz?.ipnRate ?? null,
+            companyFullName: local.biz?.companyFullName || '',
+            bin: local.biz?.bin || '',
+            oked: local.biz?.oked || '',
+            vatPayer: !!local.biz?.vatPayer,
+            includeExtra: local.extra === '1',
+            taxableFilter: local.filter || {},
+          }
+          fetch('/api/admin/tax/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tax: migrated }),
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((saved) => saved?.tax && !cancelled && applyTax(saved.tax))
+            .catch(() => {})
+          return
+        }
+        applyTax(tax)
+      })
+      .catch(() => {})
+    function applyTax(tax: any) {
+      setRateChosen(tax.rate != null)
+      setIknRate(tax.rate ?? 2)
+      setIncludeExtra(!!tax.includeExtra)
+      setTaxableFilter(tax.taxableFilter || {})
+      setBizSettings({ bin: tax.bin || '', oked: tax.oked || '', vatPayer: !!tax.vatPayer, companyFullName: tax.companyFullName || '' })
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Активная вкладка
   const [activeTab, setActiveTab] = useState<'calc' | 'employees' | 'sources' | 'calendar' | 'thresholds' | 'help'>(() => {
@@ -414,7 +495,7 @@ export default function TaxPage() {
     cfg[type] = !cfg[type]
     next[companyId] = cfg
     setTaxableFilter(next)
-    localStorage.setItem('tax_filter', JSON.stringify(next))
+    saveTax({ taxableFilter: next })
   }
 
   // Помесячный chart с расчётом налога
@@ -530,6 +611,22 @@ export default function TaxPage() {
         backHref="/"
         actions={
           <Card className="p-1 flex flex-wrap items-center gap-2 bg-card/50">
+            <div className="flex flex-wrap gap-1 px-1">
+              {halfYearOptions.map((period) => (
+                <button
+                  key={period.from}
+                  type="button"
+                  onClick={() => selectHalfYear(period)}
+                  className={`rounded-lg px-2.5 py-1 text-xs transition ${
+                    activeHalfYear?.from === period.from
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center px-2">
               <CalendarDays className="w-4 h-4 text-muted-foreground mr-2" />
               <DatePicker value={dateFrom} onChange={setDateFrom} />
@@ -548,6 +645,23 @@ export default function TaxPage() {
           </p>
         }
       />
+
+      {upcomingPayment && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
+          <span className="font-semibold text-foreground">Ближайший налог: {upcomingPayment.label}</span>
+          <span className="text-muted-foreground">
+            форма 910.00 до {new Date(`${upcomingPayment.declarationDue}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
+          <span className="text-muted-foreground">
+            оплата до {new Date(`${upcomingPayment.paymentDue}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
+          {activeHalfYear?.from !== upcomingPayment.from && (
+            <button type="button" onClick={() => selectHalfYear(upcomingPayment)} className="text-emerald-700 underline dark:text-emerald-300">
+              посчитать это полугодие
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Хлебная цифра — сразу под header, на calc */}
       {activeTab === 'calc' && (() => {
@@ -592,7 +706,7 @@ export default function TaxPage() {
                 <input
                   type="checkbox"
                   checked={includeExtra}
-                  onChange={(e) => { setIncludeExtra(e.target.checked); localStorage.setItem('tax_include_extra', e.target.checked ? '1' : '0') }}
+                  onChange={(e) => { setIncludeExtra(e.target.checked); saveTax({ includeExtra: e.target.checked }) }}
                   className="h-4 w-4 accent-emerald-500"
                 />
                 Включать {extraCompany?.name} в налог
@@ -639,7 +753,8 @@ export default function TaxPage() {
                 <button
                   key={r}
                   type="button"
-                  onClick={() => { setIknRate(r); localStorage.setItem('tax_ikn_rate', String(r)) }}
+                  onClick={() => chooseRate(r)}
+                  disabled={!canEditTax}
                   className={`px-3 py-1.5 text-sm rounded-lg transition ${
                     iknRate === r
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
@@ -650,7 +765,12 @@ export default function TaxPage() {
                 </button>
               ))}
             </div>
-            <p className="mt-1 text-[10px] text-slate-500">Маслихат вашего региона может назначить 2-6%</p>
+            <p className="mt-1 text-[10px] text-slate-500">
+              База 4%, маслихат вашего города может назначить 2–6%. Сохраняется для всей организации.
+            </p>
+            {!rateChosen && (
+              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Ставка ещё не выбрана — посчитано по 2%. Выберите ставку вашего города.</p>
+            )}
           </div>
 
           <div>
@@ -1122,7 +1242,7 @@ export default function TaxPage() {
             <Info className="w-4 h-4 text-emerald-400" />
             Настройки моего бизнеса
           </h3>
-          <p className="text-[11px] text-slate-500 mb-4">Используется в шапке страницы и (в будущем) для автозаполнения формы 910.00. Сохраняется локально.</p>
+          <p className="text-[11px] text-slate-500 mb-4">Используется в шапке страницы и в форме 910.00. Сохраняется для всей организации.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="space-y-1">
               <span className="text-xs text-muted-foreground">ФИО ИП / название</span>

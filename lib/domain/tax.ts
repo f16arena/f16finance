@@ -178,6 +178,68 @@ export function normalizeRate(raw: unknown): number {
   return Math.min(MAX_TAX_RATE, Math.max(MIN_TAX_RATE, value))
 }
 
+// ── Налоговый период: полугодие ─────────────────────────────────────────────
+
+/**
+ * Упрощёнка — полугодие: за январь–июнь декларация 910.00 до 15 августа и
+ * оплата до 25 августа, за июль–декабрь — до 15 и 25 февраля следующего года.
+ * Платят два раза в год, поэтому и считать по умолчанию надо полугодие, а не
+ * «с начала года по сегодня».
+ */
+export type TaxHalfYear = {
+  year: number
+  half: 1 | 2
+  from: string
+  to: string
+  label: string
+  declarationDue: string
+  paymentDue: string
+}
+
+export function taxHalfYear(year: number, half: 1 | 2): TaxHalfYear {
+  return half === 1
+    ? {
+        year,
+        half,
+        from: `${year}-01-01`,
+        to: `${year}-06-30`,
+        label: `1-е полугодие ${year}`,
+        declarationDue: `${year}-08-15`,
+        paymentDue: `${year}-08-25`,
+      }
+    : {
+        year,
+        half,
+        from: `${year}-07-01`,
+        to: `${year}-12-31`,
+        label: `2-е полугодие ${year}`,
+        declarationDue: `${year + 1}-02-15`,
+        paymentDue: `${year + 1}-02-25`,
+      }
+}
+
+/** Полугодие, в которое попадает дата (YYYY-MM-DD). */
+export function taxHalfYearOf(dateISO: string): TaxHalfYear {
+  const year = Number(dateISO.slice(0, 4))
+  const month = Number(dateISO.slice(5, 7))
+  return taxHalfYear(year, month <= 6 ? 1 : 2)
+}
+
+export function previousTaxHalfYear(period: TaxHalfYear): TaxHalfYear {
+  return period.half === 2 ? taxHalfYear(period.year, 1) : taxHalfYear(period.year - 1, 2)
+}
+
+/**
+ * Ближайший платёж: прошлое полугодие, пока его срок оплаты не прошёл
+ * (в январе–феврале платят за 2-е полугодие прошлого года, в июле–августе —
+ * за 1-е текущего), иначе — текущее.
+ */
+export function nextTaxPayment(todayISO: string): TaxHalfYear {
+  const current = taxHalfYearOf(todayISO)
+  const previous = previousTaxHalfYear(current)
+  return todayISO <= previous.paymentDue ? previous : current
+}
+
 // ── Пороги ───────────────────────────────────────────────────────────────────
 
 export type TaxYearOutlook = {

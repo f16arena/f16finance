@@ -47,6 +47,53 @@ export type OrgSettings = {
    * имя (manager) остаётся — на нём права; меняется только подпись везде.
    */
   positionLabels: Record<string, string>
+  /** Налог (упрощёнка 910): ставка маслихата, реквизиты, что входит в оборот. */
+  tax: OrgTaxSettings
+}
+
+export type TaxableChannels = { cash: boolean; kaspi: boolean; online: boolean; card: boolean }
+
+export type OrgTaxSettings = {
+  /** Ставка маслихата 2–6 %; null — ещё не выбрана (страница просит выбрать). */
+  rate: number | null
+  companyFullName: string
+  bin: string
+  oked: string
+  vatPayer: boolean
+  /** Точки «не в общих итогах» (F16 Extra) включать в оборот. */
+  includeExtra: boolean
+  /** По точке: какие способы оплаты входят в оборот. Нет точки — всё входит. */
+  taxableFilter: Record<string, TaxableChannels>
+}
+
+export const DEFAULT_TAX_SETTINGS: OrgTaxSettings = {
+  rate: null,
+  companyFullName: '',
+  bin: '',
+  oked: '',
+  vatPayer: false,
+  includeExtra: false,
+  taxableFilter: {},
+}
+
+export function normalizeTaxSettings(raw: unknown): OrgTaxSettings {
+  const v = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>
+  const rate = Number(v.rate)
+  const filter: Record<string, TaxableChannels> = {}
+  const rawFilter = v.taxableFilter && typeof v.taxableFilter === 'object' ? (v.taxableFilter as Record<string, any>) : {}
+  for (const [companyId, ch] of Object.entries(rawFilter)) {
+    if (!/^[0-9a-f-]{36}$/i.test(companyId) || !ch || typeof ch !== 'object') continue
+    filter[companyId] = { cash: ch.cash !== false, kaspi: ch.kaspi !== false, online: ch.online !== false, card: ch.card !== false }
+  }
+  return {
+    rate: Number.isFinite(rate) && rate >= 2 && rate <= 6 ? Math.round(rate * 10) / 10 : null,
+    companyFullName: String(v.companyFullName || '').trim().slice(0, 120),
+    bin: String(v.bin || '').replace(/\D/g, '').slice(0, 12),
+    oked: String(v.oked || '').replace(/\D/g, '').slice(0, 5),
+    vatPayer: v.vatPayer === true,
+    includeExtra: v.includeExtra === true,
+    taxableFilter: filter,
+  }
 }
 
 export const DEFAULT_ORG_TIMEZONE = 'Asia/Almaty'
@@ -63,6 +110,7 @@ export const DEFAULT_ORG_SETTINGS: OrgSettings = {
   timezone: DEFAULT_ORG_TIMEZONE,
   currency: DEFAULT_ORG_CURRENCY,
   positionLabels: {},
+  tax: DEFAULT_TAX_SETTINGS,
 }
 
 /** Встроенные должности, чью подпись организация может поменять. */
@@ -158,6 +206,7 @@ export function normalizeOrgSettings(raw: unknown): OrgSettings {
     timezone: normalizeOrgTimezone(value.timezone),
     currency: normalizeOrgCurrency(value.currency),
     positionLabels: normalizePositionLabels(value.position_labels),
+    tax: normalizeTaxSettings(value.tax),
   }
 }
 

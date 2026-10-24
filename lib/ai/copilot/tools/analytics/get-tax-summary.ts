@@ -1,22 +1,29 @@
 /**
- * AI tool: расчёт налоговой базы за период (3% от выручки).
+ * AI tool: налог на упрощёнке за полугодие (форма 910.00).
+ * Ставка — из налоговых настроек организации (/tax), как на странице.
  * Capability: tax.view
  */
 
 import type { CopilotTool } from '../../types'
 import { scopedCompanyIds, fetchAllPages } from '../../query-helpers'
+import { DEFAULT_TAX_RATE, nextTaxPayment, previousTaxHalfYear, taxHalfYearOf } from '@/lib/domain/tax'
+import { getOrgSettings } from '@/lib/server/org-settings'
 
 function todayISO(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  // Сегодня по Казахстану: сервер живёт в UTC.
+  return new Date(Date.now() + 5 * 3600_000).toISOString().slice(0, 10)
 }
 
 const reIso = /^\d{4}-\d{2}-\d{2}$/
 
+function ruDate(iso: string) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export const getTaxSummaryTool: CopilotTool = {
   name: 'get_tax_summary',
   category: 'analytics',
-  description: 'Расчёт налоговой базы (выручка × 3% упрощёнки) за квартал/год',
+  description: 'Налог упрощёнки (910.00) за полугодие: оборот, сумма по ставке организации, сроки сдачи и оплаты',
   requiredCapability: 'tax.view',
   severity: 'low',
   params: [
@@ -27,8 +34,9 @@ export const getTaxSummaryTool: CopilotTool = {
       required: true,
       description: 'За какой период считаем',
       getOptions: async () => [
-        { value: 'currentQuarter', label: 'Текущий квартал' },
-        { value: 'lastQuarter', label: 'Прошлый квартал' },
+        { value: 'nextPayment', label: 'Полугодие ближайшего платежа' },
+        { value: 'currentHalf', label: 'Текущее полугодие' },
+        { value: 'lastHalf', label: 'Прошлое полугодие' },
         { value: 'currentYear', label: 'Текущий год' },
       ],
     },
@@ -36,35 +44,34 @@ export const getTaxSummaryTool: CopilotTool = {
     { name: 'to', label: 'По дату', type: 'string', required: false, description: 'Конец периода YYYY-MM-DD.' },
   ],
   handler: async (input, ctx) => {
-    const period = String(input.period || 'currentQuarter')
-    const now = new Date()
+    const period = String(input.period || 'nextPayment')
     const today = todayISO()
-    let from = today
-    let to = today
 
     const inFrom = String(input.from || '').trim()
     const inTo = String(input.to || '').trim()
     const hasExact = reIso.test(inFrom) && reIso.test(inTo)
 
+    const half =
+      period === 'currentHalf'
+        ? taxHalfYearOf(today)
+        : period === 'lastHalf'
+          ? previousTaxHalfYear(taxHalfYearOf(today))
+          : nextTaxPayment(today)
+    let from = half.from
+    let to = half.to < today ? half.to : today
+    let label = half.label
     if (hasExact) {
       from = inFrom
       to = inTo
-    } else if (period === 'currentQuarter') {
-      const qStart = Math.floor(now.getMonth() / 3) * 3
-      from = `${now.getFullYear()}-${String(qStart + 1).padStart(2, '0')}-01`
-      to = today
-    } else if (period === 'lastQuarter') {
-      const qStart = Math.floor(now.getMonth() / 3) * 3 - 3
-      const fromMonth = qStart < 0 ? qStart + 12 : qStart
-      const fromYear = qStart < 0 ? now.getFullYear() - 1 : now.getFullYear()
-      from = `${fromYear}-${String(fromMonth + 1).padStart(2, '0')}-01`
-      const toMonth = fromMonth + 3
-      const toEnd = new Date(fromYear, toMonth, 0)
-      to = `${toEnd.getFullYear()}-${String(toEnd.getMonth() + 1).padStart(2, '0')}-${String(toEnd.getDate()).padStart(2, '0')}`
+      label = from === to ? from : `${from} — ${to}`
     } else if (period === 'currentYear') {
-      from = `${now.getFullYear()}-01-01`
+      from = `${today.slice(0, 4)}-01-01`
       to = today
+      label = `${today.slice(0, 4)} год (два полугодия — два платежа)`
     }
+
+    const tax = (await getOrgSettings(ctx.organizationId || null)).tax
+    const rate = tax.rate ?? DEFAULT_TAX_RATE
 
     // Налоговая база — только по компаниям своей организации.
     const ids = await scopedCompanyIds(ctx)
@@ -85,24 +92,23 @@ export const getTaxSummaryTool: CopilotTool = {
     for (const r of (data || []) as any[]) {
       revenue += Number(r.cash_amount || 0) + Number(r.kaspi_amount || 0) + Number(r.card_amount || 0) + Number(r.online_amount || 0)
     }
-    const tax = revenue * 0.03
+    const amount = revenue * (rate / 100)
 
     const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸'
-    const periodLabel: Record<string, string> = {
-      currentQuarter: 'текущий квартал',
-      lastQuarter: 'прошлый квартал',
-      currentYear: 'текущий год',
-    }
-    const label = hasExact ? (from === to ? from : `${from} — ${to}`) : periodLabel[period]
+    const deadlines =
+      hasExact || period === 'currentYear'
+        ? ''
+        : `\n  Форма 910.00 — до ${ruDate(half.declarationDue)}, оплата — до ${ruDate(half.paymentDue)}`
+    const rateNote = tax.rate == null ? ' (ставка не выбрана на странице «Налоги» — взята 2%)' : ''
 
     return {
       ok: true,
       message: `📊 Налог за ${label}:
   Период: ${from} — ${to}
-  Выручка: ${fmt(revenue)}
-  Налог 3% (упрощёнка): ${fmt(tax)}
-  Записей в incomes: ${(data || []).length}`,
-      data: { revenue, tax, from, to },
+  Оборот: ${fmt(revenue)}
+  Налог ${rate}%${rateNote}: ${fmt(amount)}${deadlines}
+  Без учёта фильтров «что входит в оборот» со страницы «Налоги».`,
+      data: { revenue, tax: amount, rate, from, to },
     }
   },
 }

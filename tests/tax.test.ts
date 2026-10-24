@@ -190,3 +190,24 @@ test('без оборота эффективная ставка нагрузки
   assert.equal(burden.total, 0)
   assert.equal(burden.effectiveRate, 0)
 })
+
+import { nextTaxPayment, previousTaxHalfYear, taxHalfYearOf } from '@/lib/domain/tax'
+
+test('полугодие и сроки 910.00: 15 и 25 августа, 15 и 25 февраля', () => {
+  const first = taxHalfYearOf('2026-03-10')
+  assert.equal(first.from, '2026-01-01')
+  assert.equal(first.to, '2026-06-30')
+  assert.equal(first.declarationDue, '2026-08-15')
+  assert.equal(first.paymentDue, '2026-08-25')
+  const second = taxHalfYearOf('2026-10-24')
+  assert.equal(second.label, '2-е полугодие 2026')
+  assert.equal(second.paymentDue, '2027-02-25')
+  assert.equal(previousTaxHalfYear(first).label, '2-е полугодие 2025')
+})
+
+test('ближайший платёж: до 25 февраля — ещё за прошлый год, до 25 августа — за 1-е полугодие', () => {
+  assert.equal(nextTaxPayment('2026-01-20').label, '2-е полугодие 2025')
+  assert.equal(nextTaxPayment('2026-02-26').label, '1-е полугодие 2026')
+  assert.equal(nextTaxPayment('2026-08-25').label, '1-е полугодие 2026')
+  assert.equal(nextTaxPayment('2026-10-24').label, '2-е полугодие 2026')
+})
