@@ -11,6 +11,8 @@ import { OrgPayScheduleCard } from '@/components/admin/org-pay-schedule-card'
 import { DeleteCompanyDialog } from '@/components/admin/delete-company-dialog'
 import { PointPositionsCard } from '@/components/admin/point-positions-card'
 import { listIndustries } from '@/lib/core/industries'
+import { activeZones } from '@/lib/core/revenue-zones'
+import { RevenueZonesDialog } from '@/components/admin/revenue-zones-dialog'
 import { NavLayoutPicker } from '@/components/nav-layout-picker'
 import { CardSkeleton } from '@/components/skeleton'
 import { useCapabilities } from '@/lib/client/use-capabilities'
@@ -19,6 +21,7 @@ import {
   Pencil,
   Trash2,
   Archive,
+  Layers,
   RotateCcw,
   Save,
   X,
@@ -47,6 +50,7 @@ type Company = {
   archived_at?: string | null
   archive_reason?: string | null
   industry?: string | null
+  revenue_zones?: unknown
 }
 
 type Staff = {
@@ -79,6 +83,7 @@ export default function SettingsPage() {
   const [allCompanies, setCompanies] = useState<Company[]>([])
   const companies = useMemo(() => allCompanies.filter((c) => !c.archived_at), [allCompanies])
   const closedCompanies = useMemo(() => allCompanies.filter((c) => !!c.archived_at), [allCompanies])
+  const [zonesCompany, setZonesCompany] = useState<Company | null>(null)
   const [staff, setStaff] = useState<Staff[]>([])
   const [companyLimit, setCompanyLimit] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -353,6 +358,15 @@ export default function SettingsPage() {
             }}
           />
 
+          <RevenueZonesDialog
+            company={zonesCompany}
+            onClose={() => setZonesCompany(null)}
+            onSaved={() => {
+              setZonesCompany(null)
+              fetchData()
+            }}
+          />
+
           <OrgPayScheduleCard />
 
           <PointPositionsCard companies={companies} canEdit={can('salary-rules.edit')} />
@@ -466,6 +480,11 @@ export default function SettingsPage() {
                                                     <span className={`text-[10px] px-1.5 rounded border ${c.industry ? 'text-violet-700 dark:text-violet-300 border-violet-500/30 bg-violet-500/10' : 'text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/10'}`}>
                                                         {INDUSTRY_OPTIONS.find((i) => i.code === c.industry)?.label || 'Тип не выбран'}
                                                     </span>
+                                                    {activeZones(c).length > 0 && (
+                                                        <span className="text-[10px] px-1.5 rounded border text-muted-foreground border-border bg-slate-100 dark:bg-white/5" title="Зоны выручки">
+                                                            {activeZones(c).map((z) => z.label).join(' · ')}
+                                                        </span>
+                                                    )}
                                                     <span className={`text-[10px] px-1.5 rounded border ${c.show_in_structure ? 'text-cyan-700 dark:text-cyan-300 border-cyan-500/30 bg-cyan-500/10' : 'text-gray-500 border-border bg-slate-100 dark:bg-white/5'}`}>
                                                         {c.show_in_structure ? 'В структуре' : 'Скрыта'}
                                                     </span>
@@ -481,6 +500,11 @@ export default function SettingsPage() {
                                             {can('settings.manage_companies') && (
                                                 <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-blue-400" onClick={() => { setEditCompId(c.id); setEditCompData({ name: c.name, code: c.code || '', show_in_structure: c.show_in_structure, exclude_from_totals: c.exclude_from_totals === true, industry: c.industry || '' }) }}>
                                                     <Pencil className="w-3 h-3" />
+                                                </Button>
+                                            )}
+                                            {can('settings.manage_companies') && (
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-violet-500" title="Зоны выручки" aria-label="Зоны выручки" onClick={() => setZonesCompany(c)}>
+                                                    <Layers className="w-3 h-3" />
                                                 </Button>
                                             )}
                                             {can('settings.delete_company') && (

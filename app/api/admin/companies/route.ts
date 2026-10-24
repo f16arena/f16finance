@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from('companies')
-      .select('id, name, code, exclude_from_totals, archived_at, industry')
+      .select('id, name, code, exclude_from_totals, archived_at, industry, revenue_zones')
       .order('name', { ascending: true })
     // Закрытые точки (archived_at) отдаём: по списку отчёты подписывают и суммируют
     // историю. ?open=1 — для форм новой работы (приход, расход, смена, найм, касса).

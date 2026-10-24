@@ -7,6 +7,7 @@ import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
 import { countOpenCompanies, createCompanyForOrganization } from '@/lib/server/company-create'
 import { INDUSTRY_CODES } from '@/lib/core/industries'
+import { companyZones, sanitizeZones } from '@/lib/core/revenue-zones'
 import {
   collectCompanyLeftovers,
   companyNameMatches,
@@ -34,6 +35,12 @@ type MutationBody =
         /** Тип точки (ниша): от него поля выручки, ночная смена, название старшего. */
         industry?: string | null
       }
+    }
+  | {
+      entity: 'company'
+      action: 'zones' | 'saveZones'
+      id: string
+      zones?: unknown
     }
   | {
       entity: 'company'
@@ -114,7 +121,7 @@ export async function GET(req: Request) {
     const orgId = access.activeOrganization?.id || null
     const scopeOrg = orgId || (access.isSuperAdmin ? null : '00000000-0000-0000-0000-000000000000')
 
-    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals, archived_at, archive_reason, industry').order('name')
+    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals, archived_at, archive_reason, industry, revenue_zones').order('name')
     let staffQuery = supabase.from('staff').select('id, full_name, phone, email, role, is_active').eq('is_active', true).order('full_name')
     let categoriesQuery = supabase.from('expense_categories').select('id, name, monthly_budget, accounting_group').order('name')
     if (scopeOrg) {
@@ -191,6 +198,35 @@ export async function GET(req: Request) {
     })
     return NextResponse.json({ error: error?.message || 'Ошибка сервера' }, { status: 500 })
   }
+}
+
+/** Выручка по зонам точки: за 30 дней и дата последней записи (за год). */
+async function zoneRevenueStats(supabase: any, companyId: string) {
+  const since = new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10)
+  const monthAgo = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10)
+  const stats: Record<string, { total30: number; lastDate: string | null }> = {}
+  // PostgREST отдаёт не больше 1000 строк за раз — читаем страницами.
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('incomes')
+      .select('zone, date, cash_amount, kaspi_amount, online_amount, card_amount')
+      .eq('company_id', companyId)
+      .gte('date', since)
+      .order('id', { ascending: true })
+      .range(from, from + 999)
+    if (error) throw error
+    for (const row of (data || []) as any[]) {
+      const key = String(row.zone || '')
+      if (!key) continue
+      const item = (stats[key] ||= { total30: 0, lastDate: null })
+      if (!item.lastDate || row.date > item.lastDate) item.lastDate = row.date
+      if (row.date >= monthAgo) {
+        item.total30 += ['cash_amount', 'kaspi_amount', 'online_amount', 'card_amount'].reduce((sum, f) => sum + Number(row[f] || 0), 0)
+      }
+    }
+    if (!data || data.length < 1000) break
+  }
+  return stats
 }
 
 export async function POST(req: Request) {
@@ -275,6 +311,36 @@ export async function POST(req: Request) {
           payload: { name: data.name, code: data.code, show_in_structure: data.show_in_structure, exclude_from_totals: data.exclude_from_totals, industry: data.industry },
         })
         return NextResponse.json({ ok: true })
+      }
+
+      // Зоны выручки: список с выручкой за 30 дней и датой последней записи —
+      // чтобы было видно, какая зона умерла (как VR у F16 Extra).
+      if (body.action === 'zones' || body.action === 'saveZones') {
+        const { data: point, error: pointError } = await scopeOrg(
+          supabase.from('companies').select('id, name, code, industry, revenue_zones').eq('id', body.id),
+        ).maybeSingle()
+        if (pointError) throw pointError
+        if (!point) return NextResponse.json({ error: 'Точка не найдена' }, { status: 404 })
+        const current = companyZones(point)
+
+        if (body.action === 'saveZones') {
+          const checked = sanitizeZones(body.zones, current)
+          if (!checked.ok) return badRequest(checked.error)
+          const { error } = await scopeOrg(
+            supabase.from('companies').update({ revenue_zones: checked.zones }).eq('id', body.id),
+          )
+          if (error) throw error
+          await writeAuditLog(supabase, {
+            actorUserId,
+            entityType: 'company',
+            entityId: String(point.id),
+            action: 'update-zones',
+            payload: { name: point.name, zones: checked.zones },
+          })
+          return NextResponse.json({ ok: true, zones: checked.zones })
+        }
+
+        return NextResponse.json({ ok: true, zones: current, stats: await zoneRevenueStats(supabase, String(point.id)) })
       }
 
       // Закрыть точку: история остаётся в отчётах, а точка уходит из выбора,

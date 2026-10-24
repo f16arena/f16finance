@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, FormEvent, useCallback } from 'react'
 import { pointProfile } from '@/lib/core/point-profile'
+import { activeZones } from '@/lib/core/revenue-zones'
 import { useRouter } from 'next/navigation'
 import {
   Calendar,
@@ -39,6 +40,7 @@ type Company = {
   name: string
   code: string
   industry?: string | null
+  revenue_zones?: unknown
 }
 
 type Operator = {
@@ -110,11 +112,8 @@ export default function AddIncomePage() {
   const [online, setOnline] = useState('')
   const [card, setCard] = useState('')
 
-  // Extra: PS5 и VR отдельно
-  const [ps5Cash, setPs5Cash] = useState('')
-  const [ps5Безналичный, setPs5Безналичный] = useState('')
-  const [vrCash, setVrCash] = useState('')
-  const [vrKaspi, setVrKaspi] = useState('')
+  // Точка с зонами (PS5, VR, бильярд…): суммы по каждой включённой зоне
+  const [zoneAmounts, setZoneAmounts] = useState<Record<string, { cash: string; cashless: string }>>({})
 
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
@@ -155,8 +154,13 @@ export default function AddIncomePage() {
 
   // Поля формы — по нише точки (клуб, PS-зал, магазин), а не по кодам F16.
   const profile = pointProfile(selectedCompany)
-  const isExtra = profile.splitPsVr
   const showOnline = profile.showOnline
+  // Зоны — настройка точки (Настройки → Компании → «Зоны»). Есть зоны — приход по зонам.
+  const zones = useMemo(() => activeZones(selectedCompany), [selectedCompany])
+  const isExtra = zones.length > 0
+  const zoneTotal = (key: string) => parseAmount(zoneAmounts[key]?.cash || '') + parseAmount(zoneAmounts[key]?.cashless || '')
+  const setZoneAmount = (key: string, field: 'cash' | 'cashless', value: string) =>
+    setZoneAmounts((prev) => ({ ...prev, [key]: { ...(prev[key] || { cash: '', cashless: '' }), [field]: value } }))
 
   const getZone = useCallback((): ZoneType => {
     if (profile.incomeZone === 'pc' || profile.incomeZone === 'ramen') return profile.incomeZone
@@ -170,19 +174,16 @@ export default function AddIncomePage() {
     setKaspi('')
     setCard('')
     setOnline('')
-    setPs5Cash('')
-    setPs5Безналичный('')
-    setVrCash('')
-    setVrKaspi('')
+    setZoneAmounts({})
   }, [companyId])
 
   // ---- расчет предварительной суммы ----
   const previewTotal = useMemo(() => {
     if (isExtra) {
-      return parseAmount(ps5Cash) + parseAmount(ps5Безналичный) + parseAmount(vrCash) + parseAmount(vrKaspi)
+      return zones.reduce((sum, z) => sum + parseAmount(zoneAmounts[z.key]?.cash || '') + parseAmount(zoneAmounts[z.key]?.cashless || ''), 0)
     }
     return parseAmount(cash) + parseAmount(kaspi) + parseAmount(online) + parseAmount(card)
-  }, [isExtra, ps5Cash, ps5Безналичный, vrCash, vrKaspi, cash, kaspi, online, card])
+  }, [isExtra, zones, zoneAmounts, cash, kaspi, online, card])
 
   // Защита несохранённой формы: есть введённые суммы или комментарий и запись ещё не сохранена
   const isDirty = !showSuccess && (previewTotal > 0 || comment.trim().length > 0)
@@ -196,9 +197,7 @@ export default function AddIncomePage() {
     if (!operators.length) return { ok: false, msg: 'Нет активных операторов' }
 
     if (isExtra) {
-      const ps5Total = parseAmount(ps5Cash) + parseAmount(ps5Безналичный)
-      const vrTotal = parseAmount(vrCash) + parseAmount(vrKaspi)
-      if (ps5Total <= 0 && vrTotal <= 0) return { ok: false, msg: 'Укажите сумму для PS5 или VR' }
+      if (previewTotal <= 0) return { ok: false, msg: `Укажите сумму хотя бы по одной зоне: ${zones.map((z) => z.label).join(', ')}` }
       return { ok: true, msg: '' }
     }
 
@@ -209,7 +208,7 @@ export default function AddIncomePage() {
     if (c <= 0 && k <= 0 && o <= 0 && cd <= 0) return { ok: false, msg: 'Введите сумму дохода' }
 
     return { ok: true, msg: '' }
-  }, [companyId, operatorId, date, operators.length, isExtra, ps5Cash, ps5Безналичный, vrCash, vrKaspi, cash, kaspi, online, card, showOnline])
+  }, [companyId, operatorId, date, operators.length, isExtra, zones, previewTotal, cash, kaspi, online, card, showOnline])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -222,45 +221,23 @@ export default function AddIncomePage() {
       if (!validation.ok) throw new Error(validation.msg)
 
       if (isExtra) {
-        const pCash = parseAmount(ps5Cash)
-        const pKaspi = parseAmount(ps5Безналичный)
-        const vCash = parseAmount(vrCash)
-        const vKaspi = parseAmount(vrKaspi)
-
-        const rows: any[] = []
         const baseComment = comment.trim()
-
-        if (pCash + pKaspi > 0) {
-          rows.push({
+        // Одна запись на зону с суммой; подпись зоны — в комментарии (как было у PS5/VR).
+        const rows: any[] = zones
+          .filter((z) => zoneTotal(z.key) > 0)
+          .map((z) => ({
             date,
             company_id: companyId,
             operator_id: operatorId,
             shift,
-            zone: 'ps5',
-            cash_amount: pCash,
-            kaspi_amount: pKaspi,
+            zone: z.key,
+            cash_amount: parseAmount(zoneAmounts[z.key]?.cash || ''),
+            kaspi_amount: parseAmount(zoneAmounts[z.key]?.cashless || ''),
             online_amount: 0,
             card_amount: 0,
-            comment: baseComment ? `${baseComment} • PS5` : 'PS5',
+            comment: baseComment ? `${baseComment} • ${z.label}` : z.label,
             is_virtual: true,
-          })
-        }
-
-        if (vCash + vKaspi > 0) {
-          rows.push({
-            date,
-            company_id: companyId,
-            operator_id: operatorId,
-            shift,
-            zone: 'vr',
-            cash_amount: vCash,
-            kaspi_amount: vKaspi,
-            online_amount: 0,
-            card_amount: 0,
-            comment: baseComment ? `${baseComment} • VR` : 'VR',
-            is_virtual: true,
-          })
-        }
+          }))
 
         const response = await fetch('/api/admin/incomes', {
           method: 'POST',
@@ -585,7 +562,7 @@ export default function AddIncomePage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-                    {isExtra ? 'Выручка по зонам (Extra)' : 'Суммы выручки'}
+                    {isExtra ? 'Выручка по зонам' : 'Суммы выручки'}
                   </h3>
                   {previewTotal > 0 && (
                     <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">
@@ -597,89 +574,58 @@ export default function AddIncomePage() {
 
               {isExtra ? (
                 <div className="space-y-6">
-                  {/* PS5 */}
-                  <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-50 to-slate-50 dark:from-purple-900/20 dark:to-gray-900/50 p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-purple-500/20 rounded-xl">
-                        <Gamepad2 className="w-5 h-5 text-purple-400" />
-                      </div>
-                      <span className="font-semibold text-foreground">PlayStation 5</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                          <Wallet className="w-4 h-4 text-amber-400" /> Наличные
-                        </label>
-                        <div className="relative">
-                          <MoneyInput
-                            placeholder="0"
-                            value={ps5Cash}
-                            onValueChange={setPs5Cash}
-                            className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
+                  {zones.map((z, i) => (
+                    <div
+                      key={z.key}
+                      className={`rounded-2xl border p-5 ${
+                        i % 2 === 0
+                          ? 'border-purple-500/20 bg-gradient-to-br from-purple-50 to-slate-50 dark:from-purple-900/20 dark:to-gray-900/50'
+                          : 'border-cyan-500/20 bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-gray-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl ${i % 2 === 0 ? 'bg-purple-500/20' : 'bg-cyan-500/20'}`}>
+                            <Gamepad2 className={`w-5 h-5 ${i % 2 === 0 ? 'text-purple-400' : 'text-cyan-400'}`} />
+                          </div>
+                          <span className="font-semibold text-foreground">{z.label}</span>
                         </div>
+                        {zoneTotal(z.key) > 0 && <span className="text-sm text-muted-foreground">{formatMoney(zoneTotal(z.key))}</span>}
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-blue-400" /> Безналичный QR / POS
-                        </label>
-                        <div className="relative">
-                          <MoneyInput
-                            placeholder="0"
-                            value={ps5Безналичный}
-                            onValueChange={setPs5Безналичный}
-                            className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-amber-400" /> Наличные
+                          </label>
+                          <div className="relative">
+                            <MoneyInput
+                              placeholder="0"
+                              value={zoneAmounts[z.key]?.cash || ''}
+                              onValueChange={(v) => setZoneAmount(z.key, 'cash', v)}
+                              className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* VR */}
-                  <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-gray-900/50 p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-cyan-500/20 rounded-xl">
-                        <Eye className="w-5 h-5 text-cyan-400" />
-                      </div>
-                      <span className="font-semibold text-foreground">VR Зона</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                          <Wallet className="w-4 h-4 text-amber-400" /> Наличные
-                        </label>
-                        <div className="relative">
-                          <MoneyInput
-                            placeholder="0"
-                            value={vrCash}
-                            onValueChange={setVrCash}
-                            className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-blue-400" /> Безналичный QR / POS
-                        </label>
-                        <div className="relative">
-                          <MoneyInput
-                            placeholder="0"
-                            value={vrKaspi}
-                            onValueChange={setVrKaspi}
-                            className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-blue-400" /> Безналичный QR / POS
+                          </label>
+                          <div className="relative">
+                            <MoneyInput
+                              placeholder="0"
+                              value={zoneAmounts[z.key]?.cashless || ''}
+                              onValueChange={(v) => setZoneAmount(z.key, 'cashless', v)}
+                              className="h-auto w-full text-lg md:text-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-4 px-4 text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -776,7 +722,7 @@ export default function AddIncomePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500">{isExtra ? '2 записи (PS5 + VR)' : '1 запись'}</p>
+                    <p className="text-xs text-gray-500">{isExtra ? `По зонам: ${zones.filter((z) => zoneTotal(z.key) > 0).map((z) => z.label).join(' + ') || '—'}` : '1 запись'}</p>
                     <p className="text-xs text-slate-500 dark:text-gray-400">{date} • {shift === 'day' ? 'День' : 'Ночь'}</p>
                   </div>
                 </div>
