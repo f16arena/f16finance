@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 
 import { getQueueCounts, openQueueScreen } from '@/lib/offline'
-import { getTheme, setTheme, setUiVersion } from '@/lib/preferences'
+import { LITE_MODE_EVENT, getTheme, resolveLiteMode, setTheme, setUiVersion } from '@/lib/preferences'
 
 import { PreferencesModal } from '@/components/PreferencesModal'
 import '../v2.css'
@@ -37,6 +37,21 @@ const TABS: Array<{ id: V2Tab; label: string; icon: LucideIcon }> = [
   { id: 'request', label: 'Заявка', icon: ClipboardList },
   { id: 'arena', label: 'Зал', icon: Gamepad2 },
 ]
+
+/** Лёгкий режим: меняется в настройках, применяется сразу. */
+export function useLiteMode() {
+  const [lite, setLite] = useState(() => resolveLiteMode())
+  useEffect(() => {
+    const update = () => setLite(resolveLiteMode())
+    window.addEventListener(LITE_MODE_EVENT, update)
+    window.addEventListener('storage', update)
+    return () => {
+      window.removeEventListener(LITE_MODE_EVENT, update)
+      window.removeEventListener('storage', update)
+    }
+  }, [])
+  return lite
+}
 
 function useResolvedTheme(): ['light' | 'dark', () => void, () => void] {
   const resolve = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light') as 'light' | 'dark'
@@ -110,6 +125,7 @@ export function V2Shell(props: {
 }) {
   const [theme, toggleTheme, refreshTheme] = useResolvedTheme()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const lite = useLiteMode()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15_000)
@@ -139,7 +155,7 @@ export function V2Shell(props: {
     .join('')
 
   return (
-    <div className="v2 flex h-screen flex-col select-none overflow-hidden" data-theme={theme}>
+    <div className="v2 flex h-screen flex-col select-none overflow-hidden" data-theme={theme} data-lite={lite ? 'true' : undefined}>
       <div className="h-9 shrink-0 drag-region" />
       <header className="glass no-drag z-10 mx-4 flex h-16 shrink-0 items-center gap-4 rounded-[22px] px-3">
         <div className="flex min-w-0 items-center gap-3 pl-1">

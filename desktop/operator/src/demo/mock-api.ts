@@ -44,6 +44,17 @@ const LOYALTY = {
 }
 
 
+// ?many — каталог как на настоящей точке (1200+ товаров), проверка скорости сетки.
+function demoCatalog() {
+  if (!new URLSearchParams(window.location.search).has('many')) return ITEMS
+  const out = [...ITEMS]
+  for (let i = 0; out.length < 1250; i += 1) {
+    const base = ITEMS[i % ITEMS.length]
+    out.push({ ...base, id: `${base.id}-copy-${i}`, name: `${base.name} · ${i + 1}`, barcode: `99${String(i).padStart(10, '0')}` })
+  }
+  return out
+}
+
 // ── Услуги (демо): теннис по времени и печать без времени ──
 const DEMO_SERVICES = [
   {
@@ -205,7 +216,7 @@ function handle(method: string, path: string, query: URLSearchParams, body: Json
         return {
           json: {
             ok: true,
-            data: { company: COMPANY, location: LOC, items: ITEMS, services: DEMO_SERVICES, sales: state.sales.map(toSaleRow) },
+            data: { company: COMPANY, location: LOC, items: demoCatalog(), services: DEMO_SERVICES, sales: state.sales.map(toSaleRow) },
           },
         }
       }

@@ -13,6 +13,7 @@ import {
   type ShowcaseItem,
 } from '@/pages/CustomerDisplay'
 import { categoryLook } from '../ui/category-look'
+import { useLiteMode } from '../ui/V2Shell'
 import '../v2.css'
 
 /**
@@ -51,6 +52,7 @@ function hhmm(iso: string) {
 
 export default function CustomerDisplayV2() {
   const theme = useTheme()
+  const lite = useLiteMode()
   const { state, paid, now, playlist, reviewUrl, showcase } = useCustomerDisplayFeed()
   const reviewQr = useQrDataUrl(reviewUrl, 200)
   const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -68,7 +70,7 @@ export default function CustomerDisplayV2() {
   else body = <Welcome time={time} date={date} company={company} />
 
   return (
-    <div className="v2 relative h-screen w-screen select-none overflow-hidden" data-theme={theme}>
+    <div className="v2 relative h-screen w-screen select-none overflow-hidden" data-theme={theme} data-lite={lite ? 'true' : undefined}>
       {body}
       {!paid && state.cart.length === 0 && reviewQr ? (
         <div className="surface absolute bottom-6 left-6 z-20 flex items-center gap-3 rounded-[22px] p-3 pr-5">

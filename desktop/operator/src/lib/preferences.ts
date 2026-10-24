@@ -165,3 +165,34 @@ export function applyUiScale() {
     /* старый preload без масштаба */
   }
 }
+
+/**
+ * Лёгкий режим нового вида: без размытия, теней и анимаций. 'auto' включает
+ * его на слабом железе (до 4 потоков процессора или до 4 ГБ памяти).
+ */
+export type LiteMode = 'auto' | 'on' | 'off'
+const KEY_LITE = 'orda.liteMode'
+export const LITE_MODE_EVENT = 'orda:lite-mode'
+
+export function getLiteMode(): LiteMode {
+  if (typeof window === 'undefined') return 'auto'
+  const v = window.localStorage.getItem(KEY_LITE)
+  return v === 'on' || v === 'off' ? v : 'auto'
+}
+
+export function setLiteMode(mode: LiteMode) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(KEY_LITE, mode)
+  window.dispatchEvent(new CustomEvent(LITE_MODE_EVENT))
+}
+
+export function isWeakDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const cores = Number(navigator.hardwareConcurrency || 8)
+  const memory = Number((navigator as any).deviceMemory || 8)
+  return cores <= 4 || memory <= 4
+}
+
+export function resolveLiteMode(mode: LiteMode = getLiteMode()): boolean {
+  return mode === 'on' || (mode === 'auto' && isWeakDevice())
+}

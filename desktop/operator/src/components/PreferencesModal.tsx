@@ -22,6 +22,10 @@ import {
   getSalesLayout,
   setSalesLayout,
   type UiScale,
+  type LiteMode,
+  getLiteMode,
+  setLiteMode,
+  isWeakDevice,
   getUiScale,
   setUiScale,
   resolveUiScale,
@@ -39,6 +43,7 @@ type PreferencesModalProps = {
 
 export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: PreferencesModalProps) {
   const [uiScale, setUiScaleState] = useState<UiScale>(getUiScale())
+  const [lite, setLiteState] = useState<LiteMode>(getLiteMode())
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [fontSize, setFontSizeState] = useState<FontSize>(getFontSize())
   const [sound, setSound] = useState<boolean>(isSoundEnabled())
@@ -187,6 +192,39 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
               : 'Если не влезает — уменьшите, если мелко — увеличьте.'}
           </p>
         </div>
+
+        {/* Лёгкий режим — слабые моноблоки */}
+        {v2 ? (
+          <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+            <p className="mb-3 text-sm font-medium">Лёгкий режим (для слабых компьютеров)</p>
+            <div className="flex gap-2">
+              {([
+                { value: 'auto', label: 'Авто' },
+                { value: 'on', label: 'Включён' },
+                { value: 'off', label: 'Выключен' },
+              ] as Array<{ value: LiteMode; label: string }>).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setLiteState(value)
+                    setLiteMode(value)
+                  }}
+                  className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-semibold transition ${
+                    lite === value
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                      : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Без размытия, теней и анимаций — касса не тормозит на старом железе.
+              {lite === 'auto' ? (isWeakDevice() ? ' Сейчас включён: компьютер слабый.' : ' Сейчас выключен: компьютер справляется.') : ''}
+            </p>
+          </div>
+        ) : null}
 
         {/* Font size */}
         {v2 ? null : (

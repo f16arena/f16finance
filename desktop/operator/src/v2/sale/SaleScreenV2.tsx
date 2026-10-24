@@ -33,6 +33,7 @@ import { categoryLook } from '../ui/category-look'
 import { ReceiptModal } from '../ui/ReceiptModal'
 import { useSaleEngine } from './useSaleEngine'
 import { RunningTimers, SERVICE_COLOR, ServiceGrid } from './ServicesPanel'
+import { useProgressiveList } from '../ui/progressive'
 
 type Props = {
   config: AppConfig
@@ -159,6 +160,8 @@ export default function SaleScreenV2(props: Props) {
         return av !== bv ? bv - av : a.name.localeCompare(b.name, 'ru')
       })
   }, [engine.items, category, query])
+
+  const grid = useProgressiveList(visible, `${category}|${query}`)
 
   const qtyOf = (id: string) => engine.cart.find((l) => l.item_id === id)?.quantity || 0
 
@@ -414,7 +417,7 @@ export default function SaleScreenV2(props: Props) {
                 </div>
               ) : null}
               <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
-                {visible.map((item) => {
+                {grid.shown.map((item) => {
                   const inCart = qtyOf(item.id)
                   const stock = Number(item.display_qty || 0)
                   const out = stock <= 0
@@ -426,7 +429,7 @@ export default function SaleScreenV2(props: Props) {
                       type="button"
                       onClick={() => add(item)}
                       disabled={out}
-                      className="press lift surface relative flex h-[148px] flex-col overflow-hidden rounded-[22px] p-4 text-left"
+                      className="press lift surface cv relative flex h-[148px] flex-col overflow-hidden rounded-[22px] p-4 text-left"
                       style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
                     >
                       {item.image_url ? (
@@ -454,6 +457,7 @@ export default function SaleScreenV2(props: Props) {
                     </button>
                   )
                 })}
+                {grid.hasMore ? <div ref={grid.sentinelRef} className="col-span-full h-10" /> : null}
               </div>
               </>
             )}

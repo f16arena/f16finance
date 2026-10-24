@@ -199,7 +199,8 @@ export function useCustomerDisplayFeed() {
   }, [reviewUrl])
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000)
+    // Часы показывают минуты — каждую секунду перерисовывать экран незачем.
+    const t = setInterval(() => setNow(new Date()), 10_000)
     return () => clearInterval(t)
   }, [])
 

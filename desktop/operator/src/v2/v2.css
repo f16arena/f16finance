@@ -97,3 +97,20 @@
 
 .v2 ::-webkit-scrollbar { width: 8px; height: 8px; }
 .v2 ::-webkit-scrollbar-thumb { background: var(--fill); border-radius: 8px; }
+
+/* Карточки вне экрана браузер не рисует — длинные сетки легче. */
+.v2 .cv { content-visibility: auto; contain-intrinsic-size: auto 148px; }
+
+/*
+ * Лёгкий режим для слабых моноблоков (Pentium, встроенная графика): Chromium
+ * там часто рисует процессором, и размытие стекла, мягкие тени и пружинки
+ * превращают кассу в слайд-шоу. Те же цвета и раскладка, но плоско.
+ */
+.v2[data-lite='true'] .glass { background: var(--card); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.v2[data-lite='true'] .surface { box-shadow: 0 0 0 1px var(--line); }
+.v2[data-lite='true'] .btn-green,
+.v2[data-lite='true'] .btn-blue,
+.v2[data-lite='true'] .lift:hover:not(:disabled) { box-shadow: none; }
+.v2[data-lite='true'] *,
+.v2[data-lite='true'] *::before,
+.v2[data-lite='true'] *::after { animation: none !important; transition: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }

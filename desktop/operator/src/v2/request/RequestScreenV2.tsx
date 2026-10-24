@@ -11,6 +11,7 @@ import type { AppConfig, BootstrapData, OperatorSession, PointInventoryRequestCo
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
 import { categoryLook } from '../ui/category-look'
+import { useProgressiveList } from '../ui/progressive'
 import { getCachedSalesContext } from '@/lib/cache'
 
 type Props = {
@@ -223,6 +224,7 @@ export default function RequestScreenV2({
       return la !== lb ? la - lb : a.name.localeCompare(b.name, 'ru')
     })
   }, [context?.items, search, category, showcase])
+  const grid = useProgressiveList(filteredItems, `${category}|${search}`)
 
   function addToCart(itemId: string) {
     const item = (context?.items || []).find((i) => i.id === itemId)
@@ -559,7 +561,7 @@ export default function RequestScreenV2({
                   </div>
                 ) : (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-3">
-                    {filteredItems.map((item) => {
+                    {grid.shown.map((item) => {
                       const inCart = cart.find((c) => c.item_id === item.id)
                       const stock = Number(item.warehouse_qty || 0)
                       const onShowcase = showcase.get(item.id)
@@ -572,7 +574,7 @@ export default function RequestScreenV2({
                           type="button"
                           onClick={() => addToCart(item.id)}
                           disabled={!!inCart && inCart.qty >= stock}
-                          className="press lift surface relative flex min-h-[132px] flex-col rounded-[22px] p-4 text-left"
+                          className="press lift surface cv relative flex min-h-[132px] flex-col rounded-[22px] p-4 text-left"
                           style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
                         >
                           <div className="flex items-start justify-between">
@@ -603,6 +605,7 @@ export default function RequestScreenV2({
                         </button>
                       )
                     })}
+                    {grid.hasMore ? <div ref={grid.sentinelRef} className="col-span-full h-10" /> : null}
                   </div>
                 )}
               </div>
