@@ -38,6 +38,7 @@ import type {
   PointInventorySaleShiftSummary,
   ShiftForm,
 } from '@/types'
+import { ReceiptModal } from '../ui/ReceiptModal'
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
 
 interface Props {
@@ -1162,31 +1163,13 @@ export default function ShiftScreenV2({
 
         {/* ── Чековый сменный отчёт (Z-отчёт): превью в iframe + печать ── */}
         {shiftReport ? (
-          <Sheet title={`Сменный отчёт · смена №${shiftReport.shiftNumber}`} onClose={() => setShiftReport(null)} wide>
-            <div className="surface-2 max-h-[56vh] overflow-auto rounded-[16px] p-3">
-              <div className="mx-auto w-full max-w-[360px] overflow-hidden rounded-[10px] bg-white">
-                <iframe
-                  ref={shiftReportIframeRef}
-                  srcDoc={buildShiftReportHtml(shiftReport)}
-                  title="Сменный отчёт"
-                  className="h-[50vh] w-full"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-3">
-              <button type="button" onClick={() => setShiftReport(null)} className="press fill h-14 flex-1 rounded-[16px] text-[16px] font-semibold">
-                Закрыть
-              </button>
-              <button
-                type="button"
-                onClick={() => printReceiptFromIframe(shiftReportIframeRef.current)}
-                className="press btn-green flex h-14 flex-1 items-center justify-center gap-2 rounded-[16px] text-[16px] font-semibold"
-              >
-                <Printer className="h-5 w-5" />
-                Печать
-              </button>
-            </div>
-          </Sheet>
+          <ReceiptModal
+            success
+            title={`Сменный отчёт · смена №${shiftReport.shiftNumber}`}
+            subtitle="Смена закрыта"
+            html={buildShiftReportHtml(shiftReport)}
+            onClose={() => setShiftReport(null)}
+          />
         ) : null}
       </div>
     </V2Shell>

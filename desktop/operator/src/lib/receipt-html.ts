@@ -232,21 +232,21 @@ export function buildReceiptHtml(preview: SaleReceiptPreview) {
       <div class="total-block">
         <div class="total-row">
           <span class="total-label">${escapeHtml(totalLabel)}</span>
-          <span class="total-value">${escapeHtml(formatMoney(preview.totalAmount))} ₸</span>
+          <span class="total-value">${escapeHtml(formatMoney(preview.totalAmount))}</span>
         </div>
       </div>
       <div class="payment-row">
         <span class="payment-label">${escapeHtml(paymentBadge(preview.paymentMethod))}</span>
-        <strong>${escapeHtml(formatMoney(preview.totalAmount))} ₸</strong>
+        <strong>${escapeHtml(formatMoney(preview.totalAmount))}</strong>
       </div>
       ${
         preview.paymentMethod === 'mixed'
           ? `
         <div class="payment-row" style="font-size:12px;color:#4b5563;">
-          <span>↳ Наличные</span><span>${escapeHtml(formatMoney(preview.cashAmount))} ₸</span>
+          <span>↳ Наличные</span><span>${escapeHtml(formatMoney(preview.cashAmount))}</span>
         </div>
         <div class="payment-row" style="font-size:12px;color:#4b5563;">
-          <span>↳ Безналичный</span><span>${escapeHtml(formatMoney(preview.kaspiAmount))} ₸</span>
+          <span>↳ Безналичный</span><span>${escapeHtml(formatMoney(preview.kaspiAmount))}</span>
         </div>
       `
           : ''

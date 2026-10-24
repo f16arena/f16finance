@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/utils'
 import type { AppConfig, BootstrapData, OperatorSession } from '@/types'
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
+import { ReceiptModal } from '../ui/ReceiptModal'
 import { paymentBadge, roundQty, useReturnsEngine } from './useReturnsEngine'
 
 type Props = {
@@ -272,24 +273,13 @@ export default function ReturnsScreenV2(props: Props) {
 
         {/* Чек возврата */}
         {receipt ? (
-          <Sheet
+          <ReceiptModal
+            success
             title="Возврат оформлен"
             subtitle={`Возврат к чеку #${receipt.originalSaleId?.slice(-6) || '—'} · ${money(receipt.totalAmount)}`}
+            html={buildReceiptHtmlForPreview(receipt)}
             onClose={() => e.setLastReceipt(null)}
-          >
-            <div className="min-h-0 flex-1 overflow-hidden rounded-[16px] bg-white" style={{ height: '58vh' }}>
-              <iframe ref={receiptRef} title="Чек возврата" srcDoc={buildReceiptHtmlForPreview(receipt)} className="h-full w-full" style={{ border: 'none' }} />
-            </div>
-            <div className="mt-4 flex shrink-0 gap-3">
-              <button type="button" onClick={() => e.setLastReceipt(null)} className="press fill h-12 flex-1 rounded-[14px] text-[15px] font-semibold">
-                Закрыть
-              </button>
-              <button type="button" onClick={() => printReceiptFromIframe(receiptRef.current)} className="press btn-blue flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold">
-                <Printer className="h-4 w-4" />
-                Печать
-              </button>
-            </div>
-          </Sheet>
+          />
         ) : null}
       </div>
     </V2Shell>

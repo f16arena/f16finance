@@ -29,6 +29,8 @@ import { buildReceiptHtmlForPreview, formatShiftLabel, printReceiptFromIframe } 
 import type { AppConfig, BootstrapData, Customer, OperatorSession, PointInventorySaleItem, PointInventorySaleRow } from '@/types'
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
+import { categoryLook } from '../ui/category-look'
+import { ReceiptModal } from '../ui/ReceiptModal'
 import { useSaleEngine } from './useSaleEngine'
 
 type Props = {
@@ -45,19 +47,7 @@ type Props = {
   onOpenCabinet?: () => void
 }
 
-const PALETTE = ['#0a84ff', '#ff9500', '#ff3b30', '#af52de', '#34c759', '#ff2d55', '#5ac8fa', '#ffcc00']
-
-function lookFor(name: string | null | undefined): { icon: LucideIcon; color: string } {
-  const n = String(name || '').toLowerCase()
-  if (!n) return { icon: Package, color: '#8e8e93' }
-  if (/напит|вода|сок|кофе|чай|drink/.test(n)) return { icon: CupSoda, color: '#0a84ff' }
-  if (/снек|чипс|слад|шокол|snack/.test(n)) return { icon: Cookie, color: '#ff9500' }
-  if (/еда|кухн|блюд|пицц|рамен|food/.test(n)) return { icon: UtensilsCrossed, color: '#ff3b30' }
-  if (/врем|час|услуг|тариф|пакет/.test(n)) return { icon: Clock, color: '#af52de' }
-  let h = 0
-  for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return { icon: Package, color: PALETTE[h % PALETTE.length] }
-}
+const lookFor = categoryLook
 
 function money(value: number) {
   return Math.round(value).toLocaleString('ru-RU')
@@ -805,34 +795,19 @@ export default function SaleScreenV2(props: Props) {
             </Sheet>
           ) : null}
 
-          {receipt && !sheet ? (
-            <div className="sheet-in glass absolute inset-3 z-20 flex flex-col rounded-[24px] p-5" style={{ boxShadow: 'var(--shadow-lift)' }}>
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: 'var(--green)' }}>
-                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[20px] font-bold leading-tight">Оплачено {money(receipt.totalAmount)} ₸</div>
-                  <div className="muted text-[14px]">
-                    {receipt.paymentMethod === 'cash' ? 'Наличными' : receipt.paymentMethod === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная оплата'}
-                  </div>
-                </div>
-              </div>
-              <div className="surface-2 mt-4 min-h-0 flex-1 overflow-hidden rounded-[16px]">
-                <iframe ref={receiptRef} title="Чек" srcDoc={buildReceiptHtmlForPreview(receipt)} className="h-full w-full bg-white" />
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => printReceiptFromIframe(receiptRef.current)} className="press fill flex h-12 items-center justify-center gap-2 rounded-[14px] text-[15px] font-medium">
-                  <Printer className="h-[18px] w-[18px]" /> Печать чека
-                </button>
-                <button type="button" onClick={engine.closeReceipt} className="press btn-blue flex h-12 items-center justify-center rounded-[14px] text-[15px] font-semibold">
-                  Новая продажа
-                </button>
-              </div>
-            </div>
-          ) : null}
         </aside>
       </div>
+      {receipt && !sheet ? (
+        <ReceiptModal
+          success
+          title={`Оплачено ${money(receipt.totalAmount)} ₸`}
+          subtitle={receipt.paymentMethod === 'cash' ? 'Наличными' : receipt.paymentMethod === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная оплата'}
+          html={buildReceiptHtmlForPreview(receipt)}
+          onClose={engine.closeReceipt}
+          closeLabel="Новая продажа"
+          printLabel="Печать чека"
+        />
+      ) : null}
     </V2Shell>
   )
 }

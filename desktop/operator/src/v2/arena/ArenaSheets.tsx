@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Clock, Download, Printer, Wrench, X } from 'lucide-react'
+import { Check, Clock, Download, Printer, Wrench, X } from 'lucide-react'
 
 import * as api from '@/lib/api'
 import { toastError } from '@/lib/toast'
@@ -445,8 +445,20 @@ export function MassZoneStartSheet(props: {
 
 export function ReceiptSheet(props: { receipt: ArenaReceipt; onClose: () => void }) {
   const r = props.receipt
+  // По центру экрана, как остальные окна чека (v2/ui/ReceiptModal).
   return (
-    <Sheet title="Чек готов" onClose={props.onClose}>
+    <div
+      className="fixed inset-0 z-50 grid place-items-center p-6"
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+      onClick={props.onClose}
+    >
+    <div onClick={(e) => e.stopPropagation()} className="sheet-in surface w-full max-w-[440px] rounded-[28px] p-6" style={{ boxShadow: 'var(--shadow-lift)' }} role="dialog" aria-modal="true">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-full" style={{ background: 'var(--green)' }}>
+          <Check className="h-6 w-6 text-white" strokeWidth={3} />
+        </div>
+        <div className="text-[19px] font-bold">Чек готов</div>
+      </div>
       <div className="surface-2 space-y-2 rounded-[18px] p-4 text-[15px]">
         <div className="flex justify-between">
           <span className="muted">Станция</span>
@@ -474,7 +486,8 @@ export function ReceiptSheet(props: { receipt: ArenaReceipt; onClose: () => void
           Закрыть
         </button>
       </div>
-    </Sheet>
+    </div>
+    </div>
   )
 }
 

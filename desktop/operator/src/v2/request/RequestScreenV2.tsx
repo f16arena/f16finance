@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Ban, ClipboardList, Loader2, Minus, Plus, RefreshCw, Search, ShoppingCart, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Ban, ClipboardList, LayoutGrid, Loader2, MessageSquare, Minus, Plus, RefreshCw, Search, ShoppingCart, Trash2, Warehouse, X } from 'lucide-react'
 
 import * as api from '@/lib/api'
 import * as offline from '@/lib/offline'
@@ -7,9 +7,11 @@ import { clearDraft, getDraft, setDraft, type RequestDraftItem } from '@/lib/req
 import { toastError, toastSuccess } from '@/lib/toast'
 import { formatShiftLabel } from '@/lib/receipt-html'
 import { resolveRuntimeShift } from '@/lib/shift-runtime'
-import type { AppConfig, BootstrapData, OperatorSession, PointInventoryRequestContext, PointInventoryRequestRow } from '@/types'
+import type { AppConfig, BootstrapData, OperatorSession, PointInventoryRequestContext, PointInventoryRequestRow, PointInventorySaleContext } from '@/types'
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
+import { categoryLook } from '../ui/category-look'
+import { getCachedSalesContext } from '@/lib/cache'
 
 type Props = {
   config: AppConfig
@@ -114,6 +116,18 @@ export default function RequestScreenV2({
   const [receivingId, setReceivingId] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<string | null>(null)
   const [cancelTarget, setCancelTarget] = useState<PointInventoryRequestRow | null>(null)
+  const [category, setCategory] = useState('all')
+  const [openComment, setOpenComment] = useState<string | null>(null)
+  // Остаток на витрине — из кэша экрана продажи (без лишних запросов): что
+  // заканчивается на витрине, то и заказывают со склада.
+  const [showcase, setShowcase] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    void getCachedSalesContext<PointInventorySaleContext>()
+      .then((ctx) => {
+        if (ctx?.items) setShowcase(new Map(ctx.items.map((i) => [i.id, Number(i.display_qty || 0)])))
+      })
+      .catch(() => {})
+  }, [])
   const searchRef = useRef<HTMLInputElement>(null)
 
   // Черновик per-кассир: позиции восстанавливаем после загрузки каталога (нужны актуальные остатки).
@@ -189,12 +203,26 @@ export default function RequestScreenV2({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const LOW_SHOWCASE = 5
+  const categories = useMemo(() => {
+    const names = new Set<string>()
+    for (const it of context?.items || []) if (Number(it.warehouse_qty || 0) > 0) names.add(it.category?.name || 'Без категории')
+    return ['all', ...Array.from(names).sort((a, b) => a.localeCompare(b, 'ru'))]
+  }, [context?.items])
+
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const all = (context?.items || []).filter((item) => Number(item.warehouse_qty || 0) > 0)
-    if (!q) return all
-    return all.filter((i) => i.name.toLowerCase().includes(q) || (i.barcode || '').toLowerCase().includes(q))
-  }, [context?.items, search])
+    const all = (context?.items || [])
+      .filter((item) => Number(item.warehouse_qty || 0) > 0)
+      .filter((item) => category === 'all' || (item.category?.name || 'Без категории') === category)
+    const found = q ? all.filter((i) => i.name.toLowerCase().includes(q) || (i.barcode || '').toLowerCase().includes(q)) : all
+    // Что заканчивается на витрине — первым.
+    return [...found].sort((a, b) => {
+      const la = showcase.has(a.id) && (showcase.get(a.id) || 0) <= LOW_SHOWCASE ? 0 : 1
+      const lb = showcase.has(b.id) && (showcase.get(b.id) || 0) <= LOW_SHOWCASE ? 0 : 1
+      return la !== lb ? la - lb : a.name.localeCompare(b.name, 'ru')
+    })
+  }, [context?.items, search, category, showcase])
 
   function addToCart(itemId: string) {
     const item = (context?.items || []).find((i) => i.id === itemId)
@@ -467,10 +495,10 @@ export default function RequestScreenV2({
           </section>
         ) : (
           <div className="grid min-h-0 flex-1 grid-cols-[1fr_420px] gap-4">
-            {/* Каталог склада */}
+            {/* ── Склад ─────────────────────────────────────────────── */}
             <section className="flex min-h-0 flex-col gap-3">
-              <div className="relative">
-                <Search className="muted pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2" />
+              <label className="surface flex h-12 items-center gap-2.5 rounded-[14px] px-4">
+                <Search className="muted h-[18px] w-[18px]" />
                 <input
                   ref={searchRef}
                   value={search}
@@ -481,58 +509,97 @@ export default function RequestScreenV2({
                       handleSearchEnter()
                     }
                   }}
-                  placeholder="Поиск по названию или штрихкоду"
+                  placeholder="Поиск или штрихкод"
                   autoFocus
-                  className="fill placeholder-muted h-12 w-full rounded-[16px] pl-11 pr-11 text-[15px] outline-none"
+                  className="placeholder-muted h-full flex-1 bg-transparent text-[16px] outline-none"
                 />
                 {search ? (
-                  <button type="button" onClick={() => setSearch('')} className="press absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center" aria-label="Очистить поиск">
-                    <X className="muted h-4 w-4" />
+                  <button type="button" onClick={() => setSearch('')} className="fill grid h-6 w-6 place-items-center rounded-full" aria-label="Очистить поиск">
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 ) : null}
+              </label>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {categories.map((c) => {
+                  const look = c === 'all' ? { icon: LayoutGrid, color: '#8e8e93' } : categoryLook(c)
+                  const Icon = look.icon
+                  const active = c === category
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className={`press flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[15px] font-medium ${active ? 'surface' : 'fill'}`}
+                      style={active ? { boxShadow: `inset 0 0 0 2px ${look.color}` } : undefined}
+                    >
+                      <Icon className="h-[18px] w-[18px]" style={{ color: look.color }} />
+                      {c === 'all' ? 'Все' : c}
+                    </button>
+                  )
+                })}
               </div>
 
-              <div className="surface min-h-0 flex-1 overflow-y-auto rounded-[22px]">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {loading ? (
-                  <div className="flex h-40 items-center justify-center">
-                    <Loader2 className="muted h-6 w-6 animate-spin" />
+                  <div className="muted flex h-full items-center justify-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin" /> Загружаем склад…
                   </div>
                 ) : error ? (
-                  <div className="t-red m-3 rounded-[14px] px-4 py-3 text-[14px]" style={{ background: 'color-mix(in srgb, var(--red) 12%, transparent)' }}>
-                    {error}
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                    <p className="t-red text-[16px]">{error}</p>
+                    <button type="button" onClick={() => void load()} className="press btn-blue h-11 rounded-[14px] px-5 text-[15px] font-semibold">
+                      Повторить
+                    </button>
                   </div>
                 ) : filteredItems.length === 0 ? (
-                  <div className="muted flex h-40 flex-col items-center justify-center gap-2">
-                    <Search className="h-8 w-8 opacity-30" />
-                    <p className="text-[15px]">{search ? 'Ничего не найдено' : 'Каталог пуст'}</p>
+                  <div className="muted flex h-full flex-col items-center justify-center gap-2">
+                    <Warehouse className="h-8 w-8" />
+                    <p className="text-[16px]">{search ? `Ничего не нашлось по «${search}»` : 'На складе пусто'}</p>
                   </div>
                 ) : (
-                  <div>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-3">
                     {filteredItems.map((item) => {
                       const inCart = cart.find((c) => c.item_id === item.id)
-                      const max = Number(item.warehouse_qty || 0)
-                      const atMax = !!inCart && inCart.qty >= max
+                      const stock = Number(item.warehouse_qty || 0)
+                      const onShowcase = showcase.get(item.id)
+                      const low = onShowcase !== undefined && onShowcase <= LOW_SHOWCASE
+                      const look = categoryLook(item.category?.name)
+                      const Icon = look.icon
                       return (
                         <button
                           key={item.id}
                           type="button"
                           onClick={() => addToCart(item.id)}
-                          className="press flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                          style={inCart ? { background: 'color-mix(in srgb, var(--blue) 8%, transparent)' } : undefined}
+                          disabled={!!inCart && inCart.qty >= stock}
+                          className="press lift surface relative flex h-[156px] flex-col rounded-[22px] p-4 text-left"
+                          style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
                         >
-                          <div className="min-w-0">
-                            <p className={`truncate text-[15px] font-semibold ${inCart ? 't-blue' : ''}`}>{item.name}</p>
-                            <p className="muted mt-0.5 text-[13px]">
-                              {item.barcode || '—'} · склад: <span className="ink font-semibold">{max}</span> {item.unit || 'шт'}
-                              {atMax ? <span className="ml-1.5 font-semibold" style={{ color: 'var(--orange)' }}>максимум</span> : null}
-                            </p>
+                          <div className="flex items-start justify-between">
+                            <div className="grid h-11 w-11 place-items-center rounded-[13px]" style={{ background: `color-mix(in srgb, ${look.color} 14%, transparent)` }}>
+                              <Icon className="h-[22px] w-[22px]" style={{ color: look.color }} />
+                            </div>
+                            {inCart ? (
+                              <span key={inCart.qty} className="badge pop grid h-7 min-w-7 place-items-center rounded-full px-2 text-[14px] font-semibold">
+                                {inCart.qty}
+                              </span>
+                            ) : low ? (
+                              <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold text-white" style={{ background: 'var(--orange)' }}>
+                                <AlertTriangle className="h-3 w-3" /> Мало
+                              </span>
+                            ) : null}
                           </div>
-                          <div
-                            key={inCart?.qty ?? 0}
-                            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${inCart ? 'badge pop' : 'fill'}`}
-                          >
-                            {inCart ? <span className="text-[15px] font-bold">{inCart.qty}</span> : <Plus className="muted h-5 w-5" />}
-                          </div>
+                          <span className="mt-auto line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
+                          <span className="mt-1.5 flex items-center justify-between text-[13px]">
+                            <span className="muted">
+                              Склад <b className="ink">{stock}</b> {item.unit || 'шт'}
+                            </span>
+                            {onShowcase !== undefined ? (
+                              <span style={{ color: low ? 'var(--orange)' : 'var(--muted)' }}>
+                                Витрина <b>{onShowcase}</b>
+                              </span>
+                            ) : null}
+                          </span>
                         </button>
                       )
                     })}
@@ -541,93 +608,107 @@ export default function RequestScreenV2({
               </div>
             </section>
 
-            {/* Панель заявки */}
-            <aside className="surface flex min-h-0 flex-col rounded-[24px]">
+            {/* ── Заявка ────────────────────────────────────────────── */}
+            <aside className="glass relative flex min-h-0 flex-col rounded-[28px] p-4">
               <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-                <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-4">
-                  <div className="flex items-center gap-2 text-[17px] font-bold">
-                    <ShoppingCart className="t-blue h-5 w-5" /> Заявка
-                    {cartCount > 0 ? <span className="badge rounded-full px-2.5 py-0.5 text-[12px] font-semibold">{cartCount} поз.</span> : null}
-                  </div>
-                  {hasDraftNow ? (
-                    <button type="button" onClick={clearForm} className="press t-red flex h-11 items-center gap-1.5 px-2 text-[14px] font-medium">
-                      <Trash2 className="h-4 w-4" /> Очистить
-                    </button>
-                  ) : null}
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-[22px] font-bold tracking-tight">Заявка на склад</h2>
+                  <button type="button" onClick={clearForm} disabled={!hasDraftNow} className="press t-red flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium">
+                    <Trash2 className="h-4 w-4" /> Очистить
+                  </button>
                 </div>
+                {hasDraftNow ? <p className="muted px-1 text-[13px]">Черновик сохраняется сам — можно уйти и вернуться</p> : null}
 
-                {cart.length === 0 ? (
-                  <div className="muted flex flex-1 flex-col items-center justify-center gap-2 py-8">
-                    <ShoppingCart className="h-8 w-8 opacity-30" />
-                    <p className="text-[15px]">Нажмите на товар слева</p>
-                  </div>
-                ) : (
-                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3">
-                    {cart.map((c) => (
-                      <div key={c.item_id} className="surface-2 slide-in space-y-2 rounded-[16px] p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 truncate text-[15px] font-semibold leading-tight">{c.name}</p>
-                          <button type="button" onClick={() => removeFromCart(c.item_id)} className="press -mr-1 -mt-1 grid h-11 w-11 shrink-0 place-items-center" aria-label="Убрать позицию">
-                            <X className="muted h-4 w-4" />
-                          </button>
+                <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-auto">
+                  {cart.length === 0 ? (
+                    <div className="muted flex h-full flex-col items-center justify-center gap-3 text-center">
+                      <div className="fill grid h-16 w-16 place-items-center rounded-full">
+                        <ShoppingCart className="h-7 w-7" />
+                      </div>
+                      <p className="max-w-[260px] text-[15px] leading-relaxed">Нажмите на товар слева. Сверху — то, что заканчивается на витрине.</p>
+                    </div>
+                  ) : null}
+                  {cart.map((c) => (
+                    <div key={c.item_id} className="slide-in surface rounded-[18px] p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[15px] font-medium">{c.name}</div>
+                          <div className="text-[13px]" style={{ color: c.qty >= c.warehouse_qty ? 'var(--orange)' : 'var(--muted)' }}>
+                            на складе {c.warehouse_qty} {c.unit}
+                            {c.qty >= c.warehouse_qty ? ' · это максимум' : ''}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => setCartQty(c.item_id, c.qty - 1)} className="press fill grid h-11 w-11 place-items-center rounded-full" aria-label="Меньше">
+                        <div className="fill flex items-center rounded-full p-1">
+                          <button type="button" onClick={() => setCartQty(c.item_id, c.qty - 1)} className="press surface grid h-10 w-10 place-items-center rounded-full" aria-label="Меньше">
                             <Minus className="h-4 w-4" />
                           </button>
                           <input
-                            type="number"
                             value={c.qty}
-                            onChange={(e) => setCartQty(c.item_id, Number(e.target.value) || 0)}
-                            min={0}
-                            max={c.warehouse_qty}
-                            className="fill h-11 w-16 rounded-[12px] px-1 text-center text-[16px] font-semibold outline-none"
+                            onChange={(e) => setCartQty(c.item_id, Number(e.target.value.replace(/[^\d.]/g, '')) || 0)}
+                            inputMode="decimal"
+                            className="w-11 bg-transparent text-center text-[16px] font-semibold outline-none"
+                            aria-label="Количество"
                           />
                           <button
                             type="button"
                             onClick={() => setCartQty(c.item_id, c.qty + 1)}
                             disabled={c.qty >= c.warehouse_qty}
-                            className="press fill grid h-11 w-11 place-items-center rounded-full"
+                            className="press surface grid h-10 w-10 place-items-center rounded-full"
                             aria-label="Больше"
                           >
                             <Plus className="h-4 w-4" />
                           </button>
-                          <span className="muted text-[13px]">{c.unit}</span>
-                          <span className="ml-auto shrink-0 text-[13px]" style={{ color: c.qty >= c.warehouse_qty ? 'var(--orange)' : 'var(--muted)' }}>
-                            макс {c.warehouse_qty}
-                          </span>
                         </div>
-                        <input
-                          value={c.comment}
-                          onChange={(e) => setCartComment(c.item_id, e.target.value)}
-                          placeholder="Комментарий (необязательно)"
-                          className="fill placeholder-muted h-11 w-full rounded-[12px] px-3 text-[14px] outline-none"
-                        />
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="shrink-0 space-y-3 p-4">
-                  <label className="block">
-                    <span className="muted text-[13px]">Комментарий к заявке</span>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Что нужно и почему"
-                      rows={2}
-                      className="fill placeholder-muted mt-1.5 w-full resize-none rounded-[14px] px-4 py-3 text-[15px] outline-none"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={saving || loading || cart.length === 0}
-                    className="press btn-green flex h-14 w-full items-center justify-center gap-2 rounded-[18px] text-[17px] font-semibold"
-                  >
-                    {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <ClipboardList className="h-5 w-5" />}
-                    {cartCount > 0 ? `Отправить заявку · ${cartCount} поз.` : 'Отправить заявку'}
-                  </button>
+                      <div className="mt-2 flex items-center gap-2">
+                        {openComment === c.item_id || c.comment ? (
+                          <input
+                            value={c.comment}
+                            onChange={(e) => setCartComment(c.item_id, e.target.value)}
+                            autoFocus={openComment === c.item_id && !c.comment}
+                            placeholder="Комментарий к позиции"
+                            className="fill placeholder-muted h-10 flex-1 rounded-[12px] px-3 text-[14px] outline-none"
+                          />
+                        ) : (
+                          <button type="button" onClick={() => setOpenComment(c.item_id)} className="press muted flex h-9 items-center gap-1.5 rounded-full px-2 text-[13px]">
+                            <MessageSquare className="h-4 w-4" /> Комментарий
+                          </button>
+                        )}
+                        <button type="button" onClick={() => removeFromCart(c.item_id)} className="press fill ml-auto grid h-9 w-9 place-items-center rounded-full" aria-label="Убрать позицию">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+
+                <label className="mt-3 block">
+                  <span className="muted px-1 text-[13px]">Комментарий к заявке</span>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Что нужно и почему"
+                    rows={2}
+                    className="surface placeholder-muted mt-1 w-full resize-none rounded-[16px] px-4 py-3 text-[15px] outline-none"
+                  />
+                </label>
+
+                <div className="mt-3 flex items-end justify-between px-1">
+                  <div className="muted text-[14px]">Позиций</div>
+                  <div className="text-[34px] font-bold leading-none tracking-tight">
+                    {cartCount}
+                    <span className="muted ml-2 text-[16px] font-medium">· {cart.reduce((sum, c) => sum + c.qty, 0)} шт</span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving || loading || cart.length === 0}
+                  className="press btn-green mt-4 flex h-[64px] w-full items-center justify-center gap-2 rounded-[20px] text-[17px] font-semibold"
+                >
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <ClipboardList className="h-5 w-5" />}
+                  Отправить на склад
+                </button>
               </form>
             </aside>
           </div>

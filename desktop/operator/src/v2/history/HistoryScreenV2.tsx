@@ -5,6 +5,7 @@ import { buildReceiptHtmlForPreview, printReceiptFromIframe } from '@/lib/receip
 import type { AppConfig, OperatorSession } from '@/types'
 
 import { V2Shell, type V2Nav } from '../ui/V2Shell'
+import { ReceiptModal } from '../ui/ReceiptModal'
 import { formatSoldAt, useHistoryEngine } from './useHistoryEngine'
 
 type Props = {
@@ -212,25 +213,13 @@ export default function HistoryScreenV2(props: Props) {
 
         {/* Превью копии чека + печать */}
         {preview ? (
-          <Sheet
-            wide
+          <ReceiptModal
             title={`Копия чека #${preview.saleId?.slice(-6) || '—'}`}
-            subtitle="На чеке будет крупная пометка «КОПИЯ» — это повторная печать."
+            subtitle="На чеке будет пометка «КОПИЯ» — это повторная печать"
+            html={buildReceiptHtmlForPreview(preview)}
             onClose={() => e.setPrintPreview(null)}
-          >
-            <div className="mx-auto min-h-0 w-full max-w-[400px] overflow-hidden rounded-[16px] bg-white">
-              <iframe ref={printRef} srcDoc={buildReceiptHtmlForPreview(preview)} title="Превью копии чека" className="w-full" style={{ border: 'none', height: '52vh' }} />
-            </div>
-            <div className="mt-4 flex shrink-0 gap-3">
-              <button type="button" onClick={() => e.setPrintPreview(null)} className="press fill h-12 flex-1 rounded-[14px] text-[15px] font-semibold">
-                Закрыть
-              </button>
-              <button type="button" onClick={() => printReceiptFromIframe(printRef.current)} className="press btn-blue flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold">
-                <Printer className="h-4 w-4" />
-                Печатать копию
-              </button>
-            </div>
-          </Sheet>
+            printLabel="Печатать копию"
+          />
         ) : null}
       </div>
     </V2Shell>
