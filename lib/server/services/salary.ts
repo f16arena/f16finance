@@ -181,7 +181,7 @@ export function buildSalaryTelegramMessage(params: {
     const rows = lines.filter((l) => l.kind === section.kind)
     if (!rows.length) continue
     if (section.deduction && !deductionsHeader) {
-      text += `\n<b>Удержано</b>\n`
+      text += `\n<b>Удержано</b>`
       deductionsHeader = true
     }
     const total = rows.reduce((sum, l) => sum + l.amount, 0)
