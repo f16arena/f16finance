@@ -1655,8 +1655,11 @@ export async function POST(req: Request) {
     if (body.action === 'createAdvance') {
       const denied = await requireCapability(access, 'salary.create_advance')
       if (denied) return denied as any
-      const weekStart = periodStartOf(normalizeIsoDate(body.payload.week_start))
       const paymentDate = normalizeIsoDate(body.payload.payment_date)
+      // Неделя аванса — та, в которую попадает дата выдачи: по дате его и
+      // удерживает расчёт. Раньше бралась открытая на экране неделя, и аванс
+      // от 20.10 подписывался «за неделю 12–18», а вычитался из 19–25.
+      const weekStart = periodStartOf(paymentDate || normalizeIsoDate(body.payload.week_start))
       const split = normalizeSplit(body.payload.cash_amount, body.payload.kaspi_amount)
 
       if (!body.payload.operator_id || !body.payload.company_id || !weekStart || !paymentDate) {
