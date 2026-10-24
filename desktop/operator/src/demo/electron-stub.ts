@@ -85,8 +85,17 @@ export function installElectronStub(opts: { loggedIn: boolean }) {
       available: async () => false,
       open: async () => ({ ok: false, reason: 'demo' }),
       close: async () => ({ ok: true }),
-      push: () => { /* no-op */ },
-      onState: () => () => {},
+      // В демо касса и экран покупателя — две вкладки: связываем их каналом браузера.
+      push: (msg: unknown) => { try { new BroadcastChannel('orda-demo-customer').postMessage(msg) } catch { /* нет канала */ } },
+      onState: (cb: (msg: unknown) => void) => {
+        try {
+          const bc = new BroadcastChannel('orda-demo-customer')
+          bc.onmessage = (e) => cb(e.data)
+          return () => bc.close()
+        } catch {
+          return () => {}
+        }
+      },
       onRequest: () => () => {},
     },
   }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { getCachedSalesContext } from '@/lib/cache'
+import { getUiVersion } from '@/lib/preferences'
+import CustomerDisplayV2 from '@/v2/customer/CustomerDisplayV2'
 
 /**
  * Экран клиента (Customer Display).
@@ -19,7 +21,7 @@ import { getCachedSalesContext } from '@/lib/cache'
  * loyalty) опциональны — старая касса их не шлёт, старый дисплей игнорирует.
  */
 
-type CartLine = {
+export type CartLine = {
   id?: string
   name: string
   quantity: number
@@ -29,13 +31,13 @@ type CartLine = {
   image_url?: string | null
 }
 
-type DisplayCustomer = {
+export type DisplayCustomer = {
   name: string | null
   phone: string | null
   loyaltyPoints: number
 } | null
 
-type AdItem = {
+export type AdItem = {
   id: string
   media_type: 'image' | 'video'
   url: string
@@ -44,13 +46,13 @@ type AdItem = {
 }
 
 /** Начисление баллов по чеку (аддитивное поле события 'paid') */
-type PaidLoyalty = {
+export type PaidLoyalty = {
   earned: number
   spent: number
   totalAfter: number
 } | null
 
-type DisplayState = {
+export type DisplayState = {
   companyName?: string | null
   operatorName?: string | null
   cart: CartLine[]
@@ -79,9 +81,9 @@ type DisplayEvent =
     }
   | { kind: 'clear' }
 
-type PaidTimer = { title: string; endsAt: string }
+export type PaidTimer = { title: string; endsAt: string }
 
-type PaidView = {
+export type PaidView = {
   total: number
   paymentLabel: string
   lines: CartLine[]
@@ -91,7 +93,7 @@ type PaidView = {
 }
 
 /** Товар для витрины в простое (из локального кэша каталога кассы) */
-type ShowcaseItem = {
+export type ShowcaseItem = {
   id: string
   name: string
   sale_price: number
@@ -110,7 +112,7 @@ const emptyState: DisplayState = {
   customer: null,
 }
 
-function formatMoney(value: number) {
+export function formatMoney(value: number) {
   if (!Number.isFinite(value)) return '0'
   return Math.round(value).toLocaleString('ru-RU')
 }
@@ -125,7 +127,7 @@ function pluralPositions(n: number) {
 }
 
 // Плавная анимация числа: значение «доезжает» до target за ~400 мс
-function useAnimatedNumber(target: number, durationMs = 400) {
+export function useAnimatedNumber(target: number, durationMs = 400) {
   const [display, setDisplay] = useState(target)
   const fromRef = useRef(target)
   const startRef = useRef<number | null>(null)
@@ -154,7 +156,7 @@ function useAnimatedNumber(target: number, durationMs = 400) {
 }
 
 /** Генерация QR как data-URL (библиотека qrcode, без сети) */
-function useQrDataUrl(url: string | null, width = 240) {
+export function useQrDataUrl(url: string | null, width = 240) {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
@@ -176,17 +178,19 @@ function useQrDataUrl(url: string | null, width = 240) {
   return dataUrl
 }
 
-export default function CustomerDisplay() {
+/**
+ * Что показывать покупателю: состояние корзины, экран «Спасибо», реклама,
+ * витрина из кэша и часы. Общий для классического и нового вида.
+ */
+export function useCustomerDisplayFeed() {
   const [state, setState] = useState<DisplayState>(emptyState)
   const [paid, setPaid] = useState<PaidView | null>(null)
   const [now, setNow] = useState(() => new Date())
-  const [totalPulse, setTotalPulse] = useState(0)
   // Плейлист и reviewUrl держим отдельно, чтобы они переживали события paid/clear
   const [playlist, setPlaylist] = useState<AdItem[]>([])
   const [reviewUrl, setReviewUrl] = useState<string | null>(null)
   // Витрина для простоя — из локального кэша каталога кассы (только товары с фото)
   const [showcase, setShowcase] = useState<ShowcaseItem[]>([])
-  const prevTotalRef = useRef(0)
   const reviewUrlRef = useRef<string | null>(null)
   const paidTimerRef = useRef<number | null>(null)
 
@@ -244,10 +248,14 @@ export default function CustomerDisplay() {
     const off = window.electron.customerDisplay.onState((raw) => {
       const event = raw as DisplayEvent
       if (event?.kind === 'update') {
-        clearPaidTimer()
-        setState(event.state)
         if (Array.isArray(event.state.playlist)) setPlaylist(event.state.playlist)
         if ('reviewUrl' in event.state) setReviewUrl(event.state.reviewUrl?.trim() || null)
+        // Касса сразу после оплаты очищает корзину и шлёт пустое состояние —
+        // оно не должно смахивать «Оплачено». Убирает его только новая покупка
+        // (или таймер экрана).
+        if (paidTimerRef.current !== null && (!Array.isArray(event.state.cart) || event.state.cart.length === 0)) return
+        clearPaidTimer()
+        setState(event.state)
         setPaid(null)
       } else if (event?.kind === 'paid') {
         clearPaidTimer()
@@ -279,6 +287,25 @@ export default function CustomerDisplay() {
       off()
     }
   }, [])
+
+  return { state, paid, now, playlist, reviewUrl, showcase }
+}
+
+export default function CustomerDisplay() {
+  const [version, setVersion] = useState(getUiVersion)
+  // Окно покупателя отдельное: переключение вида на кассе приходит событием storage.
+  useEffect(() => {
+    const onStorage = () => setVersion(getUiVersion())
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+  return version === 'v2' ? <CustomerDisplayV2 /> : <CustomerDisplayClassic />
+}
+
+function CustomerDisplayClassic() {
+  const { state, paid, now, playlist, reviewUrl, showcase } = useCustomerDisplayFeed()
+  const [totalPulse, setTotalPulse] = useState(0)
+  const prevTotalRef = useRef(0)
 
   // Триггер пульсации итога при каждом изменении total
   useEffect(() => {
@@ -760,7 +787,7 @@ function ShowcaseImage({ item }: { item: ShowcaseItem }) {
 // ─── Плеер рекламы (idle) ──────────────────────────────────────────────────
 // Крутит плейлист по кругу: картинки держим duration_sec секунд,
 // видео играем до конца (без звука — иначе браузер блокирует автоплей).
-function AdPlayer({ items, clock }: { items: AdItem[]; clock: string }) {
+export function AdPlayer({ items, clock }: { items: AdItem[]; clock: string }) {
   const [index, setIndex] = useState(0)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
