@@ -29,6 +29,8 @@ type HrEmployee = {
   // Запись staff того же человека: оклад живёт там, карточка оператора правит его через неё.
   paired_staff_id?: string | null
   company_ids?: string[]
+  /** Старшая роль на точке (повышение делается в закреплении, а не в должности). */
+  point_role?: 'senior_operator' | 'senior_cashier' | null
   has_login?: boolean
   last_login?: string | null
   dismissed_at: string | null
@@ -104,7 +106,7 @@ export async function GET(req: Request) {
 
     let assignmentsQuery = supabase
       .from('operator_company_assignments')
-      .select('operator_id, company_id, is_active')
+      .select('operator_id, company_id, is_active, role_in_company')
     if (allowedOperatorIds) {
       assignmentsQuery = assignmentsQuery.in(
         'operator_id',
@@ -134,9 +136,13 @@ export async function GET(req: Request) {
 
     // Точки оператора: operator_id → [company_id]
     const companyIdsByOperator = new Map<string, string[]>()
+    const pointRoleByOperator = new Map<string, 'senior_operator' | 'senior_cashier'>()
     for (const a of (assignmentsRes.data || []) as any[]) {
       if (a.is_active === false || !a.company_id) continue
       const opId = String(a.operator_id)
+      if (a.role_in_company === 'senior_operator' || a.role_in_company === 'senior_cashier') {
+        pointRoleByOperator.set(opId, a.role_in_company)
+      }
       const list = companyIdsByOperator.get(opId) || []
       list.push(String(a.company_id))
       companyIdsByOperator.set(opId, list)
@@ -199,6 +205,7 @@ export async function GET(req: Request) {
         dismissed_by: row.dismissed_by || null,
         monthly_salary: null,
         company_ids: companyIdsByOperator.get(String(row.id)) || [],
+        point_role: pointRoleByOperator.get(String(row.id)) || null,
       }
     })
 

@@ -70,6 +70,7 @@ type HrEmployee = {
   is_active: boolean
   is_admin_staff?: boolean
   is_hybrid?: boolean
+  point_role?: 'senior_operator' | 'senior_cashier' | null
   company_ids?: string[]
   dismissed_at: string | null
   dismissal_date: string | null
@@ -136,6 +137,9 @@ function csvCell(v: string | null | undefined): string {
 
 function kindLabel(e: HrEmployee) {
   if (e.is_hybrid) return 'Оператор + админ'
+  // Повышение до старшего хранится в закреплении за точкой — показываем его.
+  if (e.point_role === 'senior_operator') return 'Старший оператор'
+  if (e.point_role === 'senior_cashier') return 'Старший кассир'
   return e.kind === 'operator' ? 'Оператор' : 'Администрация'
 }
 
