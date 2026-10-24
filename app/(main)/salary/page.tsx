@@ -44,7 +44,7 @@ import {
 import { operatorPayPeriodFor, shiftOperatorPayPeriod } from '@/lib/domain/operator-pay-period'
 
 type CompanyOption = { id: string; code: string | null; name: string | null }
-type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
+type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; manualDebtAmount?: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
 type Payment = {
   id: string
   payment_date: string
@@ -269,7 +269,7 @@ function staffAdjustmentTone(kind: StaffAdjustment['kind']) {
 const formatRoleLabel = (code: string): string => code === 'super_admin' ? 'Супер-админ' : getStaffRoleLabel(code)
 type WeeklyOperator = {
   operator: { id: string; name: string; short_name: string | null; full_name: string | null; is_active: boolean; telegram_chat_id: string | null; photo_url: string | null; position: string | null; documents_count: number; expiring_documents: number }
-  week: { id: string; weekStart: string; weekEnd: string; grossAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; debtActiveAmount?: number; advanceAmount: number; netAmount: number; paidAmount: number; remainingAmount: number; status: 'draft' | 'partial' | 'paid'; companyAllocations: Allocation[]; payments: Payment[]; shiftsCount: number; autoBonusTotal: number; seniorityBonusTotal?: number; shifts: ShiftBreakdown[]; debtItems?: OperatorDebtItem[]; adjustments?: OperatorAdjustmentItem[] }
+  week: { id: string; weekStart: string; weekEnd: string; grossAmount: number; bonusAmount: number; fineAmount: number; manualDebtAmount?: number; debtAmount: number; debtActiveAmount?: number; advanceAmount: number; netAmount: number; paidAmount: number; remainingAmount: number; status: 'draft' | 'partial' | 'paid'; companyAllocations: Allocation[]; payments: Payment[]; shiftsCount: number; autoBonusTotal: number; seniorityBonusTotal?: number; shifts: ShiftBreakdown[]; debtItems?: OperatorDebtItem[]; adjustments?: OperatorAdjustmentItem[] }
   hasActivity: boolean
 }
 type SalaryData = { weekStart: string; weekEnd: string; companies: CompanyOption[]; operators: WeeklyOperator[]; totals: { netAmount: number; paidAmount: number; advanceAmount: number; remainingAmount: number; paidOperators: number; totalOperators: number } }
@@ -293,7 +293,15 @@ const openDebtAmount = (week: WeeklyOperator['week']) =>
 const statusMeta = (s: WeeklyOperator['week']['status']) => s === 'paid' ? { label: 'Выплачено', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : s === 'partial' ? { label: 'Частично', className: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : { label: 'Не выплачено', className: 'border-slate-500/30 bg-slate-500/10 text-body' }
 
 // ─── Ведомость операторов: сортировка по нажатию на заголовок ─────────────────
-type OperatorSortKey = 'name' | 'shifts' | 'accrued' | 'bonuses' | 'deductions' | 'advance' | 'net' | 'paid' | 'remaining' | 'status'
+type OperatorSortKey = 'name' | 'shifts' | 'accrued' | 'bonuses' | 'fines' | 'debts' | 'advance' | 'net' | 'paid' | 'remaining' | 'status'
+
+/**
+ * Штрафы и долги раздельно. Расчёт недели исторически кладёт долги, внесённые
+ * вручную, в fineAmount (manualDebtAmount — их часть): на экране они уходят
+ * в «Долги» вместе с долгами с кассы. Итог «к выплате» от этого не меняется.
+ */
+const finesOf = (w: { fineAmount: number; manualDebtAmount?: number }) => Math.max(0, w.fineAmount - (w.manualDebtAmount || 0))
+const debtsOf = (w: { debtAmount: number; manualDebtAmount?: number }) => w.debtAmount + (w.manualDebtAmount || 0)
 // По смыслу, а не по алфавиту: сначала те, кому ещё платить
 const OPERATOR_STATUS_RANK: Record<string, number> = { draft: 0, partial: 1, paid: 2 }
 // Как сервер сортировал раньше: сначала самый большой остаток
@@ -455,7 +463,8 @@ export default function SalaryPage() {
       shifts: { get: (i) => i.week.shiftsCount || null, defaultDir: 'desc' },
       accrued: { get: (i) => i.week.grossAmount || null, defaultDir: 'desc' },
       bonuses: { get: (i) => i.week.bonusAmount + i.week.autoBonusTotal || null, defaultDir: 'desc' },
-      deductions: { get: (i) => i.week.fineAmount + i.week.debtAmount || null, defaultDir: 'desc' },
+      fines: { get: (i) => finesOf(i.week) || null, defaultDir: 'desc' },
+      debts: { get: (i) => debtsOf(i.week) || null, defaultDir: 'desc' },
       advance: { get: (i) => i.week.advanceAmount || null, defaultDir: 'desc' },
       net: { get: (i) => i.week.netAmount, defaultDir: 'desc' },
       paid: { get: (i) => i.week.paidAmount || null, defaultDir: 'desc' },
@@ -1162,8 +1171,8 @@ export default function SalaryPage() {
       const tone: 'good' | 'warn' | 'mut' = remaining <= 0 && net > 0 ? 'good' : paid > 0 && remaining > 0 ? 'warn' : 'mut'
       return {
         name: getOperatorDisplayName(operator), shifts: week.shiftsCount, gross: Math.round(week.grossAmount),
-        autoBonus: Math.round(week.autoBonusTotal), bonus: Math.round(week.bonusAmount), fine: Math.round(week.fineAmount),
-        debt: Math.round(week.debtAmount), advance: Math.round(week.advanceAmount), net, paid, remaining,
+        autoBonus: Math.round(week.autoBonusTotal), bonus: Math.round(week.bonusAmount), fine: Math.round(finesOf(week)),
+        debt: Math.round(debtsOf(week)), advance: Math.round(week.advanceAmount), net, paid, remaining,
         statusLabel: statusMeta(week.status).label, tone,
       }
     })
@@ -1389,13 +1398,14 @@ export default function SalaryPage() {
                 shifts: acc.shifts + i.week.shiftsCount,
                 accrued: acc.accrued + i.week.grossAmount,
                 bonuses: acc.bonuses + i.week.bonusAmount + i.week.autoBonusTotal,
-                deductions: acc.deductions + i.week.fineAmount + i.week.debtAmount,
+                fines: acc.fines + finesOf(i.week),
+                debts: acc.debts + debtsOf(i.week),
                 advance: acc.advance + i.week.advanceAmount,
                 net: acc.net + i.week.netAmount,
                 paid: acc.paid + i.week.paidAmount,
                 remaining: acc.remaining + i.week.remainingAmount,
               }),
-              { shifts: 0, accrued: 0, bonuses: 0, deductions: 0, advance: 0, net: 0, paid: 0, remaining: 0 },
+              { shifts: 0, accrued: 0, bonuses: 0, fines: 0, debts: 0, advance: 0, net: 0, paid: 0, remaining: 0 },
             )
             const muted = 'text-slate-300 dark:text-white/20'
             // Ноль — серый прочерк: цветной прочерк читался как «тут что-то есть»
@@ -1436,14 +1446,15 @@ export default function SalaryPage() {
 
                   {/* Компьютер: таблица с сортировкой */}
                   <div className="hidden overflow-x-auto sm:block">
-                    <table className="w-full min-w-[1040px]">
+                    <table className="w-full min-w-[1120px]">
                       <thead className="bg-surface-muted">
                         <tr className="text-[11px] font-medium text-muted-foreground">
                           {sortHead('Оператор', 'name', 'left', 'px-4 py-2')}
                           {sortHead('Смен', 'shifts')}
                           {sortHead('Начислено', 'accrued')}
                           {sortHead('Бонусы', 'bonuses')}
-                          {sortHead('Штрафы и долги', 'deductions')}
+                          {sortHead('Штрафы', 'fines')}
+                          {sortHead('Долги', 'debts')}
                           {sortHead('Аванс', 'advance')}
                           {sortHead('К выплате', 'net')}
                           {sortHead('Выплачено', 'paid')}
@@ -1455,12 +1466,12 @@ export default function SalaryPage() {
                         {loading && sortedOperators.length === 0
                           ? Array.from({ length: 6 }).map((_, idx) => (
                               <tr key={`skeleton-${idx}`}>
-                                <td colSpan={10} className="px-4 py-2"><Skeleton className="h-9 w-full rounded-xl" /></td>
+                                <td colSpan={11} className="px-4 py-2"><Skeleton className="h-9 w-full rounded-xl" /></td>
                               </tr>
                             ))
                           : null}
                         {!loading && sortedOperators.length === 0 ? (
-                          <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-400">В этой неделе пока нет строк для отображения.</td></tr>
+                          <tr><td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-400">В этой неделе пока нет строк для отображения.</td></tr>
                         ) : null}
                         {sortedOperators.map((item) => {
                           const w = item.week
@@ -1489,7 +1500,8 @@ export default function SalaryPage() {
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{w.shiftsCount || <span className={muted}>—</span>}</td>
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.grossAmount, 'text-foreground')}</td>
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.bonusAmount + w.autoBonusTotal, 'text-emerald-700 dark:text-emerald-300', '+')}</td>
-                              <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.fineAmount + w.debtAmount, 'text-rose-600 dark:text-rose-300', '−')}</td>
+                              <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(finesOf(w), 'text-rose-600 dark:text-rose-300', '−')}</td>
+                              <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(debtsOf(w), 'text-orange-600 dark:text-orange-300', '−')}</td>
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.advanceAmount, 'text-amber-700 dark:text-amber-300', '−')}</td>
                               <td className="px-3 py-2.5 text-right text-sm font-semibold tabular-nums text-foreground">{money(w.netAmount)}</td>
                               <td className="px-3 py-2.5 text-right text-sm tabular-nums">{moneyCell(w.paidAmount, 'text-sky-700 dark:text-sky-300')}</td>
@@ -1504,7 +1516,8 @@ export default function SalaryPage() {
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.shifts}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(weekTotals.accrued)}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.bonuses ? `+${money(weekTotals.bonuses)}` : '—'}</td>
-                            <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.deductions ? `−${money(weekTotals.deductions)}` : '—'}</td>
+                            <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.fines ? `−${money(weekTotals.fines)}` : '—'}</td>
+                            <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.debts ? `−${money(weekTotals.debts)}` : '—'}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{weekTotals.advance ? `−${money(weekTotals.advance)}` : '—'}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(weekTotals.net)}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(weekTotals.paid)}</td>
@@ -1538,7 +1551,11 @@ export default function SalaryPage() {
                         >
                           <div className="min-w-0">
                             <div className="truncate text-sm font-medium text-foreground">{getOperatorDisplayName(item.operator)}</div>
-                            <div className="truncate text-[11px] text-slate-400">{w.shiftsCount} смен · {statusMeta(w.status).label}</div>
+                            <div className="truncate text-[11px] text-slate-400">
+                              {w.shiftsCount} смен · {statusMeta(w.status).label}
+                              {finesOf(w) ? ` · штрафы −${money(finesOf(w))}` : ''}
+                              {debtsOf(w) ? ` · долги −${money(debtsOf(w))}` : ''}
+                            </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <div className="text-right">
@@ -1660,8 +1677,8 @@ export default function SalaryPage() {
                               {line(`Смены (${w.shiftsCount})${w.seniorityBonusTotal ? `, в т.ч. стаж ${money(w.seniorityBonusTotal)}` : ''}`, money(w.grossAmount))}
                               {w.autoBonusTotal ? line('Авто-бонус', `+${money(w.autoBonusTotal)}`, 'text-violet-700 dark:text-violet-300') : null}
                               {w.bonusAmount ? line('Бонусы', `+${money(w.bonusAmount)}`, 'text-emerald-700 dark:text-emerald-300') : null}
-                              {w.fineAmount ? line('Штрафы', `−${money(w.fineAmount)}`, 'text-rose-600 dark:text-rose-300') : null}
-                              {w.debtAmount ? line('Долги', `−${money(w.debtAmount)}`, 'text-rose-600 dark:text-rose-300') : null}
+                              {finesOf(w) ? line('Штрафы', `−${money(finesOf(w))}`, 'text-rose-600 dark:text-rose-300') : null}
+                              {debtsOf(w) ? line('Долги', `−${money(debtsOf(w))}`, 'text-orange-600 dark:text-orange-300') : null}
                               {w.advanceAmount ? line('Аванс', `−${money(w.advanceAmount)}`, 'text-amber-700 dark:text-amber-300') : null}
                               <div className="flex items-baseline justify-between gap-3 bg-surface-muted/60 px-3 py-2 text-sm font-semibold">
                                 <span>К выплате</span>
@@ -1803,7 +1820,8 @@ export default function SalaryPage() {
                                       <th className="px-3 py-2 text-left font-medium">Точка</th>
                                       <th className="px-3 py-2 text-right font-medium">Начислено</th>
                                       <th className="px-3 py-2 text-right font-medium">Бонусы</th>
-                                      <th className="px-3 py-2 text-right font-medium">Штрафы и долги</th>
+                                      <th className="px-3 py-2 text-right font-medium">Штрафы</th>
+                                      <th className="px-3 py-2 text-right font-medium">Долги</th>
                                       <th className="px-3 py-2 text-right font-medium">Аванс</th>
                                       <th className="px-3 py-2 text-right font-medium">К выплате</th>
                                     </tr>
@@ -1817,7 +1835,8 @@ export default function SalaryPage() {
                                         </td>
                                         <td className="px-3 py-2 text-right tabular-nums">{money(a.accruedAmount)}</td>
                                         <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-300">{money(a.bonusAmount)}</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-300">{money(a.fineAmount + a.debtAmount)}</td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-rose-600 dark:text-rose-300">{money(finesOf(a))}</td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-orange-600 dark:text-orange-300">{money(debtsOf(a))}</td>
                                         <td className="px-3 py-2 text-right tabular-nums text-amber-700 dark:text-amber-300">{money(a.advanceAmount)}</td>
                                         <td className="px-3 py-2 text-right font-medium tabular-nums">{money(a.netAmount)}</td>
                                       </tr>
@@ -2156,12 +2175,13 @@ export default function SalaryPage() {
               (acc, r) => ({
                 half: acc.half + r.calc.half,
                 bonuses: acc.bonuses + r.calc.bonuses,
-                deductions: acc.deductions + r.calc.fines + r.calc.debts,
+                fines: acc.fines + r.calc.fines,
+                debts: acc.debts + r.calc.debts,
                 advances: acc.advances + r.calc.advances,
                 toPay: acc.toPay + r.calc.toPay,
                 paid: acc.paid + r.paid,
               }),
-              { half: 0, bonuses: 0, deductions: 0, advances: 0, toPay: 0, paid: 0 },
+              { half: 0, bonuses: 0, fines: 0, debts: 0, advances: 0, toPay: 0, paid: 0 },
             )
             const selected = rows.find((r) => r.s.id === selectedStaffId) || null
             const slotButton = (value: 'first' | 'second', label: string) => (
@@ -2225,13 +2245,14 @@ export default function SalaryPage() {
 
                   {/* Таблица — основной вид */}
                   <div className="hidden overflow-x-auto sm:block">
-                    <table className="w-full min-w-[860px]">
+                    <table className="w-full min-w-[940px]">
                       <thead className="bg-surface-muted">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Сотрудник</th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Пол-оклада</th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Бонусы</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Штрафы и долги</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Штрафы</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Долги</th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Авансы</th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">К выплате</th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Выплачено за месяц</th>
@@ -2261,7 +2282,8 @@ export default function SalaryPage() {
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(r.calc.half)}</td>
                             {/* Пусто — серый прочерк: цветной прочерк читался как «тут что-то есть» */}
                             <td className={`px-3 py-2.5 text-right text-sm tabular-nums ${r.calc.bonuses ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-300 dark:text-white/20'}`}>{r.calc.bonuses ? `+${money(r.calc.bonuses)}` : '—'}</td>
-                            <td className={`px-3 py-2.5 text-right text-sm tabular-nums ${r.calc.fines + r.calc.debts ? 'text-rose-600 dark:text-rose-300' : 'text-slate-300 dark:text-white/20'}`}>{r.calc.fines + r.calc.debts ? `−${money(r.calc.fines + r.calc.debts)}` : '—'}</td>
+                            <td className={`px-3 py-2.5 text-right text-sm tabular-nums ${r.calc.fines ? 'text-rose-600 dark:text-rose-300' : 'text-slate-300 dark:text-white/20'}`}>{r.calc.fines ? `−${money(r.calc.fines)}` : '—'}</td>
+                            <td className={`px-3 py-2.5 text-right text-sm tabular-nums ${r.calc.debts ? 'text-orange-600 dark:text-orange-300' : 'text-slate-300 dark:text-white/20'}`}>{r.calc.debts ? `−${money(r.calc.debts)}` : '—'}</td>
                             <td className={`px-3 py-2.5 text-right text-sm tabular-nums ${r.calc.advances ? 'text-amber-700 dark:text-amber-300' : 'text-slate-300 dark:text-white/20'}`}>{r.calc.advances ? `−${money(r.calc.advances)}` : '—'}</td>
                             <td className="px-3 py-2.5 text-right text-sm font-semibold tabular-nums text-foreground">{money(r.calc.toPay)}</td>
                             <td className="px-3 py-2.5 text-right text-sm tabular-nums text-sky-700 dark:text-sky-300">{r.paid ? money(r.paid) : '—'}</td>
@@ -2274,7 +2296,8 @@ export default function SalaryPage() {
                           <td className="px-4 py-2.5 text-sm">Итого · {rows.length}</td>
                           <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(totals.half)}</td>
                           <td className="px-3 py-2.5 text-right text-sm tabular-nums">{totals.bonuses ? `+${money(totals.bonuses)}` : '—'}</td>
-                          <td className="px-3 py-2.5 text-right text-sm tabular-nums">{totals.deductions ? `−${money(totals.deductions)}` : '—'}</td>
+                          <td className="px-3 py-2.5 text-right text-sm tabular-nums">{totals.fines ? `−${money(totals.fines)}` : '—'}</td>
+                          <td className="px-3 py-2.5 text-right text-sm tabular-nums">{totals.debts ? `−${money(totals.debts)}` : '—'}</td>
                           <td className="px-3 py-2.5 text-right text-sm tabular-nums">{totals.advances ? `−${money(totals.advances)}` : '—'}</td>
                           <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(totals.toPay)}</td>
                           <td className="px-3 py-2.5 text-right text-sm tabular-nums">{money(totals.paid)}</td>

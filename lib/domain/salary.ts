@@ -183,6 +183,8 @@ export type SalaryWeekCompanyAllocation = {
   accruedAmount: number
   bonusAmount: number
   fineAmount: number
+  /** Часть `fineAmount` — долги, внесённые вручную (корректировка «долг»). */
+  manualDebtAmount: number
   debtAmount: number
   advanceAmount: number
   netAmount: number
@@ -194,6 +196,12 @@ export type SalaryWeekSummary = {
   grossAmount: number
   bonusAmount: number
   fineAmount: number
+  /**
+   * Часть `fineAmount` — долги, внесённые вручную (корректировка «долг»).
+   * Исторически они считаются вместе со штрафами; на экране «Штрафы» =
+   * fineAmount − manualDebtAmount, «Долги» = debtAmount + manualDebtAmount.
+   */
+  manualDebtAmount: number
   debtAmount: number
   /** Часть `debtAmount`, ещё не закрытая ничем. */
   debtActiveAmount: number
@@ -839,6 +847,7 @@ export function calculateOperatorWeekSummary(params: {
       accruedAmount: 0,
       bonusAmount: 0,
       fineAmount: 0,
+      manualDebtAmount: 0,
       debtAmount: 0,
       advanceAmount: 0,
       netAmount: 0,
@@ -859,10 +868,12 @@ export function calculateOperatorWeekSummary(params: {
 
   let bonusAmount = 0
   let fineAmount = 0
+  let manualDebtAmount = 0
   let advanceAmount = 0
 
   const unassignedBonuses: number[] = []
   const unassignedFines: number[] = []
+  const unassignedManualDebts: number[] = []
   const unassignedAdvances: number[] = []
 
   for (const adjustment of params.adjustments) {
@@ -875,6 +886,7 @@ export function calculateOperatorWeekSummary(params: {
     if (adjustment.kind === 'bonus') bonusAmount += amount
     else if (adjustment.kind === 'advance') advanceAmount += amount
     else fineAmount += amount
+    if (adjustment.kind === 'debt') manualDebtAmount += amount
 
     const targetCompanyId = adjustment.company_id || null
     if (targetCompanyId) {
@@ -882,11 +894,13 @@ export function calculateOperatorWeekSummary(params: {
       if (adjustment.kind === 'bonus') company.bonusAmount += amount
       else if (adjustment.kind === 'advance') company.advanceAmount += amount
       else company.fineAmount += amount
+      if (adjustment.kind === 'debt') company.manualDebtAmount += amount
       continue
     }
 
     if (adjustment.kind === 'bonus') unassignedBonuses.push(amount)
     else if (adjustment.kind === 'advance') unassignedAdvances.push(amount)
+    else if (adjustment.kind === 'debt') unassignedManualDebts.push(amount)
     else unassignedFines.push(amount)
   }
 
@@ -938,6 +952,10 @@ export function calculateOperatorWeekSummary(params: {
   distributeUnassigned(unassignedFines, (company, amount) => {
     company.fineAmount += amount
   })
+  distributeUnassigned(unassignedManualDebts, (company, amount) => {
+    company.fineAmount += amount
+    company.manualDebtAmount += amount
+  })
   distributeUnassigned(unassignedAdvances, (company, amount) => {
     company.advanceAmount += amount
   })
@@ -958,6 +976,7 @@ export function calculateOperatorWeekSummary(params: {
         accruedAmount: roundMoney(company.accruedAmount),
         bonusAmount: roundMoney(company.bonusAmount),
         fineAmount: roundMoney(company.fineAmount),
+        manualDebtAmount: roundMoney(company.manualDebtAmount),
         debtAmount: roundMoney(company.debtAmount),
         advanceAmount: roundMoney(company.advanceAmount),
         netAmount: roundMoney(netAmount),
@@ -974,6 +993,7 @@ export function calculateOperatorWeekSummary(params: {
     grossAmount: roundMoney(grossAmount),
     bonusAmount: roundMoney(bonusAmount),
     fineAmount: roundMoney(fineAmount),
+    manualDebtAmount: roundMoney(manualDebtAmount),
     debtAmount: roundMoney(debtAmount),
     debtActiveAmount: roundMoney(debtActiveAmount),
     advanceAmount: roundMoney(advanceAmount),

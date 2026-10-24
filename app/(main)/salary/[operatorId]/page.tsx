@@ -44,10 +44,10 @@ import { calculateOperatorShiftBreakdown } from '@/lib/domain/salary'
 type Shift = 'day' | 'night'
 type IncomeRow = { id: string; date: string; company_id: string; operator_id: string | null; shift: Shift; zone: string | null; cash_amount: number | null; kaspi_amount: number | null; card_amount: number | null; comment: string | null }
 type CompanyOption = { id: string; name: string | null; code: string | null }
-type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
+type Allocation = { companyId: string; companyCode: string | null; companyName: string | null; accruedAmount: number; bonusAmount: number; fineAmount: number; manualDebtAmount?: number; debtAmount: number; advanceAmount: number; netAmount: number; shareRatio: number }
 type Payment = { id: string; payment_date: string; cash_amount: number; kaspi_amount: number; total_amount: number; comment: string | null; status: string }
 type Operator = { id: string; name: string; short_name: string | null; full_name: string | null; is_active: boolean; photo_url: string | null; position: string | null; telegram_chat_id?: string | null }
-type WeekData = { id: string; weekStart: string; weekEnd: string; grossAmount: number; bonusAmount: number; fineAmount: number; debtAmount: number; advanceAmount: number; netAmount: number; paidAmount: number; remainingAmount: number; status: 'draft' | 'partial' | 'paid'; companyAllocations: Allocation[]; payments: Payment[] }
+type WeekData = { id: string; weekStart: string; weekEnd: string; grossAmount: number; bonusAmount: number; fineAmount: number; manualDebtAmount?: number; debtAmount: number; advanceAmount: number; netAmount: number; paidAmount: number; remainingAmount: number; status: 'draft' | 'partial' | 'paid'; companyAllocations: Allocation[]; payments: Payment[] }
 type RecentWeek = { id: string; weekStart: string; weekEnd: string; netAmount: number; paidAmount: number; remainingAmount: number; status: 'draft' | 'partial' | 'paid' }
 type PageData = { operator: Operator; companies: CompanyOption[]; week: WeekData; incomes: IncomeRow[]; recentWeeks: RecentWeek[]; adjustments: AdjustmentRow[] }
 type AdjKind = 'bonus' | 'fine' | 'debt'
@@ -58,6 +58,9 @@ const input = 'h-11 w-full rounded-xl border border-border bg-white dark:bg-whit
 const selectCls = 'h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-emerald-400/40 focus:outline-none dark:[color-scheme:dark]'
 const textarea = 'min-h-[80px] w-full rounded-2xl border border-border bg-white dark:bg-white/5 px-3 py-3 text-sm text-foreground placeholder:text-slate-500 focus:border-emerald-400/40 focus:outline-none'
 const money = formatMoney
+// Долги, внесённые вручную, расчёт кладёт в fineAmount (manualDebtAmount — их часть).
+const finesOf = (w: { fineAmount: number; manualDebtAmount?: number }) => Math.max(0, w.fineAmount - (w.manualDebtAmount || 0))
+const debtsOf = (w: { debtAmount: number; manualDebtAmount?: number }) => w.debtAmount + (w.manualDebtAmount || 0)
 const parseMoney = (v: string) => { const n = Number(v.replace(',', '.').replace(/\s/g, '')); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0 }
 const statusMeta = (s: WeekData['status']) => s === 'paid' ? { label: 'Выплачено', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : s === 'partial' ? { label: 'Частично', className: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : { label: 'Не выплачено', className: 'border-slate-500/30 bg-slate-500/10 text-body' }
 
@@ -357,7 +360,7 @@ function OperatorSalaryDetailPageContent() {
             <>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <Card className="border-border bg-white dark:bg-white/[0.04] p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-500/15 p-2.5 text-emerald-700 dark:text-emerald-300"><DollarSign className="h-5 w-5" /></div><div><div className="text-xs uppercase tracking-wide text-slate-500">Начислено</div><div className="mt-1 text-2xl font-semibold text-foreground">{money(data.week.grossAmount)}</div><div className="mt-0.5 text-xs text-slate-500">бонусы: <span className="text-emerald-700 dark:text-emerald-300">+{money(data.week.bonusAmount)}</span></div></div></div></Card>
-                <Card className="border-border bg-white dark:bg-white/[0.04] p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-rose-500/15 p-2.5 text-rose-600 dark:text-rose-300"><TrendingDown className="h-5 w-5" /></div><div><div className="text-xs uppercase tracking-wide text-slate-500">Удержания</div><div className="mt-1 text-2xl font-semibold text-foreground">{money(data.week.fineAmount + data.week.debtAmount + data.week.advanceAmount)}</div><div className="mt-0.5 text-xs text-slate-500">штрафы {money(data.week.fineAmount)} · долги {money(data.week.debtAmount)} · авансы {money(data.week.advanceAmount)}</div></div></div></Card>
+                <Card className="border-border bg-white dark:bg-white/[0.04] p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-rose-500/15 p-2.5 text-rose-600 dark:text-rose-300"><TrendingDown className="h-5 w-5" /></div><div><div className="text-xs uppercase tracking-wide text-slate-500">Удержания</div><div className="mt-1 text-2xl font-semibold text-foreground">{money(data.week.fineAmount + data.week.debtAmount + data.week.advanceAmount)}</div><div className="mt-0.5 text-xs text-slate-500">штрафы {money(finesOf(data.week))} · долги {money(debtsOf(data.week))} · авансы {money(data.week.advanceAmount)}</div></div></div></Card>
                 <Card className="border-border bg-white dark:bg-white/[0.04] p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-500/15 p-2.5 text-blue-600 dark:text-blue-300"><CheckCircle2 className="h-5 w-5" /></div><div><div className="text-xs uppercase tracking-wide text-slate-500">Выплачено</div><div className="mt-1 text-2xl font-semibold text-foreground">{money(data.week.paidAmount)}</div></div></div></Card>
                 <Card className="border-border bg-white dark:bg-white/[0.04] p-5"><div className="flex items-center gap-3"><div className="rounded-xl bg-amber-500/15 p-2.5 text-amber-700 dark:text-amber-300"><CreditCard className="h-5 w-5" /></div><div><div className="text-xs uppercase tracking-wide text-slate-500">Остаток</div><div className="mt-1 text-2xl font-semibold text-foreground">{money(data.week.remainingAmount)}</div></div></div></Card>
               </div>
@@ -428,8 +431,8 @@ function OperatorSalaryDetailPageContent() {
                             </td>
                             <td className="py-3 text-right">{money(a.accruedAmount)}</td>
                             <td className="py-3 text-right text-emerald-700 dark:text-emerald-300">{money(a.bonusAmount)}</td>
-                            <td className="py-3 text-right text-rose-600 dark:text-rose-300">{money(a.fineAmount)}</td>
-                            <td className="py-3 text-right text-rose-600 dark:text-rose-300">{money(a.debtAmount)}</td>
+                            <td className="py-3 text-right text-rose-600 dark:text-rose-300">{money(finesOf(a))}</td>
+                            <td className="py-3 text-right text-orange-600 dark:text-orange-300">{money(debtsOf(a))}</td>
                             <td className="py-3 text-right text-amber-700 dark:text-amber-300">{money(a.advanceAmount)}</td>
                             <td className="py-3 text-right font-medium text-foreground">{money(a.netAmount)}</td>
                           </tr>
