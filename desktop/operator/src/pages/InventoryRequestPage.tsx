@@ -397,7 +397,7 @@ export default function InventoryRequestPage({
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">Заявки на склад</p>
-            <p className="truncate text-[11px] text-muted-foreground">{session.company.name} · {operatorName}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{session.company.name} · {operatorName}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 no-drag">
@@ -473,7 +473,7 @@ export default function InventoryRequestPage({
                           <p className="text-sm font-medium">{formatDateTime(request.created_at)}</p>
                           <p className="text-xs text-muted-foreground">#{request.id.slice(-6)}</p>
                         </div>
-                        <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${meta.cls}`}>
+                        <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[13px] font-semibold ${meta.cls}`}>
                           {meta.label}
                         </span>
                       </div>
@@ -622,7 +622,7 @@ export default function InventoryRequestPage({
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <ShoppingCart className="h-4 w-4 text-primary" />
                       Заявка
-                      {cartCount > 0 && <Badge variant="default" className="text-[10px]">{cartCount} поз.</Badge>}
+                      {cartCount > 0 && <Badge variant="default" className="text-xs">{cartCount} поз.</Badge>}
                     </div>
                     {hasDraftNow && (
                       <button type="button" onClick={clearForm} className="flex items-center gap-1 text-xs text-muted-foreground transition hover:text-destructive-foreground">
@@ -689,7 +689,7 @@ export default function InventoryRequestPage({
                 {/* Низ панели: комментарий + отправка — всегда видимы */}
                 <div className="shrink-0 space-y-3 border-t border-border bg-muted/40 p-4">
                   <div>
-                    <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Комментарий к заявке</Label>
+                    <Label className="text-[13px] uppercase tracking-wide text-muted-foreground">Комментарий к заявке</Label>
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}

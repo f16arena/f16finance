@@ -28,7 +28,7 @@ export function SyncIndicator({ status, lastSyncedAt }: Props) {
   return (
     <div
       title={`${config.label} · последняя синхронизация: ${agoStr}`}
-      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground no-drag"
+      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-muted-foreground no-drag"
     >
       <span className={`inline-flex h-1.5 w-1.5 rounded-full ${config.color} shadow ${config.glow}`} />
       <span className="hidden sm:inline">{status === 'online' ? 'синк' : status === 'syncing' ? 'синк…' : status === 'stale' ? 'устарело' : 'офлайн'}</span>

@@ -134,7 +134,7 @@ export default function QueuePage({ config, onClose }: Props) {
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Очередь отправки</span>
             {list.length > 0 && (
-              <Badge variant={attentionCount > 0 ? 'destructive' : 'warning'} className="text-[11px]">
+              <Badge variant={attentionCount > 0 ? 'destructive' : 'warning'} className="text-[13px]">
                 {list.length}
               </Badge>
             )}
@@ -194,7 +194,7 @@ export default function QueuePage({ config, onClose }: Props) {
                           {amount !== null && (
                             <span className="font-mono text-sm font-semibold text-foreground">{formatAmount(amount)}</span>
                           )}
-                          <Badge variant={attention ? 'destructive' : 'warning'} className="text-[10px]">
+                          <Badge variant={attention ? 'destructive' : 'warning'} className="text-xs">
                             {attention ? 'требует внимания' : 'ждёт отправки'}
                           </Badge>
                         </div>
@@ -227,7 +227,7 @@ export default function QueuePage({ config, onClose }: Props) {
                   </Card>
                 )
               })}
-              <p className="px-1 pt-1 text-center text-[11px] text-muted-foreground">
+              <p className="px-1 pt-1 text-center text-[13px] text-muted-foreground">
                 Операции в очереди не удаляются: они будут отправляться автоматически, пока не дойдут до сервера.
               </p>
             </>

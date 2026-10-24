@@ -67,10 +67,10 @@ export function ChangeCalculator({ amountDue, paymentLabel = 'Получено' 
             {!received
               ? '—'
               : isShort
-                ? `Не хватает ${formatMoney(Math.abs(change))} ₸`
+                ? `Не хватает ${formatMoney(Math.abs(change))}`
                 : isExact
                   ? 'Без сдачи'
-                  : `${formatMoney(change)} ₸`}
+                  : `${formatMoney(change)}`}
           </div>
         </div>
       </div>
@@ -84,7 +84,7 @@ export function ChangeCalculator({ amountDue, paymentLabel = 'Получено' 
               onClick={() => setReceived(String(s))}
               className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
             >
-              {formatMoney(s)} ₸
+              {formatMoney(s)}
             </button>
           ))}
         </div>

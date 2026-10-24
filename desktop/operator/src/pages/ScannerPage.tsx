@@ -403,7 +403,7 @@ export default function ScannerPage({ config, bootstrap, session, isOffline: ini
       <div className="h-9 shrink-0 drag-region bg-card/80 backdrop-blur" />
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-card/80 px-5 py-2 backdrop-blur-xl no-drag">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-[11px] font-bold tracking-tight text-primary-foreground shadow-md shadow-primary/30">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-[13px] font-bold tracking-tight text-primary-foreground shadow-md shadow-primary/30">
             OP
           </div>
           <div>

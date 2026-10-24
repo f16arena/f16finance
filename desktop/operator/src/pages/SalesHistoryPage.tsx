@@ -320,11 +320,11 @@ export default function SalesHistoryPage({
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-xl px-4 pb-2 no-drag">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
-            <span className="text-[9px] font-bold tracking-tight text-primary-foreground">OP</span>
+            <span className="text-[11px] font-bold tracking-tight text-primary-foreground">OP</span>
           </div>
           <div>
             <p className="text-sm font-semibold leading-none">{session.company.name}</p>
-            <p className="text-[10px] text-muted-foreground">{operatorName}</p>
+            <p className="text-xs text-muted-foreground">{operatorName}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 no-drag">
@@ -423,9 +423,9 @@ export default function SalesHistoryPage({
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+              <div className="flex items-center justify-between px-1 text-[13px] text-muted-foreground">
                 <span>Чеков: {list.length}</span>
-                <span>На сумму: {formatMoney(totalShown)} ₸</span>
+                <span>На сумму: {formatMoney(totalShown)}</span>
               </div>
               {list.map((sale) => (
                 <button
@@ -437,11 +437,11 @@ export default function SalesHistoryPage({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold">{formatSoldAt(sale.sold_at, sale.sale_date)}</p>
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-xs">
                         {paymentLabel(sale.payment_method)}
                       </Badge>
                       {sale.pending ? (
-                        <Badge variant="warning" className="text-[10px]">ждёт отправки</Badge>
+                        <Badge variant="warning" className="text-xs">ждёт отправки</Badge>
                       ) : null}
                     </div>
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -452,7 +452,7 @@ export default function SalesHistoryPage({
                     </p>
                   </div>
                   <p className="shrink-0 text-xl font-bold tabular-nums text-foreground">
-                    {formatMoney(Number(sale.total_amount || 0))} ₸
+                    {formatMoney(Number(sale.total_amount || 0))}
                   </p>
                 </button>
               ))}
@@ -502,10 +502,10 @@ export default function SalesHistoryPage({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{line.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {line.quantity} {line.unit || 'шт'} × {formatMoney(line.unit_price)} ₸
+                          {line.quantity} {line.unit || 'шт'} × {formatMoney(line.unit_price)}
                         </p>
                       </div>
-                      <p className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(line.total_price)} ₸</p>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(line.total_price)}</p>
                     </div>
                   ))}
                 </div>
@@ -528,17 +528,17 @@ export default function SalesHistoryPage({
                   <div className="mt-2 space-y-0.5 border-t border-border pt-2 text-xs text-muted-foreground">
                     <div className="flex justify-between">
                       <span>Наличные</span>
-                      <span className="tabular-nums">{formatMoney(Number(selectedSale.cash_amount || 0))} ₸</span>
+                      <span className="tabular-nums">{formatMoney(Number(selectedSale.cash_amount || 0))}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>{cashLabels.providerName}</span>
-                      <span className="tabular-nums">{formatMoney(Number(selectedSale.kaspi_amount || 0))} ₸</span>
+                      <span className="tabular-nums">{formatMoney(Number(selectedSale.kaspi_amount || 0))}</span>
                     </div>
                   </div>
                 ) : null}
                 {selectedSale.discount_amount > 0 ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Скидка: −{formatMoney(Number(selectedSale.discount_amount || 0))} ₸
+                    Скидка: −{formatMoney(Number(selectedSale.discount_amount || 0))}
                   </p>
                 ) : null}
                 {selectedSale.comment ? (

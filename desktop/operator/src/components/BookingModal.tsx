@@ -405,7 +405,7 @@ export function BookingModal({
           </div>
 
           {horizonEnd && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[13px] text-muted-foreground">
               Бронировать можно до {hhmm(horizonEnd)}. Дальше — смена, которая будет работать.
             </p>
           )}
@@ -416,7 +416,7 @@ export function BookingModal({
               <label className="text-xs text-muted-foreground">
                 Компьютеры {pickedStations.length > 1 ? `(выбрано ${pickedStations.length})` : ''}
               </label>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[13px] text-muted-foreground">
                 занятые на это время — серым
               </span>
             </div>
@@ -440,7 +440,7 @@ export function BookingModal({
                 Подобрать
               </button>
               {pickedStations.length > 1 && (
-                <span className="ml-auto truncate text-[11px] text-muted-foreground">{pickedSplit}</span>
+                <span className="ml-auto truncate text-[13px] text-muted-foreground">{pickedSplit}</span>
               )}
             </div>
 
@@ -451,7 +451,7 @@ export function BookingModal({
                 return (
                   <div key={group.key}>
                     <div className="mb-1 flex items-baseline justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {group.zone?.name || 'Без зоны'}
                         {pickedInZone > 0 ? ` · ${pickedInZone}` : ''}
                       </span>
@@ -459,7 +459,7 @@ export function BookingModal({
                         <button
                           type="button"
                           onClick={() => pickWholeZone(group.stations)}
-                          className="text-[11px] text-primary hover:underline"
+                          className="text-[13px] text-primary hover:underline"
                         >
                           вся зона · {freeInZone.length}
                         </button>
@@ -497,7 +497,7 @@ export function BookingModal({
             </div>
 
             {multiZone && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[13px] text-muted-foreground">
                 {pickedSplit} — это одна бронь, отменяется целиком или по ПК.
               </p>
             )}

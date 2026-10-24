@@ -382,11 +382,11 @@ export default function InventoryReturnsPage({
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-xl px-4 pb-2 no-drag">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
-            <span className="text-[9px] font-bold tracking-tight text-primary-foreground">OP</span>
+            <span className="text-[11px] font-bold tracking-tight text-primary-foreground">OP</span>
           </div>
           <div>
             <p className="text-sm font-semibold leading-none">{session.company.name}</p>
-            <p className="text-[10px] text-muted-foreground">{operatorName}</p>
+            <p className="text-xs text-muted-foreground">{operatorName}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 no-drag">
@@ -426,7 +426,7 @@ export default function InventoryReturnsPage({
           </div>
           <div className="flex-1 space-y-1.5 overflow-y-auto p-2">
             {error && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-[10px] text-destructive">{error}</div>
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">{error}</div>
             )}
             {loading ? (
               <div className="flex h-24 items-center justify-center">
@@ -454,15 +454,15 @@ export default function InventoryReturnsPage({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <Badge variant={isSelected ? 'destructive' : 'secondary'} className="text-[10px]">
+                      <Badge variant={isSelected ? 'destructive' : 'secondary'} className="text-xs">
                         {paymentBadge(sale.payment_method)}
                       </Badge>
                       <p className="text-xs font-semibold">{formatMoney(sale.total_amount)}</p>
                     </div>
-                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    <p className="mt-1.5 text-xs text-muted-foreground">
                       {formatDate(sale.sale_date)} · {new Date(sale.sold_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">Вернуть: {roundQty(remainingQty)}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Вернуть: {roundQty(remainingQty)}</p>
                   </button>
                 )
               })
@@ -476,7 +476,7 @@ export default function InventoryReturnsPage({
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Позиции чека</p>
               {selectedSale && (
-                <Badge variant="secondary" className="text-[10px]">{formatMoney(selectedSale.total_amount)}</Badge>
+                <Badge variant="secondary" className="text-xs">{formatMoney(selectedSale.total_amount)}</Badge>
               )}
             </div>
             <div className="relative">
@@ -519,12 +519,12 @@ export default function InventoryReturnsPage({
                     >
                       <div className="flex items-start justify-between gap-1.5">
                         <p className="truncate text-xs font-semibold leading-tight text-foreground">{line.item?.name || (line as any).universal_name || 'Товар'}</p>
-                        <Badge variant={disabled ? 'secondary' : 'outline'} className="shrink-0 text-[10px]">
+                        <Badge variant={disabled ? 'secondary' : 'outline'} className="shrink-0 text-xs">
                           {returnableQty}
                         </Badge>
                       </div>
                       <p className="mt-2 text-sm font-semibold text-foreground">{formatMoney(Number(line.unit_price || 0))}</p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">Продано: {soldQty}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Продано: {soldQty}</p>
                     </button>
                   )
                 })}
@@ -572,7 +572,7 @@ export default function InventoryReturnsPage({
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">макс. {maxQty}</p>
+                      <p className="text-xs text-muted-foreground">макс. {maxQty}</p>
                     </div>
                   </div>
                 )
@@ -604,7 +604,7 @@ export default function InventoryReturnsPage({
               </div>
               <div className="mt-2 flex items-end justify-between">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">К возврату</p>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">К возврату</p>
                   <p className="text-3xl font-bold text-destructive">{formatMoney(cartTotal)}</p>
                 </div>
                 <Badge variant="destructive">{paymentBadge(refund.paymentMethod)}</Badge>
@@ -637,7 +637,7 @@ export default function InventoryReturnsPage({
                 <div>
                   <p className="text-base font-semibold text-destructive">Возврат оформлен</p>
                   <p className="text-xs text-destructive/80">
-                    Возврат к чеку #{lastReceipt.originalSaleId?.slice(-6) || '—'} · {formatMoney(lastReceipt.totalAmount)} ₸
+                    Возврат к чеку #{lastReceipt.originalSaleId?.slice(-6) || '—'} · {formatMoney(lastReceipt.totalAmount)}
                   </p>
                 </div>
               </div>

@@ -392,7 +392,7 @@ export default function OperatorCabinetPage({
       <div className="h-9 shrink-0 drag-region bg-white/80 backdrop-blur dark:bg-slate-900/80" />
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 bg-white/80 px-5 py-2 backdrop-blur-xl no-drag dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[11px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[13px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
             OP
           </div>
           <div>
@@ -655,7 +655,7 @@ export default function OperatorCabinetPage({
                             <div className="mt-3 space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
                               {comments.slice(-3).map((comment) => (
                                 <div key={`${comment.task_id}:${comment.created_at}:${comment.content.slice(0, 12)}`} className="rounded-lg bg-white/70 dark:bg-slate-800/50 px-3 py-2">
-                                  <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                  <div className="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
                                     <MessageSquare className="h-3 w-3" />
                                     {comment.author_name} · {formatDate(comment.created_at)}
                                   </div>
@@ -936,7 +936,7 @@ function KnowledgeArticleCard({
                       {answer}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
                     Ответ собран по тексту правила. Если ответа в нём нет — спроси руководителя.
                   </p>
                 </div>
@@ -946,7 +946,7 @@ function KnowledgeArticleCard({
           {article.tags?.length ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {article.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-white/5 px-2 py-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span key={tag} className="rounded-full bg-white/5 px-2 py-1 text-[13px] text-slate-500 dark:text-slate-400">
                   #{tag}
                 </span>
               ))}

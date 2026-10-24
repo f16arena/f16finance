@@ -973,11 +973,11 @@ export default function InventorySalesPage({
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-xl px-4 pb-2 no-drag">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
-            <span className="text-[9px] font-bold tracking-tight text-primary-foreground">OP</span>
+            <span className="text-[11px] font-bold tracking-tight text-primary-foreground">OP</span>
           </div>
           <div>
             <p className="text-sm font-semibold leading-none">{session.company.name}</p>
-            <p className="text-[10px] text-muted-foreground">{operatorName}</p>
+            <p className="text-xs text-muted-foreground">{operatorName}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 no-drag">
@@ -1043,7 +1043,7 @@ export default function InventorySalesPage({
                 <span>·</span>
                 <span>{availableItemsCount} товаров доступно</span>
               </div>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 Быстрый режим: сканируйте штрихкод или найдите товар, полный каталог скрыт.
               </p>
             </div>
@@ -1154,7 +1154,7 @@ export default function InventorySalesPage({
               ))}
             </div>
             {lowStockItemsCount > 0 && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              <p className="text-[13px] text-amber-600 dark:text-amber-400">
                 {lowStockItemsCount} товара почти закончились. Нажмите “Мало”, если нужно проверить остатки.
               </p>
             )}
@@ -1199,10 +1199,10 @@ export default function InventorySalesPage({
                           <div className="min-w-0">
                             <p className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">{item.name}</p>
                             {item.category?.name ? (
-                              <p className="mt-1 truncate text-[10px] text-muted-foreground">{item.category.name}</p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">{item.category.name}</p>
                             ) : null}
                           </div>
-                          <Badge variant={disabled ? 'secondary' : 'success'} className="shrink-0 text-[10px]">
+                          <Badge variant={disabled ? 'secondary' : 'success'} className="shrink-0 text-xs">
                             {item.display_qty}
                           </Badge>
                         </div>
@@ -1214,9 +1214,9 @@ export default function InventorySalesPage({
                         </div>
                         <div className="mt-2 flex min-h-5 items-center gap-1.5">
                           {item.display_qty > 0 && item.display_qty <= 3 ? (
-                            <Badge variant="warning" className="text-[10px]">Мало</Badge>
+                            <Badge variant="warning" className="text-xs">Мало</Badge>
                           ) : null}
-                          {inCart ? <Badge variant="success" className="text-[10px]">В корзине</Badge> : null}
+                          {inCart ? <Badge variant="success" className="text-xs">В корзине</Badge> : null}
                         </div>
                       </button>
                     )
@@ -1275,7 +1275,7 @@ export default function InventorySalesPage({
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{formatMoney(line.unit_price)} / {line.item?.unit || 'шт'}</p>
+                    <p className="text-xs text-muted-foreground">{formatMoney(line.unit_price)} / {line.item?.unit || 'шт'}</p>
                   </div>
                 </div>
               ))
@@ -1385,7 +1385,7 @@ export default function InventorySalesPage({
                   <Tag className="h-3.5 w-3.5 text-primary" />
                   <span className="flex-1 text-left">Скидка</span>
                   {effectiveDiscountPercent > 0 && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
                       -{effectiveDiscountPercent}%
                     </span>
                   )}
@@ -1421,13 +1421,13 @@ export default function InventorySalesPage({
                         type="button"
                         onClick={() => void applyPromoCode()}
                         disabled={promoValidating || !promoCodeInput.trim()}
-                        className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary disabled:opacity-50 hover:bg-primary/20"
+                        className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary disabled:opacity-50 hover:bg-primary/20"
                       >
                         {promoValidating ? '...' : 'OK'}
                       </button>
                     </div>
                     {appliedPromoCode && (
-                      <p className="text-[10px] text-primary">✓ «{appliedPromoCode}» применён</p>
+                      <p className="text-xs text-primary">✓ «{appliedPromoCode}» применён</p>
                     )}
                   </div>
                 )}
@@ -1447,8 +1447,8 @@ export default function InventorySalesPage({
           {recentSales.length > 0 ? (
             <div className="shrink-0 border-t border-border">
               <div className="flex items-center justify-between px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Последние продажи</p>
-                <span className="text-[10px] text-muted-foreground">исправление оплаты</span>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Последние продажи</p>
+                <span className="text-xs text-muted-foreground">исправление оплаты</span>
               </div>
               <div className="max-h-44 space-y-1.5 overflow-y-auto px-3 pb-3">
                 {recentSales.map((sale) => (
@@ -1457,10 +1457,10 @@ export default function InventorySalesPage({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="text-xs font-semibold">{formatMoney(Number(sale.total_amount || 0))}</p>
-                          <Badge variant="secondary" className="text-[10px]">{paymentBadge(sale.payment_method, cashLabels.providerName)}</Badge>
+                          <Badge variant="secondary" className="text-xs">{paymentBadge(sale.payment_method, cashLabels.providerName)}</Badge>
                         </div>
-                        <p className="mt-1 truncate text-[10px] text-muted-foreground">{salePaymentDetails(sale)}</p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{salePaymentDetails(sale)}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                           {formatSaleTime(sale.sold_at)} · {formatShiftLabel(sale.shift)}
                         </p>
                       </div>
@@ -1505,7 +1505,7 @@ export default function InventorySalesPage({
             {paymentMethod === 'mixed' && (
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
-                  <p className="mb-1 text-[10px] text-muted-foreground">Наличными</p>
+                  <p className="mb-1 text-xs text-muted-foreground">Наличными</p>
                   <Input
                     value={mixedCash}
                     onChange={(e) => {
@@ -1519,7 +1519,7 @@ export default function InventorySalesPage({
                   />
                 </div>
                 <div>
-                  <p className="mb-1 text-[10px] text-muted-foreground">{cashLabels.providerName}</p>
+                  <p className="mb-1 text-xs text-muted-foreground">{cashLabels.providerName}</p>
                   <Input
                     value={mixedKaspi}
                     onChange={(e) => {
@@ -1556,7 +1556,7 @@ export default function InventorySalesPage({
               )}
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Итого</p>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Итого</p>
                   <p className="text-3xl font-bold text-foreground">{formatMoney(finalTotal)}</p>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">

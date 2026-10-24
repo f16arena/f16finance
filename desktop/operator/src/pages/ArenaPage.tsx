@@ -772,7 +772,7 @@ const StationCard = memo(function StationCard({
         <div className="mb-3 flex items-start justify-between gap-2">
           <p className="font-bold text-base leading-snug text-foreground">{station.name}</p>
           <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[13px] font-bold uppercase tracking-wide ${
               !occupied
                 ? 'bg-primary/15 text-primary'
                 : isExpired
@@ -1095,7 +1095,7 @@ function ArenaMapView({
               }}
             >
               <div
-                className="absolute top-0 left-0 right-0 px-2 py-0.5 text-[10px] font-bold tracking-wide truncate rounded-tl-lg rounded-tr-lg"
+                className="absolute top-0 left-0 right-0 px-2 py-0.5 text-xs font-bold tracking-wide truncate rounded-tl-lg rounded-tr-lg"
                 style={{ backgroundColor: color + '35', color: color }}
               >
                 {zone.name}
@@ -1676,7 +1676,7 @@ export default function ArenaPage({
           <Monitor className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="truncate text-sm font-semibold">{session.company.name}</span>
-            <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="truncate text-[13px] text-slate-500 dark:text-slate-400">
               {(bootstrap.device.name || '').trim() && (bootstrap.device.name || '').trim() !== (session.company.name || '').trim()
                 ? `${bootstrap.device.name} · `
                 : ''}
@@ -1722,7 +1722,7 @@ export default function ArenaPage({
           >
             <CalendarClock className="h-4 w-4" />
             {bookings.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 rounded-full bg-violet-500 px-1 text-[9px] font-bold leading-4 text-white">
+              <span className="absolute -right-0.5 -top-0.5 rounded-full bg-violet-500 px-1 text-[11px] font-bold leading-4 text-white">
                 {bookings.length}
               </span>
             )}
@@ -1859,7 +1859,7 @@ export default function ArenaPage({
                       <button
                         type="button"
                         onClick={() => setMassStartTarget(zone)}
-                        className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/20"
+                        className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[13px] font-bold text-primary transition hover:bg-primary/20"
                       >
                         Запустить зону · {freeInZone}
                       </button>

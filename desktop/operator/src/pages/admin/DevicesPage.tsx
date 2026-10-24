@@ -287,10 +287,10 @@ export default function DevicesPage({ config, session }: Props) {
                     </span>
                   </label>
 
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400">
                     Chat ID нужен для канала или группы со сменными отчётами. Если точка не магазин, просто выключите сканер долгов здесь.
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400">
                     Для режима <span className="font-medium text-slate-900 dark:text-slate-100">shift-report</span> главной страницей всё равно остаётся калькулятор смены, даже если сканер случайно включён.
                   </p>
 

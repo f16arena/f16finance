@@ -302,6 +302,12 @@ export default function InventorySalesPageMinimal({
     return () => clearInterval(t)
   }, [])
 
+  // payNow меняется каждый рендер — горячие клавиши зовут свежую через ref.
+  const payNowRef = useRef<(method: 'cash' | 'kaspi') => void>(() => {})
+  useEffect(() => {
+    payNowRef.current = payNow
+  })
+
   // Горячие клавиши (для быстрой работы):
   //   F2 — фокус на поиск товара
   //   F4 — открыть подтверждение оплаты (если есть товары в корзине)
@@ -321,6 +327,12 @@ export default function InventorySalesPageMinimal({
           e.preventDefault()
           setShowPayConfirm(true)
         }
+        return
+      }
+      // F5 — сразу наличными, F6 — сразу безналом (без окна подтверждения).
+      if ((e.key === 'F5' || e.key === 'F6') && !showPayConfirm) {
+        e.preventDefault()
+        if (cart.length > 0) payNowRef.current(e.key === 'F5' ? 'cash' : 'kaspi')
         return
       }
       if (e.key === 'Escape' && !inInput) {
@@ -913,6 +925,28 @@ export default function InventorySalesPageMinimal({
     }
   }
 
+  /** Оплата в одно касание: те же проверки, что у «Оплатить», но без окна подтверждения. */
+  function payNow(method: 'cash' | 'kaspi') {
+    if (saving) return
+    if (cart.length === 0) {
+      toastError('Корзина пуста')
+      return
+    }
+    if (finalTotal <= 0) {
+      toastError('Сумма должна быть больше 0')
+      return
+    }
+    const suspicious = cart.filter((l) => l.quantity >= QTY_CONFIRM_THRESHOLD)
+    if (suspicious.length > 0) {
+      setPaymentMethod(method)
+      beep('error')
+      setQtyConfirmLines(suspicious.map((l) => ({ name: l.name, quantity: l.quantity, unit: l.unit || null })))
+      return
+    }
+    setPaymentMethod(method)
+    void handlePay(method)
+  }
+
   function openPayConfirm() {
     if (cart.length === 0) {
       toastError('Корзина пуста')
@@ -944,21 +978,23 @@ export default function InventorySalesPageMinimal({
     setShowPayConfirm(true)
   }
 
-  async function handlePay() {
+  // method — способ оплаты кнопкой «в одно касание»; без него — выбранный в корзине.
+  async function handlePay(methodOverride?: 'cash' | 'kaspi' | 'mixed') {
+    const method = methodOverride ?? paymentMethod
     // Защита от двойного клика
     if (saving) return
     setSaving(true)
 
     const cashAmount =
-      paymentMethod === 'cash'
+      method === 'cash'
         ? finalTotal
-        : paymentMethod === 'mixed'
+        : method === 'mixed'
           ? Math.max(0, Math.min(finalTotal, parseMoney(mixedCash)))
           : 0
     const kaspiAmount =
-      paymentMethod === 'kaspi'
+      method === 'kaspi'
         ? finalTotal
-        : paymentMethod === 'mixed'
+        : method === 'mixed'
           ? Math.max(0, finalTotal - cashAmount)
           : 0
 
@@ -966,7 +1002,7 @@ export default function InventorySalesPageMinimal({
     const salePayload = {
       sale_date: new Date().toISOString().slice(0, 10),
       shift: runtimeShift.shift,
-      payment_method: paymentMethod,
+      payment_method: method,
       cash_amount: cashAmount,
       kaspi_amount: kaspiAmount,
       kaspi_before_midnight_amount:
@@ -995,7 +1031,7 @@ export default function InventorySalesPageMinimal({
         saleDate: nowTs.toLocaleDateString('ru-RU'),
         saleTime: nowTs.toLocaleTimeString('ru-RU'),
         shift: runtimeShift.shift,
-        paymentMethod,
+        paymentMethod: method,
         cashAmount,
         kaspiAmount,
         totalAmount: finalTotal,
@@ -1042,9 +1078,9 @@ export default function InventorySalesPageMinimal({
         kind: 'paid',
         total: finalTotal,
         paymentLabel:
-          paymentMethod === 'cash'
+          method === 'cash'
             ? 'Оплата наличными'
-            : paymentMethod === 'kaspi'
+            : method === 'kaspi'
               ? `Оплата ${cashLabels.providerName}`
               : 'Смешанная оплата',
         lines: cartSnapshot.map((l) => ({
@@ -1122,7 +1158,7 @@ export default function InventorySalesPageMinimal({
       {/* Шапка */}
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card/80 px-3 py-2 backdrop-blur-xl no-drag sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-[11px] font-bold tracking-tight text-primary-foreground shadow-md shadow-primary/30">OP</div>
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-[13px] font-bold tracking-tight text-primary-foreground shadow-md shadow-primary/30">OP</div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{session.company?.name || 'Точка'}</p>
             <p className="truncate text-xs text-muted-foreground">
@@ -1254,24 +1290,24 @@ export default function InventorySalesPageMinimal({
                   return (
                     <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Чеков</p>
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Чеков</p>
                         <p className="mt-1 text-xl font-semibold tabular-nums">{sales.length}</p>
                       </div>
                       <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Сумма</p>
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Сумма</p>
                         <p className="mt-1 text-xl font-bold tabular-nums text-primary">
-                          {formatMoney(total)} ₸
+                          {formatMoney(total)}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-primary/80">Наличные</p>
-                        <p className="mt-1 text-xl font-semibold tabular-nums">{formatMoney(cashSum)} ₸</p>
+                        <p className="text-xs uppercase tracking-wider text-primary/80">Наличные</p>
+                        <p className="mt-1 text-xl font-semibold tabular-nums">{formatMoney(cashSum)}</p>
                       </div>
                       <div className="rounded-2xl border border-sky-200/60 bg-sky-50/60 p-3 dark:border-sky-900/40 dark:bg-sky-950/30">
-                        <p className="text-[10px] uppercase tracking-wider text-sky-700/80 dark:text-sky-300/70">
+                        <p className="text-xs uppercase tracking-wider text-sky-700/80 dark:text-sky-300/70">
                           {cashLabels.providerName}
                         </p>
-                        <p className="mt-1 text-xl font-semibold tabular-nums">{formatMoney(kaspiSum)} ₸</p>
+                        <p className="mt-1 text-xl font-semibold tabular-nums">{formatMoney(kaspiSum)}</p>
                       </div>
                     </div>
                   )
@@ -1312,7 +1348,7 @@ export default function InventorySalesPageMinimal({
                             </span>
                           </td>
                           <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
-                            {formatMoney(sale.total_amount)} ₸
+                            {formatMoney(sale.total_amount)}
                           </td>
                           <td className="px-3 py-3 text-right">
                             <Button
@@ -1476,16 +1512,20 @@ export default function InventorySalesPageMinimal({
                             inCartQty > 0 ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
                           }`}
                         >
-                          <div className="relative h-36 w-full overflow-hidden bg-muted sm:h-40">
+                          {/* Без фото — низкая цветная плашка вместо пустого квадрата: больше товаров на экране. */}
+                          <div className={`relative w-full overflow-hidden bg-muted ${item.image_url ? 'h-36 sm:h-40' : 'h-16'}`}>
                             {item.image_url ? (
                               <img src={item.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
                             ) : (
-                              <div className="grid h-full w-full place-items-center text-3xl font-black text-muted-foreground/30">
+                              <div
+                                className="grid h-full w-full place-items-center text-2xl font-black text-white/70"
+                                style={{ background: `hsl(${(item.name.charCodeAt(0) * 47) % 360} 45% 28%)` }}
+                              >
                                 {item.name.slice(0, 1).toUpperCase()}
                               </div>
                             )}
                             <span
-                              className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                              className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${
                                 disabled ? 'bg-destructive/80 text-white' : 'bg-black/55 text-white'
                               }`}
                             >
@@ -1498,8 +1538,8 @@ export default function InventorySalesPageMinimal({
                             )}
                           </div>
                           <div className="flex flex-col p-2">
-                            <p className="line-clamp-2 min-h-[2rem] text-xs font-medium leading-snug">{item.name}</p>
-                            <p className="pt-1 text-sm font-bold text-primary">{formatMoney(item.sale_price)} ₸</p>
+                            <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug">{item.name}</p>
+                            <p className="pt-1 text-base font-bold text-primary">{formatMoney(item.sale_price)}</p>
                           </div>
                         </button>
                       )
@@ -1516,19 +1556,19 @@ export default function InventorySalesPageMinimal({
                       <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">{idx + 1}</span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium leading-tight">{line.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{formatMoney(line.unit_price)} / {line.unit || 'шт'}</p>
+                        <p className="text-[13px] text-muted-foreground">{formatMoney(line.unit_price)} / {line.unit || 'шт'}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border">
-                        <button type="button" onClick={() => changeQty(line.id, line.quantity - 1)} className="grid h-8 w-8 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground">
-                          <Minus className="h-3.5 w-3.5" />
+                        <button type="button" onClick={() => changeQty(line.id, line.quantity - 1)} className="grid h-11 w-11 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground">
+                          <Minus className="h-4 w-4" />
                         </button>
                         <span className="min-w-[1.75rem] text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                        <button type="button" onClick={() => changeQty(line.id, line.quantity + 1)} className="grid h-8 w-8 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground">
-                          <Plus className="h-3.5 w-3.5" />
+                        <button type="button" onClick={() => changeQty(line.id, line.quantity + 1)} className="grid h-11 w-11 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground">
+                          <Plus className="h-4 w-4" />
                         </button>
                       </div>
                       <span className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums">{formatMoney(line.total)}</span>
-                      <button type="button" onClick={() => removeLine(line.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                      <button type="button" onClick={() => removeLine(line.id)} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -1576,7 +1616,7 @@ export default function InventorySalesPageMinimal({
                             {formatMoney(line.unit_price)} / {line.unit || 'шт'}
                           </p>
                           {!line.item_id && (
-                            <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 text-[10px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                            <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                               универсальный
                             </span>
                           )}
@@ -1587,17 +1627,17 @@ export default function InventorySalesPageMinimal({
                             <button
                               type="button"
                               onClick={() => changeQty(line.id, line.quantity - 1)}
-                              className="grid h-9 w-9 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                              className="grid h-11 w-11 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
-                              <Minus className="h-3.5 w-3.5" />
+                              <Minus className="h-4 w-4" />
                             </button>
                             <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
                             <button
                               type="button"
                               onClick={() => changeQty(line.id, line.quantity + 1)}
-                              className="grid h-9 w-9 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                              className="grid h-11 w-11 place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
-                              <Plus className="h-3.5 w-3.5" />
+                              <Plus className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -1630,21 +1670,20 @@ export default function InventorySalesPageMinimal({
               <p className="relative text-xs uppercase tracking-wider text-primary">К оплате</p>
               <p className="relative mt-1 text-4xl font-bold tabular-nums text-primary sm:text-5xl">
                 {formatMoney(finalTotal)}
-                <span className="ml-1 text-lg font-medium text-primary/60">₸</span>
               </p>
               {(discountAmount > 0 || loyaltyDiscountAmount > 0) && (
                 <div className="mt-2 space-y-0.5 text-xs">
-                  <div className="flex justify-between text-muted-foreground"><span>Подытог</span><span>{formatMoney(subtotal)} ₸</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Подытог</span><span>{formatMoney(subtotal)}</span></div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-destructive">
                       <span>Скидка {effectiveDiscountPercent}%</span>
-                      <span>−{formatMoney(discountAmount)} ₸</span>
+                      <span>−{formatMoney(discountAmount)}</span>
                     </div>
                   )}
                   {loyaltyDiscountAmount > 0 && (
                     <div className="flex justify-between text-amber-600 dark:text-amber-400">
                       <span>Бонусы</span>
-                      <span>−{formatMoney(loyaltyDiscountAmount)} ₸</span>
+                      <span>−{formatMoney(loyaltyDiscountAmount)}</span>
                     </div>
                   )}
                 </div>
@@ -1792,7 +1831,7 @@ export default function InventorySalesPageMinimal({
                   </Button>
                 </div>
                 {appliedPromoCode && (
-                  <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center justify-between text-[13px]">
                     <span className="text-primary">✓ {appliedPromoCode} применён</span>
                     <button type="button" onClick={clearPromoCode} className="text-muted-foreground hover:text-destructive">убрать</button>
                   </div>
@@ -1800,23 +1839,35 @@ export default function InventorySalesPageMinimal({
               </div>
             )}
 
-            {/* Способ оплаты */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['cash', 'kaspi', 'mixed'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPaymentMethod(m)}
-                  className={`rounded-xl border py-3 text-sm font-medium transition ${
-                    paymentMethod === m
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {m === 'cash' ? 'Наличные' : m === 'kaspi' ? cashLabels.providerName : 'Смешанная'}
-                </button>
-              ))}
-            </div>
+            {/* Оплата в одно касание: чек пробивается сразу, без окна подтверждения */}
+            {paymentMethod !== 'mixed' ? (
+              <div className="grid grid-cols-2 gap-2">
+                {(['cash', 'kaspi'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => payNow(m)}
+                    disabled={saving || cart.length === 0}
+                    className={`flex h-20 flex-col items-center justify-center rounded-2xl text-base font-bold shadow-lg transition active:scale-[0.98] disabled:opacity-40 ${
+                      m === 'cash'
+                        ? 'bg-primary text-primary-foreground shadow-primary/30 hover:bg-primary/90'
+                        : 'bg-sky-600 text-white shadow-sky-600/30 hover:bg-sky-600/90'
+                    }`}
+                  >
+                    <span>{m === 'cash' ? 'Наличные' : cashLabels.providerName}</span>
+                    <span className="text-lg tabular-nums">{formatMoney(finalTotal)}</span>
+                    <span className="text-[11px] font-normal opacity-80">{m === 'cash' ? 'F5' : 'F6'}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod(paymentMethod === 'mixed' ? 'cash' : 'mixed')}
+              className="self-start text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {paymentMethod === 'mixed' ? '← Оплата одним способом' : 'Смешанная оплата (наличные + безнал)'}
+            </button>
 
             {paymentMethod === 'mixed' && (
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted p-3">
@@ -1864,21 +1915,27 @@ export default function InventorySalesPageMinimal({
 
             {/* Кнопки действий */}
             <div className="mt-auto flex flex-col gap-2">
-              <Button
-                type="button"
-                onClick={openPayConfirm}
-                disabled={saving || cart.length === 0}
-                className="h-16 rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40 active:scale-[0.98] disabled:opacity-40 disabled:hover:shadow-lg"
-              >
-                ОПЛАТИТЬ · {formatMoney(finalTotal)} ₸
-              </Button>
+              {paymentMethod === 'mixed' ? (
+                <Button
+                  type="button"
+                  onClick={openPayConfirm}
+                  disabled={saving || cart.length === 0}
+                  className="h-16 rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40 active:scale-[0.98] disabled:opacity-40 disabled:hover:shadow-lg"
+                >
+                  ОПЛАТИТЬ · {formatMoney(finalTotal)} <span className="text-xs font-normal opacity-80">F4</span>
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={openPayConfirm} disabled={saving || cart.length === 0} className="h-11 rounded-xl">
+                  Проверить чек и оплатить <span className="text-xs text-muted-foreground">F4</span>
+                </Button>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={openParkDialog}
                   disabled={cart.length === 0}
-                  className="h-10 gap-1.5 rounded-xl"
+                  className="h-11 gap-1.5 rounded-xl"
                   title="Отложить корзину до конца смены"
                 >
                   <BookmarkPlus className="h-4 w-4" />
@@ -1916,7 +1973,7 @@ export default function InventorySalesPageMinimal({
                 <div>
                   <h3 className="text-base font-bold text-primary">Оплата проведена</h3>
                   <p className="text-xs text-primary/80">
-                    Чек #{lastReceipt.saleId?.slice(-6) || '—'} · {formatMoney(lastReceipt.totalAmount)} ₸
+                    Чек #{lastReceipt.saleId?.slice(-6) || '—'} · {formatMoney(lastReceipt.totalAmount)}
                   </p>
                 </div>
               </div>
@@ -2085,9 +2142,9 @@ export default function InventorySalesPageMinimal({
                   <div key={line.id} className="flex items-baseline justify-between gap-3 border-b border-border py-1.5 last:border-b-0">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{line.name}</p>
-                      <p className="text-xs text-muted-foreground">{line.quantity} × {formatMoney(line.unit_price)} ₸</p>
+                      <p className="text-xs text-muted-foreground">{line.quantity} × {formatMoney(line.unit_price)}</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(line.total)} ₸</p>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(line.total)}</p>
                   </div>
                 ))}
               </div>
@@ -2098,18 +2155,18 @@ export default function InventorySalesPageMinimal({
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Подытог ({cartDetailed.length} поз. · {cartDetailed.reduce((s, l) => s + l.quantity, 0)} шт)</span>
-                  <span className="tabular-nums">{formatMoney(subtotal)} ₸</span>
+                  <span className="tabular-nums">{formatMoney(subtotal)}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-destructive">
                     <span>Скидка {effectiveDiscountPercent}%{appliedPromoCode ? ` (${appliedPromoCode})` : ''}</span>
-                    <span className="tabular-nums">−{formatMoney(discountAmount)} ₸</span>
+                    <span className="tabular-nums">−{formatMoney(discountAmount)}</span>
                   </div>
                 )}
                 {loyaltyDiscountAmount > 0 && (
                   <div className="flex justify-between text-amber-600 dark:text-amber-400">
                     <span>Бонусы ({loyaltyPointsToSpend} б.)</span>
-                    <span className="tabular-nums">−{formatMoney(loyaltyDiscountAmount)} ₸</span>
+                    <span className="tabular-nums">−{formatMoney(loyaltyDiscountAmount)}</span>
                   </div>
                 )}
               </div>
@@ -2121,18 +2178,18 @@ export default function InventorySalesPageMinimal({
                     {paymentMethod === 'cash' ? 'Наличные' : paymentMethod === 'kaspi' ? cashLabels.providerName : 'Смешанная'}
                   </span>
                   <span className="text-2xl font-bold tabular-nums text-primary">
-                    {formatMoney(finalTotal)} <span className="text-sm font-medium text-muted-foreground">₸</span>
+                    {formatMoney(finalTotal)}
                   </span>
                 </div>
                 {paymentMethod === 'mixed' && (
                   <div className="mt-2 space-y-0.5 border-t border-border pt-2 text-xs text-muted-foreground">
                     <div className="flex justify-between">
                       <span>Наличные</span>
-                      <span className="tabular-nums">{formatMoney(parseMoney(mixedCash))} ₸</span>
+                      <span className="tabular-nums">{formatMoney(parseMoney(mixedCash))}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>{cashLabels.providerName}</span>
-                      <span className="tabular-nums">{formatMoney(parseMoney(mixedKaspi))} ₸</span>
+                      <span className="tabular-nums">{formatMoney(parseMoney(mixedKaspi))}</span>
                     </div>
                   </div>
                 )}
@@ -2183,7 +2240,7 @@ export default function InventorySalesPageMinimal({
                     Проводим…
                   </span>
                 ) : (
-                  <>✓ Подтвердить · {formatMoney(finalTotal)} ₸</>
+                  <>✓ Подтвердить · {formatMoney(finalTotal)}</>
                 )}
               </Button>
             </div>
@@ -2197,7 +2254,7 @@ export default function InventorySalesPageMinimal({
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-card text-card-foreground p-5 shadow-xl">
             <h3 className="text-base font-semibold">Исправить оплату</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Чек #{selectedSale.id.slice(-6)} · {formatMoney(selectedSale.total_amount)} ₸
+              Чек #{selectedSale.id.slice(-6)} · {formatMoney(selectedSale.total_amount)}
             </p>
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-3 gap-1.5">
@@ -2390,7 +2447,7 @@ export default function InventorySalesPageMinimal({
           >
             <h3 className="text-base font-semibold">Отложить корзину</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Сохранит {cart.length} позиций на {formatMoney(finalTotal)} ₸ как черновик до конца смены.
+              Сохранит {cart.length} позиций на {formatMoney(finalTotal)} как черновик до конца смены.
             </p>
             <label className="mt-4 block">
               <span className="text-xs text-muted-foreground">Подпись (необязательно)</span>
@@ -2432,7 +2489,7 @@ export default function InventorySalesPageMinimal({
               <button
                 type="button"
                 onClick={() => setShowParkedList(false)}
-                className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -2457,7 +2514,7 @@ export default function InventorySalesPageMinimal({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{parked.label}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {time} · {parked.items.length} поз. · {formatMoney(total)} ₸
+                          {time} · {parked.items.length} поз. · {formatMoney(total)}
                           {parked.customer ? ` · ${parked.customer.name}` : ''}
                         </p>
                       </div>
@@ -2473,7 +2530,7 @@ export default function InventorySalesPageMinimal({
                         <button
                           type="button"
                           onClick={() => removeParkedCart(parked.id)}
-                          className="grid h-8 w-8 place-items-center rounded-lg text-destructive hover:bg-destructive/10"
+                          className="grid h-11 w-11 place-items-center rounded-lg text-destructive hover:bg-destructive/10"
                           title="Удалить отложку"
                         >
                           <Trash2 className="h-4 w-4" />

@@ -47,7 +47,7 @@ export default function AdminLayout({ config, session, bootstrap, onLogout }: Pr
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       <header className="drag-region relative z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/70 bg-white/80 px-5 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="no-drag flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[11px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[13px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
             OP
           </div>
           <div className="space-y-1">
@@ -55,7 +55,7 @@ export default function AdminLayout({ config, session, bootstrap, onLogout }: Pr
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span>{session.email}</span>
               {bootstrap?.device?.name ? (
-                <span className="rounded-full border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-[11px]">
+                <span className="rounded-full border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-[13px]">
                   Текущий терминал подключён
                 </span>
               ) : null}

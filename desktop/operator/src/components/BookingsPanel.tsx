@@ -144,7 +144,7 @@ export function BookingsPanel({ bookings, onSelect, onClose }: Props) {
                         <div className="font-semibold tabular-nums text-foreground">
                           {hhmm(row.booking.startsAt)}
                         </div>
-                        <div className={`text-[11px] ${soon ? 'text-violet-400' : 'text-muted-foreground'}`}>
+                        <div className={`text-[13px] ${soon ? 'text-violet-400' : 'text-muted-foreground'}`}>
                           {state}
                         </div>
                       </div>
@@ -180,7 +180,7 @@ export function BookingsPanel({ bookings, onSelect, onClose }: Props) {
           )}
         </div>
 
-        <div className="shrink-0 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
+        <div className="shrink-0 border-t border-border px-4 py-2.5 text-[13px] text-muted-foreground">
           Нажмите на бронь, чтобы посмотреть и отменить. Сессии бронь не запускает.
         </div>
       </div>

@@ -10,7 +10,8 @@
     "build": "vite build",
     "dist": "vite build && electron-builder",
     "release": "vite build && electron-builder --win --publish always",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo": "vite --port 5180 --strictPort --open /demo.html"
   },
   "repository": {
     "type": "git",

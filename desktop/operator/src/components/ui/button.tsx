@@ -15,11 +15,13 @@ const buttonVariants = cva(
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
+      // Касса — сенсорный экран: кнопки не меньше 44 px, оплата — 56–64 px.
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-12 rounded-md px-6 text-base',
-        icon: 'h-9 w-9',
+        default: 'h-11 px-4 py-2',
+        sm: 'h-9 rounded-md px-3 text-[13px]',
+        lg: 'h-14 rounded-lg px-6 text-base',
+        xl: 'h-16 rounded-xl px-6 text-lg font-semibold',
+        icon: 'h-11 w-11',
       },
     },
     defaultVariants: {

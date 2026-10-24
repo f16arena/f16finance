@@ -247,7 +247,7 @@ export function BookingDetailsModal({
                 </div>
               </div>
               {isGroup && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-2 text-[13px] text-muted-foreground">
                   Переносится вся компания — {groupBookings.length} ПК: они пришли вместе и сядут вместе.
                 </p>
               )}

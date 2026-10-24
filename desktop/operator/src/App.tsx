@@ -255,7 +255,7 @@ function UpdateBanner({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/80 px-3 py-1.5 text-[11px] font-medium text-white/75 shadow-lg backdrop-blur-xl transition hover:border-white/25 hover:text-white"
+          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/80 px-3 py-1.5 text-[13px] font-medium text-white/75 shadow-lg backdrop-blur-xl transition hover:border-white/25 hover:text-white"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           {label}
@@ -279,7 +279,7 @@ function UpdateBanner({
             <button
               type="button"
               onClick={onOpenReleases}
-              className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-white/75 transition hover:border-white/20 hover:text-white"
+              className="rounded-full border border-white/10 px-3 py-1 text-[13px] font-medium text-white/75 transition hover:border-white/20 hover:text-white"
             >
               Релизы
             </button>
@@ -291,7 +291,7 @@ function UpdateBanner({
                 setConfirmInstall(false)
               }}
               title="Свернуть"
-              className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-white/60 transition hover:border-white/20 hover:text-white"
+              className="rounded-full border border-white/10 px-2.5 py-1 text-[13px] font-medium text-white/60 transition hover:border-white/20 hover:text-white"
             >
               ✕
             </button>

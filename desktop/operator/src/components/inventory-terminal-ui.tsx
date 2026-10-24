@@ -72,7 +72,7 @@ export function InventoryMetric({
   const style = accentStyles[accent]
   return (
     <div className={cn('rounded-2xl border px-4 py-3', style.panel)}>
-      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+      <p className="text-[13px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <div className="mt-2 text-xl font-semibold text-foreground">{value}</div>
       {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
