@@ -156,7 +156,11 @@ export default function AiCfoPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [companyId, setCompanyId] = useState('')
   const [includeExtra, setIncludeExtra] = useState(false)
-  const [period, setPeriod] = useState('d30')
+  // По умолчанию — текущий месяц против тех же дней прошлого (сервер так и сравнивает).
+  // Скользящие 30 дней резали месячные платежи пополам: аренда, заплаченная
+  // до границы окна, показывалась как «+400 000 ₸ прибыли». 1-го числа текущий
+  // месяц ещё пуст (отчёты по вчера) — тогда прошлый месяц целиком.
+  const [period, setPeriod] = useState(() => `m:${MONTH_OPTIONS[new Date().getDate() === 1 ? 1 : 0].value}`)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [data, setData] = useState<CfoResponse | null>(null)
@@ -264,15 +268,19 @@ export default function AiCfoPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <NativeSelect className="w-auto" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Период">
-              <option value="d7">7 дней</option>
-              <option value="d30">30 дней</option>
-              <option value="d90">90 дней</option>
-              <option value="d365">Год</option>
-              {MONTH_OPTIONS.map((o) => (
-                <option key={o.value} value={`m:${o.value}`}>
-                  {o.label}
-                </option>
-              ))}
+              <optgroup label="Месяц">
+                {MONTH_OPTIONS.map((o, i) => (
+                  <option key={o.value} value={`m:${o.value}`}>
+                    {i === 0 ? `${o.label} (идёт)` : o.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Последние дни">
+                <option value="d7">7 дней</option>
+                <option value="d30">30 дней</option>
+                <option value="d90">90 дней</option>
+                <option value="d365">Год</option>
+              </optgroup>
               <option value="custom">Свой период</option>
             </NativeSelect>
             {period === 'custom' ? (
