@@ -32,6 +32,7 @@ import {
   toolToOpenAISchema,
 } from './registry'
 import type { CopilotContext, CopilotResponse, CopilotTool, CopilotParam, CopilotSession } from './types'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { fuzzyFindBest } from './fuzzy'
 
 const OPENAI_API = 'https://api.openai.com/v1/chat/completions'
@@ -816,15 +817,16 @@ async function runAgenticRead(
   const readTools = tools.filter((t) => isReadOnlyTool(t.name))
   const openaiTools = readTools.map((t) => toolToOpenAISchema(t, ctx))
 
+  const businessContext = await buildAiBusinessContext(ctx.organizationId)
   const sys =
-    'Ты — Orda, аналитик-управляющий клуба. У тебя есть инструменты ЧТЕНИЯ данных бизнеса. ' +
+    'Ты — Orda, аналитик-управляющий бизнеса организации. У тебя есть инструменты ЧТЕНИЯ данных бизнеса. ' +
     'Чтобы ответить: вызывай нужные инструменты (можно несколько, последовательно), ЧИТАЙ их результаты, ' +
     'и напиши КОРОТКИЙ ответ по-русски с конкретными цифрами и одной дельной мыслью. ' +
     'Числа бери ТОЛЬКО из результатов инструментов — не выдумывай. Если данных не хватило — честно скажи. ' +
     'Деньги пиши как "10 000 ₸". Без воды, приветствий и повторения вопроса.'
 
   const msgs: any[] = [
-    { role: 'system', content: sys },
+    { role: 'system', content: businessContext ? `${sys}\n\n${businessContext}` : sys },
     ...session.history.slice(-4).map((m) => ({ role: m.role, content: m.content })),
     { role: 'user', content: userText },
   ]

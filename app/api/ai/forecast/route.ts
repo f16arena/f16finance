@@ -16,6 +16,7 @@ import { requireAddon } from '@/lib/server/entitlements'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
@@ -435,8 +436,9 @@ export async function POST(request: Request) {
       : '  нет крупных выбросов'
 
     const systemPrompt = [
-      'Ты — старший финансовый аналитик системы Orda Control с опытом работы с игровыми клубами и POS-бизнесами.',
-      'Твоя задача — дать ВЛАДЕЛЬЦУ глубокий и actionable анализ, а не общие фразы.',
+      'Ты — старший финансовый аналитик системы Orda Control с опытом работы с точками продаж и услуг.',
+      'Твоя задача — дать руководству бизнеса глубокий и actionable анализ, а не общие фразы.',
+      await buildAiBusinessContext(access.activeOrganization?.id || null),
       '',
       'СТРУКТУРА (используй эти заголовки):',
       '## 📊 Что произошло за 90 дней',

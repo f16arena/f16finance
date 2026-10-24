@@ -72,7 +72,7 @@ export async function GET(request: Request) {
           continue
         }
 
-        const { data: companyRows } = await supabase.from('companies').select('id, name, code, exclude_from_totals').eq('organization_id', organizationId)
+        const { data: companyRows } = await supabase.from('companies').select('id, name, code, exclude_from_totals').eq('organization_id', organizationId).is('archived_at', null)
         const networkIds = ((companyRows || []) as Array<{ id: string; name: string | null; code: string | null }>)
           .filter((c) => !isExtraCompany(c))
           .map((c) => String(c.id))

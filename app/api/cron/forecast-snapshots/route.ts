@@ -58,6 +58,8 @@ export async function GET(request: Request) {
       .from('companies')
       .select('id, organization_id, name, code, exclude_from_totals')
       .not('organization_id', 'is', null)
+      // Закрытой точке прогноз не нужен.
+      .is('archived_at', null)
     if (companiesError) throw companiesError
 
     // Точка-экстра не входит в прогноз по сети — как по умолчанию на /analysis и в /reports

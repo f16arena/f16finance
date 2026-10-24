@@ -16,7 +16,7 @@ import {
   postPointPosition,
   type PointPositionDraft,
 } from '@/components/admin/point-positions-card'
-import { OFFICE_BUILTIN_LABELS, POSITION_KIND_LABELS, officePositionLabel, peopleCountLabel, type PositionKind } from '@/lib/core/positions'
+import { POSITION_KIND_LABELS, officePositionLabel, peopleCountLabel, type PositionKind } from '@/lib/core/positions'
 import {
   CheckCircle2, Copy, Eye, EyeOff, KeyRound, Loader2,
   Lock, Pencil, Plus, RefreshCw, Shield, Trash2, Users, X, Briefcase, Save, SlidersHorizontal,
@@ -47,7 +47,6 @@ type GeneratedPassword = {
 }
 
 // ==================== CONSTANTS ====================
-const BUILTIN_LABELS = OFFICE_BUILTIN_LABELS
 
 const SQL_POSITIONS = `create table if not exists positions (
   id uuid primary key default gen_random_uuid(),
@@ -257,13 +256,32 @@ export default function AccessPage() {
 
   const startEdit = (pos: Position) => {
     setEditingPos(pos)
-    setEditName(pos.name)
+    // У встроенной меняется только подпись — внутреннее имя держит права.
+    setEditName(pos.is_builtin ? posLabel(pos) : pos.name)
     setEditDesc(pos.description || '')
   }
 
   const handleSaveEdit = async () => {
     if (!editingPos) return
     setSavingEdit(true)
+    if (editingPos.is_builtin) {
+      try {
+        const res = await fetch('/api/admin/positions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'renameBuiltin', name: editingPos.name, label: editName.trim() }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !data?.ok) throw new Error(data?.error || `Ошибка запроса (${res.status})`)
+        setPositions(prev => prev.map(p => p.id === editingPos.id ? { ...p, label: data.label } : p))
+        setEditingPos(null)
+        toast({ title: 'Название сохранено', description: 'Права должности не изменились.' })
+      } catch (e: any) {
+        toast({ title: 'Не удалось переименовать', description: e?.message, variant: 'destructive' })
+      }
+      setSavingEdit(false)
+      return
+    }
     try {
       const res = await fetch('/api/admin/positions', {
         method: 'POST',
@@ -419,6 +437,14 @@ export default function AccessPage() {
   }, [loadAccounts])
 
   const allPositionNames = useMemo(() => positions.map(p => p.name), [positions])
+  // Подпись роли — та же, что в списке должностей (с переименованием организации).
+  const roleLabel = useCallback(
+    (name: string) => {
+      const pos = positions.find(p => p.name === name)
+      return pos ? posLabel(pos) : officePositionLabel(name)
+    },
+    [positions],
+  )
 
   // ── Гейт: доступом управляет только владелец (или супер-админ) ──────────────
   if (isOwner === null) {
@@ -651,7 +677,7 @@ export default function AccessPage() {
                 >
                   <option value="">— выберите роль —</option>
                   {allPositionNames.map(name => (
-                    <option key={name} value={name}>{BUILTIN_LABELS[name] ?? name}</option>
+                    <option key={name} value={name}>{roleLabel(name)}</option>
                   ))}
                 </select>
               )}
@@ -690,6 +716,7 @@ export default function AccessPage() {
                         onChange={e => setEditName(e.target.value)}
                         className={`${inputCls} min-w-32 flex-1 py-2`}
                       />
+                      {!pos.is_builtin && (
                       <input
                         type="text"
                         value={editDesc}
@@ -697,6 +724,7 @@ export default function AccessPage() {
                         placeholder="Описание"
                         className={`${inputCls} min-w-48 flex-1 py-2`}
                       />
+                      )}
                       <button onClick={handleSaveEdit} disabled={savingEdit} className={btnPrimary}>
                         {savingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Сохранить
@@ -732,8 +760,8 @@ export default function AccessPage() {
                           <Lock className="h-3.5 w-3.5" />
                           Права
                         </button>
-                        {can('access.edit_role') && !pos.is_builtin && (
-                          <button onClick={() => startEdit(pos)} className="rounded-xl border border-border bg-slate-100 dark:bg-white/5 p-2 text-muted-foreground transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white">
+                        {can('access.edit_role') && (!pos.is_builtin || ['owner', 'manager', 'marketer'].includes(pos.name)) && (
+                          <button onClick={() => startEdit(pos)} title={pos.is_builtin ? 'Переименовать (права останутся)' : 'Изменить'} className="rounded-xl border border-border bg-slate-100 dark:bg-white/5 p-2 text-muted-foreground transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -857,7 +885,7 @@ export default function AccessPage() {
                                 >
                                   <option value="">— выберите —</option>
                                   {allPositionNames.map(name => (
-                                    <option key={name} value={name}>{BUILTIN_LABELS[name] ?? name}</option>
+                                    <option key={name} value={name}>{roleLabel(name)}</option>
                                   ))}
                                 </select>
                                 {savingRoleId === s.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
@@ -872,12 +900,12 @@ export default function AccessPage() {
                                 title="Изменить должность"
                               >
                                 <Briefcase className="h-3 w-3" />
-                                {s.role ? (BUILTIN_LABELS[s.role] ?? s.role) : 'нет должности'}
+                                {s.role ? roleLabel(s.role) : 'нет должности'}
                               </button>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-slate-100 dark:bg-white/5 px-2.5 py-1 text-xs text-body">
                                 <Briefcase className="h-3 w-3" />
-                                {s.role ? (BUILTIN_LABELS[s.role] ?? s.role) : 'нет должности'}
+                                {s.role ? roleLabel(s.role) : 'нет должности'}
                               </span>
                             )}
 

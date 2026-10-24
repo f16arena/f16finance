@@ -112,6 +112,8 @@ type BotUser = {
   entityId: string
   operatorId?: string
   organizationId?: string | null
+  /** Охват сотрудника по точкам (staff.company_ids) — как на сайте. null — все точки орг. */
+  companyRestriction?: string[] | null
 }
 
 async function identifyBotUser(telegramUserId: string): Promise<BotUser> {
@@ -139,7 +141,14 @@ async function identifyBotUser(telegramUserId: string): Promise<BotUser> {
       .maybeSingle()
     if (data) {
       const role = (data.role as BotUserRole) || 'unknown'
-      return { role, name: data.full_name, entityId: data.id, organizationId: data.organization_id || null }
+      // Управляющий части точек и в боте видит только свои — как в getRequestAccessContext.
+      let companyRestriction: string[] | null = null
+      if (role !== 'owner') {
+        const { data: scopeRow } = await supabase.from('staff').select('company_ids').eq('id', data.id).maybeSingle()
+        const ids = Array.isArray((scopeRow as any)?.company_ids) ? ((scopeRow as any).company_ids as unknown[]).map(String).filter(Boolean) : []
+        companyRestriction = ids.length > 0 ? ids : null
+      }
+      return { role, name: data.full_name, entityId: data.id, organizationId: data.organization_id || null, companyRestriction }
     }
   } catch {}
 
@@ -221,7 +230,8 @@ async function botCompanyScope(botUser: BotUser): Promise<string[] | null> {
   if (!orgId) return null
   const supabase = createAdminSupabaseClient()
   const { data } = await supabase.from('companies').select('id').eq('organization_id', orgId)
-  const ids = (data || []).map((c: any) => String(c.id))
+  const allowed = botUser.companyRestriction ? new Set(botUser.companyRestriction) : null
+  const ids = (data || []).map((c: any) => String(c.id)).filter((id) => !allowed || allowed.has(id))
   // Пустой список тоже должен фильтровать (fail-closed), поэтому не отдаём [].
   return ids.length > 0 ? ids : [NEVER_UUID]
 }
@@ -3523,7 +3533,8 @@ export async function POST(req: Request) {
           // Изоляция: кнопки выбора точки строятся из companies. Без фильтра по орг
           // бот показывал список всех клиентов SaaS и позволял записать расход в чужую точку.
           const photoCompanyIds = await botCompanyScope(botUser)
-          let photoCompaniesQuery = supabase.from('companies').select('id, name')
+          // Закрытая точка — только история: записать в неё новый расход нельзя.
+          let photoCompaniesQuery = supabase.from('companies').select('id, name').is('archived_at', null)
           if (photoCompanyIds) photoCompaniesQuery = photoCompaniesQuery.in('id', photoCompanyIds)
           const { data: companiesData } = await photoCompaniesQuery
           const companiesList = (companiesData || []) as Array<{ id: string; name: string }>
@@ -3618,7 +3629,7 @@ export async function POST(req: Request) {
 
           // Изоляция: тот же список точек, что и для фото-чека, — только своя орг.
           const pdfCompanyIds = await botCompanyScope(botUser)
-          let pdfCompaniesQuery = supabase.from('companies').select('id, name')
+          let pdfCompaniesQuery = supabase.from('companies').select('id, name').is('archived_at', null)
           if (pdfCompanyIds) pdfCompaniesQuery = pdfCompaniesQuery.in('id', pdfCompanyIds)
           const { data: companiesData } = await pdfCompaniesQuery
           const companiesList = (companiesData || []) as Array<{ id: string; name: string }>

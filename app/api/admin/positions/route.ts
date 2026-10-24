@@ -4,6 +4,8 @@ import { invalidateCapabilitiesCache, requireOwnerOrSuper } from '@/lib/server/c
 import { invalidateRoleMatrixCache } from '@/lib/server/role-hydration'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
+import { RENAMABLE_BUILTIN_POSITIONS, normalizePositionLabels } from '@/lib/core/org-settings'
+import { getOrgSettings } from '@/lib/server/org-settings'
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
@@ -75,7 +77,13 @@ export async function GET(req: Request) {
         if (role) people.set(role, (people.get(role) || 0) + 1)
       }
     }
-    const rows = ((data ?? []) as any[]).map((row) => ({ ...row, people: people.get(String(row.name)) || 0 }))
+    // Свои названия встроенных должностей организации («Руководитель» → «Управляющий»).
+    const labels = orgId ? (await getOrgSettings(orgId)).positionLabels : {}
+    const rows = ((data ?? []) as any[]).map((row) => ({
+      ...row,
+      label: row.is_builtin ? labels[String(row.name)] || null : null,
+      people: people.get(String(row.name)) || 0,
+    }))
 
     return json({ data: rows, tableExists: true })
   } catch (e: any) {
@@ -227,6 +235,27 @@ export async function POST(req: Request) {
       invalidateCapabilitiesCache()
       invalidateRoleMatrixCache()
       return json({ ok: true, data })
+    }
+
+    // Подпись встроенной должности — в organizations.settings.position_labels.
+    // Внутреннее имя (manager) не трогаем: на нём держатся права.
+    if (action === 'renameBuiltin') {
+      const name = String(body?.name || '')
+      if (!orgId) return json({ error: 'Нет активной организации' }, 400)
+      if (!(RENAMABLE_BUILTIN_POSITIONS as readonly string[]).includes(name)) return json({ error: 'Эту должность переименовать нельзя' }, 400)
+      const label = String(body?.label || '').trim().replace(/\s+/g, ' ').slice(0, 40)
+      const { data: org, error: orgError } = await supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle()
+      if (orgError) throw orgError
+      const settings = ((org as any)?.settings && typeof (org as any).settings === 'object' ? (org as any).settings : {}) as Record<string, unknown>
+      const positionLabels = { ...normalizePositionLabels(settings.position_labels) }
+      if (label) positionLabels[name] = label
+      else delete positionLabels[name]
+      const { error } = await supabase
+        .from('organizations')
+        .update({ settings: { ...settings, position_labels: positionLabels } })
+        .eq('id', orgId)
+      if (error) throw error
+      return json({ ok: true, label: label || null })
     }
 
     if (action === 'update') {

@@ -7,6 +7,7 @@ import { requireAddon } from '@/lib/server/entitlements'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { resolveCompanyScope, listOrganizationOperatorIds } from '@/lib/server/organizations'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { requireStaffCapability } from '@/lib/server/capabilities'
 
 // AI Разбор команды — HR-аналитик клуба.
@@ -336,7 +337,8 @@ export async function GET(request: Request) {
     }
 
     const systemPrompt = [
-      'Ты — HR-аналитик точки продаж. По готовым данным команды дай разбор для собственника.',
+      'Ты — HR-аналитик точки продаж. По готовым данным команды дай разбор для руководства.',
+      await buildAiBusinessContext(access.activeOrganization?.id || null),
       'Тебе дают УЖЕ ПОСЧИТАННЫЕ цифры по каждому оператору за период (JSON, факт). НЕ выдумывай цифры и имена — бери только из данных.',
       '',
       'Разбери: 1) кто звёзды (отметь по имени — высокая выручка/смену и эффективность); 2) кто проседает (штрафы, мало смен, долги); 3) справедлива ли оплата (разброс зарплат salarySpread — большой разрыв при схожих результатах = несправедливо); 4) кого повысить/научить; 5) дай 2-3 конкретных действия.',

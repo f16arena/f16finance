@@ -7,6 +7,7 @@ import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { requireStaffCapability } from '@/lib/server/capabilities'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
 
 // AI Разбор расходов: код считает точные цифры по категориям (текущий vs предыдущий
@@ -200,8 +201,10 @@ export async function GET(request: Request) {
       anomalies,
     }
 
+    const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null)
     const systemPrompt =
-      'Ты финансовый аналитик. По расходам клуба дай разбор: 1) где утекают деньги (топ-категории), 2) что выросло аномально, 3) что можно урезать, 4) 2-3 конкретных действия. По-русски, по делу. Верни СТРОГО JSON: {"insights":[{"verdict":"...","reason":"...","action":"...","severity":"high|medium|low"}], "summary":"одна фраза"}'
+      (businessContext ? `${businessContext}\n\n` : '') +
+      'Ты финансовый аналитик. По расходам бизнеса дай разбор: 1) где утекают деньги (топ-категории), 2) что выросло аномально, 3) что можно урезать, 4) 2-3 конкретных действия. По-русски, по делу. Верни СТРОГО JSON: {"insights":[{"verdict":"...","reason":"...","action":"...","severity":"high|medium|low"}], "summary":"одна фраза"}'
 
     const messages: AiMessage[] = [
       { role: 'system', content: systemPrompt },

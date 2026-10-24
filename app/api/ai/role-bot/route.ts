@@ -20,6 +20,7 @@ import { listOrganizationOperatorIds, resolveCompanyScope } from '@/lib/server/o
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { generateAiText } from '@/lib/ai/provider'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
 
 export const runtime = 'nodejs'
@@ -42,7 +43,8 @@ function detectRole(access: any): 'operator' | 'manager' | 'marketer' | 'owner' 
 }
 
 function systemPromptFor(role: string): string {
-  const base = `Ты — AI-ассистент в SaaS-системе "Orda Control" для управления игровыми клубами в Казахстане.
+  const base = `Ты — AI-ассистент в SaaS-системе "Orda Control" для управления бизнесом организации (точки продаж и услуг).
+Чем занимается бизнес и кто на какой должности — бери из блока «О БИЗНЕСЕ», а не выдумывай.
 Отвечай кратко, по-русски, по делу. Никаких эмодзи если их нет в вопросе. Никакого markdown.
 
 ЖЁСТКИЕ ПРАВИЛА БЕЗОПАСНОСТИ:
@@ -263,7 +265,8 @@ export async function POST(request: Request) {
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
   const role = detectRole(access)
-  const systemPrompt = systemPromptFor(role)
+  const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null)
+  const systemPrompt = [systemPromptFor(role), businessContext].filter(Boolean).join('\n\n')
 
   let snapshot: any[] = []
   try {

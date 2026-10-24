@@ -42,6 +42,11 @@ export type OrgSettings = {
    */
   timezone: string
   currency: string
+  /**
+   * Свои названия встроенных должностей: { manager: 'Управляющий' }. Внутреннее
+   * имя (manager) остаётся — на нём права; меняется только подпись везде.
+   */
+  positionLabels: Record<string, string>
 }
 
 export const DEFAULT_ORG_TIMEZONE = 'Asia/Almaty'
@@ -57,6 +62,20 @@ export const DEFAULT_ORG_SETTINGS: OrgSettings = {
   operatorPaySchedule: DEFAULT_OPERATOR_PAY_SCHEDULE,
   timezone: DEFAULT_ORG_TIMEZONE,
   currency: DEFAULT_ORG_CURRENCY,
+  positionLabels: {},
+}
+
+/** Встроенные должности, чью подпись организация может поменять. */
+export const RENAMABLE_BUILTIN_POSITIONS = ['owner', 'manager', 'marketer'] as const
+
+export function normalizePositionLabels(raw: unknown): Record<string, string> {
+  const value = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>
+  const out: Record<string, string> = {}
+  for (const key of RENAMABLE_BUILTIN_POSITIONS) {
+    const label = String(value[key] ?? '').trim().replace(/\s+/g, ' ').slice(0, 40)
+    if (label) out[key] = label
+  }
+  return out
 }
 
 /** Часовой пояс, который понимает Intl; иначе — Алматы. */
@@ -138,6 +157,7 @@ export function normalizeOrgSettings(raw: unknown): OrgSettings {
     operatorPaySchedule: normalizeOperatorPaySchedule(value.operator_pay_schedule),
     timezone: normalizeOrgTimezone(value.timezone),
     currency: normalizeOrgCurrency(value.currency),
+    positionLabels: normalizePositionLabels(value.position_labels),
   }
 }
 
