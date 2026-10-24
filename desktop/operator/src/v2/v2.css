@@ -1,0 +1,79 @@
+/*
+ * Касса v2 — швейцарская система.
+ * Один шрифт (Helvetica Neue → Arial), один акцент (International Orange),
+ * сетка из волосяных линий 1 px вместо карточек и теней, прямые углы.
+ * Две темы: светлая (белый) и тёмная (почти чёрный) — логика та же.
+ */
+
+.v2 {
+  --v2-bg: #ffffff;
+  --v2-bg-2: #f7f7f8;
+  --v2-ink: #111111;
+  --v2-muted: #6b6b6b;
+  --v2-rule: #e3e3e5;
+  --v2-rule-strong: #111111;
+  --v2-accent: #ff4f00;
+  --v2-accent-ink: #ffffff;
+  --v2-danger: #d70015;
+  --v2-ok: #0a7d3b;
+
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--v2-bg);
+  color: var(--v2-ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.v2[data-theme='dark'] {
+  --v2-bg: #0a0a0a;
+  --v2-bg-2: #141414;
+  --v2-ink: #f5f5f5;
+  --v2-muted: #8a8a8a;
+  --v2-rule: #262626;
+  --v2-rule-strong: #f5f5f5;
+  --v2-accent: #ff4f00;
+  --v2-accent-ink: #0a0a0a;
+  --v2-danger: #ff453a;
+  --v2-ok: #30d158;
+}
+
+.v2 * { border-radius: 0; }
+
+.v2 .v2-folio {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--v2-muted);
+}
+
+.v2 .v2-display {
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.v2 button { cursor: pointer; font: inherit; color: inherit; }
+.v2 button:disabled { cursor: default; opacity: 0.35; }
+.v2 button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+
+/* Нажатие — короткая вспышка акцентом по ячейке (сигнал «добавлено»). */
+@keyframes v2-hit { from { box-shadow: inset 0 0 0 3px var(--v2-accent); } to { box-shadow: inset 0 0 0 0 var(--v2-accent); } }
+.v2 .v2-hit { animation: v2-hit 420ms ease-out 1; }
+
+.v2 ::-webkit-scrollbar { width: 6px; height: 6px; }
+.v2 ::-webkit-scrollbar-thumb { background: var(--v2-rule); }
+
+/* Цвета темы — обычными классами: arbitrary-классы Tailwind с var() двусмысленны. */
+.v2 .rule { border-color: var(--v2-rule); }
+.v2 .bg-2 { background: var(--v2-bg-2); }
+.v2 .hover-bg-2:hover { background: var(--v2-bg-2); }
+.v2 .bg-accent { background: var(--v2-accent); color: var(--v2-accent-ink); }
+.v2 .bg-ink { background: var(--v2-ink); color: var(--v2-bg); }
+.v2 .bg-accent-bar { background: var(--v2-accent); }
+.v2 .ink { color: var(--v2-ink); }
+.v2 .muted { color: var(--v2-muted); }
+.v2 .hover-ink:hover { color: var(--v2-ink); }
+.v2 .accent { color: var(--v2-accent); }
+.v2 .danger { color: var(--v2-danger); }
+.v2 .ok { color: var(--v2-ok); }
+.v2 .placeholder-muted::placeholder { color: var(--v2-muted); }
