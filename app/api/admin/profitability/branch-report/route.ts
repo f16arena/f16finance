@@ -86,7 +86,7 @@ export async function GET(req: Request) {
     let categoriesQuery: any = supabase.from('expense_categories').select('name, accounting_group')
     if (!access.isSuperAdmin) categoriesQuery = categoriesQuery.eq('organization_id', orgFilterId)
     else if (orgId) categoriesQuery = categoriesQuery.eq('organization_id', orgId)
-    let companiesQuery: any = supabase.from('companies').select('id, name, code')
+    let companiesQuery: any = supabase.from('companies').select('id, name, code, exclude_from_totals')
     if (scope.allowedCompanyIds) companiesQuery = companiesQuery.in('id', scope.allowedCompanyIds)
 
     // Выручка всех точек нужна для разнесения адм. ФОТ по доле точки (справочный блок)

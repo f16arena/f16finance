@@ -135,10 +135,16 @@ export async function POST(request: Request) {
     if (scope.allowedCompanyIds) companiesQ = companiesQ.in('id', scope.allowedCompanyIds)
     const { data: companyRows, error: companiesError } = await companiesQ
     if (companiesError) throw companiesError
-    const allCompanies = ((companyRows || []) as Array<{ id: string; name: string | null; code: string | null }>).map((c) => ({
+    // exclude_from_totals передаём дальше: без него isExtraCompany откатывается
+    // к старому правилу F16 (код «extra») и Extra снова уходит из итогов,
+    // хотя владелец включил её в настройках точки.
+    const allCompanies = (
+      (companyRows || []) as Array<{ id: string; name: string | null; code: string | null; exclude_from_totals?: boolean | null }>
+    ).map((c) => ({
       id: String(c.id),
       name: String(c.name || c.code || '—'),
       code: c.code,
+      exclude_from_totals: c.exclude_from_totals ?? null,
     }))
     const extraIds = new Set(allCompanies.filter(isExtraCompany).map((c) => c.id))
     // Как в /reports: Extra не входит в «все точки», если её не включили явно
