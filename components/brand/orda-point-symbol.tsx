@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 /**
  * Знак Orda Point для веба: четыре сегмента и точка в центре.
  *
@@ -67,6 +69,12 @@ export function OrdaPointSymbol({
 }) {
   const span = 90 - GAP_DEGREES
   const mono = tone === 'mono'
+  // Свои id градиентов у каждого знака: при общих url(#…) ссылается на первый
+  // знак в документе, и если тот скрыт (мобильная шапка), видимый рисуется пустым.
+  const uid = useId().replace(/:/g, '')
+  const light = `orda-arc-light-${uid}`
+  const deep = `orda-arc-deep-${uid}`
+  const point = `orda-point-${uid}`
 
   return (
     <svg
@@ -81,15 +89,15 @@ export function OrdaPointSymbol({
       <defs>
         {/* Верхние сегменты светлее нижних: знак получает объём, оставаясь
             плоским — так он одинаков на светлом и на тёмном. */}
-        <linearGradient id="orda-arc-light" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={light} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND_MINT} />
           <stop offset="1" stopColor={BRAND_MINT} stopOpacity="0.86" />
         </linearGradient>
-        <linearGradient id="orda-arc-deep" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={deep} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND_MINT} stopOpacity="0.92" />
           <stop offset="1" stopColor={BRAND_DEEP} />
         </linearGradient>
-        <linearGradient id="orda-point" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={point} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND_MINT} />
           <stop offset="1" stopColor={BRAND_DEEP} />
         </linearGradient>
@@ -100,13 +108,13 @@ export function OrdaPointSymbol({
           key={center}
           d={arcPath(center, span)}
           fill="none"
-          stroke={mono ? 'currentColor' : index < 2 ? 'url(#orda-arc-light)' : 'url(#orda-arc-deep)'}
+          stroke={mono ? 'currentColor' : index < 2 ? `url(#${light})` : `url(#${deep})`}
           strokeWidth={RING_WIDTH}
           strokeLinecap="round"
         />
       ))}
 
-      <circle cx="0.5" cy="0.5" r={POINT_RADIUS} fill={mono ? 'currentColor' : 'url(#orda-point)'} />
+      <circle cx="0.5" cy="0.5" r={POINT_RADIUS} fill={mono ? 'currentColor' : `url(#${point})`} />
     </svg>
   )
 }
