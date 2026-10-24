@@ -182,7 +182,7 @@ function ExpenseWizardPageContent() {
       try {
         const [catRes, compRes, roleRes] = await Promise.all([
           fetch('/api/admin/expense-categories', { cache: 'no-store' }),
-          fetch('/api/admin/companies', { cache: 'no-store' }),
+          fetch('/api/admin/companies?open=1', { cache: 'no-store' }),
           fetch('/api/auth/session-role', { cache: 'no-store' }).catch(() => null),
         ])
         const cats = catRes.ok ? (await catRes.json()).data || [] : []

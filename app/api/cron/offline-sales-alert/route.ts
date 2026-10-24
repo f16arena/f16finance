@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     const supabase = createAdminSupabaseClient()
     const { data: devices, error } = await supabase
       .from('point_devices')
-      .select('id, name, company_id, pending_sales_count, attention_sales_count, pending_since, last_offline_alert_at, last_seen_at, company:company_id(name)')
+      .select('id, name, company_id, pending_sales_count, attention_sales_count, pending_since, last_offline_alert_at, last_seen_at, company:company_id(name, archived_at)')
       .eq('is_active', true)
     if (error) {
       // Колонок нет до миграции 20260722 — тихо выходим
@@ -50,6 +50,8 @@ export async function GET(req: Request) {
 
     for (const d of (devices as any[]) || []) {
       const company = Array.isArray(d.company) ? d.company[0] : d.company
+      // Точку закрыли — касса молчит законно, будить владельца незачем.
+      if (company?.archived_at) continue
       const label = `${company?.name || '—'} · ${d.name || 'касса'}`
       const companyId = d.company_id ? String(d.company_id) : null
       const lastAlert = d.last_offline_alert_at ? new Date(d.last_offline_alert_at).getTime() : 0

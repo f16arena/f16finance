@@ -223,7 +223,7 @@ export function WeeklyPurchasePlan({ reportEndDate }: { reportEndDate?: string }
     ;(async () => {
       try {
         const [cRes, catRes, supRes] = await Promise.all([
-          fetch('/api/admin/companies', { cache: 'no-store' }),
+          fetch('/api/admin/companies?open=1', { cache: 'no-store' }),
           fetch('/api/admin/expense-categories', { cache: 'no-store' }),
           fetch('/api/admin/store/suppliers', { cache: 'no-store' }),
         ])

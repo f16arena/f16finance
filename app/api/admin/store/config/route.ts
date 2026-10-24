@@ -12,7 +12,7 @@ function json(data: unknown, status = 200) {
 }
 
 async function loadCompanies(supabase: any, scoped: string[] | null) {
-  let q = supabase.from('companies').select('id, name, code, store_enabled, organization_id').order('name')
+  let q = supabase.from('companies').select('id, name, code, store_enabled, organization_id, archived_at').order('name')
   if (scoped) q = q.in('id', scoped)
   const { data } = await q
   return (data || []) as Array<{ id: string; name: string; code: string | null; store_enabled?: boolean; organization_id?: string | null }>

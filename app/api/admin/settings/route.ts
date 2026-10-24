@@ -5,7 +5,7 @@ import { requireCapability, requireStaffCapability, isOwnerActor, canAssignStaff
 import { createRequestSupabaseClient, getRequestAccessContext } from '@/lib/server/request-auth'
 import { resolveCompanyLimit } from '@/lib/server/entitlements'
 import { listOrganizationStaffIds } from '@/lib/server/organizations'
-import { createCompanyForOrganization } from '@/lib/server/company-create'
+import { countOpenCompanies, createCompanyForOrganization } from '@/lib/server/company-create'
 import {
   collectCompanyLeftovers,
   companyNameMatches,
@@ -26,6 +26,12 @@ type MutationBody =
       action: 'update'
       id: string
       payload: { name: string; code?: string | null; show_in_structure?: boolean | null; exclude_from_totals?: boolean | null }
+    }
+  | {
+      entity: 'company'
+      action: 'close' | 'reopen'
+      id: string
+      reason?: string | null
     }
   | {
       entity: 'company'
@@ -100,7 +106,7 @@ export async function GET(req: Request) {
     const orgId = access.activeOrganization?.id || null
     const scopeOrg = orgId || (access.isSuperAdmin ? null : '00000000-0000-0000-0000-000000000000')
 
-    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals').order('name')
+    let companiesQuery = supabase.from('companies').select('id, name, code, show_in_structure, exclude_from_totals, archived_at, archive_reason').order('name')
     let staffQuery = supabase.from('staff').select('id, full_name, phone, email, role, is_active').eq('is_active', true).order('full_name')
     let categoriesQuery = supabase.from('expense_categories').select('id, name, monthly_budget, accounting_group').order('name')
     if (scopeOrg) {
@@ -258,6 +264,51 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true })
       }
 
+      // Закрыть точку: история остаётся в отчётах, а точка уходит из выбора,
+      // касса перестаёт работать, место в лимите освобождается. Обратимо.
+      if (body.action === 'close' || body.action === 'reopen') {
+        if (!isOwnerActor(access)) {
+          return NextResponse.json({ error: 'Закрыть или открыть точку может только владелец' }, { status: 403 })
+        }
+        const { data: point, error: pointError } = await scopeOrg(
+          supabase.from('companies').select('id, name, organization_id, archived_at').eq('id', body.id),
+        ).maybeSingle()
+        if (pointError) throw pointError
+        if (!point) return NextResponse.json({ error: 'Точка не найдена' }, { status: 404 })
+
+        const closing = body.action === 'close'
+        if (closing === !!point.archived_at) return NextResponse.json({ ok: true })
+        if (!closing && point.organization_id) {
+          const [openCount, limit] = await Promise.all([
+            countOpenCompanies(supabase, String(point.organization_id)),
+            resolveCompanyLimit(String(point.organization_id)),
+          ])
+          if (openCount >= limit) {
+            return NextResponse.json(
+              { error: `Открытых точек уже ${openCount} из ${limit}. Закройте другую или докупите точку.`, code: 'company-limit-reached' },
+              { status: 402 },
+            )
+          }
+        }
+
+        const reason = closing ? String(body.reason || '').trim().slice(0, 300) || null : null
+        const { error } = await scopeOrg(
+          supabase
+            .from('companies')
+            .update({ archived_at: closing ? new Date().toISOString() : null, archive_reason: reason })
+            .eq('id', body.id),
+        )
+        if (error) throw error
+        await writeAuditLog(supabase, {
+          actorUserId,
+          entityType: 'company',
+          entityId: String(point.id),
+          action: closing ? 'archive' : 'restore',
+          payload: { name: point.name, reason },
+        })
+        return NextResponse.json({ ok: true })
+      }
+
       // Удаление: только владелец, только пустая точка и только с названием,
       // набранным руками. Каскад по 55 таблицам стирает историю без следа.
       const { data: target, error: targetError } = await scopeOrg(
@@ -283,7 +334,7 @@ export async function POST(req: Request) {
       if (!isOwnerActor(access)) {
         return NextResponse.json({ error: 'Удалить точку может только владелец' }, { status: 403 })
       }
-      if (!companyNameMatches(String(target.name || ''), body.confirmName)) {
+      if (!companyNameMatches(String(target.name || ''), (body as { confirmName?: string }).confirmName)) {
         return badRequest('Для удаления введите название точки точно так, как оно написано')
       }
       if (history.hasHistory) {

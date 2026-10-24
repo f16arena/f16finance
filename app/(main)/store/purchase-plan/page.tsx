@@ -84,7 +84,7 @@ export default function PurchasePlanPage() {
   // Список точек.
   useEffect(() => {
     let active = true
-    fetch('/api/admin/companies', { cache: 'no-store' })
+    fetch('/api/admin/companies?open=1', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
         if (!active) return

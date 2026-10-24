@@ -93,10 +93,14 @@ export async function GET(request: Request) {
 
       const { data: company } = await supabase
         .from('companies')
-        .select('id, name')
+        .select('id, name, archived_at')
         .eq('id', companyId)
         .maybeSingle()
       const pointName = company?.name || 'точка'
+      if (company?.archived_at) {
+        report.push({ company: pointName, skipped: 'точка закрыта' })
+        continue
+      }
 
       // Сводка точки — в чат владельца её организации. Раньше слали без чата: молчало.
       const chatId = (await getCompanyReportTarget(companyId))?.chatId

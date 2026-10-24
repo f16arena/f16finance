@@ -34,6 +34,17 @@ async function pickFreeCode(supabase: any, base: string) {
   )
 }
 
+/** Сколько точек занимает лимит: закрытые (archived_at) — история, место не держат. */
+export async function countOpenCompanies(supabase: any, organizationId: string) {
+  const { count, error } = await supabase
+    .from('companies')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', organizationId)
+    .is('archived_at', null)
+  if (error) throw error
+  return count ?? 0
+}
+
 /**
  * Единственный путь создания точки: лимит по тарифу, свободный код, аудит и
  * доступ создателю. Раньше было два роута, и второй (/api/admin/companies)
@@ -61,15 +72,15 @@ export async function createCompanyForOrganization(
 
   if (organizationId) {
     const [{ count: currentCount }, limit] = await Promise.all([
-      supabase.from('companies').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
+      countOpenCompanies(supabase, organizationId),
       resolveCompanyLimit(organizationId),
     ])
-    if ((currentCount ?? 0) >= limit) {
+    if (currentCount >= limit) {
       return {
         ok: false,
         status: 402,
         code: 'company-limit-reached',
-        error: `Лимит точек исчерпан (${currentCount}/${limit}). Докупите точку, чтобы добавить ещё одну.`,
+        error: `Лимит точек исчерпан (${currentCount}/${limit}). Закройте ненужную точку или докупите ещё одну.`,
       }
     }
   }

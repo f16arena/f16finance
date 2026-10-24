@@ -33,8 +33,11 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from('companies')
-      .select('id, name, code, exclude_from_totals')
+      .select('id, name, code, exclude_from_totals, archived_at')
       .order('name', { ascending: true })
+    // Закрытые точки (archived_at) отдаём: по списку отчёты подписывают и суммируют
+    // историю. ?open=1 — для форм новой работы (приход, расход, смена, найм, касса).
+    if (new URL(req.url).searchParams.get('open') === '1') query = query.is('archived_at', null)
 
     if (scope.allowedCompanyIds) {
       if (scope.allowedCompanyIds.length === 0) return json({ data: [] })

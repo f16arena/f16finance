@@ -126,7 +126,7 @@ export default function AddIncomePage() {
       setError(null)
 
       const [compRes, opRes] = await Promise.all([
-        fetch('/api/admin/companies', { cache: 'no-store' }),
+        fetch('/api/admin/companies?open=1', { cache: 'no-store' }),
         fetch('/api/admin/operators?active_only=true', { cache: 'no-store' }),
       ])
 

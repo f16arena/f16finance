@@ -18,6 +18,7 @@ import {
   Pencil,
   Trash2,
   Archive,
+  RotateCcw,
   Save,
   X,
   Building2,
@@ -39,6 +40,9 @@ type Company = {
   show_in_structure: boolean
   exclude_from_totals?: boolean | null
   created_at?: string
+  /** Закрыта владельцем: история в отчётах, но не в выборе точки и не в лимите. */
+  archived_at?: string | null
+  archive_reason?: string | null
 }
 
 type Staff = {
@@ -68,7 +72,9 @@ const SPECIAL_ROLES = new Set(['owner', 'manager', 'marketer'])
 export default function SettingsPage() {
   const { can } = useCapabilities()
   // Данные
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [allCompanies, setCompanies] = useState<Company[]>([])
+  const companies = useMemo(() => allCompanies.filter((c) => !c.archived_at), [allCompanies])
+  const closedCompanies = useMemo(() => allCompanies.filter((c) => !!c.archived_at), [allCompanies])
   const [staff, setStaff] = useState<Staff[]>([])
   const [companyLimit, setCompanyLimit] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -199,6 +205,36 @@ export default function SettingsPage() {
 
   // Удаление — через окно с проверкой истории и вводом названия (DeleteCompanyDialog).
   const handleDeleteCompany = (id: string) => setDeletingCompanyId(id)
+
+  // Закрыть точку: история остаётся, касса и выбор точки — нет. Обратимо.
+  const handleCloseCompany = async (company: Company) => {
+    const ok = await confirmDialog({
+      title: `Закрыть «${company.name}»?`,
+      description:
+        'Касса точки перестанет работать, точка пропадёт из выбора в формах и переключателях и освободит место в лимите. ' +
+        'Вся история — продажи, смены, расходы, зарплата — останется в отчётах. Открыть снова можно здесь же.',
+      confirmLabel: 'Закрыть точку',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await mutateSettings({ entity: 'company', action: 'close', id: company.id })
+      toast({ title: 'Точка закрыта', description: company.name })
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Не получилось', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleReopenCompany = async (company: Company) => {
+    try {
+      await mutateSettings({ entity: 'company', action: 'reopen', id: company.id })
+      toast({ title: 'Точка снова открыта', description: company.name })
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Не получилось', description: err.message, variant: 'destructive' })
+    }
+  }
 
   // --- ЛОГИКА СОТРУДНИКОВ ---
   const handleAddStaff = async (e: React.FormEvent) => {
@@ -429,7 +465,12 @@ export default function SettingsPage() {
                                                 </Button>
                                             )}
                                             {can('settings.delete_company') && (
-                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-red-400" onClick={() => handleDeleteCompany(c.id)}>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-amber-500" title="Закрыть точку" aria-label="Закрыть точку" onClick={() => handleCloseCompany(c)}>
+                                                    <Archive className="w-3 h-3" />
+                                                </Button>
+                                            )}
+                                            {can('settings.delete_company') && (
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-red-400" title="Удалить точку" aria-label="Удалить точку" onClick={() => handleDeleteCompany(c.id)}>
                                                     <Trash2 className="w-3 h-3" />
                                                 </Button>
                                             )}
@@ -438,6 +479,29 @@ export default function SettingsPage() {
                                 )}
                             </div>
                         ))}
+                        {!loading && closedCompanies.length > 0 && (
+                            <div className="pt-2">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Закрытые · история в отчётах</p>
+                                <div className="space-y-2">
+                                    {closedCompanies.map((c) => (
+                                        <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2 opacity-70">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm text-foreground">{c.name}</p>
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    закрыта {c.archived_at ? new Date(c.archived_at).toLocaleDateString('ru-RU') : ''}
+                                                    {c.archive_reason ? ` · ${c.archive_reason}` : ''}
+                                                </p>
+                                            </div>
+                                            {can('settings.delete_company') && (
+                                                <Button size="sm" variant="outline" className="h-7 shrink-0 text-xs" onClick={() => handleReopenCompany(c)}>
+                                                    <RotateCcw className="mr-1 h-3 w-3" /> Открыть снова
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Добавление */}
@@ -447,7 +511,7 @@ export default function SettingsPage() {
                             <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-200">
                                 <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                 <span>
-                                    Лимит точек исчерпан ({companies.length} из {companyLimit}). Чтобы добавить ещё одну точку — докупите дополнительную точку в пакете.
+                                    Лимит точек исчерпан ({companies.length} из {companyLimit}). Закройте ненужную точку (кнопка с коробкой) или докупите ещё одну в пакете.
                                 </span>
                             </div>
                         )}

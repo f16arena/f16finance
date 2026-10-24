@@ -131,7 +131,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
       })
       .catch(() => {})
 
-    fetch('/api/admin/companies')
+    fetch('/api/admin/companies?open=1')
       .then((r) => r.json())
       .then((d) => {
         const list = (d.data || []) as Company[]

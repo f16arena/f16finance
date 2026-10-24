@@ -345,7 +345,7 @@ function OwnerPos() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/admin/companies')
+    fetch('/api/admin/companies?open=1')
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return

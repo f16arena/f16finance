@@ -54,7 +54,7 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch('/api/admin/companies', { cache: 'no-store' })
+        const res = await fetch('/api/admin/companies?open=1', { cache: 'no-store' })
         const data = await res.json().catch(() => null)
         if (res.ok && Array.isArray(data?.data)) {
           setCompanies(data.data as CompanyOption[])

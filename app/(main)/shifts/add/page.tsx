@@ -57,7 +57,7 @@ export default function AddShiftPage() {
       // операторов принадлежит организации, и решать, что из него показать,
       // должен роут — в браузере этот фильтр можно просто не применить.
       const [companiesResp, operatorsResp] = await Promise.all([
-        fetch('/api/admin/companies', { cache: 'no-store' }),
+        fetch('/api/admin/companies?open=1', { cache: 'no-store' }),
         fetch('/api/admin/operators?active_only=true', { cache: 'no-store' }),
       ])
 

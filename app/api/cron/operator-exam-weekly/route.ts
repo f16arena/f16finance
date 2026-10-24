@@ -140,11 +140,15 @@ export async function GET(request: Request) {
       try {
         const { data: company } = await supabase
           .from('companies')
-          .select('id, name, industry, organization_id')
+          .select('id, name, industry, organization_id, archived_at')
           .eq('id', companyId)
           .maybeSingle()
         if (!company?.organization_id) {
           report.push({ company_id: companyId, skipped: 'нет организации' })
+          continue
+        }
+        if (company.archived_at) {
+          report.push({ company: company.name, skipped: 'точка закрыта' })
           continue
         }
 

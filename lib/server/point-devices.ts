@@ -36,7 +36,7 @@ export type PointDeviceContext = {
 }
 
 const POINT_PROJECT_SELECT =
-  'id, name, project_token, shift_report_chat_id, point_mode, feature_flags, is_active, notes, last_seen_at, point_project_companies(company_id, point_mode, feature_flags, company:company_id(id, name, code, organization_id, brand_color, brand_logo_url, payment_provider:payment_provider_id(id, code, name, country_code, supports_midnight_split)))'
+  'id, name, project_token, shift_report_chat_id, point_mode, feature_flags, is_active, notes, last_seen_at, point_project_companies(company_id, point_mode, feature_flags, company:company_id(id, name, code, organization_id, archived_at, brand_color, brand_logo_url, payment_provider:payment_provider_id(id, code, name, country_code, supports_midnight_split)))'
 
 /** Company JSONB flags override project; `null` / missing per key inherits from project (empty `{}` does not wipe project). */
 function mergePointFeatureFlags(
@@ -55,6 +55,16 @@ function mergePointFeatureFlags(
     out[k] = v
   }
   return out
+}
+
+/** Закрытая точка (companies.archived_at) — только история: касса её больше не обслуживает. */
+function dropClosedCompanies(data: any) {
+  if (!Array.isArray(data?.point_project_companies)) return data
+  const open = data.point_project_companies.filter((link: any) => {
+    const company = Array.isArray(link?.company) ? link.company[0] : link?.company
+    return !company?.archived_at
+  })
+  return { ...data, point_project_companies: open }
 }
 
 function deviceFromPointProjectRow(data: any, requestedCompanyId: string): PointDeviceContext['device'] {
@@ -130,7 +140,7 @@ export async function loadPointProjectContext(projectId: string): Promise<PointD
 
   return {
     supabase,
-    device: deviceFromPointProjectRow(data, ''),
+    device: deviceFromPointProjectRow(dropClosedCompanies(data), ''),
   }
 }
 
@@ -152,11 +162,19 @@ export async function requirePointDevice(request: Request): Promise<
   }
 
   const supabase = createAdminSupabaseClient()
-  const { data, error } = await supabase.from('point_projects').select(POINT_PROJECT_SELECT).eq('project_token', token).maybeSingle()
+  const { data: row, error } = await supabase.from('point_projects').select(POINT_PROJECT_SELECT).eq('project_token', token).maybeSingle()
 
-  if (error || !data || !data.is_active) {
+  if (error || !row || !row.is_active) {
     return {
       response: NextResponse.json({ error: 'invalid-point-device' }, { status: 403 }),
+    }
+  }
+
+  const hadPoints = Array.isArray((row as any).point_project_companies) && (row as any).point_project_companies.length > 0
+  const data = dropClosedCompanies(row)
+  if (hadPoints && data.point_project_companies.length === 0) {
+    return {
+      response: NextResponse.json({ error: 'point-closed', message: 'Точка закрыта владельцем — касса не работает.' }, { status: 403 }),
     }
   }
 

@@ -48,7 +48,8 @@ export function StoreCompanyProvider({ children }: { children: React.ReactNode }
         if (ignore) return
         const all = Array.isArray(cfgJson?.data?.companies) ? (cfgJson.data.companies as any[]) : []
         const shops: StoreCompany[] = all
-          .filter((c) => c?.store_enabled)
+          // Закрытая точка — только история, в переключатель не попадает.
+          .filter((c) => c?.store_enabled && !c?.archived_at)
           .map((c) => ({ id: String(c.id), name: String(c.name), code: c.code ?? null }))
         setCompanies(shops)
         const defaultPoint = (cfgJson?.data?.store_company_id as string | null) || ''
