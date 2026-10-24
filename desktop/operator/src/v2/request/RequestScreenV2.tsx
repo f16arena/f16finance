@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
 import { AlertTriangle, Ban, ClipboardList, LayoutGrid, Loader2, MessageSquare, Minus, Plus, RefreshCw, Search, ShoppingCart, Trash2, Warehouse, X } from 'lucide-react'
 
 import * as api from '@/lib/api'
@@ -211,20 +211,25 @@ export default function RequestScreenV2({
     return ['all', ...Array.from(names).sort((a, b) => a.localeCompare(b, 'ru'))]
   }, [context?.items])
 
+  // Сортировка один раз на каталог (что заканчивается на витрине — первым),
+  // фильтр по поиску её сохраняет; поиск — отложенный, чтобы сканер не ждал.
+  const sortedItems = useMemo(() => {
+    const collator = new Intl.Collator('ru')
+    const inStock = (context?.items || []).filter((item) => Number(item.warehouse_qty || 0) > 0)
+    const isLow = (id: string) => showcase.has(id) && (showcase.get(id) || 0) <= LOW_SHOWCASE
+    const byName = [...inStock].sort((a, b) => collator.compare(a.name, b.name))
+    return [...byName.filter((i) => isLow(i.id)), ...byName.filter((i) => !isLow(i.id))]
+  }, [context?.items, showcase])
+  const deferredSearch = useDeferredValue(search)
   const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const all = (context?.items || [])
-      .filter((item) => Number(item.warehouse_qty || 0) > 0)
-      .filter((item) => category === 'all' || (item.category?.name || 'Без категории') === category)
-    const found = q ? all.filter((i) => i.name.toLowerCase().includes(q) || (i.barcode || '').toLowerCase().includes(q)) : all
-    // Что заканчивается на витрине — первым.
-    return [...found].sort((a, b) => {
-      const la = showcase.has(a.id) && (showcase.get(a.id) || 0) <= LOW_SHOWCASE ? 0 : 1
-      const lb = showcase.has(b.id) && (showcase.get(b.id) || 0) <= LOW_SHOWCASE ? 0 : 1
-      return la !== lb ? la - lb : a.name.localeCompare(b.name, 'ru')
-    })
-  }, [context?.items, search, category, showcase])
-  const grid = useProgressiveList(filteredItems, `${category}|${search}`)
+    const q = deferredSearch.trim().toLowerCase()
+    return sortedItems.filter(
+      (item) =>
+        (category === 'all' || (item.category?.name || 'Без категории') === category) &&
+        (!q || item.name.toLowerCase().includes(q) || (item.barcode || '').toLowerCase().includes(q)),
+    )
+  }, [sortedItems, deferredSearch, category])
+  const grid = useProgressiveList(filteredItems, `${category}|${deferredSearch}`)
 
   function addToCart(itemId: string) {
     const item = (context?.items || []).find((i) => i.id === itemId)

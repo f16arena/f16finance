@@ -18,12 +18,16 @@ export function useArenaEngine(config: AppConfig, session: OperatorSession) {
   const [actionLoading, setActionLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
 
-  // Один общий секундный тик на все карточки и карту.
+  // Один общий тик на все карточки и карту: раз в секунду, пока идут сессии
+  // (обратный отсчёт), иначе раз в 30 с (только «бронь через N мин»).
+  // Раньше экран зала перерисовывался каждую секунду и пустой.
   const [now, setNow] = useState(Date.now())
+  const tickMs = sessions.length > 0 ? 1000 : 30_000
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
+    setNow(Date.now())
+    const id = setInterval(() => setNow(Date.now()), tickMs)
     return () => clearInterval(id)
-  }, [])
+  }, [tickMs])
 
   const [startTarget, setStartTarget] = useState<ArenaStation | null>(null)
   const [bookingTarget, setBookingTarget] = useState<ArenaStation | null>(null)

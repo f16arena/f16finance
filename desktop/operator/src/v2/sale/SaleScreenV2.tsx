@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRightLeft,
   BadgePercent,
@@ -64,6 +64,62 @@ function plural(n: number, one: string, few: string, many: string) {
 }
 
 const SERVICES = '__services__'
+const COLLATOR = new Intl.Collator('ru')
+
+/**
+ * Карточка товара. memo: при добавлении в корзину перерисовывается только та
+ * карточка, у которой поменялось количество, а не вся сетка.
+ */
+const ProductCard = memo(
+  function ProductCard(props: { item: PointInventorySaleItem; inCart: number; pop: number; onAdd: (item: PointInventorySaleItem) => void }) {
+    const { item, inCart } = props
+    const stock = Number(item.display_qty || 0)
+    const out = stock <= 0
+    const look = lookFor(item.category?.name)
+    const Icon = look.icon
+    return (
+      <button
+        type="button"
+        onClick={() => props.onAdd(item)}
+        disabled={out}
+        className="press lift surface cv relative flex h-[148px] flex-col overflow-hidden rounded-[22px] p-4 text-left"
+        style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
+      >
+        {item.image_url ? (
+          <img src={item.image_url} alt="" className="h-11 w-11 rounded-[13px] object-cover" loading="lazy" decoding="async" />
+        ) : (
+          <div className="grid h-11 w-11 place-items-center rounded-[13px]" style={{ background: `color-mix(in srgb, ${look.color} 14%, transparent)` }}>
+            <Icon className="h-[22px] w-[22px]" style={{ color: look.color }} />
+          </div>
+        )}
+        {inCart ? (
+          <span key={props.pop} className="badge pop absolute right-3 top-3 grid h-7 min-w-7 place-items-center rounded-full px-2 text-[14px] font-semibold">
+            {inCart}
+          </span>
+        ) : null}
+        <span className="mt-auto line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
+        <span className="mt-1 flex items-baseline justify-between">
+          <span className="text-[19px] font-semibold">{money(item.sale_price)} ₸</span>
+          <span className={`text-[12px] ${out ? 't-red' : stock <= 3 ? 't-red' : 'muted'}`}>
+            {out ? 'нет' : stock >= 999 ? item.unit : `${stock} ${item.unit || 'шт'}`}
+          </span>
+        </span>
+      </button>
+    )
+  },
+  // Каталог перезагружается целиком (новые объекты) — сравниваем по содержимому.
+  (a, b) =>
+    a.inCart === b.inCart &&
+    a.pop === b.pop &&
+    a.onAdd === b.onAdd &&
+    a.item.id === b.item.id &&
+    a.item.name === b.item.name &&
+    a.item.sale_price === b.item.sale_price &&
+    a.item.display_qty === b.item.display_qty &&
+    a.item.image_url === b.item.image_url &&
+    a.item.unit === b.item.unit &&
+    a.item.category?.name === b.item.category?.name,
+)
 
 /** Шторка поверх панели заказа — для смешанной оплаты, скидки, универсального товара. */
 function Sheet(props: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -139,29 +195,47 @@ export default function SaleScreenV2(props: Props) {
   }, [engine.items, engine.services.length])
 
   // Услуги: своя категория; при поиске находятся и из «Все».
+  // Сканер вводит штрихкод посимвольно: фильтруем по «отложенному» запросу,
+  // чтобы поле ввода не ждало пересчёта сетки на каждую цифру.
+  const deferredQuery = useDeferredValue(query)
+
+  // Сортировка один раз на каталог (в наличии — первыми, дальше по алфавиту),
+  // фильтр её сохраняет. Раньше 1200+ товаров пересортировывались на каждую букву.
+  const sortedItems = useMemo(() => {
+    const byName = [...engine.items].sort((a, b) => COLLATOR.compare(a.name, b.name))
+    return [...byName.filter((it) => Number(it.display_qty || 0) > 0), ...byName.filter((it) => !(Number(it.display_qty || 0) > 0))]
+  }, [engine.items])
+
   const visibleServices = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = deferredQuery.trim().toLowerCase()
     if (category === SERVICES) return engine.services.filter((s) => !q || s.name.toLowerCase().includes(q))
     if (category === 'all' && q) return engine.services.filter((s) => s.name.toLowerCase().includes(q))
     return []
-  }, [engine.services, category, query])
+  }, [engine.services, category, deferredQuery])
 
   const serviceQty = (variantId: string) =>
     engine.cart.filter((l) => l.service_variant_id === variantId && !l.extend_session_id).reduce((n, l) => n + l.quantity, 0)
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return engine.items
-      .filter((it) => category !== SERVICES && (category === 'all' || (it.category?.name || 'Без категории') === category))
-      .filter((it) => !q || it.name.toLowerCase().includes(q) || (it.barcode || '').includes(q))
-      .sort((a, b) => {
-        const av = Number(a.display_qty || 0) > 0 ? 1 : 0
-        const bv = Number(b.display_qty || 0) > 0 ? 1 : 0
-        return av !== bv ? bv - av : a.name.localeCompare(b.name, 'ru')
-      })
-  }, [engine.items, category, query])
+    const q = deferredQuery.trim().toLowerCase()
+    if (category === SERVICES) return []
+    return sortedItems.filter(
+      (it) =>
+        (category === 'all' || (it.category?.name || 'Без категории') === category) &&
+        (!q || it.name.toLowerCase().includes(q) || (it.barcode || '').includes(q)),
+    )
+  }, [sortedItems, category, deferredQuery])
 
-  const grid = useProgressiveList(visible, `${category}|${query}`)
+  const grid = useProgressiveList(visible, `${category}|${deferredQuery}`)
+  const cartQty = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of engine.cart) if (l.item_id) m.set(l.item_id, (m.get(l.item_id) || 0) + l.quantity)
+    return m
+  }, [engine.cart])
+  // Стабильная ссылка: карточки не перерисовываются, когда меняется что-то другое.
+  const addRef = useRef<(item: PointInventorySaleItem) => void>(() => {})
+  addRef.current = add
+  const onCardAdd = useMemo(() => (item: PointInventorySaleItem) => addRef.current(item), [])
 
   const qtyOf = (id: string) => engine.cart.find((l) => l.item_id === id)?.quantity || 0
 
@@ -417,46 +491,15 @@ export default function SaleScreenV2(props: Props) {
                 </div>
               ) : null}
               <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
-                {grid.shown.map((item) => {
-                  const inCart = qtyOf(item.id)
-                  const stock = Number(item.display_qty || 0)
-                  const out = stock <= 0
-                  const look = lookFor(item.category?.name)
-                  const Icon = look.icon
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => add(item)}
-                      disabled={out}
-                      className="press lift surface cv relative flex h-[148px] flex-col overflow-hidden rounded-[22px] p-4 text-left"
-                      style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
-                    >
-                      {item.image_url ? (
-                        <img src={item.image_url} alt="" className="h-11 w-11 rounded-[13px] object-cover" loading="lazy" />
-                      ) : (
-                        <div className="grid h-11 w-11 place-items-center rounded-[13px]" style={{ background: `color-mix(in srgb, ${look.color} 14%, transparent)` }}>
-                          <Icon className="h-[22px] w-[22px]" style={{ color: look.color }} />
-                        </div>
-                      )}
-                      {inCart ? (
-                        <span
-                          key={popKey?.id === item.id ? popKey.n : 0}
-                          className="badge pop absolute right-3 top-3 grid h-7 min-w-7 place-items-center rounded-full px-2 text-[14px] font-semibold"
-                        >
-                          {inCart}
-                        </span>
-                      ) : null}
-                      <span className="mt-auto line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
-                      <span className="mt-1 flex items-baseline justify-between">
-                        <span className="text-[19px] font-semibold">{money(item.sale_price)} ₸</span>
-                        <span className={`text-[12px] ${out ? 't-red' : stock <= 3 ? 't-red' : 'muted'}`}>
-                          {out ? 'нет' : stock >= 999 ? item.unit : `${stock} ${item.unit || 'шт'}`}
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
+                {grid.shown.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    item={item}
+                    inCart={cartQty.get(item.id) || 0}
+                    pop={popKey?.id === item.id ? popKey.n : 0}
+                    onAdd={onCardAdd}
+                  />
+                ))}
                 {grid.hasMore ? <div ref={grid.sentinelRef} className="col-span-full h-10" /> : null}
               </div>
               </>

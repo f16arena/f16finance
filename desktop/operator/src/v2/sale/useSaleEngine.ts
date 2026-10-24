@@ -243,7 +243,9 @@ export function useSaleEngine(params: { config: AppConfig; bootstrap: BootstrapD
   const loadSessions = useCallback(async () => {
     try {
       const data = await api.getServiceSessions(config, session)
-      setSessions(data.sessions || [])
+      const next = data.sessions || []
+      // Тот же список — не трогаем состояние, иначе экран продажи перерисуется зря.
+      setSessions((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     } catch {
       /* старый сервер или нет сети — таймеры просто не видны */
     }
