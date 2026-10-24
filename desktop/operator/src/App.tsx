@@ -23,6 +23,13 @@ const InventorySalesPage = lazy(() =>
 )
 // Новый вид кассы (src/v2) — включается переключателем, классический остаётся запасным.
 const SaleScreenV2 = lazy(() => import('@/v2/sale/SaleScreenV2'))
+const ShiftScreenV2 = lazy(() => import('@/v2/shift/ShiftScreenV2'))
+const ArenaScreenV2 = lazy(() => import('@/v2/arena/ArenaScreenV2'))
+const ReturnsScreenV2 = lazy(() => import('@/v2/returns/ReturnsScreenV2'))
+const HistoryScreenV2 = lazy(() => import('@/v2/history/HistoryScreenV2'))
+const DebtsScreenV2 = lazy(() => import('@/v2/debts/DebtsScreenV2'))
+const RequestScreenV2 = lazy(() => import('@/v2/request/RequestScreenV2'))
+const CabinetScreenV2 = lazy(() => import('@/v2/cabinet/CabinetScreenV2'))
 const InventoryReturnsPage = lazy(() => import('@/pages/InventoryReturnsPage'))
 const ScannerPage = lazy(() => import('@/pages/ScannerPage'))
 const InventoryRequestPage = lazy(() => import('@/pages/InventoryRequestPage'))
@@ -454,6 +461,15 @@ export default function App() {
     window.addEventListener(UI_VERSION_EVENT, sync)
     return () => window.removeEventListener(UI_VERSION_EVENT, sync)
   }, [])
+  // Новый вид — те же экраны с теми же пропсами, другой дизайн (src/v2).
+  const v2 = uiVersion === 'v2'
+  const ShiftView = v2 ? ShiftScreenV2 : ShiftPage
+  const ArenaView = v2 ? ArenaScreenV2 : ArenaPage
+  const ReturnsView = v2 ? ReturnsScreenV2 : InventoryReturnsPage
+  const HistoryView = v2 ? HistoryScreenV2 : SalesHistoryPage
+  const DebtsView = v2 ? DebtsScreenV2 : ScannerPage
+  const RequestView = v2 ? RequestScreenV2 : InventoryRequestPage
+  const CabinetView = v2 ? CabinetScreenV2 : OperatorCabinetPage
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [isOffline, setIsOffline] = useState(false)
   const [updateState, setUpdateState] = useState<AppUpdateState | null>(null)
@@ -956,7 +972,7 @@ export default function App() {
   if (view.screen === 'shift') {
     const nav = buildWorkNav(view.bootstrap, view.session, 'shift')
     return withUpdateBanner(
-      <ShiftPage
+      <ShiftView
         config={config!}
         bootstrap={view.bootstrap}
         session={view.session}
@@ -1018,7 +1034,7 @@ export default function App() {
     const nav = buildWorkNav(view.bootstrap, view.session, 'history')
     return withUpdateBanner(
       <ErrorBoundary pageName="sales-history">
-        <SalesHistoryPage
+        <HistoryView
           config={config!}
           session={view.session}
           onLogout={handleLogout}
@@ -1037,7 +1053,7 @@ export default function App() {
   if (view.screen === 'inventory-return') {
     const nav = buildWorkNav(view.bootstrap, view.session, 'return')
     return withUpdateBanner(
-      <InventoryReturnsPage
+      <ReturnsView
         config={config!}
         bootstrap={view.bootstrap}
         session={view.session}
@@ -1057,7 +1073,7 @@ export default function App() {
     const nav = buildWorkNav(view.bootstrap, view.session, 'scanner')
     return withUpdateBanner(
       <ErrorBoundary pageName="scanner">
-        <ScannerPage
+        <DebtsView
           config={config!}
           bootstrap={view.bootstrap}
           session={view.session}
@@ -1079,7 +1095,7 @@ export default function App() {
     const nav = buildWorkNav(view.bootstrap, view.session, 'arena')
     return withUpdateBanner(
       <ErrorBoundary pageName="arena">
-        <ArenaPage
+        <ArenaView
           config={config!}
           bootstrap={view.bootstrap}
           session={view.session}
@@ -1099,7 +1115,7 @@ export default function App() {
   if (view.screen === 'inventory-request') {
     const nav = buildWorkNav(view.bootstrap, view.session, 'request')
     return withUpdateBanner(
-      <InventoryRequestPage
+      <RequestView
         config={config!}
         bootstrap={view.bootstrap}
         session={view.session}
@@ -1119,7 +1135,7 @@ export default function App() {
     const nav = buildWorkNav(view.bootstrap, view.session, view.returnTo)
     return withUpdateBanner(
       <ErrorBoundary pageName="cabinet">
-        <OperatorCabinetPage
+        <CabinetView
           config={config!}
           bootstrap={view.bootstrap}
           session={view.session}
