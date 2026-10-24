@@ -79,10 +79,20 @@ const session = {
   games: [],
 }
 
+// Лог не растёт бесконечно: больше 5 МБ — уезжает в kiosk.old.log.
+const LOG_MAX_BYTES = 5 * 1024 * 1024
+let logWritesSinceCheck = 0
+
 function logLine(message) {
   try {
     const logDir = app.getPath('userData')
     const file = path.join(logDir, 'kiosk.log')
+    if (++logWritesSinceCheck >= 200) {
+      logWritesSinceCheck = 0
+      try {
+        if (fs.statSync(file).size > LOG_MAX_BYTES) fs.renameSync(file, path.join(logDir, 'kiosk.old.log'))
+      } catch (_) {}
+    }
     const line = `[${new Date().toISOString()}] ${message}\n`
     fs.appendFileSync(file, line, 'utf8')
   } catch (_) {
@@ -196,7 +206,8 @@ async function postHeartbeat(status) {
     } else {
       lastHeartbeatStatus = 'ok'
       consecutiveHeartbeatFailures = 0
-      logLine(`heartbeat ok: activeSession=${JSON.stringify(payload?.activeSession ?? null)}`)
+      // Успешный пинг раз в 10 с в лог не пишем — только сбои и смену состояния.
+      if (isDev) logLine(`heartbeat ok: activeSession=${JSON.stringify(payload?.activeSession ?? null)}`)
       pushState()
       const resolvedStationId = payload?.stationId || cfg.stationId
       if (resolvedStationId && !realtimeInitialized) {
@@ -637,7 +648,8 @@ function createKioskWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      devTools: true,
+      // Инструменты разработчика — только в режиме разработки.
+      devTools: isDev,
     },
   })
 
@@ -722,6 +734,9 @@ function createKioskWindow() {
     logLine('renderer: did-finish-load')
   })
   mainWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    // В рабочей версии в лог — только предупреждения и ошибки экрана.
+    const important = level === 'warning' || level === 'error' || (typeof level === 'number' && level >= 2)
+    if (!isDev && !important) return
     logLine(`renderer console[${level}]: ${message} (${sourceId}:${line})`)
   })
 

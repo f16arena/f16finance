@@ -1,5 +1,10 @@
 let supabaseClient = null
+let clientKey = ''
 let currentChannel = null
+// Номер подписки: статусы старого канала (CLOSED при его удалении) приходят
+// после новой подписки и раньше сбрасывали её — киоск переподключался каждые
+// 10 с и плодил клиентов с открытыми соединениями.
+let generation = 0
 
 /**
  * Returns true if subscription reached SUBSCRIBED, false otherwise.
@@ -12,13 +17,25 @@ async function setupRealtime({ supabaseUrl, supabaseAnonKey, stationId, onComman
     // Lazy-require to avoid issues if package not installed
     const { createClient } = require('@supabase/supabase-js')
 
-    if (supabaseClient) {
-      try { await supabaseClient.removeAllChannels() } catch (_) {}
+    // Один клиент на всё время работы: новый на каждый повтор держал старое
+    // соединение и таймер обновления сессии — память и процессор росли.
+    const key = `${supabaseUrl}|${supabaseAnonKey}`
+    if (!supabaseClient || clientKey !== key) {
+      if (supabaseClient) {
+        try { await supabaseClient.removeAllChannels() } catch (_) {}
+      }
+      supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        realtime: { params: { eventsPerSecond: 10 } },
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      })
+      clientKey = key
     }
-
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      realtime: { params: { eventsPerSecond: 10 } },
-    })
+    const myGeneration = ++generation
+    if (currentChannel) {
+      const stale = currentChannel
+      currentChannel = null
+      try { await supabaseClient.removeChannel(stale) } catch (_) {}
+    }
 
     return await new Promise((resolve) => {
       let settled = false
@@ -40,6 +57,7 @@ async function setupRealtime({ supabaseUrl, supabaseAnonKey, stationId, onComman
           }
         })
         .subscribe((status) => {
+          if (myGeneration !== generation) return // статус старой подписки — не наш
           if (logLine) logLine(`Realtime status: ${status}`)
           if (onStatusChange) onStatusChange(status)
           if (status === 'SUBSCRIBED') {
@@ -60,7 +78,9 @@ async function closeRealtime() {
     if (supabaseClient) await supabaseClient.removeAllChannels()
   } catch (_) {}
   supabaseClient = null
+  clientKey = ''
   currentChannel = null
+  generation += 1
 }
 
 module.exports = { setupRealtime, closeRealtime }

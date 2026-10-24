@@ -31,14 +31,19 @@ function pickPrimaryInterface() {
   return candidates[0]
 }
 
+// Сетевой адрес меняется редко, а спрашивали его каждую секунду — держим минуту.
+let identityCache = null
+let identityAt = 0
+const IDENTITY_TTL_MS = 60_000
+
 function getDeviceNetworkIdentity() {
+  if (identityCache && Date.now() - identityAt < IDENTITY_TTL_MS) return identityCache
   const primary = pickPrimaryInterface()
-  if (!primary) return { ip: null, mac: null, iface: null }
-  return {
-    ip: primary.ip || null,
-    mac: primary.mac || null,
-    iface: primary.name || null,
-  }
+  identityCache = primary
+    ? { ip: primary.ip || null, mac: primary.mac || null, iface: primary.name || null }
+    : { ip: null, mac: null, iface: null }
+  identityAt = Date.now()
+  return identityCache
 }
 
 module.exports = { getDeviceNetworkIdentity }
