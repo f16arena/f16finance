@@ -98,6 +98,7 @@ export function setSalesLayout(layout: SalesLayout) {
 export function applyAllPreferences() {
   applyTheme()
   applyFontSize()
+  applyUiScale()
   // Customer display — открыть второе окно если включено в настройках и есть внешний монитор
   if (typeof window !== 'undefined' && isCustomerDisplayEnabled()) {
     try {
@@ -124,4 +125,43 @@ export function setUiVersion(version: UiVersion) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(KEY_UI_VERSION, version)
   window.dispatchEvent(new CustomEvent(UI_VERSION_EVENT))
+}
+
+/**
+ * Масштаб интерфейса. Касса рассчитана на 1920×1080; на моноблоке 1366×768
+ * всё было крупным и не влезало. 'auto' подбирает масштаб по экрану.
+ */
+export type UiScale = 'auto' | '75' | '85' | '100' | '115'
+const KEY_UI_SCALE = 'orda.uiScale'
+
+export function getUiScale(): UiScale {
+  if (typeof window === 'undefined') return 'auto'
+  const v = window.localStorage.getItem(KEY_UI_SCALE)
+  return v === '75' || v === '85' || v === '100' || v === '115' ? v : 'auto'
+}
+
+export function setUiScale(scale: UiScale) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(KEY_UI_SCALE, scale)
+  applyUiScale()
+}
+
+export function resolveUiScale(scale: UiScale = getUiScale()): number {
+  if (scale !== 'auto') return Number(scale) / 100
+  if (typeof window === 'undefined') return 1
+  const w = window.screen?.availWidth || 1920
+  const h = window.screen?.availHeight || 1080
+  const factor = Math.min(w / 1600, h / 900)
+  return Math.round(Math.max(0.75, Math.min(1, factor)) * 20) / 20
+}
+
+export function applyUiScale() {
+  if (typeof window === 'undefined') return
+  // Экран покупателя — своё окно и свой монитор, его не масштабируем.
+  if (new URLSearchParams(window.location.search).get('role') === 'customer') return
+  try {
+    window.electron?.zoom?.set(resolveUiScale())
+  } catch {
+    /* старый preload без масштаба */
+  }
 }

@@ -77,7 +77,7 @@ export default function ReturnsScreenV2(props: Props) {
       shiftLabel={formatShiftLabel(e.runtimeShift.shift)}
       onLogout={props.onLogout}
     >
-      <div className="relative grid h-full min-h-0 grid-cols-[250px_1fr_380px] gap-4 p-4">
+      <div className="relative grid h-full min-h-0 grid-cols-[clamp(200px,17vw,250px)_minmax(0,1fr)_clamp(300px,27vw,380px)] gap-4 p-4">
         {/* Чеки */}
         <aside className="surface flex min-h-0 flex-col rounded-[22px]">
           <div className="flex shrink-0 items-center justify-between px-4 pb-2 pt-4">

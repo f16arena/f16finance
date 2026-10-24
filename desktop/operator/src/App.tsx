@@ -45,6 +45,8 @@ const SalesHistoryPage = lazy(() => import('@/pages/SalesHistoryPage'))
 declare global {
   interface Window {
     electron: {
+      /** Нет в старых сборках preload. */
+      zoom?: { set: (factor: number) => void }
       config: {
         get: () => Promise<Record<string, unknown>>
         set: (config: Record<string, unknown>) => Promise<{ ok: boolean }>

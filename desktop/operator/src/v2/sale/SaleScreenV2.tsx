@@ -282,7 +282,7 @@ export default function SaleScreenV2(props: Props) {
       shiftLabel={formatShiftLabel(engine.runtimeShift.shift)}
       onLogout={props.onLogout}
     >
-      <div className="grid h-full min-h-0 grid-cols-[1fr_420px] gap-4 p-4">
+      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_clamp(320px,30vw,420px)] gap-4 p-4">
         {/* ── Каталог ─────────────────────────────────────────────────── */}
         <main className="flex min-h-0 flex-col gap-3">
           <div className="flex items-center gap-3">

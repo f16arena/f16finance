@@ -411,7 +411,7 @@ export default function DebtsScreenV2({
       shiftLabel={formatShiftLabel(resolveRuntimeShift().shift)}
       onLogout={onLogout}
     >
-      <div className="relative grid h-full min-h-0 grid-cols-[400px_1fr] gap-4 p-4">
+      <div className="relative grid h-full min-h-0 grid-cols-[clamp(300px,29vw,400px)_minmax(0,1fr)] gap-4 p-4">
         {/* ── Сканер ───────────────────────────────────────────────── */}
         <aside className="surface flex min-h-0 flex-col gap-4 overflow-y-auto rounded-[24px] p-5">
           <div className="flex items-center justify-between">

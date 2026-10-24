@@ -494,7 +494,7 @@ export default function RequestScreenV2({
             )}
           </section>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-[1fr_420px] gap-4">
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_clamp(320px,30vw,420px)] gap-4">
             {/* ── Склад ─────────────────────────────────────────────── */}
             <section className="flex min-h-0 flex-col gap-3">
               <label className="surface flex h-12 items-center gap-2.5 rounded-[14px] px-4">
@@ -572,7 +572,7 @@ export default function RequestScreenV2({
                           type="button"
                           onClick={() => addToCart(item.id)}
                           disabled={!!inCart && inCart.qty >= stock}
-                          className="press lift surface relative flex h-[156px] flex-col rounded-[22px] p-4 text-left"
+                          className="press lift surface relative flex min-h-[132px] flex-col rounded-[22px] p-4 text-left"
                           style={inCart ? { boxShadow: '0 0 0 2px var(--blue), var(--shadow)' } : undefined}
                         >
                           <div className="flex items-start justify-between">
@@ -589,8 +589,8 @@ export default function RequestScreenV2({
                               </span>
                             ) : null}
                           </div>
-                          <span className="mt-auto line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
-                          <span className="mt-1.5 flex items-center justify-between text-[13px]">
+                          <span className="mt-3 line-clamp-2 text-[15px] font-medium leading-snug">{item.name}</span>
+                          <span className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 pt-2 text-[13px]">
                             <span className="muted">
                               Склад <b className="ink">{stock}</b> {item.unit || 'шт'}
                             </span>

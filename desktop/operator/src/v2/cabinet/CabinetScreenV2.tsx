@@ -410,7 +410,7 @@ export default function CabinetScreenV2({
       shiftLabel={formatShiftLabel(resolveRuntimeShift().shift)}
       onLogout={onLogout}
     >
-      <div className="grid h-full min-h-0 grid-cols-[230px_1fr] gap-4 p-4">
+      <div className="grid h-full min-h-0 grid-cols-[clamp(190px,17vw,230px)_minmax(0,1fr)] gap-4 p-4">
         {/* ── Разделы ─────────────────────────────────────────────── */}
         <aside className="surface flex min-h-0 flex-col gap-1 overflow-y-auto rounded-[24px] p-3">
           <div className="px-3 pb-2 pt-1">

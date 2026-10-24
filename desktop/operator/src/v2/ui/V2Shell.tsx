@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ClipboardList,
   CloudOff,
@@ -9,6 +10,7 @@ import {
   Moon,
   ReceiptText,
   RotateCcw,
+  Settings,
   ShoppingBag,
   Sun,
   UserRound,
@@ -19,6 +21,7 @@ import {
 import { getQueueCounts, openQueueScreen } from '@/lib/offline'
 import { getTheme, setTheme, setUiVersion } from '@/lib/preferences'
 
+import { PreferencesModal } from '@/components/PreferencesModal'
 import '../v2.css'
 
 export type V2Tab = 'shift' | 'sale' | 'return' | 'history' | 'scanner' | 'request' | 'arena' | 'cabinet'
@@ -35,7 +38,7 @@ const TABS: Array<{ id: V2Tab; label: string; icon: LucideIcon }> = [
   { id: 'arena', label: 'Зал', icon: Gamepad2 },
 ]
 
-function useResolvedTheme(): ['light' | 'dark', () => void] {
+function useResolvedTheme(): ['light' | 'dark', () => void, () => void] {
   const resolve = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light') as 'light' | 'dark'
   const [theme, setLocal] = useState(resolve)
   const toggle = () => {
@@ -47,7 +50,7 @@ function useResolvedTheme(): ['light' | 'dark', () => void] {
     setLocal(resolve())
   }, [])
   void getTheme
-  return [theme, toggle]
+  return [theme, toggle, () => setLocal(resolve())]
 }
 
 /** Связь и очередь — молчит, пока всё хорошо. */
@@ -105,7 +108,8 @@ export function V2Shell(props: {
   onLogout?: () => void
   children: ReactNode
 }) {
-  const [theme, toggleTheme] = useResolvedTheme()
+  const [theme, toggleTheme, refreshTheme] = useResolvedTheme()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15_000)
@@ -188,11 +192,20 @@ export function V2Shell(props: {
           <button
             type="button"
             onClick={toggleTheme}
-            className="press fill grid h-10 w-10 place-items-center rounded-full"
+            className="press fill hidden h-10 w-10 place-items-center rounded-full lg:grid"
             title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
             aria-label={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
           >
             {theme === 'light' ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="press fill grid h-10 w-10 place-items-center rounded-full"
+            title="Настройки: масштаб, тема, звук, экран покупателя"
+            aria-label="Настройки"
+          >
+            <Settings className="h-[18px] w-[18px]" />
           </button>
           {props.nav.cabinet ? (
             <button type="button" onClick={props.nav.cabinet} className="press fill grid h-10 w-10 place-items-center rounded-full" title={`Профиль (Alt+${all.length})`} aria-label="Профиль">
@@ -207,6 +220,19 @@ export function V2Shell(props: {
         </div>
       </header>
       <div className="min-h-0 flex-1">{props.children}</div>
+      {/* Окно настроек общее с классическим видом — рисуем вне .v2, иначе его стили
+          (.v2 button { color: inherit }) перебивают цвета кнопок окна. */}
+      {createPortal(
+        <PreferencesModal
+          v2
+          open={settingsOpen}
+          onClose={() => {
+            setSettingsOpen(false)
+            refreshTheme()
+          }}
+        />,
+        document.body,
+      )}
     </div>
   )
 }

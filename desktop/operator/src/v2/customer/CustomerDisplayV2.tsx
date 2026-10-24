@@ -154,7 +154,7 @@ function CartScreen(props: { state: ReturnType<typeof useCustomerDisplayFeed>['s
   }, [state.lastAddedId, state.cart.length])
 
   return (
-    <div className="grid h-full grid-cols-[1fr_minmax(380px,34%)] gap-6 p-6">
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_minmax(340px,34%)] gap-6 p-6">
       <section className="flex min-h-0 flex-col">
         <header className="flex shrink-0 items-baseline justify-between px-2 pb-5 pt-1">
           <div>

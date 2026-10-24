@@ -21,6 +21,10 @@ import {
   setCustomerDisplayEnabled,
   getSalesLayout,
   setSalesLayout,
+  type UiScale,
+  getUiScale,
+  setUiScale,
+  resolveUiScale,
 } from '@/lib/preferences'
 import { toastError, toastSuccess } from '@/lib/toast'
 
@@ -29,9 +33,12 @@ type PreferencesModalProps = {
   onClose: () => void
   /** Вызывается при смене вида кассы — страница продаж перерисовывает раскладку сразу. */
   onSalesLayoutChange?: (layout: SalesLayout) => void
+  /** Новый вид кассы: размер текста и «Карточки/Список» относятся только к классическому. */
+  v2?: boolean
 }
 
-export function PreferencesModal({ open, onClose, onSalesLayoutChange }: PreferencesModalProps) {
+export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: PreferencesModalProps) {
+  const [uiScale, setUiScaleState] = useState<UiScale>(getUiScale())
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [fontSize, setFontSizeState] = useState<FontSize>(getFontSize())
   const [sound, setSound] = useState<boolean>(isSoundEnabled())
@@ -66,6 +73,10 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange }: Prefere
   const onFontChange = (f: FontSize) => {
     setFontSizeState(f)
     setFontSize(f)
+  }
+  const onScaleChange = (scale: UiScale) => {
+    setUiScaleState(scale)
+    setUiScale(scale)
   }
   const onSoundChange = (s: boolean) => {
     setSound(s)
@@ -109,7 +120,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange }: Prefere
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <h3 className="text-lg font-bold">Настройки</h3>
@@ -146,7 +157,39 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange }: Prefere
           </div>
         </div>
 
+        {/* Масштаб интерфейса — маленькие экраны моноблоков */}
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <p className="mb-3 text-sm font-medium">Масштаб интерфейса</p>
+          <div className="flex gap-2">
+            {([
+              { value: 'auto', label: 'Авто' },
+              { value: '75', label: '75%' },
+              { value: '85', label: '85%' },
+              { value: '100', label: '100%' },
+              { value: '115', label: '115%' },
+            ] as Array<{ value: UiScale; label: string }>).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => onScaleChange(value)}
+                className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-semibold transition ${
+                  uiScale === value
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {uiScale === 'auto'
+              ? `Подобран под этот экран: ${Math.round(resolveUiScale('auto') * 100)}%. На маленьком моноблоке всё влезает без прокрутки.`
+              : 'Если не влезает — уменьшите, если мелко — увеличьте.'}
+          </p>
+        </div>
+
         {/* Font size */}
+        {v2 ? null : (
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <p className="mb-3 text-sm font-medium">Размер текста</p>
           <div className="flex gap-2">
@@ -170,8 +213,10 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange }: Prefere
             ))}
           </div>
         </div>
+        )}
 
         {/* Вид кассы: карточки товаров или классический список */}
+        {v2 ? null : (
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <p className="mb-3 text-sm font-medium">Вид кассы</p>
           <div className="flex gap-2">
@@ -199,6 +244,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange }: Prefere
               : 'Классический режим: поиск/сканер и таблица позиций.'}
           </p>
         </div>
+        )}
 
         {/* Sound */}
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">

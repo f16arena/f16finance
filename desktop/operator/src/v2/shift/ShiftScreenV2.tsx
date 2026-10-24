@@ -769,12 +769,12 @@ export default function ShiftScreenV2({
             </div>
           </div>
         ) : (
-          <div className="grid h-full min-h-0 grid-cols-[1fr_400px] gap-4 p-4">
+          <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_clamp(320px,29vw,400px)] gap-4 p-4">
             {/* ── Левая колонка ───────────────────────────────────────── */}
             <main className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
               <div className="flex flex-wrap items-center gap-3">
                 {kaspiDailySplitEnabled ? (
-                  <div className="w-[380px]">
+                  <div className="w-full max-w-[380px]">
                     <Segmented
                       value={viewMode}
                       onChange={setViewMode}

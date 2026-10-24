@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webFrame } = require('electron')
 
 contextBridge.exposeInMainWorld('electron', {
+  // Масштаб интерфейса (как Ctrl+колесо в браузере): маленькие экраны моноблоков
+  zoom: {
+    set: (factor) => webFrame.setZoomFactor(Math.max(0.5, Math.min(1.5, Number(factor) || 1))),
+  },
   config: {
     get: () => ipcRenderer.invoke('config:get'),
     set: (config) => ipcRenderer.invoke('config:set', config),
