@@ -108,7 +108,16 @@ import kz.ordaops.android.ui.components.money
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
-import java.net.URL
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import kz.ordaops.android.ui.components.StateContainer
 
 /**
  * Продажа: сканер, каталог витрины, корзина, оплата — SaleScreen.swift
@@ -121,13 +130,14 @@ fun SaleTab() {
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
 
-    var search by remember { mutableStateOf("") }
-    var showScanner by remember { mutableStateOf(false) }
-    var showCart by remember { mutableStateOf(false) }
-    var showCheckout by remember { mutableStateOf(false) }
-    var refreshing by remember { mutableStateOf(false) }
+    // Ввод и открытые листы переживают поворот и пересоздание процесса.
+    var search by rememberSaveable { mutableStateOf("") }
+    var showScanner by rememberSaveable { mutableStateOf(false) }
+    var showCart by rememberSaveable { mutableStateOf(false) }
+    var showCheckout by rememberSaveable { mutableStateOf(false) }
+    val catalogState by store.catalogLoadable.collectAsStateWithLifecycle()
     var toast by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
-    var showPrintSettings by remember { mutableStateOf(false) }
+    var showPrintSettings by rememberSaveable { mutableStateOf(false) }
     var searchFocused by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -255,13 +265,15 @@ fun SaleTab() {
                 "Продажи начинаются после открытия смены — откройте её на вкладке «Смена».",
             )
             else -> {
-                val inStock = store.catalog.filter { it.isInStock }
-                val needle = search.trim().lowercase()
-                val items = if (needle.isEmpty()) inStock else inStock.filter {
-                    it.name.lowercase().contains(needle) || (it.barcode ?: "").contains(needle)
+                val items = remember(store.catalog, search) {
+                    val inStock = store.catalog.filter { it.isInStock }
+                    val needle = search.trim().lowercase()
+                    if (needle.isEmpty()) inStock else inStock.filter {
+                        it.name.lowercase().contains(needle) || (it.barcode ?: "").contains(needle)
+                    }
                 }
                 @Composable
-                fun catalogPane(bottomPad: Dp) = Column(Modifier.fillMaxSize()) {
+                fun catalogPane(bottomPad: Dp) = Column(Modifier.fillMaxSize().imePadding()) {
                     SearchBar(search, { search = it }, { searchFocused = it }, onPrintSettings = { showPrintSettings = true }) { showScanner = true }
                     ServiceButtonsRow(store.services) { service, variant ->
                         store.addService(service, variant)
@@ -277,40 +289,41 @@ fun SaleTab() {
                         },
                         onFinish = { id -> scope.launch { store.finishSession(id) } },
                     )
-                    PullToRefreshBox(
-                        isRefreshing = refreshing,
-                        onRefresh = { scope.launch { refreshing = true; store.loadCatalog(); refreshing = false } },
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    ) {
-                        when {
-                            store.isLoadingCatalog && store.catalog.isEmpty() -> LoadingView()
-                            store.catalogError != null && store.catalog.isEmpty() -> Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                                ErrorBanner(store.catalogError.orEmpty())
-                                PrimaryButton("Повторить") { scope.launch { store.loadCatalog() } }
-                            }
-                            items.isEmpty() -> EmptyState(
-                                icon = Icons.Filled.Search,
-                                title = if (search.isEmpty()) "Витрина пуста" else "Ничего не найдено",
-                                message = if (search.isEmpty()) "На витрине нет товаров с остатком. Оформите заявку со склада."
-                                else "Попробуйте другое название или отсканируйте штрихкод.",
-                            )
-                            else -> LazyColumn(
-                                Modifier.fillMaxSize(),
-                                // Место под панель корзины, иначе она перекрывает последнюю позицию.
-                                contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, bottom = bottomPad),
-                                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                            ) {
-                                items(items, key = { it.id }) { item ->
-                                    val inCart = store.cart.firstOrNull { it.itemId == item.id }?.quantity ?: 0.0
-                                    SaleItemRow(
-                                        item = item,
-                                        inCart = inCart,
-                                        onAdd = {
-                                            store.add(item)
-                                            haptics.tick()
-                                        },
-                                        onRemove = { store.setQuantity(inCart - 1, item.id) },
-                                    )
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        StateContainer(
+                            state = catalogState,
+                            onRetry = { scope.launch { store.loadCatalog() } },
+                            onRefresh = { scope.launch { store.loadCatalog() } },
+                        ) { _ ->
+                            if (items.isEmpty()) {
+                                EmptyState(
+                                    icon = Icons.Filled.Search,
+                                    title = if (search.isEmpty()) "Витрина пуста" else "Ничего не найдено",
+                                    message = if (search.isEmpty()) "На витрине нет товаров с остатком. Оформите заявку со склада."
+                                    else "Попробуйте другое название или отсканируйте штрихкод.",
+                                )
+                            } else {
+                                // Узкий экран — один столбец, планшет — сетка в две колонки.
+                                LazyVerticalGrid(
+                                    columns = GridCells.Adaptive(minSize = 340.dp),
+                                    modifier = Modifier.fillMaxSize(),
+                                    // Место под панель корзины, иначе она перекрывает последнюю позицию.
+                                    contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, bottom = bottomPad),
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                ) {
+                                    items(items, key = { it.id }, contentType = { "item" }) { item ->
+                                        val inCart = store.cart.firstOrNull { it.itemId == item.id }?.quantity ?: 0.0
+                                        SaleItemRow(
+                                            item = item,
+                                            inCart = inCart,
+                                            onAdd = {
+                                                store.add(item)
+                                                haptics.tick()
+                                            },
+                                            onRemove = { store.setQuantity(inCart - 1, item.id) },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -650,36 +663,30 @@ private fun CartSheet(store: OperatorStore, onDismiss: () -> Unit, onCheckout: (
 
 // ── Картинка товара ──────────────────────────────────────────────────────────
 
-private val thumbCache = object : LruCache<String, ImageBitmap>(80) {}
-
 /** Миниатюра товара; нет картинки или не загрузилась — буква названия. */
 @Composable
 private fun Thumbnail(url: String?, name: String) {
-    val image by produceState<ImageBitmap?>(initialValue = url?.let { thumbCache.get(it) }, url) {
-        if (url.isNullOrBlank() || value != null) return@produceState
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                val bytes = URL(url).openStream().use { it.readBytes() }
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                var sample = 1
-                while (bounds.outWidth / sample > 200) sample *= 2
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-                    ?.asImageBitmap()
-                    ?.also { thumbCache.put(url, it) }
-            }.getOrNull()
-        }
-    }
     val shape = RoundedCornerShape(10.dp)
+    val context = LocalContext.current
+    val letter: @Composable () -> Unit = {
+        Text(name.take(1).uppercase(), color = Orda.colors.textMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    }
     Box(
         Modifier.size(48.dp).clip(shape).background(Orda.colors.surfaceRaised, shape),
         contentAlignment = Alignment.Center,
     ) {
-        val bitmap = image
-        if (bitmap != null) {
-            Image(bitmap, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (url.isNullOrBlank()) {
+            letter()
         } else {
-            Text(name.take(1).uppercase(), color = Orda.colors.textMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            val request = remember(url) { ImageRequest.Builder(context).data(url).crossfade(true).size(200).build() }
+            SubcomposeAsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = { letter() },
+                error = { letter() },
+            )
         }
     }
 }

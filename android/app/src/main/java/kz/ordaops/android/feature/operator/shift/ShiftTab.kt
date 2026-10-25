@@ -1,5 +1,9 @@
 package kz.ordaops.android.feature.operator.shift
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,8 +97,8 @@ fun ShiftTab() {
     val env = LocalOperatorEnv.current
     val store = rememberOperatorStore()
     val scope = rememberCoroutineScope()
-    var showOpen by remember { mutableStateOf(false) }
-    var showClose by remember { mutableStateOf(false) }
+    var showOpen by rememberSaveable { mutableStateOf(false) }
+    var showClose by rememberSaveable { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     // Тикер для «идёт 2 ч 15 мин»: пересчитываем раз в полминуты.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -130,8 +134,11 @@ fun ShiftTab() {
         },
         modifier = Modifier.fillMaxSize().background(Orda.colors.background),
     ) {
+        // Широкий экран: колонка не растягивается на весь планшет, а стоит по центру.
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
+                .widthIn(max = 840.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.lg)
@@ -146,6 +153,7 @@ fun ShiftTab() {
             if (store.isMyShift && store.recentSales.isNotEmpty()) ShiftMoney(store)
             WeekCard(store) { env.open("Money") }
             store.overview?.nextShift?.let { next -> if (!store.hasOpenShift) NextShiftRow(next) }
+        }
         }
     }
 
@@ -230,10 +238,12 @@ private fun elapsed(sinceMillis: Long, now: Long): String {
 @Composable
 private fun ShiftHero(store: OperatorStore, now: Long, onOpen: () -> Unit, onClose: () -> Unit, onRetry: () -> Unit) {
     val shift = store.shift
+    val load by store.shiftLoadable.collectAsStateWithLifecycle()
     when {
-        store.isLoadingShift && store.shiftState == null -> Box(Modifier.fillMaxWidth().height(180.dp)) { LoadingView() }
-        store.shiftError != null && store.shiftState == null -> OrdaCard {
-            Text(store.shiftError.orEmpty(), color = Orda.colors.negative)
+        // Пока смены нет ни в кэше, ни в ответе — загрузка/ошибка; показанную смену не прячем никогда.
+        load.data == null && load.error == null -> Box(Modifier.fillMaxWidth().heightIn(min = 180.dp)) { LoadingView() }
+        load.data == null -> OrdaCard {
+            Text(load.error.orEmpty(), color = Orda.colors.negative)
             HeroButton("Повторить", Icons.Filled.Sync, prominent = false, dark = true, onClick = onRetry)
         }
         // Чужая смена: имя того, кто стоит, и ничего больше — ни выручки, ни кнопки закрытия.

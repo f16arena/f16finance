@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.sale
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,7 @@ import kz.ordaops.android.ui.theme.Spacing
 internal fun CustomerPickerSheet(onPick: (PointCustomer) -> Unit, onDismiss: () -> Unit) {
     val api = LocalOperatorEnv.current.api
     var customers by remember { mutableStateOf<List<PointCustomer>>(emptyList()) }
-    var search by remember { mutableStateOf("") }
+    var search by rememberSaveable { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
 

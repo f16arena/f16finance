@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.shift
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,8 +48,8 @@ import kotlin.math.abs
 /** Открытие смены: единственное, что надо ввести, — сколько денег в кассе на старте. */
 @Composable
 internal fun OpenShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
-    var cashText by remember { mutableStateOf("") }
-    var kind by remember { mutableStateOf(ShiftKind.Day) }
+    var cashText by rememberSaveable { mutableStateOf("") }
+    var kind by rememberSaveable { mutableStateOf(ShiftKind.Day) }
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -100,19 +101,19 @@ internal fun OpenShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
 /** Закрытие смены: пересчёт кассы, Kaspi и поправки — те же поля, что в программе на точке. */
 @Composable
 internal fun CloseShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
-    var cashText by remember { mutableStateOf("") }
-    var coinsText by remember { mutableStateOf("") }
-    var kaspiText by remember { mutableStateOf("") }
+    var cashText by rememberSaveable { mutableStateOf("") }
+    var coinsText by rememberSaveable { mutableStateOf("") }
+    var kaspiText by rememberSaveable { mutableStateOf("") }
     /** Ночная смена: часть Kaspi проходит до полуночи, часть после. */
-    var kaspiBeforeText by remember { mutableStateOf("") }
-    var kaspiOnlineText by remember { mutableStateOf("") }
-    var debtsText by remember { mutableStateOf("") }
+    var kaspiBeforeText by rememberSaveable { mutableStateOf("") }
+    var kaspiOnlineText by rememberSaveable { mutableStateOf("") }
+    var debtsText by rememberSaveable { mutableStateOf("") }
     // Старт кассы уже вводили при открытии — подставляем, а не просим вспоминать.
-    var startCashText by remember {
+    var startCashText by rememberSaveable {
         mutableStateOf(store.shift?.openingCash?.takeIf { it > 0 }?.toLong()?.toString() ?: "")
     }
-    var wiponText by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var wiponText by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -306,7 +307,7 @@ fun ShiftIssueSheet(
     onDismiss: () -> Unit,
 ) {
     val env = LocalOperatorEnv.current
-    var reason by remember { mutableStateOf("") }
+    var reason by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()

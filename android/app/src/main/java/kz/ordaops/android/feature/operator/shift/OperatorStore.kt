@@ -4,18 +4,19 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
@@ -24,8 +25,8 @@ import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.userMessage
 import kz.ordaops.android.feature.operator.common.ActionOutbox
-import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
-import kz.ordaops.android.feature.operator.common.OperatorEnv
+import kz.ordaops.android.feature.operator.common.operatorViewModel
+import kz.ordaops.android.core.ui.Loadable
 import java.time.LocalTime
 import java.util.UUID
 
@@ -33,16 +34,17 @@ import java.util.UUID
  * Состояние операторского дня — OperatorStore.swift: смена, каталог витрины,
  * корзина и очередь неотправленных чеков.
  *
- * Один объект на «Смену» и «Продажу»: обе вкладки смотрят на одну смену, а
- * разъехавшееся состояние здесь стоило бы расхождения в деньгах.
+ * Один ViewModel на «Смену» и «Продажу»: обе вкладки смотрят на одну смену, а
+ * разъехавшееся состояние здесь стоило бы расхождения в деньгах. Живёт, пока
+ * жива Activity, — корзина переживает поворот экрана.
  */
 class OperatorStore internal constructor(
     context: Context,
     val api: ApiClient,
     private val outbox: ActionOutbox,
     private val ownerId: String?,
-) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+) : ViewModel() {
+    private val scope get() = viewModelScope
     private val queue = SaleQueue(context.applicationContext, api)
 
     // ── Смена ────────────────────────────────────────────────────────────────
@@ -88,6 +90,18 @@ class OperatorStore internal constructor(
         private set
     var catalogError by mutableStateOf<String?>(null)
         private set
+    /** Каталог хотя бы раз пришёл (пустая витрина — это ответ, а не «ещё грузим»). */
+    private var catalogLoaded by mutableStateOf(false)
+
+    /** Смена и витрина как `Loadable` — для `StateContainer`; источник правды — поля выше. */
+    val shiftLoadable: StateFlow<Loadable<ShiftState>> = snapshotFlow {
+        val data = shiftState
+        Loadable(data = data, isLoading = isLoadingShift && data == null, isRefreshing = isLoadingShift && data != null, error = shiftError)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, Loadable())
+    val catalogLoadable: StateFlow<Loadable<List<SaleCatalogItem>>> = snapshotFlow {
+        val data = catalog.takeIf { catalogLoaded || it.isNotEmpty() }
+        Loadable(data = data, isLoading = isLoadingCatalog && data == null, isRefreshing = isLoadingCatalog && data != null, error = catalogError)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, Loadable())
 
     /** Услуги точки (теннис, печать) и идущие таймеры. */
     var services by mutableStateOf<List<SaleService>>(emptyList())
@@ -126,16 +140,35 @@ class OperatorStore internal constructor(
         val change: Double get() = cashReceived?.let { (it - cashAmount).coerceAtLeast(0.0) } ?: 0.0
     }
 
+    /**
+     * Идёт открытие/закрытие смены или оплата: второй вызов (двойной тап, повтор
+     * из другого листа) отбивается здесь, а не только отключённой кнопкой.
+     */
+    private var busyOp = false
+    var isSubmitting by mutableStateOf(false)
+        private set
+
+    private suspend inline fun guarded(busy: String, block: () -> String?): String? {
+        if (busyOp) return busy
+        busyOp = true
+        isSubmitting = true
+        try {
+            return block()
+        } finally {
+            busyOp = false
+            isSubmitting = false
+        }
+    }
+
+    /**
+     * Ключ идемпотентности чека (`local_ref`): один на состав корзины. Повтор того
+     * же чека после таймаута уйдёт с тем же ключом, и сервер не создаст дубль;
+     * любое изменение корзины — уже другой чек.
+     */
+    private var cartRef = UUID.randomUUID().toString()
+
     private var started = false
     private var shiftWatch: Job? = null
-
-    /** Ключ, по которому хранилище переиспользуется между вкладками. */
-    internal fun isFor(api: ApiClient, outbox: ActionOutbox, ownerId: String?) =
-        this.api === api && this.outbox === outbox && this.ownerId == ownerId
-
-    internal fun close() {
-        scope.cancel()
-    }
 
     // ── Загрузка ─────────────────────────────────────────────────────────────
 
@@ -234,6 +267,7 @@ class OperatorStore internal constructor(
         recentSales = data.sales
         companyName = data.company?.name ?: "Точка"
         services = data.services
+        catalogLoaded = true
     }
 
     /** Идущие таймеры услуг. Не критично: при сбое остаются прежние. */
@@ -270,7 +304,7 @@ class OperatorStore internal constructor(
     // ── Смена: открыть / закрыть ─────────────────────────────────────────────
 
     /** Открыть смену. Сервер проверит, стоит ли оператор в графике. Возвращает текст ошибки или null. */
-    suspend fun openShift(openingCash: Double, kind: ShiftKind): String? = try {
+    suspend fun openShift(openingCash: Double, kind: ShiftKind): String? = guarded("Смена уже открывается.") { try {
         api.sendUnit(
             ApiRequest.json(
                 "/api/operator/shift/open",
@@ -286,7 +320,7 @@ class OperatorStore internal constructor(
         throw e
     } catch (e: Exception) {
         e.userMessage()
-    }
+    } }
 
     /**
      * Закрыть смену. Kaspi ночной смены сервер хранит раздельно (до и после
@@ -299,15 +333,15 @@ class OperatorStore internal constructor(
         kaspiAfterMidnight: Double = 0.0,
         notes: String?,
         report: ShiftReportDraft? = null,
-    ): String? {
+    ): String? = guarded("Смена уже закрывается.") {
         // Закрывать с неотправленными чеками нельзя: их суммы ещё не в итогах, касса не сойдётся.
         if (queuedSalesCount > 0) {
             flushQueue()
             if (queuedSalesCount > 0) {
-                return "Осталось $queuedSalesCount неотправленных чеков. Подключитесь к сети — смена закроется с верными суммами."
+                return@guarded "Осталось $queuedSalesCount неотправленных чеков. Подключитесь к сети — смена закроется с верными суммами."
             }
         }
-        return try {
+        try {
             val shiftId = shift?.id
             val shiftType = shift?.shiftType ?: "day"
             api.sendUnit(
@@ -337,7 +371,7 @@ class OperatorStore internal constructor(
                 } catch (_: Exception) {
                     // Смена уже закрыта — молчать нельзя, но и «не удалось закрыть» было бы неправдой.
                     loadShift()
-                    return "Смена закрыта, но отчёт не ушёл. Отправьте его из программы на точке или повторите позже."
+                    return@guarded "Смена закрыта, но отчёт не ушёл. Отправьте его из программы на точке или повторите позже."
                 }
             }
             loadShift()
@@ -356,6 +390,7 @@ class OperatorStore internal constructor(
         val price = item.salePrice
         if (price == null || price <= 0) return
         val index = cart.indexOfFirst { it.itemId == item.id }
+        cartRef = UUID.randomUUID().toString()
         cart = if (index >= 0) {
             cart.toMutableList().also { it[index] = it[index].copy(quantity = it[index].quantity + quantity) }
         } else {
@@ -371,6 +406,7 @@ class OperatorStore internal constructor(
         if (variant.price <= 0) return
         val key = "service:${variant.id}" + (extend?.let { ":${it.id}" } ?: "")
         val index = cart.indexOfFirst { it.itemId == key }
+        cartRef = UUID.randomUUID().toString()
         cart = if (index >= 0) {
             cart.toMutableList().also { it[index] = it[index].copy(quantity = it[index].quantity + 1) }
         } else {
@@ -382,6 +418,7 @@ class OperatorStore internal constructor(
     fun setQuantity(quantity: Double, itemId: String) {
         val index = cart.indexOfFirst { it.itemId == itemId }
         if (index < 0) return
+        cartRef = UUID.randomUUID().toString()
         cart = if (quantity <= 0) {
             cart.filterIndexed { i, _ -> i != index }
         } else {
@@ -390,10 +427,12 @@ class OperatorStore internal constructor(
     }
 
     fun remove(itemId: String) {
+        cartRef = UUID.randomUUID().toString()
         cart = cart.filterNot { it.itemId == itemId }
     }
 
     fun clearCart() {
+        cartRef = UUID.randomUUID().toString()
         cart = emptyList()
     }
 
@@ -413,10 +452,11 @@ class OperatorStore internal constructor(
         kaspi: Double,
         customerId: String? = null,
         cashReceived: Double? = null,
-    ): String? {
-        if (cart.isEmpty()) return "Корзина пуста."
+    ): String? = guarded("Оплата уже проводится.") {
+        if (cart.isEmpty()) return@guarded "Корзина пуста."
         val kind = if (shift?.shiftType == "night") ShiftKind.Night else ShiftKind.Day
         var draft = SaleDraft(
+            localRef = cartRef,
             saleDate = todayString(),
             shift = kind,
             lines = cart,
@@ -433,7 +473,7 @@ class OperatorStore internal constructor(
         }
         // Сдача имеет смысл только с наличными и только если дали не меньше, чем нужно.
         val received = cashReceived?.takeIf { cash > 0 && it >= cash }
-        return when (val outcome = queue.submit(draft)) {
+        when (val outcome = queue.submit(draft)) {
             is SaleQueue.SubmitOutcome.Sent -> {
                 lastSale = SaleFeedback(
                     outcome.result.totalAmount, outcome.result.receiptUrl, wasQueued = false,
@@ -482,23 +522,11 @@ class OperatorStore internal constructor(
     }
 }
 
-/** Хранилище, общее для «Смены» и «Продажи»: пока api и хозяин те же — тот же объект. */
-private object OperatorStoreHolder {
-    private var store: OperatorStore? = null
-
-    fun get(context: Context, env: OperatorEnv): OperatorStore {
-        store?.let { if (it.isFor(env.api, env.outbox, env.operatorId)) return it }
-        store?.close()
-        return OperatorStore(context.applicationContext, env.api, env.outbox, env.operatorId).also { store = it }
-    }
-}
-
 /** Общее хранилище смены; первый вызов запускает его начальную загрузку. */
 @Composable
 fun rememberOperatorStore(): OperatorStore {
-    val env = LocalOperatorEnv.current
-    val context = LocalContext.current
-    val store = remember(env.api, env.outbox, env.operatorId) { OperatorStoreHolder.get(context, env) }
+    val appContext = LocalContext.current.applicationContext
+    val store = operatorViewModel { env -> OperatorStore(appContext, env.api, env.outbox, env.operatorId) }
     LaunchedEffect(store) { store.start() }
     return store
 }

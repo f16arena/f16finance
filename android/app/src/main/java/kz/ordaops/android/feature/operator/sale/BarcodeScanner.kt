@@ -1,9 +1,11 @@
 package kz.ordaops.android.feature.operator.sale
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -64,11 +66,14 @@ import java.util.concurrent.Executors
  * (`ScannerPane`) показывает запасной ручной ввод.
  */
 @Composable
-internal fun BarcodeScanner(paused: Boolean, onScan: (String) -> Unit, modifier: Modifier = Modifier) {
+internal fun BarcodeScanner(paused: Boolean, onScan: (String) -> Unit, modifier: Modifier = Modifier, torch: Boolean = false) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentPaused by rememberUpdatedState(paused)
     val currentOnScan by rememberUpdatedState(onScan)
+    // Камера нужна для фонарика; привязка к жизненному циклу делается один раз на lifecycleOwner.
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    LaunchedEffect(camera, torch) { camera?.cameraControl?.enableTorch(torch) }
     val executor = remember { Executors.newSingleThreadExecutor() }
     val scanner = remember {
         BarcodeScanning.getClient(
@@ -91,11 +96,13 @@ internal fun BarcodeScanner(paused: Boolean, onScan: (String) -> Unit, modifier:
         var lastCode: String? = null
         var lastAt = 0L
         var wasPaused = false
+        // Один кадр в обработке: пока не закончили с текущим, следующие отбрасываем.
+        val busy = java.util.concurrent.atomic.AtomicBoolean(false)
 
         @androidx.annotation.OptIn(ExperimentalGetImage::class)
         fun analyze(proxy: ImageProxy) {
             val media = proxy.image
-            if (media == null || currentPaused) {
+            if (media == null || currentPaused || !busy.compareAndSet(false, true)) {
                 // Проснулись — забываем последний код: ту же бутылку могут поднести снова намеренно.
                 if (currentPaused) wasPaused = true
                 proxy.close()
@@ -120,7 +127,7 @@ internal fun BarcodeScanner(paused: Boolean, onScan: (String) -> Unit, modifier:
                         currentOnScan(value)
                     }
                 }
-                .addOnCompleteListener { proxy.close() }
+                .addOnCompleteListener { busy.set(false); proxy.close() }
         }
 
         val providerFuture = ProcessCameraProvider.getInstance(context)
@@ -135,11 +142,13 @@ internal fun BarcodeScanner(paused: Boolean, onScan: (String) -> Unit, modifier:
                 .also { it.setAnalyzer(executor, ::analyze) }
             runCatching {
                 p.unbindAll()
-                p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                camera = p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
             }
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            // Отвязываем от жизненного цикла: камера не должна оставаться занятой за закрытым листом.
+            camera = null
             provider?.unbindAll()
         }
     }
@@ -164,10 +173,11 @@ internal fun ScannerPane(
     onCode: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    var granted by remember {
+    var granted by rememberSaveable {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
-    var denied by remember { mutableStateOf(false) }
+    var denied by rememberSaveable { mutableStateOf(false) }
+    var torch by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         granted = ok
         denied = !ok
@@ -176,7 +186,7 @@ internal fun ScannerPane(
         if (!granted) launcher.launch(Manifest.permission.CAMERA)
     }
 
-    var manual by remember { mutableStateOf("") }
+    var manual by rememberSaveable { mutableStateOf("") }
     fun submitManual() {
         val code = manual.trim()
         if (code.isEmpty()) return
@@ -189,11 +199,18 @@ internal fun ScannerPane(
             BarcodeScanner(
                 paused = paused,
                 onScan = onCode,
+                torch = torch,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)
                     .clip(RoundedCornerShape(Radius.lg))
                     .border(1.dp, Orda.colors.brand.copy(alpha = 0.4f), RoundedCornerShape(Radius.lg)),
+            )
+            Text(
+                if (torch) "Выключить фонарик" else "Включить фонарик",
+                color = Orda.colors.brand,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { torch = !torch }.padding(Spacing.sm),
             )
         } else {
             Text(
