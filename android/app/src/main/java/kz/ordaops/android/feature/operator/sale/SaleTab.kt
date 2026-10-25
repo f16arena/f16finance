@@ -12,6 +12,28 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -105,9 +127,56 @@ fun SaleTab() {
     var showCheckout by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+    var showPrintSettings by remember { mutableStateOf(false) }
+    var searchFocused by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val settings = rememberSaleSettings()
+    val printer = remember { ReceiptPrinter(context) }
+    val printState = remember { PrintState() }
+    val wide = LocalConfiguration.current.screenWidthDp >= 840
 
     LaunchedEffect(store.hasOpenShift) {
         if (store.hasOpenShift && store.catalog.isEmpty()) store.loadCatalog()
+    }
+    // Таймеры услуг видят все кассы точки — подтягиваем с сервера, пока открыта продажа.
+    LaunchedEffect(store.hasOpenShift, store.services.isNotEmpty()) {
+        if (!store.hasOpenShift || store.services.isEmpty()) return@LaunchedEffect
+        while (true) {
+            store.loadSessions()
+            delay(30_000)
+        }
+    }
+
+    fun printReceipt(feedback: OperatorStore.SaleFeedback) {
+        scope.launch {
+            printState.status = PrintStatus.Printing
+            printState.error = null
+            val failure = printer.print(
+                ReceiptData(
+                    companyName = store.companyName,
+                    soldAtMillis = feedback.soldAtMillis,
+                    lines = feedback.lines,
+                    total = feedback.total,
+                    method = feedback.method,
+                    cashAmount = feedback.cashAmount,
+                    kaspiAmount = feedback.kaspiAmount,
+                    cashReceived = feedback.cashReceived,
+                    change = feedback.change,
+                ),
+                settings,
+            )
+            printState.status = if (failure == null) PrintStatus.Done else PrintStatus.Failed
+            printState.error = failure
+            if (failure != null) haptics.error()
+        }
+    }
+    // Новая продажа: сбросить прошлый статус печати и, если включено, печатать сразу.
+    LaunchedEffect(store.lastSale?.id) {
+        printState.status = PrintStatus.Idle
+        printState.error = null
+        val feedback = store.lastSale ?: return@LaunchedEffect
+        if (settings.autoPrint && settings.canPrint) printReceipt(feedback)
     }
     LaunchedEffect(toast) {
         val current = toast ?: return@LaunchedEffect
@@ -134,7 +203,45 @@ fun SaleTab() {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Orda.colors.background)) {
+    // Внешний сканер (USB/Bluetooth) работает как клавиатура: цифры подряд и Enter.
+    // Символы чаще чем раз в 80 мс — это сканер, а не человек; Enter после 4+ знаков — скан.
+    val scanBuffer = remember { StringBuilder() }
+    var lastKeyAt by remember { mutableLongStateOf(0L) }
+    val keyCatcher = remember { FocusRequester() }
+    fun onScannerKey(event: KeyEvent): Boolean {
+        if (event.type != KeyEventType.KeyDown) return false
+        if (searchFocused || !store.hasOpenShift || store.isSomeoneElsesShift) return false
+        if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) return false
+        val now = System.currentTimeMillis()
+        if (now - lastKeyAt > 80) scanBuffer.clear()
+        lastKeyAt = now
+        if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
+            if (scanBuffer.length < 4) { scanBuffer.clear(); return false }
+            val code = scanBuffer.toString()
+            scanBuffer.clear()
+            handleScan(code)
+            return true
+        }
+        val ch = event.utf16CodePoint
+        if (ch > 32) {
+            scanBuffer.appendCodePoint(ch)
+            return true
+        }
+        return false
+    }
+    // Сканер печатает в то, что в фокусе: без поля ввода фокус держит сам экран.
+    LaunchedEffect(searchFocused, showScanner, showCart, showCheckout, showPrintSettings, store.lastSale?.id, store.hasOpenShift) {
+        if (!searchFocused) runCatching { keyCatcher.requestFocus() }
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Orda.colors.background)
+            .focusRequester(keyCatcher)
+            .focusable()
+            .onPreviewKeyEvent(::onScannerKey),
+    ) {
         when {
             // Продажа уйдёт в чужую смену и в чужой отчёт: деньги окажутся записаны не на того, кто их взял.
             store.isSomeoneElsesShift -> CenteredEmpty(
@@ -153,8 +260,23 @@ fun SaleTab() {
                 val items = if (needle.isEmpty()) inStock else inStock.filter {
                     it.name.lowercase().contains(needle) || (it.barcode ?: "").contains(needle)
                 }
-                Column(Modifier.fillMaxSize()) {
-                    SearchBar(search, { search = it }) { showScanner = true }
+                @Composable
+                fun catalogPane(bottomPad: Dp) = Column(Modifier.fillMaxSize()) {
+                    SearchBar(search, { search = it }, { searchFocused = it }, onPrintSettings = { showPrintSettings = true }) { showScanner = true }
+                    ServiceButtonsRow(store.services) { service, variant ->
+                        store.addService(service, variant)
+                        haptics.tick()
+                    }
+                    RunningTimersRow(
+                        sessions = store.sessions,
+                        services = store.services,
+                        onExtend = { service, variant, session ->
+                            store.addService(service, variant, session)
+                            haptics.tick()
+                            toast = "Продление в чеке: ${service.name} · ${variant.name}" to false
+                        },
+                        onFinish = { id -> scope.launch { store.finishSession(id) } },
+                    )
                     PullToRefreshBox(
                         isRefreshing = refreshing,
                         onRefresh = { scope.launch { refreshing = true; store.loadCatalog(); refreshing = false } },
@@ -175,7 +297,7 @@ fun SaleTab() {
                             else -> LazyColumn(
                                 Modifier.fillMaxSize(),
                                 // Место под панель корзины, иначе она перекрывает последнюю позицию.
-                                contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, bottom = if (store.cart.isEmpty()) Spacing.lg else 110.dp),
+                                contentPadding = PaddingValues(start = Spacing.lg, end = Spacing.lg, bottom = bottomPad),
                                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                             ) {
                                 items(items, key = { it.id }) { item ->
@@ -194,8 +316,19 @@ fun SaleTab() {
                         }
                     }
                 }
-                if (store.cart.isNotEmpty()) {
-                    CartBar(store, Modifier.align(Alignment.BottomCenter), onOpenCart = { showCart = true }, onCheckout = { showCheckout = true })
+                if (wide) {
+                    // Планшет, как касса десктопа: каталог слева, чек и оплата справа (≈ 1/3).
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(2f).fillMaxHeight()) { catalogPane(Spacing.lg) }
+                        CartPanel(store, Modifier.weight(1f).fillMaxHeight()) { showCheckout = true }
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize()) {
+                        catalogPane(if (store.cart.isEmpty()) Spacing.lg else 110.dp)
+                        if (store.cart.isNotEmpty()) {
+                            CartBar(store, Modifier.align(Alignment.BottomCenter), onOpenCart = { showCart = true }, onCheckout = { showCheckout = true })
+                        }
+                    }
                 }
             }
         }
@@ -251,7 +384,10 @@ fun SaleTab() {
         CheckoutSheet(store) { showCheckout = false }
     }
     store.lastSale?.let { feedback ->
-        SaleReceiptSheet(feedback) { store.dismissLastSale() }
+        SaleReceiptSheet(feedback, settings, printState, onPrint = { printReceipt(feedback) }) { store.dismissLastSale() }
+    }
+    if (showPrintSettings) {
+        PrintSettingsSheet(settings, printer, store.companyName) { showPrintSettings = false }
     }
 }
 
@@ -261,7 +397,7 @@ private fun CenteredEmpty(icon: ImageVector, title: String, message: String) {
 }
 
 @Composable
-private fun SearchBar(search: String, onChange: (String) -> Unit, onScan: () -> Unit) {
+private fun SearchBar(search: String, onChange: (String) -> Unit, onFocus: (Boolean) -> Unit, onPrintSettings: () -> Unit, onScan: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(Spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
@@ -270,7 +406,7 @@ private fun SearchBar(search: String, onChange: (String) -> Unit, onScan: () -> 
         OutlinedTextField(
             value = search,
             onValueChange = onChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).onFocusChanged { onFocus(it.isFocused) },
             placeholder = { Text("Название товара") },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Orda.colors.textDim) },
             trailingIcon = {
@@ -291,6 +427,88 @@ private fun SearchBar(search: String, onChange: (String) -> Unit, onScan: () -> 
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.QrCodeScanner, contentDescription = "Сканировать", tint = Orda.colors.brand)
+        }
+        Box(
+            Modifier
+                .size(48.dp)
+                .background(Orda.colors.surfaceRaised, RoundedCornerShape(Radius.md))
+                .clickable(onClick = onPrintSettings),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Print, contentDescription = "Печать чека", tint = Orda.colors.textMuted)
+        }
+    }
+}
+
+/** Правая панель планшета: чек с позициями, итог и «К оплате». */
+@Composable
+private fun CartPanel(store: OperatorStore, modifier: Modifier, onCheckout: () -> Unit) {
+    var confirmingClear by remember { mutableStateOf(false) }
+    Column(
+        modifier.background(Orda.colors.surface).padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+    ) {
+        Text("Чек", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            if (store.cart.isEmpty()) {
+                EmptyState(Icons.Filled.ShoppingCart, "Чек пуст", "Нажмите товар или отсканируйте штрихкод.")
+            } else {
+                CartLineRows(store)
+            }
+        }
+        if (store.cart.isNotEmpty()) {
+            Text(
+                "Очистить чек",
+                color = Orda.colors.negative,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable { confirmingClear = true },
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Итого", color = Orda.colors.textDim, fontSize = 13.sp)
+                AnimatedText(money(store.cartTotal), TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold), Orda.colors.text)
+            }
+        }
+        PrimaryButton("К оплате", Modifier.fillMaxWidth(), enabled = store.cart.isNotEmpty(), onClick = onCheckout)
+    }
+    if (confirmingClear) {
+        AlertDialog(
+            onDismissRequest = { confirmingClear = false },
+            title = { Text("Очистить чек?") },
+            confirmButton = {
+                TextButton(onClick = { store.clearCart(); confirmingClear = false }) { Text("Убрать все позиции", color = Orda.colors.negative) }
+            },
+            dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text("Отмена") } },
+        )
+    }
+}
+
+/** Позиции чека со свайпом, количеством и корзиной — общие для листа «Чек» и панели планшета. */
+@Composable
+private fun CartLineRows(store: OperatorStore) {
+    store.cart.forEach { line ->
+        key(line.itemId) {
+            CartLineSwipe(onRemove = { store.remove(line.itemId) }) {
+                Row(Modifier.fillMaxWidth().background(Orda.colors.background), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(line.name, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text("${money(line.unitPrice)} за шт.", color = Orda.colors.textDim, fontSize = 13.sp)
+                    }
+                    Row(Modifier.background(Orda.colors.surfaceRaised, RoundedCornerShape(50)), verticalAlignment = Alignment.CenterVertically) {
+                        StepButton(Icons.Filled.Remove, "Меньше", Orda.colors.text) { store.setQuantity(line.quantity - 1, line.itemId) }
+                        Text(quantityText(line.quantity), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(26.dp), maxLines = 1)
+                        StepButton(Icons.Filled.Add, "Больше", Orda.colors.text) { store.setQuantity(line.quantity + 1, line.itemId) }
+                    }
+                    Text(money(line.total), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(76.dp), maxLines = 1)
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Убрать",
+                        tint = Orda.colors.negative,
+                        modifier = Modifier.size(22.dp).clickable { store.remove(line.itemId) },
+                    )
+                }
+            }
         }
     }
 }
@@ -398,30 +616,7 @@ private fun CartSheet(store: OperatorStore, onDismiss: () -> Unit, onCheckout: (
         if (store.cart.isEmpty()) {
             EmptyState(Icons.Filled.ShoppingCart, "Чек пуст", "Добавьте товары из витрины.")
         } else {
-            store.cart.forEach { line ->
-              key(line.itemId) {
-                CartLineSwipe(onRemove = { store.remove(line.itemId) }) {
-                Row(Modifier.fillMaxWidth().background(Orda.colors.background), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(line.name, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("${money(line.unitPrice)} за шт.", color = Orda.colors.textDim, fontSize = 13.sp)
-                    }
-                    Row(Modifier.background(Orda.colors.surfaceRaised, RoundedCornerShape(50)), verticalAlignment = Alignment.CenterVertically) {
-                        StepButton(Icons.Filled.Remove, "Меньше", Orda.colors.text) { store.setQuantity(line.quantity - 1, line.itemId) }
-                        Text(quantityText(line.quantity), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(26.dp), maxLines = 1)
-                        StepButton(Icons.Filled.Add, "Больше", Orda.colors.text) { store.setQuantity(line.quantity + 1, line.itemId) }
-                    }
-                    Text(money(line.total), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(76.dp), maxLines = 1)
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = "Убрать",
-                        tint = Orda.colors.negative,
-                        modifier = Modifier.size(22.dp).clickable { store.remove(line.itemId) },
-                    )
-                }
-                }
-              }
-            }
+            CartLineRows(store)
             Text(
                 "Очистить чек",
                 color = Orda.colors.negative,

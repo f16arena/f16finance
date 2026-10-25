@@ -6,6 +6,7 @@ import { createPointInventorySale } from '@/lib/server/repositories/inventory'
 import { requireOperator } from '@/lib/server/operator-context'
 import { resolveCompanyOrganizationId } from '@/lib/server/point-devices'
 import { buildSaleReceiptUrl } from '@/lib/server/sale-receipt'
+import { loadPointServices, startSessionsForSale, type StoreService } from '@/lib/server/store-services'
 import { requireCurrentOpenShiftId } from '@/lib/server/point-shifts'
 import { checkAndNotifyLowStock } from '@/lib/server/low-stock-notifier'
 import {
@@ -50,6 +51,8 @@ type CreateSaleBody = {
     items: Array<{
       item_id?: string | null
       universal_name?: string | null
+      service_variant_id?: string | null
+      extend_session_id?: string | null
       quantity: number
       unit_price?: number
       comment?: string | null
@@ -76,7 +79,7 @@ export async function GET(request: Request) {
     const catalogOrgId = (company as any)?.data?.organization_id || (await resolveCompanyOrganizationId(supabase, companyId))
     const isStore = (company as any)?.data?.store_enabled === true
 
-    const [items, showcaseMap, { data: sales, error: salesError }, { data: loyaltyConfig }] =
+    const [items, showcaseMap, { data: sales, error: salesError }, { data: loyaltyConfig }, services] =
       await Promise.all([
         fetchAllPages((from, to) => {
           let q = supabase
@@ -103,6 +106,10 @@ export async function GET(request: Request) {
           .order('sold_at', { ascending: false })
           .limit(20),
         supabase.from('loyalty_config').select('*').eq('company_id', companyId).maybeSingle(),
+        // Услуги точки (теннис/печать): тот же справочник, что отдаёт /api/point/inventory-sales.
+        catalogOrgId
+          ? loadPointServices(supabase, catalogOrgId, companyId).catch(() => [] as StoreService[])
+          : Promise.resolve([] as StoreService[]),
       ])
 
     if (salesError) throw salesError
@@ -119,6 +126,11 @@ export async function GET(request: Request) {
         items: (items || []).map((item: any) => ({
           ...item,
           display_qty: showcaseMap.get(item.id) || 0,
+        })),
+        services: services.map((s) => ({
+          id: s.id,
+          name: s.name,
+          variants: s.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, duration_minutes: v.duration_minutes })),
         })),
         sales: sales || [],
         loyalty_config: (loyaltyConfig as any) || null,
@@ -161,11 +173,13 @@ export async function POST(request: Request) {
           .map((item: any) => ({
             item_id: String(item.item_id || '').trim() || null,
             universal_name: String(item.universal_name || '').trim() || null,
+            service_variant_id: String(item.service_variant_id || '').trim() || null,
+            extend_session_id: String(item.extend_session_id || '').trim() || null,
             unit_price: normalizeMoney(item.unit_price || 0),
             quantity: normalizeQty(item.quantity),
             comment: item.comment?.trim() || null,
           }))
-          .filter((item: any) => (item.item_id || item.universal_name) && item.quantity > 0)
+          .filter((item: any) => (item.item_id || item.universal_name || item.service_variant_id) && item.quantity > 0)
       : []
 
     if (requestedItems.length === 0) return json({ error: 'point-sale-items-required' }, 400)
@@ -198,8 +212,10 @@ export async function POST(request: Request) {
     const stock = await resolveStockLocations(supabase, companyId)
     const itemIds = [...new Set(requestedItems.map((item) => item.item_id).filter((id): id is string => !!id))]
 
-    const [{ data: dbItems, error: itemError }, showcaseBalances, customerContext] = await Promise.all([
-      resolveCompanyOrganizationId(supabase, companyId).then((orgId) =>
+    const hasServiceLines = requestedItems.some((item) => item.service_variant_id)
+    const saleOrgId = await resolveCompanyOrganizationId(supabase, companyId)
+    const [{ data: dbItems, error: itemError }, showcaseBalances, customerContext, pointServices] = await Promise.all([
+      Promise.resolve(saleOrgId).then((orgId) =>
         supabase
           .from('inventory_items')
           .select('id, name, sale_price, is_active, item_type')
@@ -214,14 +230,18 @@ export async function POST(request: Request) {
         itemIds,
       }),
       resolveCustomerSaleContext({ supabase, companyId, customerId, loyaltyPointsSpent }),
+      hasServiceLines && saleOrgId ? loadPointServices(supabase, saleOrgId, companyId) : Promise.resolve([] as StoreService[]),
     ])
 
     if (itemError) throw itemError
+    const serviceVariants = new Map<string, { service: StoreService; variant: StoreService['variants'][number] }>()
+    for (const service of pointServices) for (const variant of service.variants) serviceVariants.set(variant.id, { service, variant })
 
     const items = buildAuthoritativeSaleLines({
       requestedItems,
       dbItems: dbItems || [],
       showcaseBalances,
+      serviceVariants,
       paymentTotal,
     })
 
@@ -282,6 +302,29 @@ export async function POST(request: Request) {
       await supabase.from('point_sales').update({ shift_id: shiftIdAttach }).eq('id', sale.sale_id)
     }
 
+    // Таймеры услуг со временем. Продажа уже прошла — сбой таймера её не отменяет.
+    let serviceSessions: Awaited<ReturnType<typeof startSessionsForSale>> = []
+    if (sale?.sale_id && hasServiceLines) {
+      try {
+        serviceSessions = await startSessionsForSale({
+          supabase,
+          companyId,
+          saleId: String(sale.sale_id),
+          operatorId,
+          lines: requestedItems.flatMap((item) => {
+            const ref = item.service_variant_id ? serviceVariants.get(item.service_variant_id) : null
+            return ref ? [{ service: ref.service, variant: ref.variant, quantity: item.quantity, extend_session_id: item.extend_session_id }] : []
+          }),
+        })
+      } catch (sessionError: any) {
+        await writeSystemErrorLogSafe({
+          scope: 'server',
+          area: 'operator-inventory-sales:service-sessions',
+          message: sessionError?.message || 'Service session start error',
+        })
+      }
+    }
+
     const { data: savedSale } = await supabase
       .from('point_sales')
       .select('id, sold_at')
@@ -325,6 +368,7 @@ export async function POST(request: Request) {
         customer_id: loyaltyResult?.customerId || null,
         loyalty_points_earned: loyaltyResult?.pointsEarned || 0,
         loyalty_points_spent: loyaltyResult?.pointsSpent || 0,
+        service_sessions: serviceSessions,
       },
     })
   } catch (error: any) {

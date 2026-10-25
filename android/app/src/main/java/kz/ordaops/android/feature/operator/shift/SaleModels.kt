@@ -42,6 +42,42 @@ data class RecentSale(
     val soldAtMillis: Long? get() = parseIsoMillis(soldAt)
 }
 
+/** Вариант услуги: «30 мин — 500 ₸». duration_minutes есть у услуг с таймером. */
+@Serializable
+data class SaleServiceVariant(
+    val id: String = "",
+    val name: String = "",
+    val price: Double = 0.0,
+    @SerialName("duration_minutes") val durationMinutes: Int? = null,
+)
+
+/** Услуга точки (теннис, печать): справочник с вариантами цены. */
+@Serializable
+data class SaleService(
+    val id: String = "",
+    val name: String = "",
+    val variants: List<SaleServiceVariant> = emptyList(),
+)
+
+/** Идущий таймер услуги. Отсчёт на устройстве идёт до `ends_at`. */
+@Serializable
+data class ServiceSession(
+    val id: String = "",
+    @SerialName("service_id") val serviceId: String? = null,
+    @SerialName("variant_id") val variantId: String? = null,
+    val title: String = "",
+    @SerialName("ends_at") val endsAt: String? = null,
+) {
+    val endsAtMillis: Long? get() = parseIsoMillis(endsAt)
+}
+
+@Serializable
+internal data class ServiceSessionsData(val sessions: List<ServiceSession> = emptyList())
+
+/** Ответ `GET /api/operator/service-sessions`: `{ data: { sessions } }`. */
+@Serializable
+internal data class ServiceSessionsResponse(val data: ServiceSessionsData? = null)
+
 @Serializable
 internal data class CatalogCompany(val name: String? = null)
 
@@ -49,6 +85,7 @@ internal data class CatalogCompany(val name: String? = null)
 internal data class CatalogData(
     val company: CatalogCompany? = null,
     val items: List<SaleCatalogItem> = emptyList(),
+    val services: List<SaleService> = emptyList(),
     val sales: List<RecentSale> = emptyList(),
 )
 
@@ -63,6 +100,10 @@ data class SaleLine(
     val name: String,
     val quantity: Double,
     val unitPrice: Double,
+    /** Услуга вместо товара: уходит как service_variant_id, остатка нет. */
+    val serviceVariantId: String? = null,
+    /** Продление идущего таймера: время прибавится к нему, а не запустит новый. */
+    val extendSessionId: String? = null,
 ) {
     val total: Double get() = quantity * unitPrice
 }
@@ -133,7 +174,13 @@ data class SaleDraft(
                         lines.forEach { line ->
                             add(
                                 buildJsonObject {
-                                    put("item_id", line.itemId)
+                                    if (line.serviceVariantId != null) {
+                                        // Цену и название услуги сервер берёт из справочника сам.
+                                        put("service_variant_id", line.serviceVariantId)
+                                        line.extendSessionId?.let { put("extend_session_id", it) }
+                                    } else {
+                                        put("item_id", line.itemId)
+                                    }
                                     put("quantity", line.quantity)
                                     put("unit_price", line.unitPrice)
                                 },
@@ -154,6 +201,7 @@ internal data class SaleResultData(
     @SerialName("receipt_url") val receiptUrl: String? = null,
     @SerialName("loyalty_points_earned") val loyaltyPointsEarned: Int = 0,
     val idempotent: Boolean = false,
+    @SerialName("service_sessions") val serviceSessions: List<ServiceSession> = emptyList(),
 )
 
 @Serializable
@@ -165,6 +213,7 @@ data class SaleResult(
     val receiptUrl: String?,
     val loyaltyPointsEarned: Int,
     val isIdempotentReplay: Boolean,
+    val serviceSessions: List<ServiceSession> = emptyList(),
 )
 
 /** Клиент точки: карта лояльности, бонусы. Поля приходят то строкой, то числом. */

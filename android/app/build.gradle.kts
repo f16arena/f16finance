@@ -34,6 +34,8 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        // AIDL встроенного принтера Sunmi (src/main/aidl).
+        aidl = true
     }
 }
 
