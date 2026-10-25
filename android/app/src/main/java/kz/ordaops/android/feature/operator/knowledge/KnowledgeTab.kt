@@ -1,5 +1,14 @@
 package kz.ordaops.android.feature.operator.knowledge
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,6 +85,7 @@ import kz.ordaops.android.ui.theme.Spacing
  * Сверху два режима: статьи и экзамены. На айфоне экзамены лежат в «Деньгах»,
  * здесь они рядом со статьями — аттестация идёт по этим же регламентам.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun KnowledgeTab() {
     val env = LocalOperatorEnv.current
@@ -95,10 +105,16 @@ fun KnowledgeTab() {
     val pendingIds = knowledge?.pendingConfirmations?.map { it.id }?.toSet().orEmpty()
 
     val opened = openedId?.let { id -> knowledge?.articles?.firstOrNull { it.id == id } ?: knowledge?.pendingConfirmations?.firstOrNull { it.id == id } }
-    if (opened != null) {
+    // Карточка статьи «раскрывается» в экран чтения: общие границы вместо резкой подмены.
+    SharedTransitionLayout {
+    AnimatedContent(targetState = opened, label = "article", transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }) { target ->
+    if (target != null) {
         BackHandler { openedId = null }
-        ArticleReader(store, opened, needsConfirmation = opened.id in pendingIds, onBack = { openedId = null })
-        return
+        ArticleReader(
+            store, target, needsConfirmation = target.id in pendingIds, onBack = { openedId = null },
+            sharedScope = this@SharedTransitionLayout, visibilityScope = this@AnimatedContent,
+        )
+        return@AnimatedContent
     }
 
     Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
@@ -166,12 +182,17 @@ fun KnowledgeTab() {
                         }
                     } else {
                         items(articles, key = { it.id }) { article ->
-                            ArticleRow(article, article.id in pendingIds) { openedId = article.id }
+                            ArticleRow(
+                                article, article.id in pendingIds,
+                                sharedScope = this@SharedTransitionLayout, visibilityScope = this@AnimatedContent,
+                            ) { openedId = article.id }
                         }
                     }
                 }
             }
         }
+    }
+    }
     }
 }
 
@@ -241,8 +262,15 @@ private fun KnowledgeSummary(pending: Int, total: Int) {
 }
 
 /** Строка статьи: значок слева несёт состояние — непрочитанное синим, важное жёлтым, прочитанное серым. */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ArticleRow(article: KnowledgeArticle, needsConfirmation: Boolean, onClick: () -> Unit) {
+private fun ArticleRow(
+    article: KnowledgeArticle,
+    needsConfirmation: Boolean,
+    sharedScope: SharedTransitionScope,
+    visibilityScope: AnimatedVisibilityScope,
+    onClick: () -> Unit,
+) {
     val accent = when {
         needsConfirmation -> Orda.colors.info
         article.isCritical -> Orda.colors.warning
@@ -253,7 +281,14 @@ private fun ArticleRow(article: KnowledgeArticle, needsConfirmation: Boolean, on
         article.isCritical -> Icons.Filled.Warning
         else -> Icons.Filled.Description
     }
-    Box(Modifier.clip(RoundedCornerShape(Radius.lg)).clickable(onClick = onClick)) {
+    val bounds = with(sharedScope) {
+        Modifier.sharedBounds(
+            rememberSharedContentState("article-${article.id}"),
+            visibilityScope,
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+        )
+    }
+    Box(bounds.clip(RoundedCornerShape(Radius.lg)).clickable(onClick = onClick)) {
         AccentCard(if (needsConfirmation) Orda.colors.info else null) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top) {
                 Box(
@@ -279,9 +314,16 @@ private fun ArticleRow(article: KnowledgeArticle, needsConfirmation: Boolean, on
 }
 
 /** Текст статьи с разобранной разметкой — `ArticleReader`. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ArticleReader(store: CabinetStore, article: KnowledgeArticle, needsConfirmation: Boolean, onBack: () -> Unit) {
+private fun ArticleReader(
+    store: CabinetStore,
+    article: KnowledgeArticle,
+    needsConfirmation: Boolean,
+    onBack: () -> Unit,
+    sharedScope: SharedTransitionScope,
+    visibilityScope: AnimatedVisibilityScope,
+) {
     val scope = rememberCoroutineScope()
     var isConfirming by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -293,7 +335,14 @@ private fun ArticleReader(store: CabinetStore, article: KnowledgeArticle, needsC
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+    val bounds = with(sharedScope) {
+        Modifier.sharedBounds(
+            rememberSharedContentState("article-${article.id}"),
+            visibilityScope,
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+        )
+    }
+    Column(bounds.fillMaxSize().background(Orda.colors.background)) {
         SectionTitle("Статья", onBack = onBack) {
             // «Объясни проще» — в панели, а не в тексте: за ним тянутся, когда уже прочитали и не поняли.
             TextButton(onClick = { explaining = true }) {

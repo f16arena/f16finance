@@ -14,7 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,6 +47,7 @@ fun OrdaCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() 
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoadingView(message: String? = null) {
     Column(
@@ -52,7 +55,7 @@ fun LoadingView(message: String? = null) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator(color = Orda.colors.brand)
+        LoadingIndicator(color = Orda.colors.brand, modifier = Modifier.size(56.dp))
         if (message != null) {
             Text(message, color = Orda.colors.textDim, modifier = Modifier.padding(top = Spacing.lg))
         }

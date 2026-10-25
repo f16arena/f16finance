@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -366,7 +366,7 @@ private fun ProgressCard(exam: OperatorExam) {
             )
             Text("порог ${percent(exam.passScore)}", color = Orda.colors.textDim, fontSize = 13.sp)
         }
-        LinearProgressIndicator(
+        WavyProgress(
             progress = { exam.answered.toFloat() / maxOf(1, exam.totalQuestions) },
             modifier = Modifier.fillMaxWidth(),
             color = Orda.colors.brand,

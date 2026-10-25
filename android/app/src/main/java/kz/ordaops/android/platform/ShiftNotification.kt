@@ -65,6 +65,11 @@ object ShiftNotification {
             .setContentIntent(open)
             .addAction(0, "Продать", sell)
             .addAction(0, "Смена", open)
+        // Android 16 (Live Updates): ongoing-уведомление «продвигается» в капсулу в
+        // строке состояния. Короткий текст — выручка без пробелов, влезает в капсулу.
+        // На старых версиях эти вызовы ничего не меняют.
+        builder.setRequestPromotedOngoing(true)
+            .setShortCriticalText(shortRevenue(s.revenue))
         s.openedAtMillis?.let { builder.setWhen(it).setUsesChronometer(true).setShowWhen(true) }
         try {
             NotificationManagerCompat.from(context).notify(ID, builder.build())
@@ -87,6 +92,9 @@ object ShiftNotification {
             },
         )
     }
+
+    /** 46 380 ₸ → «46380₸»: в капсуле места на несколько знаков. */
+    private fun shortRevenue(value: Double): String = "${Math.round(value)}₸"
 
     private fun checks(n: Int): String {
         val m10 = n % 10

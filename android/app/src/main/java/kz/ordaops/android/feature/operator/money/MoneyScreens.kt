@@ -17,7 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -130,7 +130,7 @@ private fun SalaryHeroCard(week: SalaryWeek) {
         )
         Text(money(remaining), color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
         if (week.paidAmount > 0 && week.netAmount > 0) {
-            LinearProgressIndicator(
+            WavyProgress(
                 progress = { (week.paidAmount / week.netAmount).toFloat().coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
                 color = Color.White,

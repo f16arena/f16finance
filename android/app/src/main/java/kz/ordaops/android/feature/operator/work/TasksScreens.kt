@@ -34,7 +34,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.key
 import kz.ordaops.android.ui.components.rememberHaptics
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -547,7 +547,7 @@ private fun ChecklistRunScreen(store: CabinetStore, template: ChecklistTemplate,
                     }
                     OrdaCard {
                         Text("Отвечено пунктов: $answeredCount из ${items.size}", color = Orda.colors.textMuted, fontSize = 14.sp)
-                        LinearProgressIndicator(
+                        WavyProgress(
                             progress = { if (items.isEmpty()) 0f else answeredCount.toFloat() / items.size },
                             modifier = Modifier.fillMaxWidth(),
                             color = Orda.colors.brand,
