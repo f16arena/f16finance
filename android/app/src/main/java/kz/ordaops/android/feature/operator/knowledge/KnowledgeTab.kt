@@ -1,34 +1,30 @@
 package kz.ordaops.android.feature.operator.knowledge
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChevronRight
@@ -42,38 +38,51 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
-import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.feature.operator.work.AccentCard
-import kz.ordaops.android.feature.operator.work.CabinetStore
+import kz.ordaops.android.feature.operator.work.CenteredContent
 import kz.ordaops.android.feature.operator.work.ChipKind
-import kz.ordaops.android.feature.operator.work.KnowledgeArticle
 import kz.ordaops.android.feature.operator.work.NoteField
 import kz.ordaops.android.feature.operator.work.NoticeCard
-import kz.ordaops.android.feature.operator.work.Refreshable
 import kz.ordaops.android.feature.operator.work.SectionTitle
 import kz.ordaops.android.feature.operator.work.StatusChip
 import kz.ordaops.android.feature.operator.work.pluralize
+import kz.ordaops.android.core.ui.Loadable
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.components.PrimaryButton
+import kz.ordaops.android.ui.components.StateContainer
 import kz.ordaops.android.ui.theme.Navy
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
@@ -84,115 +93,147 @@ import kz.ordaops.android.ui.theme.Spacing
  *
  * Сверху два режима: статьи и экзамены. На айфоне экзамены лежат в «Деньгах»,
  * здесь они рядом со статьями — аттестация идёт по этим же регламентам.
+ *
+ * Статьи: на телефоне список → чтение (панели сменяют друг друга), от 600dp —
+ * две панели рядом.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun KnowledgeTab() {
-    val env = LocalOperatorEnv.current
-    val context = LocalContext.current
-    val store = remember { CabinetStore(env, context) }
-    val scope = rememberCoroutineScope()
-    var mode by remember { mutableStateOf(0) }
-    var openedId by remember { mutableStateOf<String?>(null) }
-    var search by remember { mutableStateOf("") }
+    val vm = operatorViewModel { env -> KnowledgeViewModel(env) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
+    var mode by rememberSaveable { mutableIntStateOf(0) }
+    var search by rememberSaveable { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        store.loadCachedKnowledge()
-        store.loadKnowledge()
-    }
+    LaunchedEffect(Unit) { vm.refresh() }
 
-    val knowledge = store.knowledge
-    val pendingIds = knowledge?.pendingConfirmations?.map { it.id }?.toSet().orEmpty()
-
-    val opened = openedId?.let { id -> knowledge?.articles?.firstOrNull { it.id == id } ?: knowledge?.pendingConfirmations?.firstOrNull { it.id == id } }
-    // Карточка статьи «раскрывается» в экран чтения: общие границы вместо резкой подмены.
-    SharedTransitionLayout {
-    AnimatedContent(targetState = opened, label = "article", transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }) { target ->
-    if (target != null) {
-        BackHandler { openedId = null }
-        ArticleReader(
-            store, target, needsConfirmation = target.id in pendingIds, onBack = { openedId = null },
-            sharedScope = this@SharedTransitionLayout, visibilityScope = this@AnimatedContent,
-        )
-        return@AnimatedContent
-    }
-
-    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
-        SectionTitle("Знания")
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        ) {
-            ModeChip("Статьи", mode == 0, Modifier.weight(1f)) { mode = 0 }
-            ModeChip("Экзамены", mode == 1, Modifier.weight(1f)) { mode = 1 }
-        }
-        Box(Modifier.height(Spacing.sm))
-
-        if (mode == 1) {
+    if (mode == 1) {
+        Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+            KnowledgeHeader(mode) { mode = it }
             ExamsScreen(showTitle = false)
-            return@Column
         }
+        return
+    }
 
-        // Все статьи: сначала непрочитанные, потом важные, потом остальные — правила про кассу ищут в спешке.
-        val ordered = remember(knowledge) {
-            if (knowledge == null) emptyList() else {
-                val pending = knowledge.pendingConfirmations
-                val ids = pending.map { it.id }.toSet()
-                val rest = knowledge.articles.filter { it.id !in ids }
-                pending + rest.filter { it.isCritical } + rest.filter { !it.isCritical }
+    val scope = rememberCoroutineScope()
+    val info = currentWindowAdaptiveInfo()
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    // Стандартная схема даёт две панели только от 840dp; на 7–10" планшетах хотим от 600.
+    val directive = remember(info, wide) {
+        val base = calculatePaneScaffoldDirective(info)
+        if (wide) base.copy(maxHorizontalPartitions = 2, horizontalPartitionSpacerSize = 16.dp) else base
+    }
+    val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = directive)
+    BackHandler(enabled = navigator.canNavigateBack()) { scope.launch { navigator.navigateBack() } }
+    val dual = navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Expanded &&
+        navigator.scaffoldValue[ListDetailPaneScaffoldRole.Detail] == PaneAdaptedValue.Expanded
+    val selectedId = navigator.currentDestination?.contentKey
+
+    ListDetailPaneScaffold(
+        directive = navigator.scaffoldDirective,
+        value = navigator.scaffoldValue,
+        modifier = Modifier.background(Orda.colors.background),
+        listPane = {
+            AnimatedPane {
+                ArticleListPane(
+                    state = state,
+                    notice = notice,
+                    mode = mode,
+                    onMode = { mode = it },
+                    search = search,
+                    onSearch = { search = it },
+                    selectedId = if (dual) selectedId else null,
+                    onRetry = vm::refresh,
+                    onOpen = { id -> scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, id) } },
+                )
             }
-        }
-        // Статей десятки, а нужную ищут в конкретной ситуации — «не работает компьютер», «долг клиента».
-        val query = search.trim()
-        val articles = if (query.isEmpty()) ordered else ordered.filter {
-            it.title.contains(query, ignoreCase = true) || (it.summary ?: "").contains(query, ignoreCase = true)
-        }
-
-        Refreshable(refreshing = store.isLoadingKnowledge && knowledge != null, onRefresh = { scope.launch { store.loadKnowledge() } }) {
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                if (knowledge == null) {
-                    item {
-                        if (store.isLoadingKnowledge) {
-                            Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = Orda.colors.brand)
-                            }
-                        } else {
-                            EmptyState(
-                                icon = Icons.AutoMirrored.Filled.MenuBook,
-                                title = "Не удалось загрузить",
-                                message = store.error ?: "Потяните вниз, чтобы обновить.",
-                            )
-                        }
-                    }
+        },
+        detailPane = {
+            AnimatedPane {
+                val article = state.data?.find(selectedId)
+                val back: (() -> Unit)? = if (dual) null else ({ scope.launch { navigator.navigateBack() } })
+                if (article != null) {
+                    ArticleReader(vm, article, canConfirm = state.data?.canConfirm != false, onBack = back)
                 } else {
-                    item { KnowledgeSummary(pending = pendingIds.size, total = knowledge.articles.size) }
-                    item { NoteField(search, { search = it }, "Найти статью", minLines = 1, maxLines = 1) }
-                    store.deferredNotice?.let { notice -> item { NoticeCard(notice, Orda.colors.warning) } }
-                    if (articles.isEmpty()) {
-                        item {
+                    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+                        if (back != null) SectionTitle("Статья", onBack = back)
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             EmptyState(
                                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                                title = if (search.isEmpty()) "Статей нет" else "Ничего не нашлось",
-                                message = if (search.isEmpty()) "База знаний для вашей точки пока пуста." else "По запросу «$search» статей нет.",
+                                title = "Выберите статью",
+                                message = "Текст откроется здесь.",
                             )
-                        }
-                    } else {
-                        items(articles, key = { it.id }) { article ->
-                            ArticleRow(
-                                article, article.id in pendingIds,
-                                sharedScope = this@SharedTransitionLayout, visibilityScope = this@AnimatedContent,
-                            ) { openedId = article.id }
                         }
                     }
                 }
             }
+        },
+    )
+}
+
+@Composable
+private fun KnowledgeHeader(mode: Int, onMode: (Int) -> Unit) {
+    SectionTitle("Знания")
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        ModeChip("Статьи", mode == 0, Modifier.weight(1f)) { onMode(0) }
+        ModeChip("Экзамены", mode == 1, Modifier.weight(1f)) { onMode(1) }
+    }
+    Box(Modifier.height(Spacing.sm))
+}
+
+@Composable
+private fun ArticleListPane(
+    state: Loadable<KnowledgeUi>,
+    notice: String?,
+    mode: Int,
+    onMode: (Int) -> Unit,
+    search: String,
+    onSearch: (String) -> Unit,
+    selectedId: String?,
+    onRetry: () -> Unit,
+    onOpen: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().background(Orda.colors.background).imePadding()) {
+        KnowledgeHeader(mode, onMode)
+        StateContainer(
+            state = state,
+            onRetry = onRetry,
+            modifier = Modifier.weight(1f),
+        ) { ui ->
+            // Статей десятки, а нужную ищут в конкретной ситуации — «не работает компьютер», «долг клиента».
+            val query = search.trim()
+            val shown = remember(ui, query) {
+                if (query.isEmpty()) ui.articles else ui.articles.filter {
+                    it.article.title.contains(query, ignoreCase = true) || (it.article.summary ?: "").contains(query, ignoreCase = true)
+                }
+            }
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                item(key = "summary", contentType = "summary") { KnowledgeSummary(pending = ui.pendingCount, total = ui.total) }
+                item(key = "search", contentType = "search") { NoteField(search, onSearch, "Найти статью", minLines = 1, maxLines = 1) }
+                notice?.let { n -> item(key = "notice", contentType = "notice") { NoticeCard(n, Orda.colors.warning) } }
+                if (shown.isEmpty()) {
+                    item(key = "empty", contentType = "empty") {
+                        EmptyState(
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            title = if (search.isEmpty()) "Статей нет" else "Ничего не нашлось",
+                            message = if (search.isEmpty()) "База знаний для вашей точки пока пуста." else "По запросу «$search» статей нет.",
+                        )
+                    }
+                } else {
+                    items(shown, key = { it.article.id }, contentType = { "article" }) { article ->
+                        ArticleRow(article, selected = article.article.id == selectedId) { onOpen(article.article.id) }
+                    }
+                }
+            }
         }
-    }
-    }
     }
 }
 
@@ -262,15 +303,10 @@ private fun KnowledgeSummary(pending: Int, total: Int) {
 }
 
 /** Строка статьи: значок слева несёт состояние — непрочитанное синим, важное жёлтым, прочитанное серым. */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ArticleRow(
-    article: KnowledgeArticle,
-    needsConfirmation: Boolean,
-    sharedScope: SharedTransitionScope,
-    visibilityScope: AnimatedVisibilityScope,
-    onClick: () -> Unit,
-) {
+private fun ArticleRow(item: ArticleUi, selected: Boolean, onClick: () -> Unit) {
+    val article = item.article
+    val needsConfirmation = item.needsConfirmation
     val accent = when {
         needsConfirmation -> Orda.colors.info
         article.isCritical -> Orda.colors.warning
@@ -281,15 +317,8 @@ private fun ArticleRow(
         article.isCritical -> Icons.Filled.Warning
         else -> Icons.Filled.Description
     }
-    val bounds = with(sharedScope) {
-        Modifier.sharedBounds(
-            rememberSharedContentState("article-${article.id}"),
-            visibilityScope,
-            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-        )
-    }
-    Box(bounds.clip(RoundedCornerShape(Radius.lg)).clickable(onClick = onClick)) {
-        AccentCard(if (needsConfirmation) Orda.colors.info else null) {
+    Box(Modifier.clip(RoundedCornerShape(Radius.lg)).clickable(onClick = onClick)) {
+        AccentCard(if (selected) Orda.colors.brand else if (needsConfirmation) Orda.colors.info else null) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top) {
                 Box(
                     Modifier.size(30.dp).background(accent.copy(alpha = 0.12f), RoundedCornerShape(Radius.sm)),
@@ -313,36 +342,16 @@ private fun ArticleRow(
     }
 }
 
-/** Текст статьи с разобранной разметкой — `ArticleReader`. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+/** Текст статьи с разобранной разметкой — `ArticleReader`. Блоки уже разобраны во ViewModel. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArticleReader(
-    store: CabinetStore,
-    article: KnowledgeArticle,
-    needsConfirmation: Boolean,
-    onBack: () -> Unit,
-    sharedScope: SharedTransitionScope,
-    visibilityScope: AnimatedVisibilityScope,
-) {
-    val scope = rememberCoroutineScope()
-    var isConfirming by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var explaining by remember { mutableStateOf(false) }
+private fun ArticleReader(vm: KnowledgeViewModel, item: ArticleUi, canConfirm: Boolean, onBack: (() -> Unit)?) {
+    val article = item.article
+    val confirm by vm.confirm.collectAsStateWithLifecycle()
+    var explaining by rememberSaveable { mutableStateOf(false) }
+    val mine = confirm.articleId == article.id
 
-    val blocks = remember(article) {
-        RichText.blocks(article.text).ifEmpty {
-            article.summary?.takeIf { it.isNotEmpty() }?.let { listOf(RichText.Block(RichText.Kind.Paragraph, it)) }.orEmpty()
-        }
-    }
-
-    val bounds = with(sharedScope) {
-        Modifier.sharedBounds(
-            rememberSharedContentState("article-${article.id}"),
-            visibilityScope,
-            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-        )
-    }
-    Column(bounds.fillMaxSize().background(Orda.colors.background)) {
+    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
         SectionTitle("Статья", onBack = onBack) {
             // «Объясни проще» — в панели, а не в тексте: за ним тянутся, когда уже прочитали и не поняли.
             TextButton(onClick = { explaining = true }) {
@@ -350,40 +359,49 @@ private fun ArticleReader(
                 Text("  Проще")
             }
         }
-        // Ширина строки ограничена самим телефоном; интервалы больше обычных: регламент читают по диагонали.
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-        ) {
-            Text(article.title, color = Orda.colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                if (article.isCritical) StatusChip("важное", ChipKind.Warning)
-                Text("версия ${article.version}", color = Orda.colors.textDim, fontSize = 13.sp)
-            }
-            if (blocks.isEmpty()) {
-                Text("У статьи нет текста.", color = Orda.colors.textDim, fontSize = 14.sp)
-            } else {
+        // Интервалы больше обычных: регламент читают по диагонали.
+        Box(Modifier.weight(1f)) {
+            CenteredContent {
                 SelectionContainer {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) { blocks.forEach { BlockView(it) } }
+                    LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(Spacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                    ) {
+                        item(key = "title", contentType = "title") {
+                            Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                                Text(article.title, color = Orda.colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                                    if (article.isCritical) StatusChip("важное", ChipKind.Warning)
+                                    Text("версия ${article.version}", color = Orda.colors.textDim, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                        if (item.blocks.isEmpty()) {
+                            item(key = "no-text", contentType = "empty") {
+                                Text("У статьи нет текста.", color = Orda.colors.textDim, fontSize = 14.sp)
+                            }
+                        } else {
+                            itemsIndexed(item.blocks, key = { i, _ -> i }, contentType = { _, b -> b.kind }) { _, block ->
+                                BlockView(block)
+                            }
+                        }
+                    }
                 }
             }
         }
 
         // Подтверждение закреплено снизу: до конца длинного регламента человек не домотает и уйдёт, не подтвердив.
-        if (needsConfirmation) {
+        if (item.needsConfirmation) {
             Column(
                 Modifier.fillMaxWidth().background(Orda.colors.elevated).padding(Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (store.knowledge?.canConfirm != false) {
-                    error?.let { Text(it, color = Orda.colors.negative, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()) }
-                    PrimaryButton("Прочитал и понял", Modifier.fillMaxWidth(), loading = isConfirming) {
-                        scope.launch {
-                            isConfirming = true
-                            error = store.confirmArticle(article)
-                            isConfirming = false
-                        }
+                if (canConfirm) {
+                    if (mine) confirm.error?.let { Text(it, color = Orda.colors.negative, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()) }
+                    PrimaryButton("Прочитал и понял", Modifier.fillMaxWidth(), loading = mine && confirm.busy) {
+                        vm.confirmArticle(article)
                     }
                     Text(
                         "Подтверждение привязано к версии ${article.version}: если правила изменят, вас попросят прочитать заново.",
@@ -405,7 +423,7 @@ private fun ArticleReader(
 
     if (explaining) {
         ModalBottomSheet(onDismissRequest = { explaining = false }, containerColor = Orda.colors.background) {
-            ArticleExplainContent(store, article) { explaining = false }
+            ArticleExplainContent(vm, article.id, article.title) { explaining = false }
         }
     }
 }
@@ -421,8 +439,9 @@ private fun BlockView(block: RichText.Block) {
             Box(Modifier.padding(top = 9.dp).size(5.dp).background(Orda.colors.brand, CircleShape))
             Text(block.text, color = Orda.colors.textMuted, fontSize = 16.sp)
         }
-        RichText.Kind.Quote -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            Box(Modifier.width(3.dp).height(24.dp).background(Orda.colors.brand.copy(alpha = 0.6f), RoundedCornerShape(2.dp)))
+        // Полоса тянется за высотой текста, а не фиксированные 24dp: при крупном шрифте цитата в несколько строк.
+        RichText.Kind.Quote -> Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Box(Modifier.width(3.dp).fillMaxHeight().background(Orda.colors.brand.copy(alpha = 0.6f), RoundedCornerShape(2.dp)))
             Text(block.text, color = Orda.colors.textMuted, fontSize = 16.sp, fontStyle = FontStyle.Italic)
         }
         // Шапку таблицы показываем подписью: она объясняет колонки, а не содержит правило.
@@ -438,6 +457,12 @@ private fun BlockView(block: RichText.Block) {
             block.cells.firstOrNull()?.let { Text(it, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
             block.cells.drop(1).forEach { Text(it, color = Orda.colors.textMuted, fontSize = 16.sp) }
         }
+        RichText.Kind.Image -> AsyncImage(
+            model = block.text,
+            contentDescription = null,
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.md)),
+        )
         RichText.Kind.Paragraph -> Text(block.text, color = Orda.colors.textMuted, fontSize = 16.sp, lineHeight = 24.sp)
     }
 }
@@ -449,52 +474,41 @@ private fun BlockView(block: RichText.Block) {
  * будет сказано — выдуманный порядок действий хуже непонятного.
  */
 @Composable
-private fun ArticleExplainContent(store: CabinetStore, article: KnowledgeArticle, onDone: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    var question by remember { mutableStateOf("") }
-    var answer by remember { mutableStateOf<String?>(null) }
-    var isAsking by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+private fun ArticleExplainContent(vm: KnowledgeViewModel, articleId: String, title: String, onDone: () -> Unit) {
+    val explain by vm.explain.collectAsStateWithLifecycle()
+    var question by rememberSaveable { mutableStateOf("") }
+    // Ответ уже есть для этой статьи — повторно не просим; поле очищаем только по новому ответу.
+    val mine = explain.articleId == articleId
+    val answer = if (mine) explain.answer else null
+    val seenAnswers = remember { explain.answers }
 
     fun ask() {
-        if (isAsking) return
-        scope.launch {
-            isAsking = true
-            error = null
-            val q = question.trim()
-            store.explainArticle(article.id, q.ifEmpty { null })
-                .onSuccess {
-                    answer = it
-                    question = ""
-                }
-                .onFailure { error = it.message }
-            isAsking = false
-        }
+        val q = question.trim()
+        vm.explainArticle(articleId, q.ifEmpty { null })
     }
 
     // Первое объяснение просим сразу: человек открыл лист ровно за этим.
-    LaunchedEffect(Unit) { if (answer == null) ask() }
+    LaunchedEffect(articleId) { if (!(mine && explain.answer != null)) ask() }
+    LaunchedEffect(explain.answers) { if (explain.answers != seenAnswers) question = "" }
 
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.lg).padding(bottom = Spacing.xxl),
+        Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.lg).padding(bottom = Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         OrdaCard {
             Text("ПРАВИЛО", color = Orda.colors.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(article.title, color = Orda.colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, color = Orda.colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         }
 
-        val text = answer
-        if (isAsking && text == null) {
+        if (explain.isAsking && answer == null) {
             Box(Modifier.fillMaxWidth().padding(Spacing.lg), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Orda.colors.brand)
             }
-        } else if (text != null) {
+        } else if (answer != null) {
             // Ответ приходит списком пунктов — каждая строка отдельно, а не абзацем.
+            val lines = remember(answer) { answer.split("\n").map { it.trim() }.filter { it.isNotEmpty() } }
             OrdaCard {
-                text.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.forEach {
-                    Text(it, color = Orda.colors.text, fontSize = 16.sp)
-                }
+                lines.forEach { Text(it, color = Orda.colors.text, fontSize = 16.sp) }
             }
             Text(
                 "Это пересказ правила, а не новое правило. Спорные случаи решает руководитель.",
@@ -508,12 +522,12 @@ private fun ArticleExplainContent(store: CabinetStore, article: KnowledgeArticle
             NoteField(question, { question = it }, "Например: а если гость уже ушёл?", minLines = 1, maxLines = 3)
         }
 
-        error?.let { Text(it, color = Orda.colors.negative, fontSize = 14.sp) }
+        if (mine) explain.error?.let { Text(it, color = Orda.colors.negative, fontSize = 14.sp) }
 
         PrimaryButton(
             if (answer == null) "Объяснить проще" else "Спросить",
             Modifier.fillMaxWidth(),
-            loading = isAsking,
+            loading = explain.isAsking,
             onClick = ::ask,
         )
         TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Готово") }

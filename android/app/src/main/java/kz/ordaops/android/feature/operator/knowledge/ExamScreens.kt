@@ -6,11 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -18,17 +22,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,24 +38,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kz.ordaops.android.core.net.ApiRequest
-import kz.ordaops.android.core.net.userMessage
-import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.feature.operator.work.AccentCard
+import kz.ordaops.android.feature.operator.work.CenteredContent
 import kz.ordaops.android.feature.operator.work.NoteField
-import kz.ordaops.android.feature.operator.work.Refreshable
 import kz.ordaops.android.feature.operator.work.SecondaryButton
 import kz.ordaops.android.feature.operator.work.SectionTitle
 import kz.ordaops.android.feature.operator.work.pluralize
-import kz.ordaops.android.ui.components.EmptyState
-import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.components.PrimaryButton
+import kz.ordaops.android.ui.components.StateContainer
+import kz.ordaops.android.ui.components.WavyProgress
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
@@ -70,6 +68,7 @@ import java.util.Locale
 // сервер не отдаёт: одного скриншота хватило бы, чтобы билет ушёл следующему.
 
 @Serializable
+@Immutable
 data class ExamQuestion(
     val index: Int = 0,
     val text: String = "",
@@ -83,6 +82,7 @@ data class ExamQuestion(
 
 /** Экзамен в списке; в ответе по одной попытке сюда же приходит текущий вопрос. */
 @Serializable
+@Immutable
 data class OperatorExam(
     val id: String,
     val title: String = "Экзамен",
@@ -113,10 +113,10 @@ data class OperatorExam(
 }
 
 @Serializable
-private data class ExamListResponse(val data: List<OperatorExam> = emptyList())
+internal data class ExamListResponse(val data: List<OperatorExam> = emptyList())
 
 @Serializable
-private data class ExamAttemptResponse(val data: OperatorExam? = null)
+internal data class ExamAttemptResponse(val data: OperatorExam? = null)
 
 private fun percent(value: Double?): String {
     if (value == null || !value.isFinite()) return "—"
@@ -135,79 +135,55 @@ private val dayFormat = DateTimeFormatter.ofPattern("d MMM", Locale("ru")).withZ
  */
 @Composable
 fun ExamsScreen(showTitle: Boolean = true) {
-    val api = LocalOperatorEnv.current.api
-    val scope = rememberCoroutineScope()
-    var exams by remember { mutableStateOf<List<OperatorExam>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var loadError by remember { mutableStateOf<String?>(null) }
-    var openId by remember { mutableStateOf<String?>(null) }
-    val request = remember { ApiRequest("/api/operator/exams") }
+    val vm = operatorViewModel { env -> ExamsViewModel(env) }
+    val state by vm.list.collectAsStateWithLifecycle()
+    // Открытый экзамен — идентификатором в saveable: переживёт и поворот, и пересоздание процесса.
+    var openId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    suspend fun load() {
-        isLoading = true
-        try {
-            exams = api.send<ExamListResponse>(request).data
-            loadError = null
-        } catch (e: Exception) {
-            loadError = e.userMessage()
-        }
-        isLoading = false
-    }
+    LaunchedEffect(Unit) { vm.refresh() }
 
-    LaunchedEffect(Unit) {
-        api.cached<ExamListResponse>(request)?.let { exams = it.data }
-        load()
-    }
-
-    val current = openId?.let { id -> exams.firstOrNull { it.id == id } }
+    val current = openId?.let { id -> state.data?.firstOrNull { it.id == id } }
     if (current != null) {
-        BackHandler { openId = null }
-        // Вернулись из экзамена — список перечитываем: прогресс изменился.
-        ExamRunnerScreen(current.id, current.title, onBack = {
+        val leave = {
             openId = null
-            scope.launch { load() }
-        })
+            vm.closeExam()
+            // Вернулись из экзамена — список перечитываем: прогресс изменился.
+            vm.refresh()
+        }
+        BackHandler(onBack = leave)
+        ExamRunnerScreen(vm, current.id, current.title, onBack = leave)
         return
     }
 
-    val open = exams.filter { it.isOpen }
-    val finished = exams.filter { !it.isOpen }
-
     Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
         if (showTitle) SectionTitle("Экзамены")
-        Refreshable(refreshing = isLoading && exams.isNotEmpty(), onRefresh = { scope.launch { load() } }) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                when {
-                    loadError != null && exams.isEmpty() -> ErrorBanner(loadError.orEmpty())
-                    isLoading && exams.isEmpty() -> Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Orda.colors.brand)
-                    }
-                    exams.isEmpty() -> EmptyState(
-                        icon = Icons.Filled.School,
-                        title = "Экзаменов нет",
-                        message = "Когда руководитель назначит аттестацию, она появится здесь.",
-                    )
-                    else -> {
-                        if (open.isNotEmpty()) {
-                            OrdaCard {
-                                SectionLabel("Сдать", "вопросы задаются по одному")
-                                open.forEachIndexed { i, exam ->
-                                    if (i > 0) HorizontalDivider(color = Orda.colors.border)
-                                    ExamRow(exam, Modifier.clickable { openId = exam.id })
-                                }
-                            }
+        StateContainer(
+            state = state,
+            onRetry = vm::refresh,
+            modifier = Modifier.weight(1f),
+            isEmpty = { it.isEmpty() },
+            emptyIcon = Icons.Filled.School,
+            emptyTitle = "Экзаменов нет",
+            emptyMessage = "Когда руководитель назначит аттестацию, она появится здесь.",
+        ) { exams ->
+            val open = remember(exams) { exams.filter { it.isOpen } }
+            val finished = remember(exams) { exams.filter { !it.isOpen } }
+            CenteredContent {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    if (open.isNotEmpty()) {
+                        item(key = "h-open", contentType = "label") { SectionLabel("Сдать", "вопросы задаются по одному") }
+                        items(open, key = { it.id }, contentType = { "exam" }) { exam ->
+                            OrdaCard { ExamRow(exam, Modifier.clickable { openId = exam.id }) }
                         }
-                        if (finished.isNotEmpty()) {
-                            OrdaCard {
-                                SectionLabel("Сданные", null)
-                                finished.forEachIndexed { i, exam ->
-                                    if (i > 0) HorizontalDivider(color = Orda.colors.border)
-                                    ExamRow(exam, Modifier)
-                                }
-                            }
+                    }
+                    if (finished.isNotEmpty()) {
+                        item(key = "h-done", contentType = "label") { SectionLabel("Сданные", null) }
+                        items(finished, key = { it.id }, contentType = { "exam-done" }) { exam ->
+                            OrdaCard { ExamRow(exam, Modifier) }
                         }
                     }
                 }
@@ -279,73 +255,30 @@ private fun ExamRow(exam: OperatorExam, modifier: Modifier) {
 
 /** Сдача экзамена: один вопрос на экране — `ExamRunnerScreen`. */
 @Composable
-private fun ExamRunnerScreen(examId: String, title: String, onBack: () -> Unit) {
-    val api = LocalOperatorEnv.current.api
-    val scope = rememberCoroutineScope()
-    var attempt by remember { mutableStateOf<OperatorExam?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isSending by remember { mutableStateOf(false) }
-    var loadError by remember { mutableStateOf<String?>(null) }
-    var sendError by remember { mutableStateOf<String?>(null) }
-    var openAnswer by remember { mutableStateOf("") }
+private fun ExamRunnerScreen(vm: ExamsViewModel, examId: String, title: String, onBack: () -> Unit) {
+    val attempt by vm.attempt.collectAsStateWithLifecycle()
+    val send by vm.send.collectAsStateWithLifecycle()
 
-    fun load() {
-        scope.launch {
-            isLoading = true
-            try {
-                attempt = api.send<ExamAttemptResponse>(ApiRequest("/api/operator/exams/$examId")).data
-                loadError = null
-            } catch (e: Exception) {
-                loadError = e.userMessage()
-            }
-            isLoading = false
-        }
-    }
+    LaunchedEffect(examId) { vm.openExam(examId) }
 
-    LaunchedEffect(examId) { load() }
-
-    /** Ответ на текущий вопрос; в ответе сразу следующее состояние, второй запрос не нужен. */
-    fun answer(index: Int, choice: Int? = null, text: String? = null) {
-        if (isSending) return
-        scope.launch {
-            isSending = true
-            sendError = null
-            try {
-                val body = buildJsonObject {
-                    put("index", index)
-                    if (choice != null) put("choice", choice)
-                    if (text != null) put("text", text)
-                }
-                attempt = api.send<ExamAttemptResponse>(ApiRequest.json("/api/operator/exams/$examId", body)).data
-                openAnswer = ""
-            } catch (e: Exception) {
-                sendError = e.userMessage()
-            }
-            isSending = false
-        }
-    }
-
-    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+    Column(Modifier.fillMaxSize().background(Orda.colors.background).imePadding()) {
         SectionTitle(title, onBack = onBack)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            val current = attempt
-            when {
-                loadError != null && current == null -> {
-                    ErrorBanner(loadError.orEmpty())
-                    SecondaryButton("Повторить") { load() }
-                }
-                isLoading && current == null -> Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Orda.colors.brand)
-                }
-                current != null -> {
+        StateContainer(
+            state = attempt,
+            onRetry = vm::retry,
+            onRefresh = null,
+            modifier = Modifier.weight(1f),
+        ) { current ->
+            CenteredContent {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
                     val question = current.question
                     if (question != null && current.isOpen) {
                         ProgressCard(current)
-                        QuestionCard(question, isSending, sendError, openAnswer, { openAnswer = it }) { choice, text ->
-                            answer(question.index, choice, text)
+                        QuestionCard(examId, question, send.isSending, send.error) { choice, text ->
+                            vm.answer(question.index, choice, text)
                         }
                     } else {
                         ResultCard(current, onBack)
@@ -379,13 +312,14 @@ private fun ProgressCard(exam: OperatorExam) {
 
 @Composable
 private fun QuestionCard(
+    examId: String,
     question: ExamQuestion,
     isSending: Boolean,
     sendError: String?,
-    openAnswer: String,
-    onOpenAnswerChange: (String) -> Unit,
     onAnswer: (choice: Int?, text: String?) -> Unit,
 ) {
+    // Набранный развёрнутый ответ не должен пропасть на повороте или при выгрузке приложения.
+    var openAnswer by rememberSaveable(examId, question.index) { mutableStateOf("") }
     OrdaCard {
         Text(question.text, color = Orda.colors.text, fontSize = 16.sp)
         if (question.isOpen) {
@@ -394,7 +328,7 @@ private fun QuestionCard(
                 "Развёрнутый ответ · до $max ${pluralize(max, "балла", "баллов", "баллов")}",
                 color = Orda.colors.textDim, fontSize = 13.sp,
             )
-            NoteField(openAnswer, onOpenAnswerChange, "Ваш ответ", minLines = 5, maxLines = 12)
+            NoteField(openAnswer, { openAnswer = it }, "Ваш ответ", minLines = 5, maxLines = 12)
             PrimaryButton(
                 "Ответить",
                 Modifier.fillMaxWidth(),
