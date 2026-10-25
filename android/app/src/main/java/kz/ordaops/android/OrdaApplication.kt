@@ -9,6 +9,7 @@ import kz.ordaops.android.core.auth.AuthStore
 import kz.ordaops.android.core.auth.SessionClient
 import kz.ordaops.android.core.auth.SessionStorage
 import kz.ordaops.android.core.net.ApiClient
+import kz.ordaops.android.platform.QuickEntryVault
 
 /** Общие объекты приложения: один клиент API и одно состояние входа. */
 class OrdaApplication : Application() {
@@ -17,6 +18,8 @@ class OrdaApplication : Application() {
     lateinit var auth: AuthStore
         private set
     lateinit var api: ApiClient
+        private set
+    lateinit var quickVault: QuickEntryVault
         private set
 
     override fun onCreate() {
@@ -31,7 +34,8 @@ class OrdaApplication : Application() {
             )
         }
         val baseUrl = BuildConfig.API_BASE_URL
-        auth = AuthStore(SessionClient(baseUrl), SessionStorage(this), appScope)
+        quickVault = QuickEntryVault(this)
+        auth = AuthStore(SessionClient(baseUrl), SessionStorage(this), quickVault, appScope)
         api = ApiClient(this, baseUrl, auth)
         auth.api = api
         auth.restore()

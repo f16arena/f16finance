@@ -60,6 +60,11 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.background
 import androidx.compose.runtime.CompositionLocalProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -254,83 +259,95 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
         ),
     )
     val current = opened ?: selected
-    NavigationSuiteScaffold(
-        containerColor = Orda.colors.background,
-        navigationSuiteColors = NavigationSuiteDefaults.colors(
-            navigationBarContainerColor = Orda.colors.elevated,
-            navigationRailContainerColor = Orda.colors.elevated,
-            navigationDrawerContainerColor = Orda.colors.elevated,
-        ),
-        navigationSuiteItems = {
-            navItems.forEach { section ->
-                val isSelected = current == section
-                item(
-                    selected = isSelected,
-                    onClick = { env.open(section.name) },
-                    icon = {
-                        val bounce by animateFloatAsState(
-                            if (isSelected) 1.18f else 1f,
-                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                            label = "navBounce",
+    // Состояние каждого раздела (прокрутка, вкладки, введённый текст) живёт,
+    // пока человек переключается между разделами, — а не сбрасывается.
+    val saveable = rememberSaveableStateHolder()
+    val content: @Composable () -> Unit = {
+        CompositionLocalProvider(LocalOperatorEnv provides env) {
+            ShiftNotificationEffect()
+            // Смена раздела — короткий сдвиг с затуханием вместо резкой подмены экрана.
+            AnimatedContent(
+                modifier = Modifier.graphicsLayer {
+                    val p = backProgress.value
+                    val scale = 1f - 0.1f * p
+                    scaleX = scale
+                    scaleY = scale
+                    if (p > 0f) {
+                        shape = RoundedCornerShape((28 * p).dp)
+                        clip = true
+                    }
+                },
+                targetState = current,
+                transitionSpec = {
+                    val forward = targetState.ordinal >= initialState.ordinal
+                    (fadeIn(tween(220)) + slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { if (forward) it / 6 else -it / 6 })
+                        .togetherWith(fadeOut(tween(120)))
+                },
+                label = "section",
+            ) { section ->
+                saveable.SaveableStateProvider(section.name) {
+                    when (section) {
+                        OperatorSection.Shift -> ShiftTab()
+                        OperatorSection.Sale -> SaleTab()
+                        OperatorSection.Arena -> ArenaTab()
+                        OperatorSection.Audit -> AuditTab()
+                        OperatorSection.Tasks -> TasksTab()
+                        OperatorSection.Checklists -> ChecklistsTab()
+                        OperatorSection.Knowledge -> KnowledgeTab()
+                        OperatorSection.Chat -> ChatTab()
+                        OperatorSection.Messages -> MessagesTab()
+                        OperatorSection.Money -> MoneyTab()
+                        OperatorSection.Schedule -> ScheduleTab()
+                        OperatorSection.Profile -> OperatorProfileContent(
+                            more = OperatorSection.moreSections(sellsGoods, hasArena),
+                            onOpen = { opened = it },
                         )
-                        Box(Modifier.graphicsLayer { scaleX = bounce; scaleY = bounce }) {
-                            // Неотправленное без связи — видно на «Смене», чтобы не уйти домой с ним.
-                            if (section == OperatorSection.Shift && pending > 0) {
-                                BadgedBox(badge = { Badge { Text("$pending") } }) { Icon(section.icon, contentDescription = null) }
+                    }
+                }
+            }
+        }
+    }
+    val badges = if (pending > 0) mapOf(OperatorSection.Shift to pending) else emptyMap()
+
+    if (wide) {
+        // Планшет и складной: панель сбоку (рельс) со всеми разделами.
+        NavigationSuiteScaffold(
+            layoutType = NavigationSuiteType.NavigationRail,
+            containerColor = Orda.colors.background,
+            navigationSuiteColors = NavigationSuiteDefaults.colors(
+                navigationRailContainerColor = Orda.colors.elevated,
+            ),
+            navigationSuiteItems = {
+                navItems.forEach { section ->
+                    item(
+                        selected = current == section,
+                        onClick = { env.open(section.name) },
+                        icon = {
+                            val count = badges[section] ?: 0
+                            if (count > 0) {
+                                BadgedBox(badge = { Badge { Text("$count") } }) { Icon(section.icon, contentDescription = null) }
                             } else {
                                 Icon(section.icon, contentDescription = null)
                             }
-                        }
-                    },
-                    label = { Text(section.tabTitle, fontSize = 11.sp, maxLines = 1) },
-                    colors = itemColors,
-                )
-            }
-        },
-    ) {
-        val padding = WindowInsets.statusBars.asPaddingValues()
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            CompositionLocalProvider(LocalOperatorEnv provides env) {
-                ShiftNotificationEffect()
-                // Смена раздела — короткий сдвиг с затуханием вместо резкой подмены экрана.
-                AnimatedContent(
-                    modifier = Modifier.graphicsLayer {
-                        val p = backProgress.value
-                        val scale = 1f - 0.1f * p
-                        scaleX = scale
-                        scaleY = scale
-                        if (p > 0f) {
-                            shape = RoundedCornerShape((28 * p).dp)
-                            clip = true
-                        }
-                    },
-                    targetState = opened ?: selected,
-                    transitionSpec = {
-                        val forward = targetState.ordinal >= initialState.ordinal
-                        (fadeIn(tween(220)) + slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { if (forward) it / 6 else -it / 6 })
-                            .togetherWith(fadeOut(tween(120)))
-                    },
-                    label = "section",
-                ) { section ->
-                when (section) {
-                    OperatorSection.Shift -> ShiftTab()
-                    OperatorSection.Sale -> SaleTab()
-                    OperatorSection.Arena -> ArenaTab()
-                    OperatorSection.Audit -> AuditTab()
-                    OperatorSection.Tasks -> TasksTab()
-                    OperatorSection.Checklists -> ChecklistsTab()
-                    OperatorSection.Knowledge -> KnowledgeTab()
-                    OperatorSection.Chat -> ChatTab()
-                    OperatorSection.Messages -> MessagesTab()
-                    OperatorSection.Money -> MoneyTab()
-                    OperatorSection.Schedule -> ScheduleTab()
-                    OperatorSection.Profile -> OperatorProfileContent(
-                        more = OperatorSection.moreSections(sellsGoods, hasArena),
-                        onOpen = { opened = it },
+                        },
+                        label = { Text(section.tabTitle, fontSize = 11.sp, maxLines = 1) },
+                        colors = itemColors,
                     )
                 }
-                }
-            }
+            },
+        ) {
+            Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) { content() }
+        }
+    } else {
+        Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+            Box(Modifier.weight(1f).fillMaxWidth().statusBarsPadding()) { content() }
+            FloatingTabBar(
+                tabs = navItems,
+                // Раздел, открытый из профиля, подсвечивает «Профиль».
+                selected = if (current in navItems) current else OperatorSection.Profile.takeIf { it in navItems },
+                badges = badges,
+                onSelect = { env.open(it.name) },
+            )
         }
     }
 }

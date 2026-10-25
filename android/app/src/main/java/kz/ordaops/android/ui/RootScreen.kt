@@ -43,7 +43,7 @@ fun RootScreen(app: OrdaApplication) {
         when (state.phase) {
             AuthStore.Phase.Restoring -> LoadingView()
             AuthStore.Phase.SignedOut -> {
-                LoginScreen(state, onSignIn = app.auth::signIn, onForgot = { resetOpen = true }, onQuickEntry = app.auth::signInWithQuickEntry)
+                LoginScreen(state, onSignIn = app.auth::signIn, onForgot = { resetOpen = true }, quickCipher = app.quickVault::decryptCipher, onQuickEntry = app.auth::signInWithQuickEntry)
                 if (resetOpen) PasswordResetDialog(app, onDismiss = { resetOpen = false })
             }
             AuthStore.Phase.LoadingRole -> LoadingView("Проверяем доступ…")

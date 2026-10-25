@@ -76,7 +76,8 @@ fun LoginScreen(
     state: AuthStore.State,
     onSignIn: (String, String) -> Unit,
     onForgot: () -> Unit,
-    onQuickEntry: () -> Unit = {},
+    quickCipher: () -> javax.crypto.Cipher? = { null },
+    onQuickEntry: (javax.crypto.Cipher) -> Unit = {},
 ) {
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -89,7 +90,11 @@ fun LoginScreen(
     fun askFingerprint() {
         val activity = context as? FragmentActivity ?: return
         quickError = null
-        Biometrics.authenticate(activity, onSuccess = onQuickEntry, onError = { quickError = it })
+        val cipher = quickCipher() ?: run {
+            quickError = "Отпечатки в телефоне изменились — войдите паролем, и быстрый вход включится снова."
+            return
+        }
+        Biometrics.authenticate(activity, cipher, onSuccess = { it?.let(onQuickEntry) }, onError = { quickError = it })
     }
     // Один раз сами предлагаем отпечаток — как Face ID при открытии на айфоне.
     var offered by rememberSaveable { mutableStateOf(false) }

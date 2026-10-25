@@ -11,7 +11,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import javax.crypto.Cipher
 import kz.ordaops.android.core.access.AccessResolver
+import kz.ordaops.android.core.net.ApiJson
+import kz.ordaops.android.platform.QuickEntryVault
 import kz.ordaops.android.core.access.SessionRole
 import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiError
@@ -26,6 +29,7 @@ import kz.ordaops.android.core.net.userMessage
 class AuthStore(
     private val auth: SessionClient,
     private val storage: SessionStorage,
+    private val vault: QuickEntryVault,
     private val scope: CoroutineScope,
 ) : TokenProvider {
 
@@ -76,7 +80,11 @@ class AuthStore(
     fun restore() {
         scope.launch {
             // Хранилище — с диска и через Keystore: не в главном потоке.
-            val (stored, hasQuick) = withContext(Dispatchers.IO) { storage.load() to storage.hasQuick() }
+            val (stored, hasQuick) = withContext(Dispatchers.IO) {
+                // Старая копия быстрого входа лежала без привязки к отпечатку — убираем.
+                storage.clearQuick()
+                storage.load() to vault.hasSecret()
+            }
             _state.update { it.copy(hasQuickEntry = hasQuick) }
             if (stored == null) {
                 _state.update { it.copy(phase = Phase.SignedOut) }
@@ -113,21 +121,29 @@ class AuthStore(
      * Вход после подтверждения отпечатком: продлеваем сохранённую копию.
      * Сервер её не принял — копия бесполезна, забываем и просим пароль.
      */
-    fun signInWithQuickEntry() {
-        val stored = storage.loadQuick() ?: run {
-            _state.update { it.copy(hasQuickEntry = false) }
-            return
-        }
+    /**
+     * Вход по отпечатку: окно отпечатка открыло ключ сейфа (`cipher`), им
+     * расшифровываем сохранённую сессию и продлеваем её. Сервер не принял —
+     * копия бесполезна, стираем и просим пароль.
+     */
+    fun signInWithQuickEntry(cipher: Cipher) {
         if (_state.value.isSigningIn) return
         _state.update { it.copy(isSigningIn = true, quickEntryError = null, signInError = null) }
         scope.launch {
             try {
+                val stored = withContext(Dispatchers.Default) { vault.open(cipher) }
+                    ?.let { runCatching { ApiJson.decodeFromString(SessionClient.Session.serializer(), it) }.getOrNull() }
+                if (stored == null) {
+                    withContext(Dispatchers.IO) { vault.clear() }
+                    _state.update { it.copy(hasQuickEntry = false, quickEntryError = "Быстрый вход недоступен — войдите логином и паролем.") }
+                    return@launch
+                }
                 val session = auth.refresh(stored.refreshToken)
                 persist(session)
                 _state.update { it.copy(phase = Phase.LoadingRole, signOutReason = null) }
                 loadRole()
             } catch (e: SessionClient.AuthError.InvalidCredentials) {
-                storage.clearQuick()
+                withContext(Dispatchers.IO) { vault.clear() }
                 _state.update { it.copy(hasQuickEntry = false, quickEntryError = "Быстрый вход устарел — войдите логином и паролем.") }
             } catch (e: Exception) {
                 _state.update { it.copy(quickEntryError = "Сервер не ответил. Попробуйте ещё раз или войдите логином и паролем.") }
@@ -142,7 +158,7 @@ class AuthStore(
         scope.launch(Dispatchers.IO) { api.clearCache() }
         api.organizationId = null
         session = null
-        _state.update { State(phase = Phase.SignedOut, signOutReason = it.signOutReason, hasQuickEntry = storage.hasQuick()) }
+        _state.update { State(phase = Phase.SignedOut, signOutReason = it.signOutReason, hasQuickEntry = vault.hasSecret()) }
     }
 
     private fun signOutAutomatically(reason: String) {
@@ -189,7 +205,8 @@ class AuthStore(
         lastRefreshRejected = false
         // Свежий токен — и в копию быстрого входа: старый refresh после продления уже не примут.
         val saved = withContext(Dispatchers.IO) {
-            storage.saveQuick(newSession)
+            // Копия для входа по отпечатку: шифруется открытым ключом, без пальца.
+            vault.store(ApiJson.encodeToString(SessionClient.Session.serializer(), newSession))
             storage.save(newSession)
         }
         if (!saved) {
