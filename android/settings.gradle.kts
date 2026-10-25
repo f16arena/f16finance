@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Orda"
 include(":app")
+// Baseline Profiles и замеры старта/прокрутки (Macrobenchmark).
+include(":baselineprofile")

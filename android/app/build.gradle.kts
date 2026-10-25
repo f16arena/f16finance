@@ -7,6 +7,8 @@ plugins {
     id("com.google.gms.google-services")
     // Падения у операторов — в консоль Firebase, с устройством, версией Android и стеком.
     id("com.google.firebase.crashlytics")
+    // Профили запуска: Android заранее компилирует код старта и прокрутки.
+    id("androidx.baselineprofile")
 }
 
 android {
@@ -66,6 +68,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.core:core-ktx:1.17.0")
+    // Ставит Baseline Profile при установке из APK (без Google Play).
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    baselineProfile(project(":baselineprofile"))
     // Заставка с анимированным знаком.
     implementation("androidx.core:core-splashscreen:1.0.1")
     // Виджет «Смена» на рабочем столе и его периодическое обновление.
