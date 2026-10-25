@@ -22,7 +22,9 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.ShoppingCart
+import kz.ordaops.android.feature.operator.qr.QrLoginScreen
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -126,6 +128,7 @@ enum class OperatorSection(val title: String, val tabTitle: String, val icon: Im
     Messages("Сообщения", "Сообщения", Icons.Filled.Email),
     Money("Мои деньги", "Деньги", Icons.Filled.AccountBalanceWallet),
     Schedule("График", "График", Icons.Filled.CalendarMonth),
+    QrLogin("Вход по QR", "QR-вход", Icons.Filled.QrCodeScanner),
     Profile("Профиль", "Профиль", Icons.Filled.AccountCircle);
 
     companion object {
@@ -142,7 +145,7 @@ enum class OperatorSection(val title: String, val tabTitle: String, val icon: Im
             val all = buildList {
                 if (sellsGoods) add(Audit)
                 if (hasArena && sellsGoods) add(Arena)
-                addAll(listOf(Checklists, Knowledge, Messages, Money, Schedule))
+                addAll(listOf(Checklists, Knowledge, Messages, Money, Schedule, QrLogin))
             }
             return all.filterNot { it in tabs }
         }
@@ -298,6 +301,7 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                         OperatorSection.Messages -> MessagesTab()
                         OperatorSection.Money -> MoneyTab()
                         OperatorSection.Schedule -> ScheduleTab()
+                        OperatorSection.QrLogin -> QrLoginScreen()
                         OperatorSection.Profile -> OperatorProfileContent(
                             more = OperatorSection.moreSections(sellsGoods, hasArena),
                             onOpen = { opened = it },
