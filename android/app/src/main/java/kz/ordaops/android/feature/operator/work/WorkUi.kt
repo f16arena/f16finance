@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.clickable
@@ -150,6 +152,14 @@ fun NoteField(value: String, onChange: (String) -> Unit, placeholder: String, mi
             cursorBrush = SolidColor(Orda.colors.brand),
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/** На планшете и в ландшафте списки не растягиваем на весь экран — читать строку в 1000dp неудобно. */
+@Composable
+fun CenteredContent(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) { content() }
     }
 }
 

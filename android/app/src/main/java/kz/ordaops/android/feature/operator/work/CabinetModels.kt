@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.work
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
@@ -16,6 +17,7 @@ import java.time.LocalDate
 // ── Задачи: /api/operator/tasks ──────────────────────────────────────────────
 
 @Serializable
+@Immutable
 data class OperatorTask(
     val id: String,
     val title: String = "Задача",
@@ -62,6 +64,7 @@ enum class TaskResponse(val raw: String, val title: String) {
 // ── Чек-листы ────────────────────────────────────────────────────────────────
 
 @Serializable
+@Immutable
 data class ChecklistTemplate(
     val id: String,
     val title: String = "Чек-лист",
@@ -84,6 +87,7 @@ data class ChecklistRun(
 }
 
 @Serializable
+@Immutable
 data class ChecklistItem(
     val id: String,
     @SerialName("template_id") val templateId: String = "",
@@ -98,6 +102,7 @@ data class ChecklistItem(
 
 /** Ответ на пункт. Хранится и в очереди «ждёт связи», поэтому сериализуется. */
 @Serializable
+@Immutable
 data class ChecklistAnswer(
     val itemId: String,
     val answer: String,
@@ -123,6 +128,7 @@ data class ChecklistRunStart(
 
 /** Итог завершения: штрафы и бонусы начисляются сразу. */
 @Serializable
+@Immutable
 data class ChecklistRunResult(
     val status: String = "completed",
     @SerialName("fines_total") val finesTotal: Double = 0.0,
@@ -132,6 +138,7 @@ data class ChecklistRunResult(
 // ── Знания ───────────────────────────────────────────────────────────────────
 
 @Serializable
+@Immutable
 data class KnowledgeArticle(
     val id: String,
     val title: String = "Статья",
@@ -165,6 +172,7 @@ data class KnowledgeData(
 
 /** Ответ `GET /api/operator/knowledge` — всё лежит в `data`. */
 @Serializable
+@Immutable
 data class KnowledgeCenter(val data: KnowledgeData = KnowledgeData()) {
     val articles get() = data.articles
     val pendingConfirmations get() = data.pendingConfirmations
@@ -183,6 +191,7 @@ data class ExplainResponse(val answer: JsonElement? = null) {
 // ── Смена: нужна только чек-листам, чтобы понять, чья смена ──────────────────
 
 @Serializable
+@Immutable
 data class ShiftHead(
     val shift: ShiftBrief? = null,
     // Старый сервер поля не отдаёт: считаем смену своей, иначе кнопка пропадёт у того, кто её открыл.

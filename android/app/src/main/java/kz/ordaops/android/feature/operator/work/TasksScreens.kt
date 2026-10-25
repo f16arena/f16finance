@@ -6,44 +6,42 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.key
-import kz.ordaops.android.ui.components.rememberHaptics
-import androidx.compose.material3.IconButton
-import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,15 +49,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.ui.components.EmptyState
-import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.components.PrimaryButton
+import kz.ordaops.android.ui.components.StateContainer
+import kz.ordaops.android.ui.components.WavyProgress
 import kz.ordaops.android.ui.components.money
+import kz.ordaops.android.ui.components.rememberHaptics
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
@@ -78,26 +77,31 @@ private fun TaskResponse.icon(): ImageVector = when (this) {
     TaskResponse.Complete -> Icons.Filled.Send
 }
 
+private val listPadding = PaddingValues(Spacing.lg)
+
 // ── Задачи ───────────────────────────────────────────────────────────────────
 
-/** Ответ, которому нужна причина. */
-private data class NoteRequest(val task: OperatorTask, val response: TaskResponse)
-
-/** Задачи оператора — `TasksScreen`. */
+/** Задачи оператора — `TasksScreen`. Детального экрана задачи нет, поэтому на планшете список центрируется. */
 @Composable
 fun TasksTab() {
-    val env = LocalOperatorEnv.current
-    val context = LocalContext.current
-    val store = remember { CabinetStore(env, context) }
-    val scope = rememberCoroutineScope()
-    var error by remember { mutableStateOf<String?>(null) }
-    var noteRequest by remember { mutableStateOf<NoteRequest?>(null) }
+    val vm = operatorViewModel { env -> TasksViewModel(env) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
+    val action by vm.action.collectAsStateWithLifecycle()
+    // Ответ, которому нужна причина: хранится идентификатором, чтобы пережить поворот и пересоздание.
+    var noteTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var noteResponse by rememberSaveable { mutableStateOf<String?>(null) }
     val haptics = rememberHaptics()
+    val seenCompleted = remember { action.completed }
 
-    LaunchedEffect(Unit) {
-        store.loadCachedTasks()
-        store.loadTasks()
+    LaunchedEffect(Unit) { vm.refresh() }
+    LaunchedEffect(action.completed) {
+        if (action.completed != seenCompleted) {
+            noteTaskId = null
+            haptics.success()
+        }
     }
+    LaunchedEffect(action.error) { if (action.error != null) haptics.error() }
 
     /**
      * «Нужны уточнения» и «не могу выполнить» без причины бесполезны:
@@ -105,75 +109,73 @@ fun TasksTab() {
      */
     fun respond(task: OperatorTask, response: TaskResponse) {
         if (response.needsNote) {
-            noteRequest = NoteRequest(task, response)
+            vm.clearActionError()
+            noteTaskId = task.id
+            noteResponse = response.raw
             return
         }
-        scope.launch {
-            error = store.respondToTask(task, response)
-            if (error == null) haptics.success() else haptics.error()
-        }
+        vm.respond(task, response)
     }
 
     Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
         SectionTitle("Задачи")
-        Refreshable(refreshing = store.isLoadingTasks && store.tasks.isNotEmpty(), onRefresh = { scope.launch { store.loadTasks() } }) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                store.deferredNotice?.let { NoticeCard(it, Orda.colors.warning) }
-                val tasks = store.tasks
-                when {
-                    store.isLoadingTasks && tasks.isEmpty() -> Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Orda.colors.brand)
-                    }
-                    tasks.isEmpty() -> EmptyState(
-                        icon = Icons.Filled.Verified,
-                        title = "Задач нет",
-                        message = store.error ?: "Как только руководитель поставит задачу, она появится здесь.",
-                    )
-                    else -> {
-                        val active = store.activeTasks
-                        if (active.isNotEmpty()) {
-                            SectionHeader("В работе", "${active.size} ${pluralize(active.size, "задача", "задачи", "задач")}")
-                            active.forEach { task ->
-                                key(task.id) {
-                                    TaskSwipe(
-                                        enabled = !task.isOnReview,
-                                        onDone = {
-                                            haptics.success()
-                                            respond(task, TaskResponse.AlreadyDone)
-                                        },
-                                    ) { TaskCard(task) { respond(task, it) } }
-                                }
-                            }
+        notice?.let { Box(Modifier.padding(horizontal = Spacing.lg)) { NoticeCard(it, Orda.colors.warning) } }
+        StateContainer(
+            state = state,
+            onRetry = vm::refresh,
+            modifier = Modifier.weight(1f),
+            isEmpty = { it.isEmpty },
+            emptyIcon = Icons.Filled.Verified,
+            emptyTitle = "Задач нет",
+            emptyMessage = "Как только руководитель поставит задачу, она появится здесь.",
+        ) { ui ->
+            CenteredContent {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = listPadding,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    if (ui.active.isNotEmpty()) {
+                        item(key = "h-active", contentType = "header") {
+                            SectionHeader("В работе", "${ui.active.size} ${pluralize(ui.active.size, "задача", "задачи", "задач")}")
                         }
-                        val done = tasks.filter { it.isDone }
-                        if (done.isNotEmpty()) {
+                        items(ui.active, key = { it.id }, contentType = { "task" }) { task ->
+                            TaskSwipe(
+                                enabled = !task.isOnReview,
+                                onDone = {
+                                    haptics.success()
+                                    respond(task, TaskResponse.AlreadyDone)
+                                },
+                            ) { TaskCard(task) { respond(task, it) } }
+                        }
+                    }
+                    if (ui.done.isNotEmpty()) {
+                        item(key = "h-done", contentType = "header") {
                             Box(Modifier.padding(top = Spacing.md)) { SectionHeader("Завершённые", null) }
-                            done.forEach { task -> TaskCard(task, onRespond = null) }
+                        }
+                        items(ui.done, key = { it.id }, contentType = { "task-done" }) { task ->
+                            TaskCard(task, onRespond = null)
+                        }
+                    }
+                    if (noteTaskId == null) {
+                        action.error?.let { e ->
+                            item(key = "error", contentType = "error") { Text(e, color = Orda.colors.negative, fontSize = 14.sp) }
                         }
                     }
                 }
-                error?.let { Text(it, color = Orda.colors.negative, fontSize = 14.sp) }
             }
         }
     }
 
-    noteRequest?.let { request ->
+    val noteTask = noteTaskId?.let { id -> state.data?.let { ui -> (ui.active + ui.done).firstOrNull { it.id == id } } }
+    val noteKind = TaskResponse.entries.firstOrNull { it.raw == noteResponse }
+    if (noteTask != null && noteKind != null) {
         TaskNoteDialog(
-            response = request.response,
-            onDismiss = { noteRequest = null },
-            send = { note ->
-                val failure = store.respondToTask(request.task, request.response, note)
-                if (failure == null) {
-                    noteRequest = null
-                    haptics.success()
-                } else {
-                    haptics.error()
-                }
-                failure
-            },
+            response = noteKind,
+            sending = action.sending,
+            error = action.error,
+            onDismiss = { noteTaskId = null },
+            onSend = { note -> vm.respond(noteTask, noteKind, note) },
         )
     }
 }
@@ -265,20 +267,23 @@ private fun TaskCard(task: OperatorTask, onRespond: ((TaskResponse) -> Unit)?) {
     }
 }
 
-/** Причина к ответу по задаче — `TaskNoteSheet`. */
+/** Причина к ответу по задаче — `TaskNoteSheet`. Текст переживает поворот. */
 @Composable
-private fun TaskNoteDialog(response: TaskResponse, onDismiss: () -> Unit, send: suspend (String) -> String?) {
-    var note by remember { mutableStateOf("") }
-    var sending by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
+private fun TaskNoteDialog(
+    response: TaskResponse,
+    sending: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSend: (String) -> Unit,
+) {
+    var note by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = { if (!sending) onDismiss() },
         containerColor = Orda.colors.elevated,
         title = { Text(response.title, color = Orda.colors.text) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(Modifier.imePadding(), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(
                     if (response == TaskResponse.Blocked) "Что мешает выполнить задачу?" else "Что именно нужно уточнить?",
                     color = Orda.colors.text,
@@ -293,13 +298,7 @@ private fun TaskNoteDialog(response: TaskResponse, onDismiss: () -> Unit, send: 
         confirmButton = {
             TextButton(
                 enabled = !sending && note.trim().length >= 3,
-                onClick = {
-                    scope.launch {
-                        sending = true
-                        error = send(note.trim())
-                        sending = false
-                    }
-                },
+                onClick = { onSend(note.trim()) },
             ) { Text(if (sending) "Отправляем…" else "Отправить") }
         },
         dismissButton = { TextButton(enabled = !sending, onClick = onDismiss) { Text("Отмена") } },
@@ -311,91 +310,89 @@ private fun TaskNoteDialog(response: TaskResponse, onDismiss: () -> Unit, send: 
 /** Список чек-листов смены — `ChecklistsScreen`. */
 @Composable
 fun ChecklistsTab() {
-    val env = LocalOperatorEnv.current
-    val context = LocalContext.current
-    val store = remember { CabinetStore(env, context) }
-    val scope = rememberCoroutineScope()
-    var running by remember { mutableStateOf<ChecklistTemplate?>(null) }
+    val appContext = LocalContext.current.applicationContext
+    val vm = operatorViewModel { env -> ChecklistsViewModel(env, appContext) }
+    val knowledge by vm.knowledge.collectAsStateWithLifecycle()
+    val shift by vm.shift.collectAsStateWithLifecycle()
+    val undelivered by vm.undelivered.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
+    val run by vm.run.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        store.prepareOutbox()
-        store.loadCachedKnowledge()
-        // Экран открыли — самое время дослать: связь могла вернуться, пока человек ходил по точке.
-        store.flushChecklists()
-        store.loadKnowledge()
-        store.loadShift()
-    }
+    LaunchedEffect(Unit) { vm.onOpen() }
 
-    running?.let { template ->
-        BackHandler { running = null }
-        ChecklistRunScreen(store, template) { running = null }
+    run?.let { current ->
+        BackHandler { vm.closeRun() }
+        ChecklistRunScreen(vm, current, knowledge.data)
         return
     }
 
-    val shift = store.shift
-    val knowledge = store.knowledge
     // Чек-лист привязывается к смене: пройденный на чужой окажется в её отчёте со штрафами и премиями.
     val canRun = shift?.isMyShift ?: false
 
     Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
         SectionTitle("Чек-листы")
-        Refreshable(
-            refreshing = store.isLoadingKnowledge && knowledge != null,
-            onRefresh = { scope.launch { store.loadKnowledge(); store.loadShift() } },
-        ) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                if (shift != null) {
-                    if (shift.isSomeoneElses) {
-                        NoticeCard(
-                            "Сейчас смену ведёт ${shift.shift?.operatorName ?: "сменщик"}. Чек-листы проходит тот, кто на смене.",
-                            Orda.colors.info,
-                        )
-                    } else if (!shift.hasOpenShift) {
-                        NoticeCard("Чек-листы проходят в открытой смене. Откройте смену, чтобы начать.", Orda.colors.warning)
+        StateContainer(
+            state = knowledge,
+            onRetry = vm::refresh,
+            modifier = Modifier.weight(1f),
+            isEmpty = { false },
+        ) { center ->
+            CenteredContent {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = listPadding,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    shift?.let { head ->
+                        if (head.isSomeoneElses) {
+                            item(key = "shift", contentType = "notice") {
+                                NoticeCard(
+                                    "Сейчас смену ведёт ${head.shift?.operatorName ?: "сменщик"}. Чек-листы проходит тот, кто на смене.",
+                                    Orda.colors.info,
+                                )
+                            }
+                        } else if (!head.hasOpenShift) {
+                            item(key = "shift", contentType = "notice") {
+                                NoticeCard("Чек-листы проходят в открытой смене. Откройте смену, чтобы начать.", Orda.colors.warning)
+                            }
+                        }
                     }
-                }
 
-                if (store.undelivered.isNotEmpty()) {
-                    val n = store.undelivered.size
-                    OrdaCard {
-                        Text(
-                            "$n ${pluralize(n, "чек-лист ждёт", "чек-листа ждут", "чек-листов ждут")} связи",
-                            color = Orda.colors.text,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(store.undelivered.joinToString(", ") { it.title }, color = Orda.colors.textMuted, fontSize = 13.sp)
-                        SecondaryButton("Отправить сейчас") { scope.launch { store.flushChecklists() } }
+                    if (undelivered.isNotEmpty()) {
+                        item(key = "undelivered", contentType = "undelivered") {
+                            val n = undelivered.size
+                            OrdaCard {
+                                Text(
+                                    "$n ${pluralize(n, "чек-лист ждёт", "чек-листа ждут", "чек-листов ждут")} связи",
+                                    color = Orda.colors.text,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(undelivered.joinToString(", ") { it.title }, color = Orda.colors.textMuted, fontSize = 13.sp)
+                                SecondaryButton("Отправить сейчас") { vm.flushNow() }
+                            }
+                        }
                     }
-                }
 
-                store.deferredNotice?.let { NoticeCard(it, Orda.colors.warning) }
+                    notice?.let { n -> item(key = "notice", contentType = "notice") { NoticeCard(n, Orda.colors.warning) } }
 
-                if (knowledge == null) {
-                    if (store.isLoadingKnowledge) {
-                        Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = Orda.colors.brand)
+                    if (center.templates.isEmpty()) {
+                        item(key = "empty", contentType = "empty") {
+                            EmptyState(
+                                icon = Icons.Filled.Checklist,
+                                title = "Чек-листов нет",
+                                message = "Для вашей точки чек-листы пока не настроены.",
+                            )
                         }
                     } else {
-                        store.error?.let { ErrorBanner(it) }
-                    }
-                } else if (knowledge.templates.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Filled.Checklist,
-                        title = "Чек-листов нет",
-                        message = "Для вашей точки чек-листы пока не настроены.",
-                    )
-                } else {
-                    knowledge.templates.forEach { template ->
-                        ChecklistCard(
-                            template = template,
-                            itemCount = knowledge.items(template.id).size,
-                            completedRun = knowledge.completedRun(template.id),
-                            canRun = canRun,
-                            onRun = { running = template },
-                        )
+                        items(center.templates, key = { it.id }, contentType = { "template" }) { template ->
+                            ChecklistCard(
+                                template = template,
+                                itemCount = center.items(template.id).size,
+                                completedRun = center.completedRun(template.id),
+                                canRun = canRun,
+                                onRun = { vm.startChecklist(template) },
+                            )
+                        }
                     }
                 }
             }
@@ -449,133 +446,102 @@ private fun ChecklistCard(
     }
 }
 
-/** Прохождение чек-листа: пункт за пунктом — `ChecklistRunScreen`. */
+/** Прохождение чек-листа: пункт за пунктом — `ChecklistRunScreen`. Состояние — во ViewModel, поворот его не теряет. */
 @Composable
-private fun ChecklistRunScreen(store: CabinetStore, template: ChecklistTemplate, onClose: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    var runId by remember { mutableStateOf<String?>(null) }
-    val answers = remember { mutableStateMapOf<String, ChecklistAnswer>() }
-    var isStarting by remember { mutableStateOf(true) }
-    var isSubmitting by remember { mutableStateOf(false) }
-    // Начали без связи: ответы уйдут одной пачкой позже.
-    var isOffline by remember { mutableStateOf(false) }
-    // Чек-лист сложен в очередь — показываем это вместо начислений.
-    var isDeferred by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var result by remember { mutableStateOf<ChecklistRunResult?>(null) }
+private fun ChecklistRunScreen(vm: ChecklistsViewModel, run: ChecklistRunUi, center: KnowledgeCenter?) {
+    val template = run.template
+    val questions = remember(center, template.id) { center?.items(template.id).orEmpty() }
+    val answeredCount = questions.count { run.answers[it.id] != null }
+    val missingRequired = questions.filter { it.isRequired && run.answers[it.id] == null }
 
-    val items = store.knowledge?.items(template.id).orEmpty()
-    val answeredCount = items.count { answers[it.id] != null }
-    val missingRequired = items.filter { it.isRequired && answers[it.id] == null }
-
-    LaunchedEffect(template.id) {
-        if (store.knowledge == null) store.loadKnowledge()
-        when (val started = store.startChecklist(template)) {
-            is CabinetStore.StartOutcome.Started -> runId = started.runId
-            // Без связи чек-лист всё равно проходят: обход делают там, где сети нет.
-            is CabinetStore.StartOutcome.Failed -> if (started.offline) isOffline = true else error = started.message
-        }
-        isStarting = false
-    }
-
-    fun submit() {
-        isSubmitting = true
-        error = null
-        val payload = answers.values.toList()
-        val id = runId
-        scope.launch {
-            // Запуска нет — значит начинали без связи. Складываем целиком.
-            if (id == null) {
-                store.deferChecklist(template, payload)
-                isSubmitting = false
-                isDeferred = true
-                return@launch
-            }
-            val failure = store.saveChecklist(id, payload)
-            if (failure != null) {
-                error = failure
-                isSubmitting = false
-                return@launch
-            }
-            store.completeChecklist(id)
-                .onSuccess { result = it }
-                .onFailure { error = it.message }
-            isSubmitting = false
-        }
-    }
-
-    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
-        SectionTitle(template.title, onBack = onClose)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-        ) {
-            val finished = result
-            when {
-                isStarting -> Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Orda.colors.brand)
-                }
-                isDeferred -> {
-                    // Начислений сейчас не будет: их считает сервер. Обещать премию, которой ещё нет, нельзя.
-                    AccentCard(Orda.colors.warning) {
-                        Text("Сохранено на устройстве", color = Orda.colors.text, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-                        Text(
-                            "Чек-лист уйдёт сам, как только появится связь. Штрафы и премии по нему посчитает сервер — они появятся вместе с отправкой.",
-                            color = Orda.colors.textMuted,
-                            fontSize = 14.sp,
-                        )
-                    }
-                    PrimaryButton("Готово", Modifier.fillMaxWidth(), onClick = onClose)
-                }
-                finished != null -> {
-                    AccentCard(Orda.colors.positive) {
-                        Text("Чек-лист пройден", color = Orda.colors.positive, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        if (finished.bonusesTotal > 0) ResultRow("Начислен бонус", money(finished.bonusesTotal), Orda.colors.positive)
-                        if (finished.finesTotal > 0) ResultRow("Начислен штраф", money(finished.finesTotal), Orda.colors.negative)
-                        if (finished.bonusesTotal == 0.0 && finished.finesTotal == 0.0) {
-                            Text("Без штрафов и бонусов.", color = Orda.colors.textMuted, fontSize = 14.sp)
+    Column(Modifier.fillMaxSize().background(Orda.colors.background).imePadding()) {
+        SectionTitle(template.title, onBack = vm::closeRun)
+        CenteredContent {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = listPadding,
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+            ) {
+                val finished = run.result
+                when {
+                    run.isStarting -> item(key = "starting", contentType = "loading") {
+                        Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Orda.colors.brand)
                         }
                     }
-                    PrimaryButton("Готово", Modifier.fillMaxWidth(), onClick = onClose)
-                }
-                else -> {
-                    if (isOffline) {
-                        NoticeCard(
-                            "Связи нет — проходите как обычно. Ответы сохранятся на устройстве и уйдут потом.",
-                            Orda.colors.warning,
-                        )
+                    run.isDeferred -> item(key = "deferred", contentType = "result") {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                            // Начислений сейчас не будет: их считает сервер. Обещать премию, которой ещё нет, нельзя.
+                            AccentCard(Orda.colors.warning) {
+                                Text("Сохранено на устройстве", color = Orda.colors.text, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                                Text(
+                                    "Чек-лист уйдёт сам, как только появится связь. Штрафы и премии по нему посчитает сервер — они появятся вместе с отправкой.",
+                                    color = Orda.colors.textMuted,
+                                    fontSize = 14.sp,
+                                )
+                            }
+                            PrimaryButton("Готово", Modifier.fillMaxWidth(), onClick = vm::closeRun)
+                        }
                     }
-                    OrdaCard {
-                        Text("Отвечено пунктов: $answeredCount из ${items.size}", color = Orda.colors.textMuted, fontSize = 14.sp)
-                        WavyProgress(
-                            progress = { if (items.isEmpty()) 0f else answeredCount.toFloat() / items.size },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Orda.colors.brand,
-                            trackColor = Orda.colors.surfaceRaised,
-                        )
-                        if (template.blocksShift) StatusChip("без него смену не закрыть", ChipKind.Warning)
+                    finished != null -> item(key = "finished", contentType = "result") {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                            AccentCard(Orda.colors.positive) {
+                                Text("Чек-лист пройден", color = Orda.colors.positive, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                if (finished.bonusesTotal > 0) ResultRow("Начислен бонус", money(finished.bonusesTotal), Orda.colors.positive)
+                                if (finished.finesTotal > 0) ResultRow("Начислен штраф", money(finished.finesTotal), Orda.colors.negative)
+                                if (finished.bonusesTotal == 0.0 && finished.finesTotal == 0.0) {
+                                    Text("Без штрафов и бонусов.", color = Orda.colors.textMuted, fontSize = 14.sp)
+                                }
+                            }
+                            PrimaryButton("Готово", Modifier.fillMaxWidth(), onClick = vm::closeRun)
+                        }
                     }
+                    else -> {
+                        if (run.isOffline) {
+                            item(key = "offline", contentType = "notice") {
+                                NoticeCard(
+                                    "Связи нет — проходите как обычно. Ответы сохранятся на устройстве и уйдут потом.",
+                                    Orda.colors.warning,
+                                )
+                            }
+                        }
+                        item(key = "progress", contentType = "progress") {
+                            OrdaCard {
+                                Text("Отвечено пунктов: $answeredCount из ${questions.size}", color = Orda.colors.textMuted, fontSize = 14.sp)
+                                WavyProgress(
+                                    progress = { if (questions.isEmpty()) 0f else answeredCount.toFloat() / questions.size },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = Orda.colors.brand,
+                                    trackColor = Orda.colors.surfaceRaised,
+                                )
+                                if (template.blocksShift) StatusChip("без него смену не закрыть", ChipKind.Warning)
+                            }
+                        }
 
-                    items.forEach { item ->
-                        ChecklistItemCard(item, answers[item.id]) { answers[item.id] = it }
-                    }
+                        items(questions, key = { it.id }, contentType = { "item" }) { item ->
+                            ChecklistItemCard(item, run.answers[item.id], vm::answer)
+                        }
 
-                    error?.let { Text(it, color = Orda.colors.negative, fontSize = 14.sp) }
-
-                    PrimaryButton(
-                        "Завершить чек-лист",
-                        Modifier.fillMaxWidth(),
-                        enabled = missingRequired.isEmpty(),
-                        loading = isSubmitting,
-                        onClick = ::submit,
-                    )
-                    if (missingRequired.isNotEmpty()) {
-                        val n = missingRequired.size
-                        Text(
-                            "Осталось ответить: $n ${pluralize(n, "обязательный пункт", "обязательных пункта", "обязательных пунктов")}",
-                            color = Orda.colors.textDim,
-                            fontSize = 13.sp,
-                        )
+                        item(key = "submit", contentType = "submit") {
+                            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                run.error?.let { Text(it, color = Orda.colors.negative, fontSize = 14.sp) }
+                                PrimaryButton(
+                                    "Завершить чек-лист",
+                                    Modifier.fillMaxWidth(),
+                                    enabled = missingRequired.isEmpty(),
+                                    loading = run.isSubmitting,
+                                    onClick = vm::submit,
+                                )
+                                if (missingRequired.isNotEmpty()) {
+                                    val n = missingRequired.size
+                                    Text(
+                                        "Осталось ответить: $n ${pluralize(n, "обязательный пункт", "обязательных пункта", "обязательных пунктов")}",
+                                        color = Orda.colors.textDim,
+                                        fontSize = 13.sp,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -591,11 +557,11 @@ private fun ResultRow(label: String, value: String, color: Color) {
     }
 }
 
-/** Один пункт чек-листа: ответ и комментарий — `ChecklistItemCard`. */
+/** Один пункт чек-листа: ответ и комментарий — `ChecklistItemCard`. Комментарий переживает поворот. */
 @Composable
 private fun ChecklistItemCard(item: ChecklistItem, answer: ChecklistAnswer?, onChange: (ChecklistAnswer) -> Unit) {
     val haptics = rememberHaptics()
-    var comment by remember { mutableStateOf("") }
+    var comment by rememberSaveable(item.id) { mutableStateOf(answer?.comment.orEmpty()) }
     val accent = when (answer?.answer) {
         "yes" -> Orda.colors.positive
         "no" -> Orda.colors.negative

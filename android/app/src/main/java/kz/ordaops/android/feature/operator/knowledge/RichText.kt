@@ -1,5 +1,7 @@
 package kz.ordaops.android.feature.operator.knowledge
 
+import androidx.compose.runtime.Immutable
+
 /**
  * HTML базы знаний в читаемые блоки — порт RichText.swift.
  *
@@ -9,9 +11,10 @@ package kz.ordaops.android.feature.operator.knowledge
  */
 object RichText {
 
-    enum class Kind { Paragraph, Heading, ListItem, Quote, TableRow, TableHeader }
+    enum class Kind { Paragraph, Heading, ListItem, Quote, TableRow, TableHeader, Image }
 
     /** Блок статьи: список рисуем маркерами, цитату — отступом. */
+    @Immutable
     data class Block(val kind: Kind, val text: String, val cells: List<String> = emptyList())
 
     private const val HEADING = '\u0001'
@@ -20,17 +23,19 @@ object RichText {
     private const val HEAD_CELL = '\u0005'
     private const val BULLET = '•'
     private const val QUOTE = '“'
+    private const val IMAGE = '\u0006'
 
     private val opt = setOf(RegexOption.IGNORE_CASE)
 
     private fun String.sub(pattern: String, replacement: String) = replace(Regex(pattern, opt), replacement)
 
-    /** Разобрать HTML в блоки. Нет текста — пустой список. */
+    /** Разобрать HTML в блоки. Нет текста — пустой список. Тяжёлое: звать вне главного потока и кэшировать. */
     fun blocks(html: String?): List<Block> {
         if (html.isNullOrEmpty()) return emptyList()
 
         // Таблицы — первыми и целиком: у них своя разметка, общая чистка тегов склеила бы ячейки.
-        var working = extractTables(html)
+        // Картинки — отдельной строкой с адресом: на экране их рисует Coil.
+        var working = extractTables(html.sub("""<img[^>]*?src\s*=\s*["']([^"']+)["'][^>]*>""", "\n$IMAGE\$1\n"))
         working = working
             .sub("""<br\s*/?>""", "\n")
             .sub("""</(p|div|h[1-6]|li|blockquote)>""", "\n")
@@ -56,6 +61,11 @@ object RichText {
                             cells.joinToString(if (isHeader) " · " else " — "),
                             cells,
                         )
+                    }
+                    line.startsWith(IMAGE) -> {
+                        val url = line.drop(1).trimWs()
+                        // Относительный адрес без сайта не загрузить — такую картинку пропускаем.
+                        if (url.startsWith("http")) Block(Kind.Image, url) else Block(Kind.Paragraph, "")
                     }
                     line.startsWith(HEADING) -> Block(Kind.Heading, line.drop(1).trimWs())
                     line.startsWith(BULLET) -> Block(Kind.ListItem, line.drop(1).trimWs())
