@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_sale">Продать</string>
+    <string name="shortcut_shift">Смена</string>
+    <string name="shortcut_audit">Ревизия</string>
+    <string name="tile_sell">Продать</string>
+</resources>

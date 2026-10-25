@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Долгое нажатие на иконку: сразу в нужный раздел. Раздел — имя OperatorSection. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="sale"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_sale"
+        android:shortcutShortLabel="@string/shortcut_sale"
+        android:shortcutLongLabel="@string/shortcut_sale">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="kz.ordaops.android"
+            android:targetClass="kz.ordaops.android.MainActivity">
+            <extra android:name="orda.section" android:value="Sale" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="shift"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_shift"
+        android:shortcutShortLabel="@string/shortcut_shift"
+        android:shortcutLongLabel="@string/shortcut_shift">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="kz.ordaops.android"
+            android:targetClass="kz.ordaops.android.MainActivity">
+            <extra android:name="orda.section" android:value="Shift" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="audit"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_audit"
+        android:shortcutShortLabel="@string/shortcut_audit"
+        android:shortcutLongLabel="@string/shortcut_audit">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="kz.ordaops.android"
+            android:targetClass="kz.ordaops.android.MainActivity">
+            <extra android:name="orda.section" android:value="Audit" />
+        </intent>
+    </shortcut>
+</shortcuts>

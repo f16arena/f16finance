@@ -58,6 +58,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
     implementation("androidx.navigation:navigation-compose:2.9.4")
     implementation("androidx.security:security-crypto:1.1.0")
+    // Вход по отпечатку/лицу — как Face ID на айфоне.
+    implementation("androidx.biometric:biometric:1.1.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

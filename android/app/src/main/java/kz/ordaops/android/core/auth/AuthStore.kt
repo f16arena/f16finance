@@ -37,6 +37,9 @@ class AuthStore(
         val isSigningIn: Boolean = false,
         /** Почему выкинуло из аккаунта — показываем на экране входа. */
         val signOutReason: String? = null,
+        /** Есть сохранённая сессия для входа по отпечатку. */
+        val hasQuickEntry: Boolean = false,
+        val quickEntryError: String? = null,
     ) {
         val resolver: AccessResolver? get() = role?.let(::AccessResolver)
     }
@@ -69,6 +72,7 @@ class AuthStore(
     // ── Жизненный цикл ───────────────────────────────────────────────────────
 
     fun restore() {
+        _state.update { it.copy(hasQuickEntry = storage.hasQuick()) }
         scope.launch {
             val stored = storage.load()
             if (stored == null) {
@@ -102,12 +106,40 @@ class AuthStore(
         }
     }
 
+    /**
+     * Вход после подтверждения отпечатком: продлеваем сохранённую копию.
+     * Сервер её не принял — копия бесполезна, забываем и просим пароль.
+     */
+    fun signInWithQuickEntry() {
+        val stored = storage.loadQuick() ?: run {
+            _state.update { it.copy(hasQuickEntry = false) }
+            return
+        }
+        if (_state.value.isSigningIn) return
+        _state.update { it.copy(isSigningIn = true, quickEntryError = null, signInError = null) }
+        scope.launch {
+            try {
+                val session = auth.refresh(stored.refreshToken)
+                persist(session)
+                _state.update { it.copy(phase = Phase.LoadingRole, signOutReason = null) }
+                loadRole()
+            } catch (e: SessionClient.AuthError.InvalidCredentials) {
+                storage.clearQuick()
+                _state.update { it.copy(hasQuickEntry = false, quickEntryError = "Быстрый вход устарел — войдите логином и паролем.") }
+            } catch (e: Exception) {
+                _state.update { it.copy(quickEntryError = "Сервер не ответил. Попробуйте ещё раз или войдите логином и паролем.") }
+            } finally {
+                _state.update { it.copy(isSigningIn = false) }
+            }
+        }
+    }
+
     fun signOut() {
         storage.clear()
         api.clearCache()
         api.organizationId = null
         session = null
-        _state.update { State(phase = Phase.SignedOut, signOutReason = it.signOutReason) }
+        _state.update { State(phase = Phase.SignedOut, signOutReason = it.signOutReason, hasQuickEntry = storage.hasQuick()) }
     }
 
     private fun signOutAutomatically(reason: String) {
@@ -152,6 +184,8 @@ class AuthStore(
     private fun persist(newSession: SessionClient.Session) {
         session = newSession
         lastRefreshRejected = false
+        // Свежий токен — и в копию быстрого входа: старый refresh после продления уже не примут.
+        storage.saveQuick(newSession)
         if (!storage.save(newSession)) {
             _state.update { it.copy(signOutReason = "Сессию не удалось сохранить на устройстве — вход не переживёт закрытие приложения.") }
         }

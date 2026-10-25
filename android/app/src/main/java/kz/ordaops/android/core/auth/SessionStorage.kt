@@ -39,7 +39,27 @@ class SessionStorage(context: Context) {
 
     fun exists(): Boolean = prefs.contains(KEY)
 
+    // ── Быстрый вход ─────────────────────────────────────────────────────────
+    // Копия сессии, которая переживает «Выйти»: по отпечатку продлеваем её и
+    // входим без пароля — как quick-entry в Keychain на айфоне. Ручной выход
+    // её не стирает; стирает отказ сервера (пароль сменили, сессию отозвали).
+
+    fun loadQuick(): SessionClient.Session? = prefs.getString(KEY_QUICK, null)?.let {
+        runCatching { ApiJson.decodeFromString(SessionClient.Session.serializer(), it) }.getOrNull()
+    }
+
+    fun saveQuick(session: SessionClient.Session) {
+        prefs.edit().putString(KEY_QUICK, ApiJson.encodeToString(SessionClient.Session.serializer(), session)).apply()
+    }
+
+    fun clearQuick() {
+        prefs.edit().remove(KEY_QUICK).apply()
+    }
+
+    fun hasQuick(): Boolean = prefs.contains(KEY_QUICK)
+
     private companion object {
         const val KEY = "session"
+        const val KEY_QUICK = "quick-entry"
     }
 }

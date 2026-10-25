@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
@@ -29,17 +31,23 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
+import kz.ordaops.android.platform.Biometrics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -64,12 +72,33 @@ import kz.ordaops.android.ui.theme.Spacing
  * получается войти?». Оператор входит логином, сотрудник почтой — различает сервер.
  */
 @Composable
-fun LoginScreen(state: AuthStore.State, onSignIn: (String, String) -> Unit, onForgot: () -> Unit) {
+fun LoginScreen(
+    state: AuthStore.State,
+    onSignIn: (String, String) -> Unit,
+    onForgot: () -> Unit,
+    onQuickEntry: () -> Unit = {},
+) {
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPassword by rememberSaveable { mutableStateOf(false) }
     val canSubmit = login.isNotBlank() && password.isNotEmpty() && !state.isSigningIn
     val colors = Orda.colors
+    val context = LocalContext.current
+    val canQuick = state.hasQuickEntry && remember { Biometrics.isAvailable(context) }
+    var quickError by remember { mutableStateOf<String?>(null) }
+    fun askFingerprint() {
+        val activity = context as? FragmentActivity ?: return
+        quickError = null
+        Biometrics.authenticate(activity, onSuccess = onQuickEntry, onError = { quickError = it })
+    }
+    // Один раз сами предлагаем отпечаток — как Face ID при открытии на айфоне.
+    var offered by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(canQuick) {
+        if (canQuick && !offered && state.signOutReason == null) {
+            offered = true
+            askFingerprint()
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         // Мягкие синие пятна на фоне — как размытая подложка экрана входа на айфоне.
@@ -117,6 +146,7 @@ fun LoginScreen(state: AuthStore.State, onSignIn: (String, String) -> Unit, onFo
             ) {
                 state.signOutReason?.let { ErrorBanner(it) }
                 state.signInError?.let { ErrorBanner(it) }
+                (state.quickEntryError ?: quickError)?.let { ErrorBanner(it) }
 
                 LoginField(
                     value = login,
@@ -159,6 +189,19 @@ fun LoginScreen(state: AuthStore.State, onSignIn: (String, String) -> Unit, onFo
                         CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp, color = Color.White)
                     } else {
                         Text("Войти", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                if (canQuick) {
+                    OutlinedButton(
+                        onClick = ::askFingerprint,
+                        enabled = !state.isSigningIn,
+                        shape = RoundedCornerShape(Radius.md),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                    ) {
+                        Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = colors.brand)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("Войти по отпечатку", color = colors.text, fontWeight = FontWeight.SemiBold)
                     }
                 }
 

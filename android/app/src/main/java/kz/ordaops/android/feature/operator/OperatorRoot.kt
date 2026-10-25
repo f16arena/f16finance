@@ -31,7 +31,25 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
+import kz.ordaops.android.feature.operator.shift.rememberOperatorStore
+import kz.ordaops.android.platform.DeepLinks
+import kz.ordaops.android.platform.ShiftNotification
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -137,6 +155,8 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
     val hasArena = "club" in industries || "ps_club" in industries
 
     val tabs = OperatorSection.phoneTabs(sellsGoods, hasArena)
+    // Вкладки меняются, когда приходит обзор (магазин/клуб) — env должен видеть свежие.
+    val currentTabs by rememberUpdatedState(tabs)
     var selected by rememberSaveable { mutableStateOf(OperatorSection.Shift) }
     var opened by rememberSaveable { mutableStateOf<OperatorSection?>(null) }
     val pending by outbox.pendingCount.collectAsState()
@@ -147,7 +167,7 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
             resolver = resolver,
             open = { name ->
                 OperatorSection.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }?.let { target ->
-                    if (target in tabs) {
+                    if (target in currentTabs) {
                         selected = target
                         opened = null
                     } else {
@@ -158,6 +178,18 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
             signOut = onSignOut,
         )
     }
+
+    // Из уведомления смены, ярлыка на иконке или плитки в шторке.
+    LaunchedEffect(env) {
+        DeepLinks.pendingSection.collect { name ->
+            if (name != null) {
+                env.open(name)
+                DeepLinks.pendingSection.value = null
+            }
+        }
+    }
+    // Открытый из профиля раздел закрывается жестом «назад», а не выходом из приложения.
+    BackHandler(enabled = opened != null) { opened = null }
 
     Scaffold(
         containerColor = Orda.colors.background,
@@ -193,7 +225,18 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             CompositionLocalProvider(LocalOperatorEnv provides env) {
-                when (opened ?: selected) {
+                ShiftNotificationEffect()
+                // Смена раздела — короткий сдвиг с затуханием вместо резкой подмены экрана.
+                AnimatedContent(
+                    targetState = opened ?: selected,
+                    transitionSpec = {
+                        val forward = targetState.ordinal >= initialState.ordinal
+                        (fadeIn(tween(220)) + slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { if (forward) it / 6 else -it / 6 })
+                            .togetherWith(fadeOut(tween(120)))
+                    },
+                    label = "section",
+                ) { section ->
+                when (section) {
                     OperatorSection.Shift -> ShiftTab()
                     OperatorSection.Sale -> SaleTab()
                     OperatorSection.Arena -> ArenaTab()
@@ -210,8 +253,53 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                         onOpen = { opened = it },
                     )
                 }
+                }
             }
         }
+    }
+}
+
+/**
+ * Смена в шторке: своя открытая смена → постоянное уведомление с таймером и
+ * выручкой; закрыли, ушли из аккаунта — уведомление убираем.
+ */
+@Composable
+private fun ShiftNotificationEffect() {
+    val context = LocalContext.current
+    val store = rememberOperatorStore()
+    val state = store.shiftState
+    val pending by LocalOperatorEnv.current.outbox.pendingCount.collectAsState()
+    // Разрешение дали — перезапустить эффект ниже, чтобы уведомление появилось сразу.
+    var granted by remember { mutableStateOf(0) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) granted++
+    }
+    val shift = state?.shift
+    val mine = shift != null && shift.isOpen && state.isMine
+    LaunchedEffect(mine, shift?.id, state?.totals, store.companyName, pending, granted) {
+        if (!mine) {
+            ShiftNotification.hide(context)
+            return@LaunchedEffect
+        }
+        if (!ShiftNotification.canPost(context) && Build.VERSION.SDK_INT >= 33) {
+            // Спрашиваем в момент, когда понятно зачем: смена открыта.
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return@LaunchedEffect
+        }
+        ShiftNotification.show(
+            context,
+            ShiftNotification.Snapshot(
+                companyName = store.companyName,
+                openedAtMillis = shift?.openedAtMillis,
+                revenue = state?.totals?.netTotal ?: 0.0,
+                salesCount = state?.totals?.salesCount ?: 0,
+                isNight = shift?.isNight == true,
+                pendingSales = pending,
+            ),
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { ShiftNotification.hide(context) }
     }
 }
 
