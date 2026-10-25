@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
@@ -28,13 +27,13 @@ import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,17 +48,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CancellationException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.feature.operator.OperatorSection
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
-import kz.ordaops.android.ui.components.pressScale
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.ui.components.CookieShape
 import kz.ordaops.android.ui.components.EmptyState
-import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
+import kz.ordaops.android.ui.components.StateContainer
 import kz.ordaops.android.ui.components.money
+import kz.ordaops.android.ui.components.pressScale
 import kz.ordaops.android.ui.theme.Navy
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Spacing
@@ -88,103 +87,119 @@ private fun sectionHint(section: OperatorSection): String? = when (section) {
  * Пропущено: смена пароля, уведомления, вход по QR, экзамены, оформление и
  * биометрия — этих экранов на Android пока нет.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OperatorProfileContent(more: List<OperatorSection>, onOpen: (OperatorSection) -> Unit) {
     val env = LocalOperatorEnv.current
-    val store = remember { MoneyStore(env.api) }
+    val vm = operatorViewModel { e -> MoneyViewModel(e.api) }
+    val overview by vm.overview.collectAsStateWithLifecycle()
+    val isLead by vm.isLead.collectAsStateWithLifecycle()
+    val leadPending by vm.leadPendingCount.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var route by rememberSaveable { mutableStateOf<ProfileRoute?>(null) }
-    var confirmingLogout by remember { mutableStateOf(false) }
-    val pending by env.outbox.pendingCount.collectAsState()
+    var confirmingLogout by rememberSaveable { mutableStateOf(false) }
+    val pending by env.outbox.pendingCount.collectAsStateWithLifecycle()
     var flushing by remember { mutableStateOf(false) }
 
     // Обзор заодно выясняет, старший ли человек, — пункт меню появляется только у старших.
-    LaunchedEffect(Unit) { store.loadOverview() }
+    LaunchedEffect(Unit) { vm.refreshOverview() }
 
     when (route) {
         ProfileRoute.Lead -> {
-            SubScreen("Старший смены", onBack = { route = null }) { LeadDeskContent(store) }
+            SubScreen("Старший смены", onBack = { route = null }) { LeadDeskContent(vm) }
             return
         }
         ProfileRoute.SalesQuality -> {
-            SubScreen("Как я работаю", onBack = { route = null }) { SalesQualityContent() }
+            SubScreen("Как я работаю", onBack = { route = null }) { SalesQualityContent(vm) }
             return
         }
         null -> Unit
     }
 
-    val name = store.overview?.operatorName?.takeIf { it != "Оператор" } ?: env.resolver.session.displayName ?: "Оператор"
+    val data = overview.data
+    val name = data?.operatorName?.takeIf { it != "Оператор" } ?: env.resolver.session.displayName ?: "Оператор"
     val c = Orda.colors
 
-    RefreshColumn(
-        refreshing = false,
-        onRefresh = { scope.launch { store.loadOverview() } },
+    PullToRefreshBox(
+        isRefreshing = overview.isRefreshing,
+        onRefresh = vm::refreshOverview,
+        modifier = Modifier.background(c.background),
     ) {
-        ProfileHeader(name, env.resolver.session.roleLabel ?: "Оператор", store.overview?.week)
+        AdaptiveBox {
+            ScreenList {
+                item(key = "header", contentType = "header") {
+                    ProfileHeader(name, env.resolver.session.roleLabel ?: "Оператор", data?.week)
+                }
 
-        // Отложенное — сверху, пока оно есть: человек не должен уйти со смены, не зная, что часть работы на телефоне.
-        if (pending > 0) {
-            OrdaCard {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    TintedIcon(Icons.Filled.Cached, c.warning, 42)
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Ждёт отправки: $pending ${pluralize(pending, "действие", "действия", "действий")}",
-                            color = c.text,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            "Сохранено на устройстве и уйдёт при связи. Не удаляйте приложение.",
-                            color = c.textDim,
-                            fontSize = 13.sp,
-                        )
+                // Отложенное — сверху, пока оно есть: человек не должен уйти со смены, не зная, что часть работы на телефоне.
+                if (pending > 0) {
+                    item(key = "pending", contentType = "pending") {
+                        OrdaCard {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                TintedIcon(Icons.Filled.Cached, c.warning, 42)
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        "Ждёт отправки: $pending ${pluralize(pending, "действие", "действия", "действий")}",
+                                        color = c.text,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        "Сохранено на устройстве и уйдёт при связи. Не удаляйте приложение.",
+                                        color = c.textDim,
+                                        fontSize = 13.sp,
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        flushing = true
+                                        env.outbox.flush()
+                                        flushing = false
+                                    }
+                                },
+                                enabled = !flushing,
+                            ) { Text(if (flushing) "Отправляю…" else "Отправить сейчас") }
+                        }
                     }
                 }
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            flushing = true
-                            env.outbox.flush()
-                            flushing = false
+
+                fun sectionRow(section: OperatorSection): (@Composable () -> Unit)? =
+                    if (section in more) ({ LinkRow(section.icon, c.brand, section.title, sectionHint(section)) { onOpen(section) } }) else null
+
+                val work = buildList<@Composable () -> Unit> {
+                    sectionRow(OperatorSection.Schedule)?.let { add(it) }
+                    if (isLead) {
+                        add {
+                            LinkRow(
+                                Icons.Filled.ManageAccounts, c.warning, "Старший смены", "заявки команды и готовность недели",
+                                badge = leadPending,
+                            ) { route = ProfileRoute.Lead }
                         }
-                    },
-                    enabled = !flushing,
-                ) { Text(if (flushing) "Отправляю…" else "Отправить сейчас") }
-            }
-        }
-
-        fun sectionRow(section: OperatorSection): (@Composable () -> Unit)? =
-            if (section in more) ({ LinkRow(section.icon, c.brand, section.title, sectionHint(section)) { onOpen(section) } }) else null
-
-        val work = buildList<@Composable () -> Unit> {
-            sectionRow(OperatorSection.Schedule)?.let { add(it) }
-            if (store.isLead) {
-                add {
-                    LinkRow(
-                        Icons.Filled.ManageAccounts, c.warning, "Старший смены", "заявки команды и готовность недели",
-                        badge = store.leadPendingCount,
-                    ) { route = ProfileRoute.Lead }
+                    }
+                    sectionRow(OperatorSection.Money)?.let { add(it) }
+                    add { LinkRow(Icons.Filled.Insights, Color(0xFF0D9488), "Как я работаю", "оценка за месяц и доплата за качество") { route = ProfileRoute.SalesQuality } }
+                    sectionRow(OperatorSection.Arena)?.let { add(it) }
+                    sectionRow(OperatorSection.Audit)?.let { add(it) }
+                    sectionRow(OperatorSection.Checklists)?.let { add(it) }
                 }
-            }
-            sectionRow(OperatorSection.Money)?.let { add(it) }
-            add { LinkRow(Icons.Filled.Insights, Color(0xFF0D9488), "Как я работаю", "оценка за месяц и доплата за качество") { route = ProfileRoute.SalesQuality } }
-            sectionRow(OperatorSection.Arena)?.let { add(it) }
-            sectionRow(OperatorSection.Audit)?.let { add(it) }
-            sectionRow(OperatorSection.Checklists)?.let { add(it) }
-        }
-        ProfileGroup("Работа", work)
-        ProfileGroup("Знания", listOfNotNull(sectionRow(OperatorSection.Knowledge)))
-        ProfileGroup("Общение", listOfNotNull(sectionRow(OperatorSection.Chat), sectionRow(OperatorSection.Messages)))
+                profileGroup("work", "Работа", work)
+                profileGroup("knowledge", "Знания", listOfNotNull(sectionRow(OperatorSection.Knowledge)))
+                profileGroup("comms", "Общение", listOfNotNull(sectionRow(OperatorSection.Chat), sectionRow(OperatorSection.Messages)))
 
-        OrdaCard {
-            Row(
-                Modifier.fillMaxWidth().pressScale().clickable { confirmingLogout = true }.padding(vertical = Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = c.negative)
-                Text("Выйти из аккаунта", color = c.negative, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                item(key = "logout", contentType = "logout") {
+                    OrdaCard {
+                        Row(
+                            Modifier.fillMaxWidth().pressScale().clickable { confirmingLogout = true }.padding(vertical = Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = c.negative)
+                            Text("Выйти из аккаунта", color = c.negative, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
             }
         }
     }
@@ -205,21 +220,27 @@ fun OperatorProfileContent(more: List<OperatorSection>, onOpen: (OperatorSection
     }
 }
 
-@Composable
-private fun ProfileGroup(title: String, rows: List<@Composable () -> Unit>) {
+private fun androidx.compose.foundation.lazy.LazyListScope.profileGroup(id: String, title: String, rows: List<@Composable () -> Unit>) {
     if (rows.isEmpty()) return
-    Text(title, color = Orda.colors.textDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    OrdaCard {
-        rows.forEachIndexed { index, row ->
-            if (index > 0) SoftDivider()
-            row()
+    item(key = "$id-title", contentType = "group-title") {
+        Text(title, color = Orda.colors.textDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+    item(key = "$id-card", contentType = "group-card") {
+        OrdaCard {
+            rows.forEachIndexed { index, row ->
+                if (index > 0) SoftDivider()
+                row()
+            }
         }
     }
 }
 
 @Composable
 private fun ProfileHeader(name: String, roleLabel: String, week: SalaryWeek?) {
-    val initials = name.split(" ").filter { it.isNotEmpty() }.take(2).joinToString("") { it.first().toString() }.uppercase().ifEmpty { "О" }
+    val initials = remember(name) {
+        name.split(" ").filter { it.isNotEmpty() }.take(2).joinToString("") { it.first().toString() }.uppercase().ifEmpty { "О" }
+    }
+    val net = remember(week?.netAmount) { week?.let { money(it.netAmount) } }
     HeroCard {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Box(
@@ -236,9 +257,9 @@ private fun ProfileHeader(name: String, roleLabel: String, week: SalaryWeek?) {
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.background(Color.White.copy(alpha = 0.16f), CircleShape).padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            if (week != null) {
+            if (week != null && net != null) {
                 Row(Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
-                    HeroStat(money(week.netAmount), "за неделю", Modifier.weight(1f))
+                    HeroStat(net, "за неделю", Modifier.weight(1f))
                     HeroStat(week.statusLabel, "выплата", Modifier.weight(1f))
                 }
             }
@@ -249,7 +270,7 @@ private fun ProfileHeader(name: String, roleLabel: String, week: SalaryWeek?) {
 @Composable
 private fun HeroStat(value: String, label: String, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, textAlign = TextAlign.Center)
         Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
     }
 }
@@ -260,73 +281,53 @@ private fun HeroStat(value: String, label: String, modifier: Modifier) {
  * «Как я работаю» — оценка работы с покупателями за месяц. Экран личный:
  * рейтинга команды нет намеренно. Порт `SalesQualityScreen.swift`.
  * `GET /api/operator/sales-kpi?month=YYYY-MM` отвечает `{ data: … }`.
+ * Месяц живёт во ViewModel: поворот его не сбрасывает.
  */
 @Composable
-private fun SalesQualityContent() {
-    val env = LocalOperatorEnv.current
+private fun SalesQualityContent(vm: MoneyViewModel) {
     val c = Orda.colors
-    val scope = rememberCoroutineScope()
+    val month by vm.salesMonth.collectAsStateWithLifecycle()
+    val state by vm.sales.collectAsStateWithLifecycle()
     val currentMonth = remember { YearMonth.now() }
-    var month by rememberSaveable { mutableStateOf(currentMonth.toString()) }
-    var report by remember { mutableStateOf<SalesQualityMonth?>(null) }
-    var loadError by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
-    var refreshing by remember { mutableStateOf(false) }
-    var reloadTick by remember { mutableStateOf(0) }
-
-    LaunchedEffect(month, reloadTick) {
-        val request = ApiRequest("/api/operator/sales-kpi", query = mapOf("month" to month))
-        loading = report == null
-        loadError = null
-        env.api.cached<DataEnvelope<SalesQualityMonth>>(request)?.let { report = it.data }
-        try {
-            report = env.api.send<DataEnvelope<SalesQualityMonth>>(request).data
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            loadError = e.operatorText()
-        }
-        loading = false
-        refreshing = false
-    }
-
     val selected = YearMonth.parse(month)
-    RefreshColumn(
-        refreshing = refreshing,
-        onRefresh = {
-            refreshing = true
-            reloadTick++
-        },
-    ) {
-        PeriodStepper(
-            title = monthTitle(selected),
-            canGoForward = selected < currentMonth,
-            onBack = { month = selected.minusMonths(1).toString() },
-            onForward = { month = selected.plusMonths(1).toString() },
-        )
 
-        val r = report
-        when {
-            r != null && r.available -> {
-                StatusCard(r)
-                r.bonus?.let { BonusCard(it, r.status) }
-                if (r.strengths.isNotEmpty() || r.weaknesses.isNotEmpty()) SidesCard(r)
-                Text(
-                    "Оценка считается по вашим сменам и сравнивается с обычным для точки — с поправкой на день недели, погоду и загрузку. Слабый день сам по себе оценку не портит.",
-                    color = c.textMuted,
-                    fontSize = 12.sp,
+    LaunchedEffect(Unit) { vm.refreshSales() }
+
+    AdaptiveBox {
+        Column(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = Spacing.lg).padding(top = Spacing.sm)) {
+                PeriodStepper(
+                    title = monthTitle(selected),
+                    canGoForward = selected < currentMonth,
+                    onBack = { vm.shiftSalesMonth(-1) },
+                    onForward = { vm.shiftSalesMonth(1) },
                 )
             }
-            loadError != null -> ErrorBanner(loadError!!)
-            loading -> Box(Modifier.fillMaxWidth().padding(Spacing.xxl), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = c.brand)
+            StateContainer(state, onRetry = vm::refreshSales, modifier = Modifier.weight(1f)) { r ->
+                ScreenList {
+                    if (r.available) {
+                        item(key = "status", contentType = "status") { StatusCard(r) }
+                        r.bonus?.let { bonus -> item(key = "bonus", contentType = "bonus") { BonusCard(bonus, r.status) } }
+                        if (r.strengths.isNotEmpty() || r.weaknesses.isNotEmpty()) item(key = "sides", contentType = "sides") { SidesCard(r) }
+                        item(key = "hint", contentType = "hint") {
+                            Text(
+                                "Оценка считается по вашим сменам и сравнивается с обычным для точки — с поправкой на день недели, погоду и загрузку. Слабый день сам по себе оценку не портит.",
+                                color = c.textMuted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    } else {
+                        item(key = "empty", contentType = "empty") {
+                            EmptyState(
+                                icon = Icons.Filled.ShoppingCart,
+                                title = if (r.reason == "no-shifts") "Смен в этом месяце нет" else "Продаж в этом месяце нет",
+                                message = if (r.reason == "no-shifts") "Оценка появится после первых смен за прилавком."
+                                else "Экран считает работу за прилавком магазина. В этом месяце продаж под вашим именем не было.",
+                            )
+                        }
+                    }
+                }
             }
-            r != null -> EmptyState(
-                icon = Icons.Filled.ShoppingCart,
-                title = if (r.reason == "no-shifts") "Смен в этом месяце нет" else "Продаж в этом месяце нет",
-                message = if (r.reason == "no-shifts") "Оценка появится после первых смен за прилавком."
-                else "Экран считает работу за прилавком магазина. В этом месяце продаж под вашим именем не было.",
-            )
         }
     }
 }

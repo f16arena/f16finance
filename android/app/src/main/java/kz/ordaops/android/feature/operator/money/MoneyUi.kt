@@ -5,26 +5,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,25 +43,46 @@ import kz.ordaops.android.ui.theme.Spacing
 
 // Мелкие общие кирпичики экранов этого пакета: свои копии, чтобы не лезть в ui/*.
 
-/** Прокручиваемая колонка экрана с вытягиванием для обновления. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Шире этого — планшет/развёрнутый экран: контент по центру и в две колонки. */
+internal val ExpandedWidth = 600.dp
+internal val MaxContentWidth = 840.dp
+
+/**
+ * Рамка экрана: на широких экранах контент по центру не шире [MaxContentWidth].
+ * `wide` — можно раскладывать в две колонки.
+ */
 @Composable
-internal fun RefreshColumn(
-    refreshing: Boolean,
-    onRefresh: () -> Unit,
-    content: @Composable () -> Unit,
+internal fun AdaptiveBox(modifier: Modifier = Modifier, content: @Composable (wide: Boolean) -> Unit) {
+    BoxWithConstraints(modifier.fillMaxSize().background(Orda.colors.background), contentAlignment = Alignment.TopCenter) {
+        val wide = maxWidth >= ExpandedWidth
+        Box(Modifier.widthIn(max = MaxContentWidth).fillMaxSize()) { content(wide) }
+    }
+}
+
+/** Вертикальный список экрана с общими отступами; ключи и contentType задают сами элементы. */
+@Composable
+internal fun ScreenList(
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
 ) {
-    PullToRefreshBox(
-        isRefreshing = refreshing,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize().background(Orda.colors.background),
-    ) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            content()
-        }
+    LazyColumn(
+        modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        content = content,
+    )
+}
+
+/** Крупный шрифт системы: фиксированные ряды из семи колонок там не помещаются. */
+@Composable
+internal fun isLargeFont(): Boolean = LocalDensity.current.fontScale >= 1.4f
+
+/** Заголовок экрана и переключатель периода над списком (не уезжают при прокрутке). */
+@Composable
+internal fun ScreenHeader(title: String, content: @Composable () -> Unit = {}) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg).padding(top = Spacing.lg)) {
+        Text(title, color = Orda.colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        content()
     }
 }
 
