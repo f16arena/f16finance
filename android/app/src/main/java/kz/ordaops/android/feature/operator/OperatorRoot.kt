@@ -33,7 +33,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import android.Manifest
 import android.os.Build
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import kz.ordaops.android.platform.widget.WidgetSnapshot
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -139,6 +145,7 @@ data class OverviewHead(val points: OperatorPoints? = null)
 @Composable
 fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit) {
     val context = LocalContext.current
+    val appScope = rememberCoroutineScope()
     val outbox = remember { ActionOutbox(context.applicationContext, api) }
     var points by remember { mutableStateOf<OperatorPoints?>(null) }
     LaunchedEffect(Unit) {
@@ -179,7 +186,11 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                     }
                 }
             },
-            signOut = onSignOut,
+            signOut = {
+                // Цифры смены не должны остаться на рабочем столе после выхода.
+                appScope.launch { WidgetSnapshot.clear(context) }
+                onSignOut()
+            },
         )
     }
 
@@ -193,7 +204,20 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
         }
     }
     // Открытый из профиля раздел закрывается жестом «назад», а не выходом из приложения.
-    BackHandler(enabled = opened != null) { opened = null }
+    // Предпросмотр жеста: раздел уменьшается и скругляется вслед за пальцем; отпустили —
+    // закрылся, передумали — плавно вернулся.
+    val backProgress = remember { Animatable(0f) }
+    val backScope = rememberCoroutineScope()
+    PredictiveBackHandler(enabled = opened != null) { events ->
+        try {
+            events.collect { backProgress.snapTo(it.progress) }
+            opened = null
+            backProgress.snapTo(0f)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            backScope.launch { backProgress.animateTo(0f, tween(220)) }
+            throw e
+        }
+    }
 
     Scaffold(
         containerColor = Orda.colors.background,
@@ -239,6 +263,16 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                 ShiftNotificationEffect()
                 // Смена раздела — короткий сдвиг с затуханием вместо резкой подмены экрана.
                 AnimatedContent(
+                    modifier = Modifier.graphicsLayer {
+                        val p = backProgress.value
+                        val scale = 1f - 0.1f * p
+                        scaleX = scale
+                        scaleY = scale
+                        if (p > 0f) {
+                            shape = RoundedCornerShape((28 * p).dp)
+                            clip = true
+                        }
+                    },
                     targetState = opened ?: selected,
                     transitionSpec = {
                         val forward = targetState.ordinal >= initialState.ordinal
@@ -306,6 +340,28 @@ private fun ShiftNotificationEffect() {
                 salesCount = state?.totals?.salesCount ?: 0,
                 isNight = shift?.isNight == true,
                 pendingSales = pending,
+            ),
+        )
+    }
+    // Виджет на рабочем столе: те же цифры, что в шторке, плюс заработок за неделю.
+    val weekEarned = store.overview?.week?.netAmount
+    LaunchedEffect(shift?.id, shift?.status, mine, state?.totals, store.companyName, weekEarned) {
+        if (state == null) return@LaunchedEffect
+        val kind = when {
+            shift == null || !shift.isOpen -> WidgetSnapshot.State.Closed
+            mine -> WidgetSnapshot.State.Mine
+            else -> WidgetSnapshot.State.Other
+        }
+        val previous = WidgetSnapshot.load(context)
+        WidgetSnapshot.save(
+            context,
+            WidgetSnapshot(
+                state = kind,
+                company = store.companyName,
+                who = shift?.operatorName.orEmpty(),
+                revenue = if (kind == WidgetSnapshot.State.Mine) state.totals.netTotal else 0.0,
+                salesCount = if (kind == WidgetSnapshot.State.Mine) state.totals.salesCount else 0,
+                weekEarned = weekEarned ?: previous.weekEarned,
             ),
         )
     }

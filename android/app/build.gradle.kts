@@ -47,12 +47,18 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    // 1.5.0-alpha поверх BOM (в 1.4.0 expressive-API закрыты): нужны волнистый прогресс и морфящийся индикатор загрузки.
+    implementation("androidx.compose.material3:material3:1.5.0-alpha04")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.core:core-ktx:1.17.0")
+    // Заставка с анимированным знаком.
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    // Виджет «Смена» на рабочем столе и его периодическое обновление.
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("androidx.graphics:graphics-shapes:1.0.1")
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")

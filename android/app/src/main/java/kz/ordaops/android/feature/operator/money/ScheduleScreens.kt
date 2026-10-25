@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import kz.ordaops.android.ui.components.WavyProgress
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -487,7 +487,7 @@ private fun ReadinessCard(company: LeadCompany) {
             }
         }
         if (!company.isDraft) {
-            LinearProgressIndicator(
+            WavyProgress(
                 progress = { company.confirmed.toFloat() / maxOf(company.total, 1) },
                 modifier = Modifier.fillMaxWidth(),
                 color = if (company.pending == 0) c.positive else c.warning,

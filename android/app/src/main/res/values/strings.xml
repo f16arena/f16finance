@@ -4,4 +4,6 @@
     <string name="shortcut_shift">Смена</string>
     <string name="shortcut_audit">Ревизия</string>
     <string name="tile_sell">Продать</string>
+    <string name="widget_title">Смена</string>
+    <string name="widget_description">Смена на точке: кто работает, выручка и кнопка «Продать»</string>
 </resources>
