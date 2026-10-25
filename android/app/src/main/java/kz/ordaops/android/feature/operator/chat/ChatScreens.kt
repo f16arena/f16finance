@@ -6,12 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,28 +43,45 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kz.ordaops.android.core.net.userMessage
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.ErrorBanner
-import kz.ordaops.android.ui.components.LoadingView
-import kz.ordaops.android.ui.components.PrimaryButton
+import kz.ordaops.android.ui.components.StateContainer
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
@@ -69,211 +89,221 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 /**
- * Живое обновление — опросом раз в 5 секунд, пока экран открыт.
+ * Живое обновление — опросом раз в 5 секунд, но только пока экран на виду
+ * (STARTED): свернули приложение — запросы прекращаются, вернулись — сразу
+ * обновляемся.
  *
  * На айфоне есть SSE (`/api/realtime/messages`), но у Android-клиента токен
  * спрятан внутри ApiClient и отдельному потоку взять его негде; опрос даёт
- * тот же результат с задержкой в несколько секунд. Раздел уходит из
- * композиции при смене вкладки, так что в фоне ничего не стучится.
+ * тот же результат с задержкой в несколько секунд.
  */
 private const val POLL_MS = 5_000L
+
+/** Читать переписку удобно в колонке: на планшете и в окне лента не растягивается на весь экран. */
+private val MaxChatWidth = 840.dp
 
 /** Пять значков на все случаи: «принял», «сделано», «горит», «спасибо», «смешно». */
 private val Emojis = listOf("👍", "✅", "🔥", "❤️", "😂")
 
-// ── Командный чат ────────────────────────────────────────────────────────────
-
-private sealed interface ChatRow {
-    val key: String
-
-    data class Note(override val key: String = "note") : ChatRow
-    data class Pinned(val messages: List<TeamChatMessage>, override val key: String = "pinned") : ChatRow
-    data class Empty(override val key: String = "empty") : ChatRow
-    data class Day(val label: String, override val key: String) : ChatRow
-    data class Message(val message: TeamChatMessage, val showsSender: Boolean, val gap: Boolean, override val key: String) : ChatRow
+/**
+ * Выполняет [tick] каждые [intervalMs], пока экран виден. Первый запуск пропускаем —
+ * его делает начальная загрузка; после возврата из фона обновляемся сразу.
+ */
+@Composable
+private fun PollWhileStarted(intervalMs: Long, tick: suspend () -> Unit) {
+    val owner = LocalLifecycleOwner.current
+    val current by rememberUpdatedState(tick)
+    LaunchedEffect(owner) {
+        var skip = true
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                if (!skip) current()
+                skip = false
+                delay(intervalMs)
+            }
+        }
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Лента перевёрнута (низ экрана = индекс 0), поэтому позиция внизу не «уезжает» ни при
+ * приходе сообщений, ни при открытии клавиатуры. Прокручиваем к новому, только если
+ * человек и так был внизу или написал его сам; читающему историю ничего не двигаем.
+ */
+@Composable
+private fun FollowNewest(listState: LazyListState, newestKey: String?, newestIsMine: Boolean) {
+    val atBottom by remember(listState) {
+        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 }
+    }
+    // Запоминаем «внизу ли» в миг смены ключа — до того, как список перестроится под новое сообщение.
+    val wasAtBottom = remember(newestKey) { atBottom }
+    var firstSeen by remember { mutableStateOf(true) }
+    LaunchedEffect(newestKey) {
+        if (newestKey == null) return@LaunchedEffect
+        if (firstSeen) {
+            // Лента и так открывается снизу.
+            firstSeen = false
+            return@LaunchedEffect
+        }
+        if (wasAtBottom || newestIsMine) listState.animateScrollToItem(0)
+    }
+}
+
+// ── Командный чат ────────────────────────────────────────────────────────────
+
 @Composable
 fun ChatTab() {
     val env = LocalOperatorEnv.current
-    val scope = rememberCoroutineScope()
-    val service = remember(env.api) { ChatService(env.api) }
-    val store = remember(service) { TeamChatStore(service, scope) }
+    val vm = operatorViewModel { e -> TeamChatViewModel(ChatService(e.api), e.operatorId) }
+    val state by vm.content.collectAsStateWithLifecycle()
 
-    var draft by remember { mutableStateOf("") }
-    var acting by remember { mutableStateOf<TeamChatMessage?>(null) }
-    var editing by remember { mutableStateOf<TeamChatMessage?>(null) }
+    var actingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var person by remember { mutableStateOf<TeamChatMessage?>(null) }
-    var showPoll by remember { mutableStateOf(false) }
-    var searching by remember { mutableStateOf(false) }
+    var showPoll by rememberSaveable { mutableStateOf(false) }
+    var searching by rememberSaveable { mutableStateOf(vm.search.isNotEmpty()) }
 
     val canPin = env.resolver.can("team-chat.pin")
     val myName = env.resolver.session.displayName ?: "Вы"
 
-    LaunchedEffect(store) { store.load() }
-    LaunchedEffect(store) {
-        while (true) {
-            delay(POLL_MS)
-            store.refresh()
-            // Связь есть, раз лента обновилась, — самое время дослать застрявшее.
-            store.flushUndelivered()
-        }
+    LaunchedEffect(vm) { vm.load() }
+    PollWhileStarted(POLL_MS) {
+        vm.refresh()
+        // Связь есть, раз лента обновилась, — самое время дослать застрявшее.
+        vm.flushUndelivered()
     }
 
-    fun isMine(m: TeamChatMessage): Boolean {
-        if (m.isPending) return true
-        val op = m.senderOperatorId
-        return op != null && op == env.operatorId
+    fun findMessage(id: String?): TeamChatMessage? {
+        if (id == null) return null
+        return state.data?.rows?.firstNotNullOfOrNull { row -> (row as? ChatRow.Message)?.message?.takeIf { it.id == id } }
     }
 
-    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
-        // Шапка раздела: у оператора сверху нет системной панели с заголовком.
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Командный чат", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                searching = !searching
-                if (!searching) store.updateSearch("")
-            }) {
-                Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, "Поиск", tint = Orda.colors.textMuted)
+    Box(Modifier.fillMaxSize().background(Orda.colors.background), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = MaxChatWidth).fillMaxSize()) {
+            // Шапка раздела: у оператора сверху нет системной панели с заголовком.
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Командный чат", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    searching = !searching
+                    if (!searching) vm.updateSearch("")
+                }) {
+                    Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, "Поиск", tint = Orda.colors.textMuted)
+                }
             }
-        }
-        if (searching) {
-            OutlinedTextField(
-                value = store.search,
-                onValueChange = { store.updateSearch(it) },
-                placeholder = { Text("Найти в переписке") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
-            )
-        }
-
-        val feed = store.feed
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                feed == null && store.error != null -> ErrorWithRetry(store.error!!) { scope.launch { store.load() } }
-                feed == null -> LoadingView("Загружаем переписку…")
-                else -> TeamMessages(
-                    store = store,
-                    feed = feed,
-                    isMine = ::isMine,
-                    onOpenSender = { person = it },
-                    onLongPress = { acting = it },
+            if (searching) {
+                OutlinedTextField(
+                    value = vm.search,
+                    onValueChange = { vm.updateSearch(it) },
+                    placeholder = { Text("Найти в переписке") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
                 )
             }
-        }
 
-        if (store.undelivered.isNotEmpty()) {
-            val n = store.undelivered.size
-            Text(
-                "$n ${plural(n, "сообщение ждёт", "сообщения ждут", "сообщений ждут")} связи",
-                color = Orda.colors.warning,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                // Потянуть-обновить здесь не нужно: лента перевёрнута, а новое и так приходит опросом.
+                StateContainer(
+                    state = state,
+                    onRetry = vm::retry,
+                    onRefresh = null,
+                    loadingMessage = "Загружаем переписку…",
+                ) { content ->
+                    TeamMessages(
+                        content = content,
+                        onOpenSender = { person = it },
+                        onLongPress = { actingId = it.id },
+                        onVote = vm::vote,
+                        onReact = vm::react,
+                    )
+                }
+            }
+
+            if (vm.undelivered.isNotEmpty()) {
+                val n = vm.undelivered.size
+                Text(
+                    "$n ${plural(n, "сообщение ждёт", "сообщения ждут", "сообщений ждут")} связи",
+                    color = Orda.colors.warning,
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                )
+            }
+
+            vm.replyTo?.let { reply ->
+                ReplyBar(reply.senderName, ChatText.preview(reply.text, 70)) { vm.replyTo = null }
+            }
+
+            ChatComposer(
+                text = vm.draft,
+                onTextChange = { vm.draft = it },
+                placeholder = "Написать команде",
+                isSending = vm.isSending,
+                errorText = vm.sendError,
+                onSend = {
+                    // Поле очищаем сразу: сообщение уже в переписке, на сервер летит фоном.
+                    val text = vm.draft
+                    vm.draft = ""
+                    vm.send(text, myName, env.resolver.session.staffRole ?: "operator")
+                },
+                onPickFile = { bytes, name, mime, kind -> vm.sendAttachment(bytes, name, mime, kind) },
+                onPoll = { showPoll = true },
             )
         }
-
-        store.replyTo?.let { reply ->
-            ReplyBar(reply.senderName, ChatText.preview(reply.text, 70)) { store.replyTo = null }
-        }
-
-        ChatComposer(
-            text = draft,
-            onTextChange = { draft = it },
-            placeholder = "Написать команде",
-            isSending = store.isSending,
-            errorText = store.sendError,
-            onSend = {
-                // Поле очищаем сразу: сообщение уже в переписке, на сервер летит фоном.
-                val text = draft
-                draft = ""
-                store.send(text, myName, env.resolver.session.staffRole ?: "operator")
-            },
-            onPickFile = { bytes, name, mime, kind -> store.sendAttachment(bytes, name, mime, kind) },
-            onPoll = { showPoll = true },
-        )
     }
 
-    acting?.let { message ->
+    findMessage(actingId)?.let { message ->
         MessageActionsSheet(
             message = message,
             canPin = canPin,
-            isMine = isMine(message),
-            onDismiss = { acting = null },
-            onReact = { store.react(message.id, it) },
-            onReply = { store.replyTo = message },
-            onPin = { store.pin(message.id, message.isPinned) },
-            onEdit = { editing = message },
-            onDelete = { store.delete(message.id) },
-            onReport = { store.report(message.id) },
+            isMine = message.isPending || (env.operatorId != null && message.senderOperatorId == env.operatorId),
+            onDismiss = { actingId = null },
+            onReact = { vm.react(message.id, it) },
+            onReply = { vm.replyTo = message },
+            onPin = { vm.pin(message.id, message.isPinned) },
+            onEdit = { editingId = message.id },
+            onDelete = { vm.delete(message.id) },
+            onReport = { vm.report(message.id) },
         )
     }
 
-    editing?.let { message ->
+    findMessage(editingId)?.let { message ->
         EditMessageDialog(
             initial = message.text,
-            onDismiss = { editing = null },
-            onSave = { text -> store.edit(message.id, text) },
+            onDismiss = { editingId = null },
+            onSave = { text -> vm.edit(message.id, text) },
         )
     }
 
     if (showPoll) {
-        PollDialog(onDismiss = { showPoll = false }, onCreate = { q, o -> store.createPoll(q, o) })
+        PollDialog(onDismiss = { showPoll = false }, onCreate = { q, o -> vm.createPoll(q, o) })
     }
 
     person?.let { who ->
-        PersonDialog(service = service, message = who, onDismiss = { person = null })
+        PersonDialog(loader = vm::person, message = who, onDismiss = { person = null })
     }
 }
 
 @Composable
 private fun TeamMessages(
-    store: TeamChatStore,
-    feed: TeamChatFeed,
-    isMine: (TeamChatMessage) -> Boolean,
+    content: TeamChatContent,
     onOpenSender: (TeamChatMessage) -> Unit,
     onLongPress: (TeamChatMessage) -> Unit,
+    onVote: (pollId: String, optionId: String) -> Unit,
+    onReact: (messageId: String, emoji: String) -> Unit,
 ) {
-    val visible = store.visible
-    val rows = remember(visible, feed.pinned) {
-        buildList {
-            add(ChatRow.Note())
-            if (feed.pinned.isNotEmpty()) add(ChatRow.Pinned(feed.pinned))
-            if (visible.isEmpty()) add(ChatRow.Empty())
-            for ((day, list) in groupByDay(visible) { it.createdMs }) {
-                add(ChatRow.Day(dayLabel(day), "day-$day"))
-                list.forEachIndexed { i, m ->
-                    val starts = startsGroup(list, i)
-                    add(ChatRow.Message(m, starts, starts, m.id))
-                }
-            }
-        }
-    }
-
     val listState = rememberLazyListState()
-    var pinnedOnce by remember { mutableStateOf(false) }
-    val lastKey = visible.lastOrNull()?.id
-    // Открывают чат ради последнего сообщения, а не первого.
-    LaunchedEffect(lastKey) {
-        if (lastKey == null || rows.isEmpty()) return@LaunchedEffect
-        if (!pinnedOnce) {
-            listState.scrollToItem(rows.lastIndex)
-            pinnedOnce = true
-        } else {
-            listState.animateScrollToItem(rows.lastIndex)
-        }
-    }
+    FollowNewest(listState, content.newestKey, content.newestIsMine)
 
     LazyColumn(
         state = listState,
+        reverseLayout = true,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.lg),
+        contentPadding = PaddingValues(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        items(rows, key = { it.key }) { row ->
+        items(content.rows, key = { it.key }, contentType = { it.contentType }) { row ->
             when (row) {
                 is ChatRow.Note -> Text(
                     "Сообщения старше суток удаляются. Закреплённые и объявления остаются.",
@@ -285,54 +315,47 @@ private fun TeamMessages(
                 is ChatRow.Pinned -> PinnedCard(row.messages)
                 is ChatRow.Empty -> EmptyState(Icons.Filled.Chat, "Сообщений пока нет")
                 is ChatRow.Day -> DayDivider(row.label)
-                is ChatRow.Message -> {
-                    val m = row.message
-                    if (m.isAnnouncement) {
-                        AnnouncementCard(m)
-                    } else {
-                        val replySource = m.replyToId?.let { feed.message(it) }
-                        Box(Modifier.padding(top = if (row.gap) Spacing.sm else 0.dp)) {
-                            ChatBubble(
-                                text = m.displayText,
-                                senderName = m.senderName,
-                                roleLabel = m.roleLabel,
-                                timeMs = m.createdMs,
-                                isMine = isMine(m),
-                                isEdited = m.isEdited,
-                                isPending = m.isPending,
-                                showsSender = row.showsSender,
-                                showsAvatar = row.showsSender,
-                                avatarUrl = m.senderAvatarUrl,
-                                attachments = m.attachments,
-                                replyPreview = replySource?.let { "${it.senderName}: ${ChatText.preview(it.text, 70)}" },
-                                reactions = m.reactionGroups,
-                                poll = feed.polls[m.id],
-                                onOpenSender = if (m.senderUserId != null) ({ onOpenSender(m) }) else null,
-                                onVote = feed.polls[m.id]?.let { poll -> { optionId: String -> store.vote(poll.poll.id, optionId) } },
-                                onReact = if (m.isPending) null else ({ emoji: String -> store.react(m.id, emoji) }),
-                                onLongPress = if (m.isPending) null else ({ onLongPress(m) }),
-                            )
-                        }
-                    }
-                }
+                is ChatRow.Message -> TeamMessageItem(row, onOpenSender, onLongPress, onVote, onReact)
             }
         }
     }
 }
 
-/**
- * Начинается ли новая реплика. Человек пишет очередями — имя над каждой строкой
- * превращает ленту в перечень карточек; после паузы в 5 минут это уже новая реплика.
- */
-private fun startsGroup(items: List<TeamChatMessage>, index: Int): Boolean {
-    if (index == 0) return true
-    val current = items[index]
-    val previous = items[index - 1]
-    if (previous.isAnnouncement) return true
-    if (previous.senderName != current.senderName) return true
-    val left = previous.createdMs ?: return true
-    val right = current.createdMs ?: return true
-    return right - left > 5 * 60 * 1000
+@Composable
+private fun TeamMessageItem(
+    row: ChatRow.Message,
+    onOpenSender: (TeamChatMessage) -> Unit,
+    onLongPress: (TeamChatMessage) -> Unit,
+    onVote: (String, String) -> Unit,
+    onReact: (String, String) -> Unit,
+) {
+    val m = row.message
+    if (m.isAnnouncement) {
+        AnnouncementCard(m)
+        return
+    }
+    Box(Modifier.padding(top = if (row.gap) Spacing.sm else 0.dp)) {
+        ChatBubble(
+            text = m.displayText,
+            senderName = m.senderName,
+            roleLabel = m.roleLabel,
+            timeMs = m.createdMs,
+            isMine = row.isMine,
+            isEdited = m.isEdited,
+            isPending = m.isPending,
+            showsSender = row.showsSender,
+            showsAvatar = row.showsSender,
+            avatarUrl = m.senderAvatarUrl,
+            attachments = m.attachments,
+            replyPreview = row.replyPreview,
+            reactions = m.reactionGroups,
+            poll = row.poll,
+            onOpenSender = if (m.senderUserId != null) ({ onOpenSender(m) }) else null,
+            onVote = row.poll?.let { poll -> { optionId: String -> onVote(poll.poll.id, optionId) } },
+            onReact = if (m.isPending) null else ({ emoji: String -> onReact(m.id, emoji) }),
+            onLongPress = if (m.isPending) null else ({ onLongPress(m) }),
+        )
+    }
 }
 
 @Composable
@@ -546,12 +569,12 @@ private fun PollDialog(onDismiss: () -> Unit, onCreate: suspend (String, List<St
 
 /** Карточка коллеги: где работает, сколько и на смене ли. Телефон сервер не отдаёт. */
 @Composable
-private fun PersonDialog(service: ChatService, message: TeamChatMessage, onDismiss: () -> Unit) {
+private fun PersonDialog(loader: suspend (String) -> ChatPersonCard?, message: TeamChatMessage, onDismiss: () -> Unit) {
     var card by remember { mutableStateOf<ChatPersonCard?>(null) }
     var failed by remember { mutableStateOf(false) }
     LaunchedEffect(message.senderUserId) {
         val id = message.senderUserId ?: return@LaunchedEffect
-        runCatching { service.chatPerson(id) }.onSuccess { card = it; failed = it == null }.onFailure { failed = true }
+        runCatching { loader(id) }.onSuccess { card = it; failed = it == null }.onFailure { failed = true }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -592,88 +615,152 @@ private fun tenure(hireDate: String?): String? {
 
 // ── Личные сообщения ─────────────────────────────────────────────────────────
 
+/**
+ * Узкий экран: список или разговор по очереди. От 600dp — список переписок слева,
+ * разговор справа. Выбранный собеседник хранится в навигаторе и переживает поворот.
+ */
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun MessagesTab() {
-    val env = LocalOperatorEnv.current
+    val vm = operatorViewModel { e -> MessagesViewModel(ChatService(e.api)) }
     val scope = rememberCoroutineScope()
-    val service = remember(env.api) { ChatService(env.api) }
-    val store = remember(service) { MessagesStore(service, scope) }
+    val threads by vm.threads.collectAsStateWithLifecycle()
 
-    var selected by remember { mutableStateOf<DirectThread?>(null) }
-    var choosing by remember { mutableStateOf(false) }
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val baseDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
+    val directive = remember(baseDirective, wide) {
+        baseDirective.copy(maxHorizontalPartitions = if (wide) 2 else 1)
+    }
+    val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = directive)
+    val selectedId = navigator.currentDestination?.contentKey
+    val dualPane = directive.maxHorizontalPartitions > 1
 
-    LaunchedEffect(store) { store.load() }
-    // Список переписок живёт: непрочитанные появляются, пока человек на экране.
-    LaunchedEffect(store, selected) {
-        while (selected == null) {
-            delay(POLL_MS * 2)
-            store.load()
+    var choosing by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(vm) { vm.loadThreads() }
+    val selectedNow by rememberUpdatedState(selectedId)
+    val dualNow by rememberUpdatedState(dualPane)
+    PollWhileStarted(POLL_MS) {
+        val sel = selectedNow
+        // Список виден (отдельно или рядом с разговором) — непрочитанные появляются сами.
+        if (sel == null || dualNow) vm.refreshThreads()
+        if (sel != null) {
+            vm.refreshConversation(sel)
+            vm.flushUndelivered()
         }
     }
 
-    val current = selected
-    if (current != null) {
-        BackHandler { selected = null; scope.launch { store.load() } }
-        ConversationPane(
-            thread = current,
-            store = store,
-            onBack = { selected = null; scope.launch { store.load() } },
-        )
-    } else {
-        Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Сообщения", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = { choosing = true }) {
-                    Icon(Icons.Filled.Edit, "Новое сообщение", tint = Orda.colors.brand)
-                }
+    fun openThread(userId: String) {
+        scope.launch { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, userId) }
+    }
+
+    fun back() {
+        scope.launch {
+            navigator.navigateBack()
+            vm.refreshThreads()
+        }
+    }
+
+    BackHandler(enabled = selectedId != null && !dualPane) { back() }
+
+    ListDetailPaneScaffold(
+        directive = navigator.scaffoldDirective,
+        value = navigator.scaffoldValue,
+        listPane = {
+            AnimatedPane {
+                ThreadsPane(
+                    threads = threads,
+                    selectedId = selectedId.takeIf { dualPane },
+                    onRetry = vm::retryThreads,
+                    onNew = { choosing = true },
+                    onOpen = ::openThread,
+                )
             }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    store.error != null && store.threads.isEmpty() -> ErrorWithRetry(store.error!!) { scope.launch { store.load() } }
-                    store.isLoading && store.threads.isEmpty() -> LoadingView()
-                    store.threads.isEmpty() -> EmptyState(Icons.Filled.Chat, "Переписок нет", "Нажмите карандаш, чтобы написать первым.")
-                    else -> LazyColumn(
-                        Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.lg),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    ) {
-                        items(store.threads, key = { it.otherUserId }) { thread ->
-                            ThreadRow(thread) { selected = thread }
-                        }
+        },
+        detailPane = {
+            AnimatedPane {
+                if (selectedId == null) {
+                    Box(Modifier.fillMaxSize().background(Orda.colors.background), contentAlignment = Alignment.Center) {
+                        EmptyState(Icons.Filled.Chat, "Выберите переписку", "Или нажмите карандаш, чтобы написать первым.")
+                    }
+                } else {
+                    // key: смена собеседника начинает ленту, прокрутку и поле с чистого листа.
+                    key(selectedId) {
+                        ConversationPane(
+                            userId = selectedId,
+                            name = threads.data?.firstOrNull { it.otherUserId == selectedId }?.otherName ?: vm.nameOf(selectedId),
+                            vm = vm,
+                            showBack = !dualPane,
+                            onBack = ::back,
+                        )
                     }
                 }
             }
-        }
-    }
+        },
+    )
 
     if (choosing) {
         ContactPickerDialog(
-            service = service,
+            loader = vm::contacts,
             onDismiss = { choosing = false },
             onPick = { contact ->
                 choosing = false
-                scope.launch {
-                    // Переписки может ещё не быть: открываем сразу, чтобы человек попал в разговор.
-                    store.open(contact.userId)
-                    store.load()
-                    selected = store.threads.firstOrNull { it.otherUserId == contact.userId }
-                        ?: DirectThread(otherUserId = contact.userId, otherName = contact.name)
-                }
+                // Переписки может ещё не быть: открываем сразу, чтобы человек попал в разговор.
+                vm.rememberName(contact.userId, contact.name)
+                openThread(contact.userId)
             },
         )
     }
 }
 
 @Composable
-private fun ThreadRow(thread: DirectThread, onClick: () -> Unit) {
+private fun ThreadsPane(
+    threads: kz.ordaops.android.core.ui.Loadable<List<DirectThread>>,
+    selectedId: String?,
+    onRetry: () -> Unit,
+    onNew: () -> Unit,
+    onOpen: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Сообщения", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = onNew) {
+                Icon(Icons.Filled.Edit, "Новое сообщение", tint = Orda.colors.brand)
+            }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            StateContainer(
+                state = threads,
+                onRetry = onRetry,
+                isEmpty = { it.isEmpty() },
+                emptyIcon = Icons.Filled.Chat,
+                emptyTitle = "Переписок нет",
+                emptyMessage = "Нажмите карандаш, чтобы написать первым.",
+            ) { list ->
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    items(list, key = { it.otherUserId }, contentType = { "thread" }) { thread ->
+                        ThreadRow(thread, selected = thread.otherUserId == selectedId) { onOpen(thread.otherUserId) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThreadRow(thread: DirectThread, selected: Boolean, onClick: () -> Unit) {
     val colors = Orda.colors
     Row(
         Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(Radius.md))
+            .background(if (selected) colors.surfaceRaised else colors.surface, RoundedCornerShape(Radius.md))
             .clickable(onClick = onClick)
             .padding(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -687,8 +774,15 @@ private fun ThreadRow(thread: DirectThread, onClick: () -> Unit) {
                 fontSize = 16.sp,
                 fontWeight = if (thread.hasUnread) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Text((if (thread.lastFromMe) "Вы: " else "") + thread.preview, color = colors.textDim, fontSize = 13.sp, maxLines = 1)
+            Text(
+                (if (thread.lastFromMe) "Вы: " else "") + thread.preview,
+                color = colors.textDim,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             val last = parseTimeMs(thread.lastAt)
@@ -711,7 +805,7 @@ private fun ThreadRow(thread: DirectThread, onClick: () -> Unit) {
  * попадёт, как и не пройдёт проверку при отправке.
  */
 @Composable
-private fun ContactPickerDialog(service: ChatService, onDismiss: () -> Unit, onPick: (DirectContact) -> Unit) {
+private fun ContactPickerDialog(loader: suspend () -> List<DirectContact>, onDismiss: () -> Unit, onPick: (DirectContact) -> Unit) {
     var contacts by remember { mutableStateOf<List<DirectContact>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
@@ -720,7 +814,7 @@ private fun ContactPickerDialog(service: ChatService, onDismiss: () -> Unit, onP
     LaunchedEffect(reload) {
         error = null
         try {
-            contacts = service.contacts()
+            contacts = loader()
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -763,42 +857,40 @@ private fun ContactPickerDialog(service: ChatService, onDismiss: () -> Unit, onP
 }
 
 @Composable
-private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack: () -> Unit) {
+private fun ConversationPane(userId: String, name: String, vm: MessagesViewModel, showBack: Boolean, onBack: () -> Unit) {
     val colors = Orda.colors
     val scope = rememberCoroutineScope()
-    val userId = thread.otherUserId
-    var draft by remember(userId) { mutableStateOf("") }
+    val env = LocalOperatorEnv.current
+    val state by vm.conversationContent.collectAsStateWithLifecycle()
+    val openedId by vm.opened.collectAsStateWithLifecycle()
     var menu by remember { mutableStateOf(false) }
     var reporting by remember { mutableStateOf<DirectMessage?>(null) }
-    var confirmBlock by remember { mutableStateOf(false) }
-    val env = LocalOperatorEnv.current
+    var confirmBlock by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(userId) {
-        store.open(userId)
-        store.loadBlocked()
-    }
-    LaunchedEffect(userId) {
-        while (true) {
-            delay(POLL_MS)
-            store.refreshConversation(userId)
-            store.flushUndelivered()
-        }
+        launch { vm.loadBlocked() }
+        vm.open(userId)
     }
 
-    val isBlocked = userId in store.blocked
-    // Пустой список сам по себе ничего не значит: тем же он выглядит до первого ответа сервера.
-    val isReady = store.openedUserId == userId && !store.isLoadingConversation
+    val isBlocked = userId in vm.blocked
+    // Пока открыт другой разговор, чужую ленту не показываем — только загрузку.
+    val shown = if (openedId == userId) state else kz.ordaops.android.core.ui.Loadable(isLoading = true)
 
     Column(Modifier.fillMaxSize().background(colors.background)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.xs, vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад", tint = colors.text) }
-            Avatar(thread.otherName, null, 34)
+            if (showBack) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад", tint = colors.text) }
+            } else {
+                Box(Modifier.size(Spacing.sm))
+            }
+            Avatar(name, null, 34)
             Text(
-                thread.otherName,
+                name,
                 color = colors.text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).padding(horizontal = Spacing.sm),
             )
             Box {
@@ -809,7 +901,7 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
                         leadingIcon = { Icon(Icons.Filled.Block, null) },
                         onClick = {
                             menu = false
-                            if (isBlocked) scope.launch { store.setBlocked(false, userId) } else confirmBlock = true
+                            if (isBlocked) scope.launch { vm.setBlocked(false, userId) } else confirmBlock = true
                         },
                     )
                 }
@@ -817,17 +909,20 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            val conversation = store.conversation
-            when {
-                store.conversationError != null && conversation.isEmpty() ->
-                    ErrorWithRetry(store.conversationError!!) { scope.launch { store.open(userId) } }
-                conversation.isEmpty() && !isReady -> LoadingView()
-                conversation.isEmpty() -> EmptyState(Icons.Filled.Chat, "Пока пусто", "Напишите ${thread.otherName} первым.")
-                else -> DirectMessages(conversation, userId, onLongPress = { reporting = it })
+            StateContainer(
+                state = shown,
+                onRetry = { vm.retryConversation(userId) },
+                onRefresh = null,
+                isEmpty = { it.rows.isEmpty() },
+                emptyIcon = Icons.Filled.Chat,
+                emptyTitle = "Пока пусто",
+                emptyMessage = "Напишите $name первым.",
+            ) { content ->
+                DirectMessages(content, onLongPress = { reporting = it })
             }
         }
 
-        if (store.undelivered.isNotEmpty()) {
+        if (vm.undelivered.isNotEmpty()) {
             Text(
                 "Сообщение ждёт связи",
                 color = colors.warning,
@@ -846,18 +941,18 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
             )
         } else {
             ChatComposer(
-                text = draft,
-                onTextChange = { draft = it },
-                placeholder = "Сообщение для ${thread.otherName}",
-                isSending = store.isSending,
-                errorText = store.sendError,
+                text = vm.draftOf(userId),
+                onTextChange = { vm.setDraft(userId, it) },
+                placeholder = "Сообщение для $name",
+                isSending = vm.isSending,
+                errorText = vm.sendError,
                 onSend = {
-                    val text = draft
-                    draft = ""
-                    store.send(text, userId, env.resolver.session.displayName ?: "Вы")
+                    val text = vm.draftOf(userId)
+                    vm.setDraft(userId, "")
+                    vm.send(text, userId, env.resolver.session.displayName ?: "Вы")
                 },
                 // Опрос вдвоём смысла не имеет, а фото и файл нужны и здесь.
-                onPickFile = { bytes, name, mime, kind -> store.sendAttachment(bytes, name, mime, kind, userId) },
+                onPickFile = { bytes, fileName, mime, kind -> vm.sendAttachment(bytes, fileName, mime, kind, userId) },
             )
         }
     }
@@ -868,7 +963,7 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
             title = { Text("Пожаловаться на сообщение?") },
             text = { Text("Жалобу увидит владелец. Собеседник об этом не узнает.") },
             confirmButton = {
-                TextButton(onClick = { store.report(message.id); reporting = null }) { Text("Пожаловаться", color = colors.negative) }
+                TextButton(onClick = { vm.report(message.id); reporting = null }) { Text("Пожаловаться", color = colors.negative) }
             },
             dismissButton = { TextButton(onClick = { reporting = null }) { Text("Отмена") } },
         )
@@ -876,10 +971,10 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
     if (confirmBlock) {
         AlertDialog(
             onDismissRequest = { confirmBlock = false },
-            title = { Text("Заблокировать ${thread.otherName}?") },
+            title = { Text("Заблокировать $name?") },
             text = { Text("Писать друг другу вы не сможете, пока не снимете блокировку.") },
             confirmButton = {
-                TextButton(onClick = { confirmBlock = false; scope.launch { store.setBlocked(true, userId) } }) {
+                TextButton(onClick = { confirmBlock = false; scope.launch { vm.setBlocked(true, userId) } }) {
                     Text("Заблокировать", color = colors.negative)
                 }
             },
@@ -889,62 +984,44 @@ private fun ConversationPane(thread: DirectThread, store: MessagesStore, onBack:
 }
 
 @Composable
-private fun DirectMessages(messages: List<DirectMessage>, userId: String, onLongPress: (DirectMessage) -> Unit) {
-    val groups = remember(messages) { groupByDay(messages) { it.createdMs } }
-    val count = groups.sumOf { it.second.size + 1 }
+private fun DirectMessages(content: DirectContent, onLongPress: (DirectMessage) -> Unit) {
     val listState = rememberLazyListState()
-    var pinnedOnce by remember(userId) { mutableStateOf(false) }
-    val lastId = messages.lastOrNull()?.id
-
-    LaunchedEffect(lastId) {
-        if (count == 0) return@LaunchedEffect
-        if (!pinnedOnce) {
-            listState.scrollToItem(count - 1)
-            pinnedOnce = true
-        } else {
-            listState.animateScrollToItem(count - 1)
-        }
-    }
+    FollowNewest(listState, content.newestKey, content.newestIsMine)
 
     LazyColumn(
         state = listState,
+        reverseLayout = true,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.lg),
+        contentPadding = PaddingValues(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        groups.forEach { (day, list) ->
-            item(key = "day-$day") { DayDivider(dayLabel(day)) }
-            items(list, key = { it.id }) { m ->
-                val mine = m.isMine(userId)
-                ChatBubble(
-                    text = m.displayText,
-                    senderName = m.senderName,
-                    roleLabel = null,
-                    timeMs = m.createdMs,
-                    isMine = mine,
-                    isEdited = m.isEdited,
-                    isPending = m.isPending,
-                    showsSender = false,
-                    showsAvatar = false,
-                    avatarUrl = null,
-                    attachments = m.attachments,
-                    // Пожаловаться можно и здесь: травля чаще случается один на один.
-                    onLongPress = if (!mine && !m.isPending) ({ onLongPress(m) }) else null,
-                )
+        items(content.rows, key = { it.key }, contentType = { it.contentType }) { row ->
+            when (row) {
+                is DirectRow.Day -> DayDivider(row.label)
+                is DirectRow.Message -> {
+                    val m = row.message
+                    ChatBubble(
+                        text = m.displayText,
+                        senderName = m.senderName,
+                        roleLabel = null,
+                        timeMs = m.createdMs,
+                        isMine = row.isMine,
+                        isEdited = m.isEdited,
+                        isPending = m.isPending,
+                        showsSender = false,
+                        showsAvatar = false,
+                        avatarUrl = null,
+                        attachments = m.attachments,
+                        // Пожаловаться можно и здесь: травля чаще случается один на один.
+                        onLongPress = if (!row.isMine && !m.isPending) ({ onLongPress(m) }) else null,
+                    )
+                }
             }
         }
     }
 }
 
 // ── Общее ────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun ErrorWithRetry(message: String, onRetry: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(Spacing.lg), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        ErrorBanner(message)
-        PrimaryButton("Повторить", onClick = onRetry)
-    }
-}
 
 /** 1 файл / 2 файла / 5 файлов. */
 private fun plural(n: Int, one: String, few: String, many: String): String {

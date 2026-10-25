@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.chat
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -16,6 +17,7 @@ internal fun parseTimeMs(raw: String?): Long? {
 }
 
 @Serializable
+@Immutable
 internal data class ChatAttachment(
     val type: String = "file",
     val url: String = "",
@@ -41,6 +43,7 @@ internal data class ChatAttachment(
 }
 
 @Serializable
+@Immutable
 internal data class ChatReaction(
     val id: String = "",
     @SerialName("user_name") val userName: String? = null,
@@ -48,6 +51,7 @@ internal data class ChatReaction(
 )
 
 /** Одинаковые эмодзи, свёрнутые в счётчик (порядок первого появления). */
+@Immutable
 internal data class ReactionGroup(val emoji: String, val count: Int)
 
 internal fun groupReactions(reactions: List<ChatReaction>): List<ReactionGroup> {
@@ -57,6 +61,7 @@ internal fun groupReactions(reactions: List<ChatReaction>): List<ReactionGroup> 
 }
 
 @Serializable
+@Immutable
 internal data class TeamChatMessage(
     val id: String = "",
     @SerialName("sender_user_id") val senderUserId: String? = null,
@@ -96,9 +101,11 @@ internal data class TeamChatMessage(
 }
 
 @Serializable
+@Immutable
 internal data class PollOption(val id: String = "", val label: String = "")
 
 @Serializable
+@Immutable
 internal data class PollInfo(
     val id: String = "",
     val question: String = "",
@@ -108,6 +115,7 @@ internal data class PollInfo(
 
 /** Опрос с результатами. Голоса не тайные: видно, кто за что. */
 @Serializable
+@Immutable
 internal data class ChatPoll(
     val poll: PollInfo = PollInfo(),
     val counts: Map<String, Int> = emptyMap(),
@@ -123,6 +131,7 @@ internal data class ChatPoll(
 }
 
 @Serializable
+@Immutable
 internal data class TeamChatFeed(
     val messages: List<TeamChatMessage> = emptyList(),
     val pinned: List<TeamChatMessage> = emptyList(),
@@ -138,6 +147,7 @@ internal data class TeamChatFeed(
 // ── Личные сообщения ─────────────────────────────────────────────────────────
 
 @Serializable
+@Immutable
 internal data class DirectContact(
     @SerialName("user_id") val userId: String = "",
     val name: String = "Без имени",
@@ -156,6 +166,7 @@ internal data class DirectContact(
 }
 
 @Serializable
+@Immutable
 internal data class DirectThread(
     val otherUserId: String = "",
     val otherName: String = "Без имени",
@@ -174,6 +185,7 @@ internal data class DirectThreadList(val threads: List<DirectThread> = emptyList
 }
 
 @Serializable
+@Immutable
 internal data class DirectMessage(
     val id: String = "",
     @SerialName("sender_user_id") val senderUserId: String? = null,
@@ -202,6 +214,7 @@ internal data class DirectConversation(val messages: List<DirectMessage> = empty
 
 /** Карточка коллеги: `/api/team-chat/person`. Телефон намеренно не приходит. */
 @Serializable
+@Immutable
 internal data class ChatPersonCard(
     val name: String = "Коллега",
     val position: String? = null,
