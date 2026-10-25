@@ -583,15 +583,35 @@ export default function SaleScreenV2(props: Props) {
           {listMode ? (
             <div className="min-h-0 flex-1 overflow-auto pr-1">
               {!deferredQuery.trim() ? (
-                <div className="muted flex h-full flex-col items-center justify-center gap-2 text-center">
-                  <ScanBarcode className="h-10 w-10" />
-                  <p className="text-[17px]">Найдите товар через поиск или отсканируйте штрихкод</p>
-                  <p className="text-[13px]">F2 — поиск · ↑↓ и Enter — выбрать</p>
+                <div className="flex h-full flex-col">
+                  {/* Услуги — узкой строкой сверху: их мало, а искать каждый раз неудобно. */}
                   {engine.services.length ? (
-                    <div className="mt-6 w-full text-left">
-                      <ServiceGrid services={engine.services} inCart={serviceQty} onAdd={(service, variant) => engine.addService(service, variant)} />
+                    <div className="flex flex-wrap gap-2">
+                      {engine.services.flatMap((service) =>
+                        service.variants.map((variant) => {
+                          const n = serviceQty(variant.id)
+                          return (
+                            <button
+                              key={variant.id}
+                              type="button"
+                              onClick={() => engine.addService(service, variant)}
+                              className="press surface flex h-11 items-center gap-2 rounded-full px-4 text-[14px] font-medium"
+                              style={n ? { boxShadow: `inset 0 0 0 2px ${SERVICE_COLOR}` } : undefined}
+                            >
+                              <Clock className="h-4 w-4" style={{ color: SERVICE_COLOR }} />
+                              {service.name} · {variant.name} · <b>{money(variant.price)} ₸</b>
+                              {n ? <span className="badge grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-[12px] font-semibold">{n}</span> : null}
+                            </button>
+                          )
+                        }),
+                      )}
                     </div>
                   ) : null}
+                  <div className="muted flex flex-1 flex-col items-center justify-center gap-2 text-center">
+                    <ScanBarcode className="h-10 w-10" />
+                    <p className="text-[17px]">Найдите товар через поиск или отсканируйте штрихкод</p>
+                    <p className="text-[13px]">F2 — поиск · ↑↓ и Enter — выбрать</p>
+                  </div>
                 </div>
               ) : results.length === 0 && visibleServices.length === 0 ? (
                 <div className="muted flex h-full flex-col items-center justify-center gap-2">
