@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Знак ORDA CONTROL: белое кольцо и синий сегмент, геометрия из OrdaControlMark.swift. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="9"
+        android:pathData="M54,36.6 a17.4,17.4 0 1,1 0,34.8 a17.4,17.4 0 1,1 0,-34.8" />
+    <path android:strokeColor="#2563EB" android:strokeWidth="11.4" android:strokeLineCap="round"
+        android:pathData="M49.79,37.12 A17.4,17.4 0 0,1 70.88,49.79" />
+</vector>

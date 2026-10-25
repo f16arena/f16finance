@@ -8,6 +8,8 @@
     <application
         android:name=".OrdaApplication"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="Orda"
         android:supportsRtl="false"
         android:theme="@style/Theme.Orda">
