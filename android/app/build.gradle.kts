@@ -5,6 +5,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     // Push через Firebase: читает app/google-services.json (в git его нет — репозиторий публичный).
     id("com.google.gms.google-services")
+    // Падения у операторов — в консоль Firebase, с устройством, версией Android и стеком.
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -22,7 +24,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Отладочные падения в отчёты не шлём — там и так видно в Android Studio.
+            manifestPlaceholders["crashlyticsEnabled"] = false
+        }
         release {
+            manifestPlaceholders["crashlyticsEnabled"] = true
             // R8: ужимает и оптимизирует код — Compose в релизе в разы плавнее отладочной сборки.
             isMinifyEnabled = true
             isShrinkResources = true
@@ -90,6 +97,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-crashlytics")
 
     // Сканер штрихкодов (касса, ревизия) — камера + ML Kit, как AVFoundation на айфоне.
     implementation("androidx.camera:camera-camera2:1.5.0")
