@@ -1,13 +1,10 @@
 package kz.ordaops.android.feature.operator.chat
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.LruCache
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -38,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -57,14 +54,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kz.ordaops.android.ui.components.CookieShape
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -108,45 +104,16 @@ internal fun <T> groupByDay(items: List<T>, ms: (T) -> Long?): List<Pair<LocalDa
 
 // ── Картинки ─────────────────────────────────────────────────────────────────
 
-private val imageHttp = OkHttpClient()
-private val imageCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(40)
-
-/** Картинка по публичной ссылке (хранилище вложений открыто). Нет библиотеки — тянем сами. */
-@Composable
-internal fun rememberRemoteImage(url: String?): androidx.compose.ui.graphics.ImageBitmap? {
-    var image by remember(url) { mutableStateOf(url?.let { imageCache.get(it) }) }
-    LaunchedEffect(url) {
-        if (url.isNullOrEmpty() || image != null) return@LaunchedEffect
-        image = withContext(Dispatchers.IO) {
-            runCatching {
-                imageHttp.newCall(Request.Builder().url(url).build()).execute().use { r ->
-                    if (!r.isSuccessful) return@use null
-                    val bytes = r.body?.bytes() ?: return@use null
-                    // Чат живёт сутки, но фото с камеры тяжёлые: уменьшаем при чтении.
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                    var sample = 1
-                    while (bounds.outWidth / sample > 1600) sample *= 2
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
-                        ?.asImageBitmap()
-                }
-            }.getOrNull()?.also { imageCache.put(url, it) }
-        }
-    }
-    return image
-}
-
+/** Аватар: фото грузит Coil (кэш и уменьшение под размер — на нём), без фото — инициалы. */
 @Composable
 internal fun Avatar(name: String, avatarUrl: String? = null, side: Int = 32, tint: Color = Orda.colors.info) {
-    val image = rememberRemoteImage(avatarUrl)
     Box(
         Modifier.size(side.dp).clip(CookieShape).background(tint.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center,
     ) {
-        if (image != null) {
-            Image(image, null, Modifier.size(side.dp), contentScale = ContentScale.Crop)
-        } else {
-            Text(ChatText.initials(name), color = tint, fontSize = (side * 0.38f).sp, fontWeight = FontWeight.SemiBold)
+        Text(ChatText.initials(name), color = tint, fontSize = (side * 0.38f).sp, fontWeight = FontWeight.SemiBold)
+        if (!avatarUrl.isNullOrEmpty()) {
+            AsyncImage(avatarUrl, null, Modifier.size(side.dp), contentScale = ContentScale.Crop)
         }
     }
 }
@@ -208,7 +175,7 @@ internal fun ChatBubble(
 
         Column(
             Modifier
-                .widthIn(max = 300.dp)
+                .widthIn(max = 320.dp)
                 .clip(RoundedCornerShape(Radius.md))
                 .background(bubbleColor)
                 .combinedClickable(onClick = {}, onLongClick = onLongPress)
@@ -241,7 +208,6 @@ internal fun ChatBubble(
 
             attachments.filter { !it.isPoll }.forEach { att ->
                 if (att.isImage) {
-                    val image = rememberRemoteImage(att.url)
                     Box(
                         Modifier
                             .fillMaxWidth()
@@ -251,11 +217,8 @@ internal fun ChatBubble(
                             .clickable { runCatching { uriHandler.openUri(att.url) } },
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (image != null) {
-                            Image(image, att.label, Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth)
-                        } else {
-                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = subColor)
-                        }
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = subColor)
+                        AsyncImage(att.url, att.label, Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth)
                     }
                 } else {
                     // Голосовое и документы открываем ссылкой: плеер и просмотрщик есть в системе.
@@ -330,15 +293,15 @@ private fun PollCard(poll: ChatPoll, onVote: ((String) -> Unit)?) {
                     .border(1.dp, if (voted) colors.brand else colors.border, RoundedCornerShape(8.dp))
                     .clickable(enabled = onVote != null) { onVote?.invoke(option.id) },
             ) {
-                Box(Modifier.fillMaxWidth()) {
+                Box(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                     Box(
                         Modifier
                             .fillMaxWidth(poll.share(option).coerceIn(0f, 1f))
-                            .height(34.dp)
+                            .fillMaxHeight()
                             .background(colors.brand.copy(alpha = 0.18f)),
                     )
                     Row(
-                        Modifier.fillMaxWidth().height(34.dp).padding(horizontal = Spacing.sm),
+                        Modifier.fillMaxWidth().heightIn(min = 34.dp).padding(horizontal = Spacing.sm, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -346,7 +309,6 @@ private fun PollCard(poll: ChatPoll, onVote: ((String) -> Unit)?) {
                             color = colors.text,
                             fontSize = 14.sp,
                             modifier = Modifier.weight(1f),
-                            maxLines = 1,
                         )
                         Text("${poll.count(option)}", color = colors.textMuted, fontSize = 13.sp)
                     }
