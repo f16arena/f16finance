@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kz.ordaops.android.ui.components.CookieShape
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
@@ -139,7 +140,7 @@ internal fun rememberRemoteImage(url: String?): androidx.compose.ui.graphics.Ima
 internal fun Avatar(name: String, avatarUrl: String? = null, side: Int = 32, tint: Color = Orda.colors.info) {
     val image = rememberRemoteImage(avatarUrl)
     Box(
-        Modifier.size(side.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)),
+        Modifier.size(side.dp).clip(CookieShape).background(tint.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center,
     ) {
         if (image != null) {

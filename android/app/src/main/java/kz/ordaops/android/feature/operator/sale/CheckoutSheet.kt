@@ -51,6 +51,7 @@ import kz.ordaops.android.feature.operator.shift.parseAmount
 import kz.ordaops.android.feature.operator.shift.pluralize
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.PrimaryButton
+import kz.ordaops.android.ui.components.rememberHaptics
 import kz.ordaops.android.ui.components.money
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
@@ -76,6 +77,7 @@ internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
     var pickingCustomer by remember { mutableStateOf(false) }
     var showLines by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
     val total = store.cartTotal
 
     // Для одиночного способа оплаты суммы очевидны — не заставляем вводить то, что и так известно.
@@ -215,7 +217,13 @@ internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
             scope.launch {
                 val failure = store.checkout(method, parseAmount(cashText), parseAmount(kaspiText), customer?.id)
                 submitting = false
-                if (failure != null) error = failure else onDismiss()
+                if (failure != null) {
+                    error = failure
+                    haptics.error()
+                } else {
+                    haptics.success()
+                    onDismiss()
+                }
             }
         }
     }

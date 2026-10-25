@@ -76,6 +76,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
 import kz.ordaops.android.ui.components.EmptyState
+import kz.ordaops.android.ui.components.rememberHaptics
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.LoadingView
 import kz.ordaops.android.ui.components.OrdaCard
@@ -196,6 +197,7 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
 
     var search by remember { mutableStateOf("") }
     var onlyUncounted by remember { mutableStateOf(false) }
+    val haptics = rememberHaptics()
     var showScanner by remember { mutableStateOf(false) }
     var pendingItem by remember { mutableStateOf<AuditItem?>(null) }
     var quantityText by remember { mutableStateOf("") }
@@ -230,6 +232,7 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
         val value = parseQuantity(scanQuantity)
         state.record(item.itemId, value)
         closeScanned()
+        haptics.success()
         state.showToast("${item.name} — ${formatQuantity(value)}", false)
     }
 
@@ -238,11 +241,13 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
         val needle = code.trim()
         val item = sheet.items.firstOrNull { (it.barcode ?: "") == needle }
         if (item == null) {
+            haptics.error()
             state.showToast("Штрихкод $needle не в вашей секции", true)
             return
         }
         // Скан не прибавляет единицу сам, а открывает поле: для полки с двадцатью
         // четырьмя бутылками это единственный удобный способ. Введённое подставляем.
+        haptics.tick()
         scannedItem = item
         scanQuantity = state.counts[item.itemId]?.let { formatQuantity(it) } ?: ""
     }
@@ -308,7 +313,12 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                                 Text("Сканировать", color = Orda.colors.text, modifier = Modifier.padding(start = Spacing.xs))
                             }
                             Button(
-                                onClick = { scope.launch { state.save() } },
+                                onClick = {
+                                    scope.launch {
+                                        state.save()
+                                        if (state.savedMessage?.startsWith("Сохранено") == true) haptics.success()
+                                    }
+                                },
                                 enabled = !state.isSaving && state.counts.isNotEmpty(),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(Radius.md),

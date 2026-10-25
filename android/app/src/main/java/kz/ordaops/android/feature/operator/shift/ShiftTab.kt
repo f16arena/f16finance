@@ -63,7 +63,11 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.ui.components.AnimatedText
+import kz.ordaops.android.ui.components.CookieShape
 import kz.ordaops.android.ui.components.LoadingView
+import kz.ordaops.android.ui.components.pressScale
+import androidx.compose.ui.text.TextStyle
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.components.money
 import kz.ordaops.android.ui.theme.Navy
@@ -183,7 +187,7 @@ private fun Header(store: OperatorStore) {
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Box(
-            Modifier.size(44.dp).background(Brush.linearGradient(HeroAccent), CircleShape),
+            Modifier.size(44.dp).background(Brush.linearGradient(HeroAccent), CookieShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(initials, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -261,12 +265,10 @@ private fun ShiftHero(store: OperatorStore, now: Long, onOpen: () -> Unit, onClo
                     Text(elapsed(it, now), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Text(
+            AnimatedText(
                 money(store.totals.netTotal),
+                style = TextStyle(fontSize = 40.sp, fontWeight = FontWeight.Bold),
                 color = Color.White,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
                 modifier = Modifier.padding(top = Spacing.sm),
             )
             Text("выручка смены", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp)
@@ -336,6 +338,7 @@ private fun HeroButton(title: String, icon: ImageVector, prominent: Boolean, dar
     val bg = if (prominent) Color.White else if (dark) Orda.colors.surfaceRaised else Color.White.copy(alpha = 0.18f)
     Row(
         Modifier
+            .pressScale()
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(bg)
@@ -371,7 +374,7 @@ private fun QuickActions(sellsGoods: Boolean, open: (String) -> Unit) {
 @Composable
 private fun RoundAction(icon: ImageVector, title: String, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.clickable(onClick = onClick),
+        modifier.pressScale().clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -436,6 +439,7 @@ private fun AttentionCard(icon: ImageVector, tint: Color, title: String, subtitl
     val shape = RoundedCornerShape(Radius.lg)
     Row(
         Modifier
+            .pressScale()
             .width(250.dp)
             .background(Orda.colors.surface, shape)
             .border(1.dp, tint.copy(alpha = 0.25f), shape)
@@ -535,6 +539,7 @@ private fun WeekCard(store: OperatorStore, onClick: () -> Unit) {
     val paid = week.status == "paid"
     Row(
         Modifier
+            .pressScale()
             .fillMaxWidth()
             .background(Orda.colors.surface, shape)
             .clip(shape)

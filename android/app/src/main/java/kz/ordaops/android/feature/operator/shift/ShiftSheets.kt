@@ -29,6 +29,7 @@ import kotlinx.serialization.json.put
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.userMessage
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.ui.components.rememberHaptics
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.components.PrimaryButton
@@ -51,6 +52,7 @@ internal fun OpenShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
 
     // Пустое поле и «0» — разные вещи: ноль в кассе бывает, а «не указал» — повод не пускать дальше.
     val normalized = cashText.replace(',', '.').trim()
@@ -83,7 +85,13 @@ internal fun OpenShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
             scope.launch {
                 val failure = store.openShift(cash, kind)
                 submitting = false
-                if (failure != null) error = failure else onDismiss()
+                if (failure != null) {
+                    error = failure
+                    haptics.error()
+                } else {
+                    haptics.success()
+                    onDismiss()
+                }
             }
         }
     }
@@ -108,6 +116,7 @@ internal fun CloseShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
 
     val isNight = store.shift?.shiftType == "night"
     val blocking = store.blockingChecklists
@@ -244,7 +253,13 @@ internal fun CloseShiftSheet(store: OperatorStore, onDismiss: () -> Unit) {
                     ),
                 )
                 submitting = false
-                if (failure != null) error = failure else onDismiss()
+                if (failure != null) {
+                    error = failure
+                    haptics.error()
+                } else {
+                    haptics.success()
+                    onDismiss()
+                }
             }
         }
     }

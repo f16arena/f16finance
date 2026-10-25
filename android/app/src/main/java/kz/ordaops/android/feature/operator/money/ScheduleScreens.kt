@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.ui.components.pressScale
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
@@ -279,7 +280,7 @@ private fun DayCell(day: Day, modifier: Modifier) {
 @Composable
 private fun LeadBanner(count: Int, onClick: () -> Unit) {
     val c = Orda.colors
-    OrdaCard(Modifier.clickable(onClick = onClick)) {
+    OrdaCard(Modifier.pressScale().clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Icon(Icons.Filled.ManageAccounts, null, tint = c.warning, modifier = Modifier.size(26.dp))
             Column(Modifier.weight(1f)) {

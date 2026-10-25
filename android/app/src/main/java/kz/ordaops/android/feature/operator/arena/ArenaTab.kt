@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.ui.components.pressScale
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.LoadingView
 import kz.ordaops.android.ui.components.OrdaCard
@@ -275,6 +276,7 @@ private fun StationTile(
     val shape = RoundedCornerShape(Radius.md)
     Column(
         modifier
+            .pressScale()
             .background(colors.surfaceRaised, shape)
             .border(1.dp, if (session == null) Color.Transparent else tint.copy(alpha = 0.35f), shape)
             .clickable(onClick = onClick)

@@ -34,6 +34,11 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.key
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,7 +74,10 @@ import kz.ordaops.android.feature.operator.shift.SaleCatalogItem
 import kz.ordaops.android.feature.operator.shift.ordaFieldColors
 import kz.ordaops.android.feature.operator.shift.pluralize
 import kz.ordaops.android.feature.operator.shift.rememberOperatorStore
+import kz.ordaops.android.ui.components.AnimatedText
 import kz.ordaops.android.ui.components.EmptyState
+import kz.ordaops.android.ui.components.pressScale
+import kz.ordaops.android.ui.components.rememberHaptics
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.LoadingView
 import kz.ordaops.android.ui.components.OrdaCard
@@ -89,6 +97,7 @@ import java.net.URL
 fun SaleTab() {
     val store = rememberOperatorStore()
     val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
 
     var search by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
@@ -109,10 +118,17 @@ fun SaleTab() {
     fun handleScan(code: String) {
         val item = store.item(code)
         when {
-            item == null -> toast = "Штрихкод $code не найден на витрине" to true
-            !item.isInStock -> toast = "«${item.name}» — нет на витрине" to true
+            item == null -> {
+                haptics.error()
+                toast = "Штрихкод $code не найден на витрине" to true
+            }
+            !item.isInStock -> {
+                haptics.error()
+                toast = "«${item.name}» — нет на витрине" to true
+            }
             else -> {
                 store.add(item)
+                haptics.success()
                 toast = "${item.name} · ${money(item.salePrice ?: 0.0)}" to false
             }
         }
@@ -167,7 +183,10 @@ fun SaleTab() {
                                     SaleItemRow(
                                         item = item,
                                         inCart = inCart,
-                                        onAdd = { store.add(item) },
+                                        onAdd = {
+                                            store.add(item)
+                                            haptics.tick()
+                                        },
                                         onRemove = { store.setQuantity(inCart - 1, item.id) },
                                     )
                                 }
@@ -288,7 +307,7 @@ private fun SaleItemRow(item: SaleCatalogItem, inCart: Double, onAdd: () -> Unit
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Row(
-            Modifier.weight(1f).clickable(onClick = onAdd),
+            Modifier.weight(1f).pressScale().clickable(onClick = onAdd),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
@@ -345,7 +364,7 @@ private fun CartBar(store: OperatorStore, modifier: Modifier, onOpenCart: () -> 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.weight(1f).clip(RoundedCornerShape(Radius.md)).clickable(onClick = onOpenCart),
+            Modifier.weight(1f).pressScale().clip(RoundedCornerShape(Radius.md)).clickable(onClick = onOpenCart),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
@@ -363,7 +382,7 @@ private fun CartBar(store: OperatorStore, modifier: Modifier, onOpenCart: () -> 
                 )
             }
             Column {
-                Text(money(store.cartTotal), color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                AnimatedText(money(store.cartTotal), TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold), Orda.colors.text)
                 Text("Открыть чек", color = Orda.colors.brand, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
@@ -380,7 +399,9 @@ private fun CartSheet(store: OperatorStore, onDismiss: () -> Unit, onCheckout: (
             EmptyState(Icons.Filled.ShoppingCart, "Чек пуст", "Добавьте товары из витрины.")
         } else {
             store.cart.forEach { line ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+              key(line.itemId) {
+                CartLineSwipe(onRemove = { store.remove(line.itemId) }) {
+                Row(Modifier.fillMaxWidth().background(Orda.colors.background), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Column(Modifier.weight(1f)) {
                         Text(line.name, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text("${money(line.unitPrice)} за шт.", color = Orda.colors.textDim, fontSize = 13.sp)
@@ -398,6 +419,8 @@ private fun CartSheet(store: OperatorStore, onDismiss: () -> Unit, onCheckout: (
                         modifier = Modifier.size(22.dp).clickable { store.remove(line.itemId) },
                     )
                 }
+                }
+              }
             }
             Text(
                 "Очистить чек",
@@ -408,7 +431,7 @@ private fun CartSheet(store: OperatorStore, onDismiss: () -> Unit, onCheckout: (
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Итого", color = Orda.colors.textDim, fontSize = 13.sp)
-                    Text(money(store.cartTotal), color = Orda.colors.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    AnimatedText(money(store.cartTotal), TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold), Orda.colors.text)
                 }
                 PrimaryButton("К оплате", Modifier.width(170.dp), onClick = onCheckout)
             }
@@ -464,4 +487,32 @@ private fun Thumbnail(url: String?, name: String) {
             Text(name.take(1).uppercase(), color = Orda.colors.textMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+/** Свайп позиции чека справа налево убирает её; красная плашка с корзиной проявляется под пальцем. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CartLineSwipe(onRemove: () -> Unit, content: @Composable () -> Unit) {
+    val haptics = rememberHaptics()
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { target ->
+            if (target == SwipeToDismissBoxValue.EndToStart) {
+                haptics.tick()
+                onRemove()
+                true
+            } else false
+        },
+    )
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().background(Orda.colors.negative.copy(alpha = 0.18f), RoundedCornerShape(Radius.md)).padding(end = Spacing.lg),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(Icons.Filled.Delete, contentDescription = null, tint = Orda.colors.negative)
+            }
+        },
+    ) { content() }
 }

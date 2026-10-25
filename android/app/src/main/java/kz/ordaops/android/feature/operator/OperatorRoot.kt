@@ -38,6 +38,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -84,6 +87,7 @@ import kz.ordaops.android.feature.operator.sale.SaleTab
 import kz.ordaops.android.feature.operator.shift.ShiftTab
 import kz.ordaops.android.feature.operator.work.ChecklistsTab
 import kz.ordaops.android.feature.operator.work.TasksTab
+import kz.ordaops.android.ui.components.pressScale
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.theme.Orda
@@ -203,11 +207,18 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                             opened = null
                         },
                         icon = {
+                            val bounce by animateFloatAsState(
+                                if (selected == section && opened == null) 1.18f else 1f,
+                                spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                                label = "navBounce",
+                            )
+                            Box(Modifier.graphicsLayer { scaleX = bounce; scaleY = bounce }) {
                             // Неотправленное без связи — видно на «Смене», чтобы не уйти домой с ним.
                             if (section == OperatorSection.Shift && pending > 0) {
                                 BadgedBox(badge = { Badge { Text("$pending") } }) { Icon(section.icon, contentDescription = null) }
                             } else {
                                 Icon(section.icon, contentDescription = null)
+                            }
                             }
                         },
                         label = { Text(section.tabTitle, fontSize = 11.sp) },
@@ -345,7 +356,7 @@ private fun OperatorProfile(
 @Composable
 fun MenuRow(icon: ImageVector, title: String, danger: Boolean = false, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.sm),
+        Modifier.fillMaxWidth().pressScale().clickable(onClick = onClick).padding(vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {

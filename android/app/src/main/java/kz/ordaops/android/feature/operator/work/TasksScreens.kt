@@ -27,6 +27,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.key
+import kz.ordaops.android.ui.components.rememberHaptics
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -86,6 +92,7 @@ fun TasksTab() {
     val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf<String?>(null) }
     var noteRequest by remember { mutableStateOf<NoteRequest?>(null) }
+    val haptics = rememberHaptics()
 
     LaunchedEffect(Unit) {
         store.loadCachedTasks()
@@ -101,7 +108,10 @@ fun TasksTab() {
             noteRequest = NoteRequest(task, response)
             return
         }
-        scope.launch { error = store.respondToTask(task, response) }
+        scope.launch {
+            error = store.respondToTask(task, response)
+            if (error == null) haptics.success() else haptics.error()
+        }
     }
 
     Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
@@ -126,7 +136,17 @@ fun TasksTab() {
                         val active = store.activeTasks
                         if (active.isNotEmpty()) {
                             SectionHeader("В работе", "${active.size} ${pluralize(active.size, "задача", "задачи", "задач")}")
-                            active.forEach { task -> TaskCard(task) { respond(task, it) } }
+                            active.forEach { task ->
+                                key(task.id) {
+                                    TaskSwipe(
+                                        enabled = !task.isOnReview,
+                                        onDone = {
+                                            haptics.success()
+                                            respond(task, TaskResponse.AlreadyDone)
+                                        },
+                                    ) { TaskCard(task) { respond(task, it) } }
+                                }
+                            }
                         }
                         val done = tasks.filter { it.isDone }
                         if (done.isNotEmpty()) {
@@ -146,11 +166,47 @@ fun TasksTab() {
             onDismiss = { noteRequest = null },
             send = { note ->
                 val failure = store.respondToTask(request.task, request.response, note)
-                if (failure == null) noteRequest = null
+                if (failure == null) {
+                    noteRequest = null
+                    haptics.success()
+                } else {
+                    haptics.error()
+                }
                 failure
             },
         )
     }
+}
+
+/**
+ * Свайп справа налево — «отправить на проверку» (как кнопка на карточке). Карточка
+ * всегда возвращается на место: из списка её уберёт только обновлённое состояние.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskSwipe(enabled: Boolean, onDone: () -> Unit, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { target ->
+            if (target == SwipeToDismissBoxValue.EndToStart) onDone()
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = enabled,
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().background(Orda.colors.positive.copy(alpha = 0.2f), RoundedCornerShape(Radius.lg)).padding(end = Spacing.xl),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text("Выполнено", color = Orda.colors.positive, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Orda.colors.positive)
+                }
+            }
+        },
+    ) { content() }
 }
 
 @Composable
@@ -538,6 +594,7 @@ private fun ResultRow(label: String, value: String, color: Color) {
 /** Один пункт чек-листа: ответ и комментарий — `ChecklistItemCard`. */
 @Composable
 private fun ChecklistItemCard(item: ChecklistItem, answer: ChecklistAnswer?, onChange: (ChecklistAnswer) -> Unit) {
+    val haptics = rememberHaptics()
     var comment by remember { mutableStateOf("") }
     val accent = when (answer?.answer) {
         "yes" -> Orda.colors.positive
@@ -555,9 +612,11 @@ private fun ChecklistItemCard(item: ChecklistItem, answer: ChecklistAnswer?, onC
 
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             AnswerButton("Да", answer?.answer == "yes", Orda.colors.positive, Modifier.weight(1f)) {
+                haptics.tick()
                 onChange(ChecklistAnswer(item.id, "yes", comment.ifEmpty { null }))
             }
             AnswerButton("Нет", answer?.answer == "no", Orda.colors.negative, Modifier.weight(1f)) {
+                haptics.tick()
                 onChange(ChecklistAnswer(item.id, "no", comment.ifEmpty { null }))
             }
         }

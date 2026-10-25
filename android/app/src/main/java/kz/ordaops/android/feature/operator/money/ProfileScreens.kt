@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.feature.operator.OperatorSection
 import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.ui.components.pressScale
+import kz.ordaops.android.ui.components.CookieShape
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.ErrorBanner
 import kz.ordaops.android.ui.components.OrdaCard
@@ -177,7 +179,7 @@ fun OperatorProfileContent(more: List<OperatorSection>, onOpen: (OperatorSection
 
         OrdaCard {
             Row(
-                Modifier.fillMaxWidth().clickable { confirmingLogout = true }.padding(vertical = Spacing.sm),
+                Modifier.fillMaxWidth().pressScale().clickable { confirmingLogout = true }.padding(vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
@@ -221,7 +223,7 @@ private fun ProfileHeader(name: String, roleLabel: String, week: SalaryWeek?) {
     HeroCard {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Box(
-                Modifier.size(84.dp).background(Color.White, CircleShape).border(3.dp, Orda.colors.brandBright, CircleShape),
+                Modifier.size(84.dp).background(Color.White, CookieShape).border(3.dp, Orda.colors.brandBright, CookieShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(initials, color = Navy, fontSize = 30.sp, fontWeight = FontWeight.Bold)
