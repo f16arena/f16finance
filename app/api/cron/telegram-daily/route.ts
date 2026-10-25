@@ -6,6 +6,7 @@ import { createAdminSupabaseClient } from '@/lib/server/supabase'
 import { escapeTelegramHtml } from '@/lib/telegram/message-kit'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
+import { resolveFinancialGroup, type FinancialGroup } from '@/lib/core/financial-groups'
 
 export const runtime = 'nodejs'
 
@@ -47,12 +48,36 @@ async function fetchAllPages(build: (from: number, to: number) => any): Promise<
   return out
 }
 
+function fmtExact(v: number) {
+  return Math.round(v).toLocaleString('ru-RU') + ' ₸'
+}
+
+// Платежи, которые закрывают период, а не тратятся за день: зарплата за прошлую
+// неделю, аренда за месяц, налоги, покупка оборудования. В дневной прибыли они
+// дают «минус» в день оплаты и завышение в остальные дни — показываем отдельно.
+const PERIOD_GROUPS = new Set<FinancialGroup>([
+  'payroll',
+  'payroll_advance',
+  'payroll_tax',
+  'income_tax',
+  'depreciation',
+  'financial_expenses',
+  'capex',
+  'profit_distribution',
+])
+
+function isPeriodPayment(category: string | null, explicitGroup: string | null) {
+  if (String(category || '').toLowerCase().includes('аренд')) return true
+  return PERIOD_GROUPS.has(resolveFinancialGroup(category, explicitGroup))
+}
+
 // Собирает текст дневного отчёта по заданному скоупу компаний.
 // companyIds === null → без фильтра (env-фолбэк single-tenant F16).
 async function buildDailyReport(
   supabase: ReturnType<typeof createAdminSupabaseClient>,
   date: string,
   companyIds: string[] | null,
+  organizationId: string | null,
 ): Promise<{ messageText: string; totalIncome: number; totalExpense: number; profit: number }> {
   // Безнал ночной смены после 00:00 — по календарным суткам (решение владельца
   // 17.09.2026), как /reports: берём и вчерашнюю ночь, потом режем по дате.
@@ -66,7 +91,40 @@ async function buildDailyReport(
     incQ = incQ.in('company_id', companyIds)
     expQ = expQ.in('company_id', companyIds)
   }
-  const [incomesRaw, expensesRes] = await Promise.all([incQ, expQ])
+  // Справочник статей — только своей организации (как в ОПиУ и /reports)
+  let catQ = supabase.from('expense_categories').select('name, accounting_group')
+  if (organizationId) catQ = catQ.eq('organization_id', organizationId)
+  const [incomesRaw, expensesRes, categoriesRes] = await Promise.all([incQ, expQ, catQ])
+  const categoryGroups = new Map<string, string | null>()
+  for (const row of (categoriesRes.data ?? []) as Array<{ name: string | null; accounting_group: string | null }>) {
+    const key = String(row.name || '').trim().toLowerCase()
+    if (key) categoryGroups.set(key, row.accounting_group ?? null)
+  }
+
+  // Сверка с чеками: смена закрывается суммами, которые ввёл оператор, а касса
+  // знает продажи по чекам. Сравниваем по дате смены, без разбивки ночного безнала.
+  const shiftByCompany = new Map<string, number>()
+  for (const row of (incomesRaw.data ?? []) as any[]) {
+    if (row.date !== date || !row.company_id) continue
+    const t = safeNum(row.cash_amount) + safeNum(row.kaspi_amount) + safeNum(row.online_amount) + safeNum(row.card_amount)
+    shiftByCompany.set(row.company_id, (shiftByCompany.get(row.company_id) || 0) + t)
+  }
+  const salesRows = await fetchAllPages((from, to) => {
+    let q = supabase
+      .from('point_sales')
+      .select('id, company_id, total_amount')
+      .eq('sale_date', date)
+      .is('refunded_at', null)
+      .order('id', { ascending: true })
+      .range(from, to)
+    if (companyIds) q = q.in('company_id', companyIds)
+    return q
+  }).catch(() => [] as any[])
+  const checksByCompany = new Map<string, number>()
+  for (const row of salesRows) {
+    if (!row.company_id) continue
+    checksByCompany.set(row.company_id, (checksByCompany.get(row.company_id) || 0) + safeNum(row.total_amount))
+  }
   const incomesRes = {
     ...incomesRaw,
     data: (splitIncomeKaspiByCalendarDay((incomesRaw.data ?? []) as unknown as ReportIncomeCalendarRow[]) as any[]).filter(
@@ -109,11 +167,18 @@ async function buildDailyReport(
       companyRevenue.set(row.company_id, { name: compName, total: (existing?.total || 0) + total })
     }
   }
+  let periodExpense = 0
+  const periodCats = new Set<string>()
   for (const row of (expensesRes.data ?? []) as any[]) {
     const total = safeNum(row.cash_amount) + safeNum(row.kaspi_amount)
     totalExpense += total
     const cat = row.category || 'Прочее'
     catMap.set(cat, (catMap.get(cat) || 0) + total)
+    const key = String(row.category || '').trim().toLowerCase()
+    if (total > 0 && isPeriodPayment(row.category, categoryGroups.get(key) ?? null)) {
+      periodExpense += total
+      periodCats.add(cat)
+    }
   }
 
   const profit = totalIncome - totalExpense
@@ -162,12 +227,36 @@ async function buildDailyReport(
     '',
     `💰 Выручка: <b>${fmtMoney(totalIncome)}</b>`,
     `📉 Расходы: <b>${fmtMoney(totalExpense)}</b>`,
+  ]
+  if (periodExpense > 0) {
+    const names = Array.from(periodCats).slice(0, 3).map(escapeTelegramHtml).join(', ')
+    lines.push(`<i>   из них ${fmtMoney(periodExpense)} — платежи за период (${names}), не расходы дня</i>`)
+  }
+  lines.push(
     `💼 Прибыль: <b>${sign}${fmtMoney(profit)}</b>`,
     `${marginEmoji} Маржа: <b>${margin.toFixed(1)}%</b>`,
-  ]
+  )
+  if (periodExpense > 0) {
+    const dayProfit = profit + periodExpense
+    lines.push(`<i>   без платежей за период: ${dayProfit >= 0 ? '+' : ''}${fmtMoney(dayProfit)}</i>`)
+  }
 
   if (avgDailyIncome > 0) {
     lines.push(`📊 Средняя выручка (30д): <b>${fmtMoney(avgDailyIncome)}</b>`)
+  }
+
+  // Только точки, где продают через кассу Orda; у клуба на SENET чеков здесь нет
+  const reconcile = Array.from(checksByCompany.entries()).filter(([, checks]) => checks > 0)
+  if (reconcile.length > 0) {
+    lines.push('', '<b>Сверка с чеками кассы</b>')
+    for (const [companyId, checks] of reconcile) {
+      const shifts = shiftByCompany.get(companyId) || 0
+      const diff = shifts - checks
+      const name = escapeTelegramHtml(companyRevenue.get(companyId)?.name || 'Точка')
+      const mark = Math.abs(diff) < 1 ? '✅' : Math.abs(diff) > checks * 0.02 ? '⚠️' : '▫️'
+      const diffText = Math.abs(diff) < 1 ? 'сходится' : `${diff > 0 ? '+' : '−'}${fmtExact(Math.abs(diff))}`
+      lines.push(`  ${mark} ${name}: чеки ${fmtExact(checks)}, закрыто сменами ${fmtExact(shifts)} (${diffText})`)
+    }
   }
 
   // Per-company breakdown
@@ -224,7 +313,7 @@ export async function GET(req: Request) {
   if (orgTargets.length > 0) {
     const results = []
     for (const t of orgTargets) {
-      const report = await buildDailyReport(supabase, date, t.companyIds)
+      const report = await buildDailyReport(supabase, date, t.companyIds, t.organizationId)
       await sendTelegramMessage(t.chatId, report.messageText).then(() => null).catch(() => null)
       results.push({ org: t.organizationId, totalIncome: report.totalIncome, profit: report.profit })
     }
@@ -243,7 +332,7 @@ export async function GET(req: Request) {
     ownerCompanyIds = (cos || []).map((c: any) => String(c.id))
   }
 
-  const report = await buildDailyReport(supabase, date, ownerCompanyIds)
+  const report = await buildDailyReport(supabase, date, ownerCompanyIds, ownerOrgId)
   const recipients = [chatId, process.env.TELEGRAM_OWNER_CHAT_ID].filter(Boolean) as string[]
   const uniqueRecipients = [...new Set(recipients)]
   await Promise.all(
