@@ -23,7 +23,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: ужимает и оптимизирует код — Compose в релизе в разы плавнее отладочной сборки.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Пока раздаём APK вручную — подписываем отладочным ключом,
             // чтобы файл ставился без отдельного keystore.
             signingConfig = signingConfigs.getByName("debug")
