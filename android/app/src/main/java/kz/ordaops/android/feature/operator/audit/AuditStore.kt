@@ -1,16 +1,15 @@
 package kz.ordaops.android.feature.operator.audit
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -22,6 +21,8 @@ import kz.ordaops.android.core.net.ApiError
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.HttpMethod
 import kz.ordaops.android.core.net.userMessage
+import kz.ordaops.android.core.ui.Loadable
+import kz.ordaops.android.core.ui.load
 import kz.ordaops.android.feature.operator.common.ActionOutbox
 
 // ── Модели (OperatorAudit.swift) ─────────────────────────────────────────────
@@ -31,6 +32,7 @@ import kz.ordaops.android.feature.operator.common.ActionOutbox
  * акт открывает управляющий и назначает кассиров на секции.
  */
 @Serializable
+@Immutable
 data class AuditAct(
     @SerialName("act_id") val actId: String = "",
     val locationName: String = "",
@@ -48,6 +50,7 @@ internal data class AuditActList(val data: List<AuditAct> = emptyList())
  * кассир «подгоняет» под ожидаемое число и ревизия перестаёт что-либо показывать.
  */
 @Serializable
+@Immutable
 data class AuditItem(
     @SerialName("item_id") val itemId: String = "",
     val name: String = "",
@@ -61,6 +64,7 @@ data class AuditItem(
 )
 
 @Serializable
+@Immutable
 internal data class AuditSheetData(
     @SerialName("act_id") val actId: String = "",
     /** `single` — совместный счёт, `double` — двойной слепой. */
@@ -94,40 +98,33 @@ internal fun parseQuantity(text: String): Double = maxOf(0.0, text.replace(',', 
 /**
  * Список назначенных актов и общая для раздела отправка подсчётов.
  *
- * Своя область корутин, а не областью экрана: уходя с подсчёта, остаток надо
- * дослать, когда экрана уже нет.
+ * Область корутин ViewModel живёт дольше экрана подсчёта: уходя с него, остаток
+ * надо дослать, когда экрана уже нет.
  */
-internal class AuditStore(private val api: ApiClient, private val outbox: ActionOutbox) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
-    var acts by mutableStateOf<List<AuditAct>>(emptyList())
-        private set
-    var isLoading by mutableStateOf(true)
-        private set
-    var error by mutableStateOf<String?>(null)
-        private set
+internal class AuditViewModel(private val api: ApiClient, private val outbox: ActionOutbox) : ViewModel() {
+    private val _acts = MutableStateFlow(Loadable<List<AuditAct>>())
+    val acts: StateFlow<Loadable<List<AuditAct>>> = _acts.asStateFlow()
 
     /** Почему не сохранился пересчёт, отправленный при уходе с экрана. */
-    var saveError by mutableStateOf<String?>(null)
+    private val _saveError = MutableStateFlow<String?>(null)
+    val saveError: StateFlow<String?> = _saveError.asStateFlow()
 
     private val listRequest = ApiRequest("/api/operator/audit")
 
-    suspend fun loadCached() {
-        if (acts.isEmpty()) api.cached<AuditActList>(listRequest)?.let { acts = it.data }
+    init {
+        refresh()
     }
 
-    suspend fun load() {
-        error = null
-        try {
-            acts = api.send<AuditActList>(listRequest).data
-        } catch (e: ApiError) {
-            if (acts.isEmpty()) error = e.userMessage
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            error = e.userMessage()
-        } finally {
-            isLoading = false
+    fun refresh() {
+        viewModelScope.launch {
+            _acts.load(cached = { api.cached<AuditActList>(listRequest)?.data }) {
+                api.send<AuditActList>(listRequest).data
+            }
         }
+    }
+
+    fun dismissSaveError() {
+        _saveError.value = null
     }
 
     fun sheetRequest(actId: String) = ApiRequest("/api/operator/audit", query = mapOf("act" to actId))
@@ -159,11 +156,11 @@ internal class AuditStore(private val api: ApiClient, private val outbox: Action
         )
         return try {
             val result = api.send<AuditSaveResult>(ApiRequest.json("/api/operator/audit", body, HttpMethod.POST))
-            saveError = null
+            _saveError.value = null
             result.data.saved
         } catch (e: ApiError.Transport) {
             outbox.perform("/api/operator/audit", HttpMethod.POST, body.toString(), "Подсчёты ревизии", "audit:$actId")
-            saveError = null
+            _saveError.value = null
             null
         }
     }
@@ -171,89 +168,97 @@ internal class AuditStore(private val api: ApiClient, private val outbox: Action
     /** Досылка при уходе с экрана: показать отказ негде, поэтому он ложится в [saveError] на список. */
     fun flushOnLeave(actId: String, counts: Map<String, Double>) {
         if (counts.isEmpty()) return
-        scope.launch {
+        viewModelScope.launch {
             try {
                 saveCounts(actId, counts)
             } catch (e: ApiError) {
-                saveError = e.userMessage
+                _saveError.value = e.userMessage
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                saveError = e.userMessage()
+                _saveError.value = e.userMessage()
             }
         }
     }
 
     /** Корутина, переживающая экран подсчёта (для автосохранения). */
-    fun launch(block: suspend () -> Unit): Job = scope.launch { block() }
+    fun launch(block: suspend () -> Unit): Job = viewModelScope.launch { block() }
 }
 
 // ── Подсчёт одного акта ──────────────────────────────────────────────────────
 
-/** Состояние экрана подсчёта: введённые числа и то, что ещё не улетело на сервер. */
-internal class AuditCountState(private val store: AuditStore, val act: AuditAct) {
-    internal var sheet by mutableStateOf<AuditSheetData?>(null)
-        private set
-    var isLoading by mutableStateOf(true)
-        private set
-    var error by mutableStateOf<String?>(null)
-        private set
+@Immutable
+data class AuditToast(val text: String, val isError: Boolean)
 
-    val counts = mutableStateMapOf<String, Double>()
+/** Состояние экрана подсчёта: введённые числа и то, что ещё не улетело на сервер. */
+internal class AuditCountViewModel(private val store: AuditViewModel, val actId: String) : ViewModel() {
+    private val _sheet = MutableStateFlow(Loadable<AuditSheetData>())
+    val sheet: StateFlow<Loadable<AuditSheetData>> = _sheet.asStateFlow()
+
+    private val _counts = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val counts: StateFlow<Map<String, Double>> = _counts.asStateFlow()
 
     /**
      * Посчитанное, но ещё не улетевшее на сервер. Пересчёт на четыреста позиций
      * — час работы; держать его только в памяти телефона, который падает в
      * ящик с бутылками, нельзя.
      */
-    val unsaved = mutableStateListOf<String>()
+    private val _unsaved = MutableStateFlow<Set<String>>(emptySet())
+    val unsaved: StateFlow<Set<String>> = _unsaved.asStateFlow()
 
-    var isSaving by mutableStateOf(false)
-        private set
-    var savedMessage by mutableStateOf<String?>(null)
-        private set
-    var toast by mutableStateOf<String?>(null)
-        private set
-    var toastIsError by mutableStateOf(false)
-        private set
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+    private val _savedMessage = MutableStateFlow<String?>(null)
+    val savedMessage: StateFlow<String?> = _savedMessage.asStateFlow()
+    private val _toast = MutableStateFlow<AuditToast?>(null)
+    val toast: StateFlow<AuditToast?> = _toast.asStateFlow()
 
     private var autosave: Job? = null
 
-    val countedCount: Int get() = sheet?.items?.count { counts[it.itemId] != null } ?: 0
-
-    suspend fun load() {
-        error = null
-        if (sheet == null) {
-            store.cachedSheet(act.actId)?.let { applyLoaded(it, initial = true) }
-        }
-        try {
-            // Уже сохранённые ранее подсчёты подставляем: работу можно продолжить с другого устройства.
-            applyLoaded(store.loadSheet(act.actId), initial = true)
-        } catch (e: ApiError) {
-            if (sheet == null) error = e.userMessage
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            if (sheet == null) error = e.userMessage()
-        } finally {
-            isLoading = false
+    init {
+        viewModelScope.launch { load() }
+        // Отметки «уже посчитал коллега» подтягиваем раз в двадцать секунд, как страница на сайте:
+        // без этого двое считают одну полку и узнают об этом из расхождения в акте.
+        viewModelScope.launch {
+            while (true) {
+                delay(20_000)
+                refreshMarks()
+            }
         }
     }
 
+    fun retry() {
+        viewModelScope.launch { load() }
+    }
+
+    private suspend fun load() {
+        // Уже сохранённые ранее подсчёты подставляем: работу можно продолжить с другого устройства.
+        _sheet.load(cached = { store.cachedSheet(actId) }, fresh = { store.loadSheet(actId) })
+        _sheet.value.data?.let { applyLoaded(it, initial = false) }
+    }
+
     private fun applyLoaded(loaded: AuditSheetData, initial: Boolean) {
-        sheet = loaded
-        for (item in loaded.items) {
-            val counted = item.counted ?: continue
-            // Своё число с сервера подставляем только там, где локально ничего не
-            // ждёт отправки, иначе обновление затрёт только что набранное.
-            if (initial || item.itemId !in unsaved) counts[item.itemId] = counted
+        val pending = _unsaved.value
+        _counts.update { current ->
+            val next = current.toMutableMap()
+            for (item in loaded.items) {
+                val counted = item.counted ?: continue
+                // Своё число с сервера подставляем только там, где локально ничего не
+                // ждёт отправки, иначе обновление затрёт только что набранное.
+                if (initial || item.itemId !in pending) next[item.itemId] = counted
+            }
+            next
         }
     }
 
     /** Тихое обновление: чужие отметки меняются, мой ввод — нет. */
-    suspend fun refreshMarks() {
+    private suspend fun refreshMarks() {
         // В слепом режиме чужих отметок нет вовсе — и опрашивать нечего.
-        if (sheet?.isBlind != false) return
+        val current = _sheet.value.data
+        if (current == null || current.isBlind) return
         try {
-            applyLoaded(store.loadSheet(act.actId), initial = false)
+            val fresh = store.loadSheet(actId)
+            _sheet.update { it.copy(data = fresh) }
+            applyLoaded(fresh, initial = false)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             // Фоновое обновление: отметки лишь постарели, следующий круг попробует снова.
@@ -266,9 +271,9 @@ internal class AuditCountState(private val store: AuditStore, val act: AuditAct)
      * пропадает, если телефон разрядился или приложение убили.
      */
     fun record(itemId: String, value: Double) {
-        counts[itemId] = value
-        savedMessage = null
-        if (itemId !in unsaved) unsaved.add(itemId)
+        _counts.update { it + (itemId to value) }
+        _savedMessage.value = null
+        _unsaved.update { it + itemId }
         autosave?.cancel()
         autosave = store.launch {
             delay(1500)
@@ -276,59 +281,66 @@ internal class AuditCountState(private val store: AuditStore, val act: AuditAct)
         }
     }
 
+    private fun takeUnsaved(): List<String> {
+        val ids = _unsaved.value.toList()
+        _unsaved.value = emptySet()
+        return ids
+    }
+
     private suspend fun flushUnsaved() {
-        val ids = unsaved.toList()
+        val ids = takeUnsaved()
         if (ids.isEmpty()) return
-        unsaved.clear()
-        val payload = ids.mapNotNull { id -> counts[id]?.let { id to it } }.toMap()
+        val all = _counts.value
+        val payload = ids.mapNotNull { id -> all[id]?.let { id to it } }.toMap()
         if (payload.isEmpty()) return
         try {
-            store.saveCounts(act.actId, payload)
+            store.saveCounts(actId, payload)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             // Не ушло — возвращаем в очередь: следующее число попробует снова, а «Сохранить» отправит всё разом.
-            ids.forEach { if (it !in unsaved) unsaved.add(it) }
+            _unsaved.update { it + ids }
         }
     }
 
     /** Ушли с экрана: досылаем последнее число, не дожидаясь таймера. */
     fun onLeave() {
         autosave?.cancel()
-        val ids = unsaved.toList()
+        val ids = takeUnsaved()
         if (ids.isEmpty()) return
-        unsaved.clear()
-        store.flushOnLeave(act.actId, ids.mapNotNull { id -> counts[id]?.let { id to it } }.toMap())
+        val all = _counts.value
+        store.flushOnLeave(actId, ids.mapNotNull { id -> all[id]?.let { id to it } }.toMap())
     }
 
-    suspend fun save() {
-        isSaving = true
-        autosave?.cancel()
-        val queued = unsaved.toList()
-        unsaved.clear()
-        try {
-            // Очередь берёт на себя только обрыв связи — об этом и говорим прямо:
-            // обещать «сохранено», когда данные лежат на телефоне, нельзя.
-            val saved = store.saveCounts(act.actId, counts.toMap())
-            savedMessage = if (saved != null) "Сохранено $saved" else "Связи нет — уйдёт само"
-        } catch (e: ApiError) {
-            queued.forEach { if (it !in unsaved) unsaved.add(it) }
-            showToast(e.userMessage, true)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            queued.forEach { if (it !in unsaved) unsaved.add(it) }
-            showToast(e.userMessage(), true)
-        } finally {
-            isSaving = false
+    fun save() {
+        // Один запрос за раз: повторный тап по «Сохранить» ничего не запускает.
+        if (!_isSaving.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            autosave?.cancel()
+            val queued = takeUnsaved()
+            try {
+                // Очередь берёт на себя только обрыв связи — об этом и говорим прямо:
+                // обещать «сохранено», когда данные лежат на телефоне, нельзя.
+                val saved = store.saveCounts(actId, _counts.value)
+                _savedMessage.value = if (saved != null) "Сохранено $saved" else "Связи нет — уйдёт само"
+            } catch (e: ApiError) {
+                _unsaved.update { it + queued }
+                showToast(e.userMessage, true)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _unsaved.update { it + queued }
+                showToast(e.userMessage(), true)
+            } finally {
+                _isSaving.value = false
+            }
         }
     }
 
     /** Показать плашку; гаснет сама (см. LaunchedEffect на экране). */
     fun showToast(text: String, isError: Boolean) {
-        toast = text
-        toastIsError = isError
+        _toast.value = AuditToast(text, isError)
     }
 
     fun clearToast() {
-        toast = null
+        _toast.value = null
     }
 }

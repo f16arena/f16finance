@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.arena
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -17,9 +18,11 @@ internal fun parseDate(raw: String?): Instant? {
 
 /** Ответ `GET /api/operator/arena` приходит в обёртке `data`. */
 @Serializable
+@Immutable
 internal data class ArenaEnvelope(val data: ArenaHall = ArenaHall())
 
 @Serializable
+@Immutable
 data class ArenaZone(
     val id: String = "",
     val name: String = "Зона",
@@ -27,6 +30,7 @@ data class ArenaZone(
 )
 
 @Serializable
+@Immutable
 data class ArenaStation(
     val id: String = "",
     @SerialName("zone_id") val zoneId: String? = null,
@@ -36,6 +40,7 @@ data class ArenaStation(
 )
 
 @Serializable
+@Immutable
 data class ArenaTariff(
     val id: String = "",
     @SerialName("zone_id") val zoneId: String? = null,
@@ -69,6 +74,7 @@ data class ArenaTariff(
 }
 
 @Serializable
+@Immutable
 data class ArenaSession(
     val id: String = "",
     @SerialName("station_id") val stationId: String = "",
@@ -103,6 +109,7 @@ data class ArenaSession(
 }
 
 @Serializable
+@Immutable
 data class ArenaIncomeRow(
     val comment: String = "Арена",
     @SerialName("cash_amount") val cash: Double = 0.0,
@@ -114,6 +121,7 @@ data class ArenaIncomeRow(
 }
 
 @Serializable
+@Immutable
 data class ArenaTechLog(
     val id: String = "",
     @SerialName("station_name") val stationName: String? = null,
@@ -125,6 +133,7 @@ data class ArenaTechLog(
 }
 
 @Serializable
+@Immutable
 data class ArenaTodayIncome(
     val cash: Double = 0.0,
     val kaspi: Double = 0.0,
@@ -133,6 +142,7 @@ data class ArenaTodayIncome(
 
 /** Зал клуба: станции, тарифы и запущенные сессии — `ArenaHall` из OrdaKit. */
 @Serializable
+@Immutable
 data class ArenaHall(
     val zones: List<ArenaZone> = emptyList(),
     val stations: List<ArenaStation> = emptyList(),
@@ -192,10 +202,12 @@ enum class ArenaPayment(val wire: String, val title: String) {
 
 /** Для проверки «моя ли смена» нужно лишь это из `/api/operator/shift/current`. */
 @Serializable
+@Immutable
 internal data class ShiftHead(
     val shift: ShiftStatus? = null,
     @SerialName("is_mine") val isMine: Boolean = true,
 )
 
 @Serializable
+@Immutable
 internal data class ShiftStatus(val status: String = "open")

@@ -1,18 +1,36 @@
 package kz.ordaops.android.feature.operator.arena
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import androidx.compose.runtime.Immutable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiError
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.userMessage
+import kz.ordaops.android.core.ui.Loadable
+import kz.ordaops.android.core.ui.load
+
+/** Своя ли открытая смена: без неё сажать гостей нельзя (выручке некуда попасть). */
+@Immutable
+data class ArenaShift(val isOpen: Boolean = false, val isMine: Boolean = true) {
+    val canSell: Boolean get() = isOpen && isMine
+    val isSomeoneElses: Boolean get() = isOpen && !isMine
+}
 
 /**
  * Зал клуба: состояние станций и действия по сессиям — `ArenaStore.swift`.
@@ -21,73 +39,70 @@ import kz.ordaops.android.core.net.userMessage
  * ради этого весь кабинет незачем. Действия зала в очередь не откладываем
  * (как и на айфоне): посадить гостя «потом» нельзя, деньги идут в кассу сразу.
  */
-class ArenaStore(private val api: ApiClient) {
-    var hall by mutableStateOf<ArenaHall?>(null)
-        private set
-    var isLoading by mutableStateOf(false)
-        private set
-    var error by mutableStateOf<String?>(null)
-        private set
-
-    /** Часы экрана: обратный отсчёт идёт и между запросами — гость смотрит на минуты, не на сеть. */
-    var nowMillis by mutableLongStateOf(System.currentTimeMillis())
-        private set
+class ArenaViewModel(private val api: ApiClient) : ViewModel() {
+    private val _hall = MutableStateFlow(Loadable<ArenaHall>())
+    val hall: StateFlow<Loadable<ArenaHall>> = _hall.asStateFlow()
 
     /** Зала нет у каждой точки: `false` — сервер сказал «нет проекта точки». */
-    var isAvailable by mutableStateOf(true)
-        private set
+    private val _isAvailable = MutableStateFlow(true)
+    val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
 
-    /** Своя ли открытая смена: без неё сажать гостей нельзя (выручке некуда попасть). */
-    var hasOpenShift by mutableStateOf(false)
-        private set
-    private var shiftIsMine by mutableStateOf(true)
-    val isMyShift: Boolean get() = hasOpenShift && shiftIsMine
-    val isSomeoneElsesShift: Boolean get() = hasOpenShift && !shiftIsMine
+    private val _shift = MutableStateFlow(ArenaShift())
+    val shift: StateFlow<ArenaShift> = _shift.asStateFlow()
 
-    fun tick() {
-        nowMillis = System.currentTimeMillis()
-    }
+    /**
+     * Часы зала: обратный отсчёт идёт и между запросами — гость смотрит на минуты, не на сеть.
+     * Тикает только пока есть подписчик, и читают его лишь листовые композиции с таймерами,
+     * чтобы секунда не перерисовывала весь экран.
+     */
+    val now: StateFlow<Long> = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(1_000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), System.currentTimeMillis())
+
+    /** Идёт действие по сессии: вторую посадку/оплату, пока первая не ответила, не запускаем. */
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
     private val hallRequest = ApiRequest("/api/operator/arena")
     private val shiftRequest = ApiRequest("/api/operator/shift/current")
 
-    /** Сначала то, что видели в прошлый раз, — экран рисуется сразу. */
-    suspend fun loadCached() {
-        if (hall == null) {
-            api.cached<ArenaEnvelope>(hallRequest)?.let { hall = it.data }
+    init {
+        // Сначала то, что видели в прошлый раз, — экран рисуется сразу.
+        viewModelScope.launch {
+            runCatching { api.cached<ShiftHead>(shiftRequest) }.getOrNull()?.let(::applyShift)
+            load()
         }
-        api.cached<ShiftHead>(shiftRequest)?.let(::applyShift)
     }
 
     private fun applyShift(head: ShiftHead) {
-        hasOpenShift = head.shift?.status == "open"
-        shiftIsMine = head.isMine
+        _shift.value = ArenaShift(isOpen = head.shift?.status == "open", isMine = head.isMine)
     }
 
     suspend fun load() {
-        if (hall == null) isLoading = true
-        try {
-            val loaded = api.send<ArenaEnvelope>(hallRequest).data
-            hall = loaded
-            nowMillis = System.currentTimeMillis()
-            error = null
-            isAvailable = true
-        } catch (e: ApiError) {
-            // «Нет проекта точки» — не поломка, а устройство бизнеса: у магазина зала нет.
-            if (e is ApiError.NotFound && (e.message ?: "").contains("point-project")) {
-                isAvailable = false
-                error = null
-            } else {
-                error = e.userMessage
+        _hall.load(cached = { api.cached<ArenaEnvelope>(hallRequest)?.data }) {
+            try {
+                api.send<ArenaEnvelope>(hallRequest).data.also { _isAvailable.value = true }
+            } catch (e: ApiError.NotFound) {
+                // «Нет проекта точки» — не поломка, а устройство бизнеса: у магазина зала нет.
+                if ((e.message ?: "").contains("point-project")) {
+                    _isAvailable.value = false
+                    ArenaHall()
+                } else {
+                    throw e
+                }
             }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            error = e.userMessage()
-        } finally {
-            isLoading = false
         }
         // Смена нужна только для прав на кнопки; её сбой экран не ломает.
-        runCatching { api.send<ShiftHead>(shiftRequest) }.onSuccess(::applyShift)
+        runCatching { api.send<ShiftHead>(shiftRequest) }
+            .onFailure { if (it is CancellationException) throw it }
+            .onSuccess(::applyShift)
+    }
+
+    fun refresh() {
+        viewModelScope.launch { load() }
     }
 
     // ── Действия ─────────────────────────────────────────────────────────────
@@ -160,7 +175,7 @@ class ArenaStore(private val api: ApiClient) {
         }
     }
 
-    private suspend fun action(build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) {
+    private suspend fun action(build: JsonObjectBuilder.() -> Unit) {
         api.sendUnit(ApiRequest.json("/api/operator/arena", buildJsonObject(build)))
     }
 
@@ -169,18 +184,27 @@ class ArenaStore(private val api: ApiClient) {
      * Перезагружаем всегда: за станцией мог кто-то ещё запустить сессию из
      * программы за стойкой, и своё представление после действия — верный
      * способ разойтись с реальностью.
+     *
+     * Идёт в области ViewModel: поворот экрана не должен обрывать запрос на
+     * посадку гостя на полпути.
      */
     private suspend fun run(block: suspend () -> Unit): String? {
-        val failure = try {
-            block()
-            null
-        } catch (e: ApiError) {
-            e.userMessage
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            e.userMessage()
+        // Один запрос за раз: двойной тап или повтор после таймаута не должен посадить и списать дважды.
+        if (!_busy.compareAndSet(false, true)) return "Предыдущее действие ещё выполняется"
+        val job: Deferred<String?> = viewModelScope.async {
+            val failure = try {
+                block()
+                null
+            } catch (e: ApiError) {
+                e.userMessage
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                e.userMessage()
+            }
+            _busy.value = false
+            load()
+            failure
         }
-        load()
-        return failure
+        return job.await()
     }
 }

@@ -7,6 +7,17 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kz.ordaops.android.core.ui.Loadable
+import kz.ordaops.android.feature.operator.common.operatorViewModel
+import kz.ordaops.android.ui.components.StateContainer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -87,87 +98,110 @@ import kz.ordaops.android.ui.theme.Spacing
 /** Коробка, полкоробки, блок — то, чем считают на самом деле: нажать дважды быстрее, чем набрать «144». */
 private val quickAdd = listOf(1, 6, 12, 24, 96, 144)
 
+/** От какой ширины список актов и подсчёт стоят рядом. */
+private val WideBreakpoint = 600.dp
+
+/** Формы не растягиваем на весь планшет: длинные строки неудобно читать и целиться в них. */
+private val FormMaxWidth = 840.dp
+
 /**
  * Ревизия: список назначенных актов и подсчёт позиций — `AuditScreen.swift`.
  *
  * Оператор не начинает ревизию сам — акт открывает управляющий и назначает
  * кассиров на секции. Поэтому пустой список здесь нормальное состояние.
+ * На планшете список слева, подсчёт справа; на телефоне — один за другим.
  */
 @Composable
 fun AuditTab() {
-    val env = LocalOperatorEnv.current
-    val store = remember(env.api, env.outbox) { AuditStore(env.api, env.outbox) }
-    var selected by remember { mutableStateOf<AuditAct?>(null) }
+    val vm = operatorViewModel { env -> AuditViewModel(env.api, env.outbox) }
+    val actsState by vm.acts.collectAsStateWithLifecycle()
+    // Выбранный акт держим по id: после пересоздания процесса объект восстановить нечем.
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selected = actsState.data?.firstOrNull { it.actId == selectedId }
 
-    val act = selected
-    if (act != null) {
-        BackHandler { selected = null }
-        AuditCountScreen(store, act, onBack = { selected = null })
-    } else {
-        AuditListScreen(store, onOpen = { selected = it })
+    BoxWithConstraints(Modifier.fillMaxSize().background(Orda.colors.background)) {
+        if (maxWidth >= WideBreakpoint) {
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.width(360.dp).fillMaxHeight()) {
+                    AuditListScreen(vm, actsState, selectedId, onOpen = { selectedId = it.actId })
+                }
+                Box(Modifier.weight(1f).fillMaxHeight().background(Orda.colors.surface.copy(alpha = 0.4f))) {
+                    if (selected != null) {
+                        key(selected.actId) { AuditCountScreen(vm, selected, onBack = null) }
+                    } else {
+                        EmptyState(
+                            icon = Icons.Filled.FactCheck,
+                            title = "Выберите акт",
+                            message = "Подсчёт откроется здесь.",
+                        )
+                    }
+                }
+            }
+        } else if (selected != null) {
+            BackHandler { selectedId = null }
+            key(selected.actId) { AuditCountScreen(vm, selected, onBack = { selectedId = null }) }
+        } else {
+            AuditListScreen(vm, actsState, selectedId = null, onOpen = { selectedId = it.actId })
+        }
     }
 }
 
 // ── Список актов ─────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AuditListScreen(store: AuditStore, onOpen: (AuditAct) -> Unit) {
-    val scope = rememberCoroutineScope()
-    var refreshing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(store) {
-        store.loadCached()
-        store.load()
-    }
-
-    PullToRefreshBox(
-        isRefreshing = refreshing,
-        onRefresh = { scope.launch { refreshing = true; store.load(); refreshing = false } },
-        modifier = Modifier.fillMaxSize().background(Orda.colors.background),
-    ) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            Text("Ревизия", color = Orda.colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-
-            // Пересчёт, не сохранившийся при уходе с экрана: сказать об этом больше негде, а считать заново придётся.
-            store.saveError?.let { message ->
+private fun AuditListScreen(
+    vm: AuditViewModel,
+    actsState: Loadable<List<AuditAct>>,
+    selectedId: String?,
+    onOpen: (AuditAct) -> Unit,
+) {
+    val saveError by vm.saveError.collectAsStateWithLifecycle()
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "Ревизия", color = Orda.colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg),
+        )
+        // Пересчёт, не сохранившийся при уходе с экрана: сказать об этом больше негде, а считать заново придётся.
+        saveError?.let { message ->
+            Box(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
                 OrdaCard {
                     Text("Последний пересчёт не сохранился", color = Orda.colors.text, fontWeight = FontWeight.SemiBold)
                     Text(message, color = Orda.colors.textMuted, fontSize = 12.sp)
                     Text(
                         "Понятно", color = Orda.colors.brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable { store.saveError = null },
+                        modifier = Modifier.clickable { vm.dismissSaveError() }.padding(vertical = Spacing.xs),
                     )
                 }
             }
-
-            when {
-                store.isLoading && store.acts.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 60.dp)) { LoadingView() }
-                store.error != null && store.acts.isEmpty() -> {
-                    ErrorBanner(store.error ?: "")
-                    OutlinedButton({ scope.launch { store.load() } }) { Text("Повторить") }
+        }
+        StateContainer(
+            state = actsState,
+            onRetry = vm::refresh,
+            isEmpty = { it.isEmpty() },
+            emptyIcon = Icons.Filled.Inventory,
+            emptyTitle = "Ревизий нет",
+            emptyMessage = "Пока вас не назначили ни на один акт. Ревизию открывает управляющий.",
+        ) { acts ->
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                items(acts, key = { it.actId }, contentType = { "act" }) { act ->
+                    ActCard(act, selected = act.actId == selectedId) { onOpen(act) }
                 }
-                store.acts.isEmpty() -> EmptyState(
-                    icon = Icons.Filled.Inventory,
-                    title = "Ревизий нет",
-                    message = "Пока вас не назначили ни на один акт. Ревизию открывает управляющий.",
-                )
-                else -> store.acts.forEach { act -> ActCard(act) { onOpen(act) } }
             }
         }
     }
 }
 
 @Composable
-private fun ActCard(act: AuditAct, onClick: () -> Unit) {
+private fun ActCard(act: AuditAct, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(Radius.lg)
     Column(
         Modifier.fillMaxWidth()
             .background(Orda.colors.surface, shape)
-            .border(1.dp, Orda.colors.accent.copy(alpha = 0.5f), shape)
+            .border(if (selected) 2.dp else 1.dp, Orda.colors.accent.copy(alpha = if (selected) 1f else 0.5f), shape)
             .clickable(onClick = onClick)
             .padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -191,40 +225,42 @@ private fun ActCard(act: AuditAct, onClick: () -> Unit) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Unit) {
-    val state = remember(act.actId) { AuditCountState(store, act) }
-    val scope = rememberCoroutineScope()
+private fun AuditCountScreen(listVm: AuditViewModel, act: AuditAct, onBack: (() -> Unit)?) {
+    val state = operatorViewModel(key = act.actId) { _ -> AuditCountViewModel(listVm, act.actId) }
+    val sheetState by state.sheet.collectAsStateWithLifecycle()
+    val counts by state.counts.collectAsStateWithLifecycle()
+    val unsaved by state.unsaved.collectAsStateWithLifecycle()
+    val isSaving by state.isSaving.collectAsStateWithLifecycle()
+    val savedMessage by state.savedMessage.collectAsStateWithLifecycle()
+    val toast by state.toast.collectAsStateWithLifecycle()
 
-    var search by remember { mutableStateOf("") }
-    var onlyUncounted by remember { mutableStateOf(false) }
-    val haptics = rememberHaptics()
-    var showScanner by remember { mutableStateOf(false) }
-    var pendingItem by remember { mutableStateOf<AuditItem?>(null) }
-    var quantityText by remember { mutableStateOf("") }
+    // Ввод переживает поворот и пересоздание: набранное число и открытая позиция не пропадают.
+    var search by rememberSaveable { mutableStateOf("") }
+    var onlyUncounted by rememberSaveable { mutableStateOf(false) }
+    var showScanner by rememberSaveable { mutableStateOf(false) }
+    var pendingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var quantityText by rememberSaveable { mutableStateOf("") }
     // Что отсканировали и ждёт количества: скан открывает поле, как на сайте —
     // навёл, вписал число, «Готово», следующий товар.
-    var scannedItem by remember { mutableStateOf<AuditItem?>(null) }
-    var scanQuantity by remember { mutableStateOf("") }
+    var scannedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var scanQuantity by rememberSaveable { mutableStateOf("") }
+    val haptics = rememberHaptics()
 
-    LaunchedEffect(act.actId) { state.load() }
-    // Отметки «уже посчитал коллега» подтягиваем раз в двадцать секунд, как страница на сайте:
-    // без этого двое считают одну полку и узнают об этом из расхождения в акте.
-    LaunchedEffect(act.actId) {
-        while (true) {
-            delay(20_000)
-            if (scannedItem == null && pendingItem == null) state.refreshMarks()
-        }
-    }
-    LaunchedEffect(state.toast) {
-        val text = state.toast ?: return@LaunchedEffect
-        delay(if (state.toastIsError) 2500 else 1200)
-        if (state.toast == text) state.clearToast()
+    val sheet = sheetState.data
+    val itemsById = remember(sheet) { sheet?.items?.associateBy { it.itemId }.orEmpty() }
+    val pendingItem = pendingId?.let { itemsById[it] }
+    val scannedItem = scannedId?.let { itemsById[it] }
+
+    LaunchedEffect(toast) {
+        val current = toast ?: return@LaunchedEffect
+        delay(if (current.isError) 2500 else 1200)
+        state.clearToast()
     }
     // Ушли с экрана — досылаем последнее число, не дожидаясь таймера.
     DisposableEffect(state) { onDispose { state.onLeave() } }
 
     fun closeScanned() {
-        scannedItem = null
+        scannedId = null
         scanQuantity = ""
     }
 
@@ -237,39 +273,47 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
     }
 
     fun handleScan(code: String) {
-        val sheet = state.sheet ?: return
         val needle = code.trim()
-        val item = sheet.items.firstOrNull { (it.barcode ?: "") == needle }
-        if (item == null) {
-            haptics.error()
-            state.showToast("Штрихкод $needle не в вашей секции", true)
+        val item = sheet?.items?.firstOrNull { (it.barcode ?: "") == needle } ?: run {
+            if (sheet != null) {
+                haptics.error()
+                state.showToast("Штрихкод $needle не в вашей секции", true)
+            }
             return
         }
         // Скан не прибавляет единицу сам, а открывает поле: для полки с двадцатью
         // четырьмя бутылками это единственный удобный способ. Введённое подставляем.
         haptics.tick()
-        scannedItem = item
-        scanQuantity = state.counts[item.itemId]?.let { formatQuantity(it) } ?: ""
+        scannedId = item.itemId
+        scanQuantity = counts[item.itemId]?.let { formatQuantity(it) } ?: ""
     }
 
-    Box(Modifier.fillMaxSize().background(Orda.colors.background)) {
-        Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(Orda.colors.background), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.fillMaxSize().widthIn(max = FormMaxWidth).imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm, vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Orda.colors.text) }
-                Text("Подсчёт", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                if (onBack != null) {
+                    IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Orda.colors.text) }
+                } else {
+                    Spacer(Modifier.width(Spacing.md))
+                }
+                Text(
+                    if (onBack == null) act.locationName else "Подсчёт",
+                    color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                )
             }
 
-            val sheet = state.sheet
-            when {
-                sheet == null && state.isLoading -> LoadingView()
-                sheet == null && state.error != null -> Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    ErrorBanner(state.error ?: "")
-                    OutlinedButton({ scope.launch { state.load() } }) { Text("Повторить") }
-                }
-                sheet != null -> {
-                    val total = sheet.items.size
-                    val counted = state.countedCount
-                    ProgressHeader(act.sectionLabel, counted, total, sheet.isBlind, onlyUncounted) { onlyUncounted = it }
+            StateContainer(
+                state = sheetState,
+                onRetry = state::retry,
+                modifier = Modifier.weight(1f),
+                isEmpty = { it.items.isEmpty() },
+                emptyIcon = Icons.Filled.Inventory,
+                emptyTitle = "В акте нет позиций",
+            ) { loaded ->
+                Column(Modifier.fillMaxSize()) {
+                    val total = loaded.items.size
+                    val counted = remember(loaded, counts) { loaded.items.count { counts[it.itemId] != null } }
+                    ProgressHeader(act.sectionLabel, counted, total, loaded.isBlind, onlyUncounted) { onlyUncounted = it }
 
                     OutlinedTextField(
                         value = search,
@@ -281,15 +325,17 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                     )
 
                     val text = search.trim().lowercase()
-                    val visible = sheet.items.filter { item ->
-                        (!onlyUncounted || state.counts[item.itemId] == null) &&
-                            (text.isEmpty() || item.name.lowercase().contains(text) || (item.barcode?.contains(text) ?: false))
+                    // Фильтр по названию не зависит от подсчётов; их учитываем лишь когда включён «непосчитанные».
+                    val byText = remember(loaded, text) {
+                        if (text.isEmpty()) loaded.items
+                        else loaded.items.filter { it.name.lowercase().contains(text) || (it.barcode?.contains(text) ?: false) }
                     }
-                    LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm)) {
-                        items(visible, key = { it.itemId }) { item ->
-                            ItemRow(item, state.counts[item.itemId], sheet.isBlind) {
-                                pendingItem = item
-                                quantityText = state.counts[item.itemId]?.let { formatQuantity(it) } ?: ""
+                    val visible = if (onlyUncounted) byText.filter { counts[it.itemId] == null } else byText
+                    LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm)) {
+                        items(visible, key = { it.itemId }, contentType = { "item" }) { item ->
+                            ItemRow(item, counts[item.itemId], loaded.isBlind) {
+                                pendingId = item.itemId
+                                quantityText = counts[item.itemId]?.let { formatQuantity(it) } ?: ""
                             }
                             HorizontalDivider(color = Orda.colors.border)
                         }
@@ -299,8 +345,8 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                         Modifier.fillMaxWidth().background(Orda.colors.elevated).navigationBarsPadding().padding(Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
-                        if (state.unsaved.isNotEmpty()) {
-                            Text("не сохранено ${state.unsaved.size} — уйдёт само или по кнопке", color = Orda.colors.warning, fontSize = 12.sp)
+                        if (unsaved.isNotEmpty()) {
+                            Text("не сохранено ${unsaved.size} — уйдёт само или по кнопке", color = Orda.colors.warning, fontSize = 12.sp)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
                             OutlinedButton(
@@ -313,21 +359,16 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                                 Text("Сканировать", color = Orda.colors.text, modifier = Modifier.padding(start = Spacing.xs))
                             }
                             Button(
-                                onClick = {
-                                    scope.launch {
-                                        state.save()
-                                        if (state.savedMessage?.startsWith("Сохранено") == true) haptics.success()
-                                    }
-                                },
-                                enabled = !state.isSaving && state.counts.isNotEmpty(),
+                                onClick = { state.save() },
+                                enabled = !isSaving && counts.isNotEmpty(),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(Radius.md),
                                 colors = ButtonDefaults.buttonColors(containerColor = Orda.colors.accent),
                             ) {
-                                if (state.isSaving) {
+                                if (isSaving) {
                                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                                 } else {
-                                    Text(state.savedMessage ?: "Сохранить", fontWeight = FontWeight.SemiBold, color = Color.White)
+                                    Text(savedMessage ?: "Сохранить", fontWeight = FontWeight.SemiBold, color = Color.White)
                                 }
                             }
                         }
@@ -335,13 +376,13 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                 }
             }
         }
-        ToastBanner(state, Modifier.align(Alignment.TopCenter))
+        ToastBanner(toast, Modifier.align(Alignment.TopCenter))
     }
 
     // Ввод количества вручную по нажатию на позицию.
     pendingItem?.let { item ->
         ModalBottomSheet(
-            onDismissRequest = { pendingItem = null },
+            onDismissRequest = { pendingId = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Orda.colors.background,
         ) {
@@ -355,7 +396,7 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                 QuickAddRow(quantityText) { quantityText = it }
                 PrimaryAccentButton("Записать") {
                     state.record(item.itemId, parseQuantity(quantityText))
-                    pendingItem = null
+                    pendingId = null
                 }
                 Spacer(Modifier.height(Spacing.lg))
             }
@@ -368,8 +409,8 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
             onDismissRequest = { closeScanned(); showScanner = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
-            Box(Modifier.fillMaxSize().background(Orda.colors.background)) {
-                Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding()) {
+            Box(Modifier.fillMaxSize().background(Orda.colors.background), contentAlignment = Alignment.TopCenter) {
+                Column(Modifier.fillMaxSize().widthIn(max = FormMaxWidth).imePadding().navigationBarsPadding()) {
                     Row(Modifier.fillMaxWidth().padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
                         Text("Сканирование", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         TextButton({ closeScanned(); showScanner = false }) { Text("Готово", fontWeight = FontWeight.SemiBold) }
@@ -377,16 +418,16 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                     Column(Modifier.padding(horizontal = Spacing.lg)) {
                         AuditScannerPane(paused = scannedItem != null, onCode = ::handleScan)
                     }
-                    state.sheet?.let { sheet ->
+                    sheet?.let { loaded ->
                         // Сколько осталось — единственное, что хочется знать, не выходя из камеры.
+                        val counted = remember(loaded, counts) { loaded.items.count { counts[it.itemId] != null } }
                         Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md)) {
-                            Text("посчитано ${state.countedCount} из ${sheet.items.size}", color = Orda.colors.textMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                            if (state.unsaved.isNotEmpty()) Text("не сохранено ${state.unsaved.size}", color = Orda.colors.warning, fontSize = 12.sp)
+                            Text("посчитано $counted из ${loaded.items.size}", color = Orda.colors.textMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            if (unsaved.isNotEmpty()) Text("не сохранено ${unsaved.size}", color = Orda.colors.warning, fontSize = 12.sp)
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    val scanned = scannedItem
-                    if (scanned == null) {
+                    if (scannedItem == null) {
                         Text(
                             "Наведите камеру на штрихкод — откроется поле для количества.",
                             color = Orda.colors.textDim, fontSize = 12.sp, textAlign = TextAlign.Center,
@@ -394,16 +435,16 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
                         )
                     } else {
                         ScanQuantityPad(
-                            item = scanned,
-                            blind = state.sheet?.isBlind ?: false,
+                            item = scannedItem,
+                            blind = sheet?.isBlind ?: false,
                             text = scanQuantity,
                             onText = { scanQuantity = it },
                             onClose = ::closeScanned,
-                            onDone = { commitScanned(scanned) },
+                            onDone = { commitScanned(scannedItem) },
                         )
                     }
                 }
-                ToastBanner(state, Modifier.align(Alignment.TopCenter).padding(top = Spacing.xxlTop))
+                ToastBanner(toast, Modifier.align(Alignment.TopCenter).padding(top = Spacing.xxlTop))
             }
         }
     }
@@ -412,11 +453,11 @@ private fun AuditCountScreen(store: AuditStore, act: AuditAct, onBack: () -> Uni
 private val Spacing.xxlTop get() = 56.dp
 
 @Composable
-private fun ToastBanner(state: AuditCountState, modifier: Modifier) {
-    val text = state.toast ?: return
-    val tint = if (state.toastIsError) Orda.colors.negative else Orda.colors.positive
+private fun ToastBanner(toast: AuditToast?, modifier: Modifier) {
+    toast ?: return
+    val tint = if (toast.isError) Orda.colors.negative else Orda.colors.positive
     Text(
-        text,
+        toast.text,
         color = Color.White,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,

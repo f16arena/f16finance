@@ -41,6 +41,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -192,14 +196,17 @@ private fun StatRow(label: String, value: String) {
  * Kaspi считает сервер по цене тарифа; руками делят только смешанную оплату.
  */
 @Composable
-internal fun ArenaStartSheet(store: ArenaStore, station: ArenaStation, onDismiss: () -> Unit) {
-    val tariffs = store.hall?.tariffs(station).orEmpty()
-    var tariffId by remember { mutableStateOf(tariffs.firstOrNull()?.id) }
-    var payment by remember { mutableStateOf(ArenaPayment.Cash) }
-    var cash by remember { mutableStateOf("") }
-    var kaspi by remember { mutableStateOf("") }
-    var discount by remember { mutableStateOf(0) }
-    var saving by remember { mutableStateOf(false) }
+internal fun ArenaStartSheet(store: ArenaViewModel, station: ArenaStation, onDismiss: () -> Unit) {
+    val hall by store.hall.collectAsStateWithLifecycle()
+    val tariffs = remember(hall.data, station) { hall.data?.tariffs(station).orEmpty() }
+    var tariffId by rememberSaveable { mutableStateOf(tariffs.firstOrNull()?.id) }
+    var payment by rememberSaveable { mutableStateOf(ArenaPayment.Cash) }
+    var cash by rememberSaveable { mutableStateOf("") }
+    var kaspi by rememberSaveable { mutableStateOf("") }
+    var discount by rememberSaveable { mutableStateOf(0) }
+    var localSaving by remember { mutableStateOf(false) }
+    val busy by store.busy.collectAsStateWithLifecycle()
+    val saving = localSaving || busy
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -238,10 +245,10 @@ internal fun ArenaStartSheet(store: ArenaStore, station: ArenaStation, onDismiss
         SubmitButton(if (price > 0) "Запустить · ${money(price)}" else "Запустить", canStart, saving) {
             val t = tariff ?: return@SubmitButton
             scope.launch {
-                saving = true
+                localSaving = true
                 error = null
                 val failure = store.start(station.id, t.id, payment, cash.amount(), kaspi.amount(), discount.toDouble())
-                saving = false
+                localSaving = false
                 if (failure != null) error = failure else onDismiss()
             }
         }
@@ -252,24 +259,27 @@ internal fun ArenaStartSheet(store: ArenaStore, station: ArenaStation, onDismiss
 
 /** Сколько осталось и что можно сделать. Деньги двигаем только со своей открытой сменой. */
 @Composable
-internal fun ArenaSessionSheet(store: ArenaStore, station: ArenaStation, onDismiss: () -> Unit) {
-    val session = store.hall?.session(station.id)
-    val now = store.nowMillis
-    val canSell = store.isMyShift
+internal fun ArenaSessionSheet(store: ArenaViewModel, station: ArenaStation, onDismiss: () -> Unit) {
+    val hallState by store.hall.collectAsStateWithLifecycle()
+    val shift by store.shift.collectAsStateWithLifecycle()
+    val session = hallState.data?.session(station.id)
+    val canSell = shift.canSell
     val scope = rememberCoroutineScope()
     var extending by remember { mutableStateOf(false) }
     var confirmingEnd by remember { mutableStateOf(false) }
     var confirmingRefund by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
+    var localSaving by remember { mutableStateOf(false) }
+    val busy by store.busy.collectAsStateWithLifecycle()
+    val saving = localSaving || busy
     var error by remember { mutableStateOf<String?>(null) }
 
     fun finish(refund: Boolean) {
         val id = session?.id ?: return
         scope.launch {
-            saving = true
+            localSaving = true
             error = null
             val failure = if (refund) store.refund(id) else store.end(id)
-            saving = false
+            localSaving = false
             if (failure != null) error = failure else onDismiss()
         }
     }
@@ -279,7 +289,9 @@ internal fun ArenaSessionSheet(store: ArenaStore, station: ArenaStation, onDismi
             OrdaCard { Text("Сессия уже закрыта.", color = Orda.colors.textMuted, fontSize = 14.sp) }
             return@Sheet
         }
-        val expired = session.isExpired(now)
+        val nowState = store.now.collectAsStateWithLifecycle()
+        // Лист перерисовывается лишь при смене «время вышло», а секунды рисует CountdownText.
+        val expired by remember(session) { derivedStateOf { session.isExpired(nowState.value) } }
         val shape = RoundedCornerShape(Radius.lg)
         Column(
             Modifier.fillMaxWidth()
@@ -288,10 +300,10 @@ internal fun ArenaSessionSheet(store: ArenaStore, station: ArenaStation, onDismi
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             Text(station.name, color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                countdownText(session.remaining(now)),
-                color = if (expired) Orda.colors.negative else Orda.colors.text,
-                fontSize = 36.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
+            CountdownText(
+                session, store.now,
+                colorFor = { over -> if (over) Orda.colors.negative else Orda.colors.text },
+                fontSize = 36.sp, fontWeight = FontWeight.Bold,
             )
             Text(if (expired) "время вышло" else "осталось", color = Orda.colors.textMuted, fontSize = 12.sp)
         }
@@ -307,7 +319,7 @@ internal fun ArenaSessionSheet(store: ArenaStore, station: ArenaStation, onDismi
         if (!canSell) {
             AccentCard(Orda.colors.warning) {
                 Text(
-                    if (store.isSomeoneElsesShift) {
+                    if (shift.isSomeoneElses) {
                         "Смену на точке ведёт другой оператор — продлевает и закрывает он."
                     } else {
                         "Смена не открыта: продлить и завершить нельзя, деньги некуда записать."
@@ -350,15 +362,18 @@ internal fun ArenaSessionSheet(store: ArenaStore, station: ArenaStation, onDismi
 
 /** Пакетом тарифа или на сумму; минуты по сумме считает сервер по цене часа. */
 @Composable
-private fun ArenaExtendSheet(store: ArenaStore, station: ArenaStation, session: ArenaSession, onDismiss: () -> Unit) {
-    val tariffs = store.hall?.tariffs(station).orEmpty()
-    var byTariff by remember { mutableStateOf(true) }
-    var tariffId by remember { mutableStateOf(tariffs.firstOrNull()?.id) }
-    var payment by remember { mutableStateOf(ArenaPayment.Cash) }
-    var cash by remember { mutableStateOf("") }
-    var kaspi by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var saving by remember { mutableStateOf(false) }
+private fun ArenaExtendSheet(store: ArenaViewModel, station: ArenaStation, session: ArenaSession, onDismiss: () -> Unit) {
+    val hall by store.hall.collectAsStateWithLifecycle()
+    val tariffs = remember(hall.data, station) { hall.data?.tariffs(station).orEmpty() }
+    var byTariff by rememberSaveable { mutableStateOf(true) }
+    var tariffId by rememberSaveable { mutableStateOf(tariffs.firstOrNull()?.id) }
+    var payment by rememberSaveable { mutableStateOf(ArenaPayment.Cash) }
+    var cash by rememberSaveable { mutableStateOf("") }
+    var kaspi by rememberSaveable { mutableStateOf("") }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var localSaving by remember { mutableStateOf(false) }
+    val busy by store.busy.collectAsStateWithLifecycle()
+    val saving = localSaving || busy
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -393,7 +408,7 @@ private fun ArenaExtendSheet(store: ArenaStore, station: ArenaStation, session: 
         ErrorText(error)
         SubmitButton(if (total > 0) "Продлить · ${money(total)}" else "Продлить", canSubmit, saving) {
             scope.launch {
-                saving = true
+                localSaving = true
                 error = null
                 // Продление на сумму: сервер делит именно оплаченное, поэтому при
                 // наличных и Kaspi кладём сумму в нужное поле сами.
@@ -407,7 +422,7 @@ private fun ArenaExtendSheet(store: ArenaStore, station: ArenaStation, session: 
                         kaspi = when (payment) { ArenaPayment.Cash -> 0.0; ArenaPayment.Kaspi -> value; else -> kaspi.amount() },
                     )
                 }
-                saving = false
+                localSaving = false
                 if (failure != null) error = failure else onDismiss()
             }
         }
@@ -420,11 +435,13 @@ private val techPresets = listOf("Не работает мышь", "Не раб�
 
 /** Мышь, наушники, сгоревший монитор — это расход и повод не сажать сюда гостя. */
 @Composable
-internal fun ArenaTechSheet(store: ArenaStore, stations: List<ArenaStation>, onDismiss: () -> Unit) {
-    var stationId by remember { mutableStateOf<String?>(null) }
-    var reason by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var saving by remember { mutableStateOf(false) }
+internal fun ArenaTechSheet(store: ArenaViewModel, stations: List<ArenaStation>, onDismiss: () -> Unit) {
+    var stationId by rememberSaveable { mutableStateOf<String?>(null) }
+    var reason by rememberSaveable { mutableStateOf("") }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var localSaving by remember { mutableStateOf(false) }
+    val busy by store.busy.collectAsStateWithLifecycle()
+    val saving = localSaving || busy
     var error by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -483,10 +500,10 @@ internal fun ArenaTechSheet(store: ArenaStore, stations: List<ArenaStation>, onD
         ErrorText(error)
         SubmitButton("Записать", canSubmit, saving) {
             scope.launch {
-                saving = true
+                localSaving = true
                 error = null
                 val failure = store.logTech(stations.firstOrNull { it.id == stationId }, reason.trim(), amount.amount())
-                saving = false
+                localSaving = false
                 if (failure != null) error = failure else onDismiss()
             }
         }
