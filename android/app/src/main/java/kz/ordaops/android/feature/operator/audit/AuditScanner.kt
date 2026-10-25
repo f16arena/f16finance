@@ -35,13 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -107,8 +107,10 @@ private fun CameraPreview(paused: Boolean, onCode: (String) -> Unit) {
     val lastAt = remember { longArrayOf(0L) }
 
     // Проснулись — забываем последний код: ту же бутылку могут поднести снова намеренно.
+    // Флаг выставляем сразу, в композиции: через LaunchedEffect он запаздывал на кадр, и камера
+    // успевала отдать ещё один код, пока над ней уже открывали лист количества.
+    pausedFlag.set(paused)
     androidx.compose.runtime.LaunchedEffect(paused) {
-        pausedFlag.set(paused)
         if (!paused) {
             lastCode[0] = null
             lastAt[0] = 0L
@@ -131,10 +133,18 @@ private fun CameraPreview(paused: Boolean, onCode: (String) -> Unit) {
         )
     }
 
+    // Один код за раз: пока предыдущий обрабатывается, следующие камера отбрасывает.
+    val handling = remember { AtomicBoolean(false) }
+    val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    // Привязка к жизненному циклу владельца и отвязка при уходе; ключ — только владелец,
+    // поэтому перерисовка камеру не перезапускает.
     DisposableEffect(lifecycleOwner) {
+        var disposed = false
         val providerFuture = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
         providerFuture.addListener({
+            if (disposed) return@addListener
             val p = providerFuture.get()
             provider = p
             val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
@@ -143,7 +153,7 @@ private fun CameraPreview(paused: Boolean, onCode: (String) -> Unit) {
                 .build()
             analysis.setAnalyzer(executor) { proxy ->
                 val media = proxy.image
-                if (media == null || pausedFlag.get()) {
+                if (media == null || pausedFlag.get() || handling.get()) {
                     proxy.close()
                     return@setAnalyzer
                 }
@@ -151,13 +161,15 @@ private fun CameraPreview(paused: Boolean, onCode: (String) -> Unit) {
                 scanner.process(image)
                     .addOnSuccessListener { codes ->
                         val value = codes.firstNotNullOfOrNull { it.rawValue?.trim()?.takeIf(String::isNotEmpty) }
-                        if (value != null && !pausedFlag.get()) {
+                        if (value != null && !pausedFlag.get() && handling.compareAndSet(false, true)) {
                             val now = System.currentTimeMillis()
                             if (!(value == lastCode[0] && now - lastAt[0] < 1500)) {
                                 lastCode[0] = value
                                 lastAt[0] = now
                                 onCodeState.value(value)
                             }
+                            // Короткая «просушка»: пока хозяин решает, что делать с кодом, новые не принимаем.
+                            mainHandler.postDelayed({ handling.set(false) }, 300)
                         }
                     }
                     .addOnCompleteListener { proxy.close() }
@@ -168,6 +180,8 @@ private fun CameraPreview(paused: Boolean, onCode: (String) -> Unit) {
             }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
+            disposed = true
+            mainHandler.removeCallbacksAndMessages(null)
             provider?.unbindAll()
         }
     }

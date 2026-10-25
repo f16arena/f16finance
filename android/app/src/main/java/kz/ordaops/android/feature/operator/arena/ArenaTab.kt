@@ -7,50 +7,74 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
-import kz.ordaops.android.ui.components.pressScale
-import kz.ordaops.android.ui.components.ErrorBanner
-import kz.ordaops.android.ui.components.LoadingView
+import kotlinx.coroutines.flow.StateFlow
+import kz.ordaops.android.feature.operator.common.operatorViewModel
 import kz.ordaops.android.ui.components.OrdaCard
+import kz.ordaops.android.ui.components.StateContainer
 import kz.ordaops.android.ui.components.money
+import kz.ordaops.android.ui.components.pressScale
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Radius
 import kz.ordaops.android.ui.theme.Spacing
 import kotlin.math.abs
+
+/** Элемент сетки зала: заголовок зоны на всю ширину или плитка станции. */
+@Immutable
+private sealed interface HallEntry {
+    val key: String
+
+    @Immutable
+    data class Header(val id: String, val title: String) : HallEntry {
+        override val key get() = "zone-$id"
+    }
+
+    @Immutable
+    data class Tile(val station: ArenaStation, val session: ArenaSession?) : HallEntry {
+        override val key get() = "st-${station.id}"
+    }
+}
+
+private enum class TileStatus { Free, Active, Soon, Expired }
 
 /**
  * Зал клуба: кто где сидит и сколько кому осталось — `ArenaScreen.swift`.
@@ -58,108 +82,141 @@ import kotlin.math.abs
  * Первое, что должно бросаться в глаза, — не выручка, а станции, где время на
  * исходе: именно к ним нужно подойти и спросить, продлевают ли.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArenaTab() {
-    val env = LocalOperatorEnv.current
-    val store = remember(env.api) { ArenaStore(env.api) }
-    val scope = rememberCoroutineScope()
+    val vm = operatorViewModel { env -> ArenaViewModel(env.api) }
+    val hallState by vm.hall.collectAsStateWithLifecycle()
+    val available by vm.isAvailable.collectAsStateWithLifecycle()
+    val shift by vm.shift.collectAsStateWithLifecycle()
 
-    var starting by remember { mutableStateOf<ArenaStation?>(null) }
-    // Открытую станцию держим по id: лист читает сессию из свежего зала, а не из копии.
-    var openedId by remember { mutableStateOf<String?>(null) }
-    var techLogging by remember { mutableStateOf(false) }
-    var showHistory by remember { mutableStateOf(false) }
-    var refreshing by remember { mutableStateOf(false) }
+    // Выбор переживает поворот. Станцию держим по id: лист читает сессию из свежего зала, а не из копии.
+    var startingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var openedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var techLogging by rememberSaveable { mutableStateOf(false) }
+    var showHistory by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(store) {
-        store.loadCached()
-        store.load()
-        // Сессии запускают и закрывают из программы за стойкой, гости уходят
-        // раньше времени — занятость надо переспрашивать, иначе на телефоне
-        // висит расстановка получасовой давности.
-        while (true) {
-            delay(20_000)
-            store.load()
-        }
-    }
-    // Обратный отсчёт идёт каждую секунду, а к серверу ходим раз в 20 секунд.
-    LaunchedEffect(store) {
-        while (true) {
-            delay(1_000)
-            store.tick()
-        }
-    }
-
-    val hall = store.hall
-    val now = store.nowMillis
-    val canSell = store.isMyShift
-
-    PullToRefreshBox(
-        isRefreshing = refreshing,
-        onRefresh = {
-            scope.launch {
-                refreshing = true
-                store.load()
-                refreshing = false
-            }
-        },
-        modifier = Modifier.fillMaxSize().background(Orda.colors.background),
-    ) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            Text("Зал", color = Orda.colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-
-            when {
-                !store.isAvailable -> InfoCard(
-                    "У этой точки нет зала. Раздел нужен клубам — там, где гости садятся за станции.",
-                )
-                hall != null && hall.stations.isEmpty() -> InfoCard(
-                    // Проект есть, а станций нет: пустая сетка без объяснения выглядела бы поломкой.
-                    "Зал пока пустой: станции и тарифы заводит владелец в разделе «Зал».",
-                )
-                hall != null -> {
-                    if (!canSell) ShiftWarning(store.isSomeoneElsesShift)
-                    SummaryCard(hall)
-
-                    val soon = endingSoon(hall, now)
-                    if (soon.isNotEmpty()) AttentionCard(soon, hall, now) { openedId = it.id }
-
-                    zoneGroups(hall).forEach { group ->
-                        Text(group.title, color = Orda.colors.textMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        StationGrid(group.stations, hall, now, canSell) { station, hasSession ->
-                            // Открытую сессию смотреть можно всегда: посмотреть остаток не значит тронуть деньги.
-                            if (hasSession) openedId = station.id else if (canSell) starting = station
-                        }
-                    }
-
-                    ActionButton("Что было сегодня", Icons.Filled.History) { showHistory = true }
-                    ActionButton("Записать техпроблему", Icons.Filled.Build) { techLogging = true }
-                }
-                store.isLoading -> Box(Modifier.fillMaxWidth().padding(top = 80.dp)) { LoadingView() }
-                store.error != null -> ErrorBanner(store.error ?: "")
+    // Сессии запускают и закрывают из программы за стойкой, гости уходят
+    // раньше времени — занятость надо переспрашивать, иначе на телефоне
+    // висит расстановка получасовой давности. Опрос только пока экран виден.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(vm, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(20_000)
+                vm.load()
             }
         }
     }
 
-    starting?.let { station ->
-        ArenaStartSheet(store, station, onDismiss = { starting = null })
+    val hall = hallState.data
+    Column(Modifier.fillMaxSize().background(Orda.colors.background)) {
+        Text(
+            "Зал", color = Orda.colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg),
+        )
+        if (!available) {
+            Column(Modifier.padding(Spacing.lg)) {
+                InfoCard("У этой точки нет зала. Раздел нужен клубам — там, где гости садятся за станции.")
+            }
+        } else {
+            StateContainer(
+                state = hallState,
+                onRetry = vm::refresh,
+                isEmpty = { it.stations.isEmpty() },
+                emptyIcon = Icons.Filled.Build,
+                emptyTitle = "Зал пока пустой",
+                // Проект есть, а станций нет: пустая сетка без объяснения выглядела бы поломкой.
+                emptyMessage = "Станции и тарифы заводит владелец в разделе «Зал».",
+            ) { loaded ->
+                HallContent(
+                    now = vm.now,
+                    hall = loaded,
+                    canSell = shift.canSell,
+                    someoneElses = shift.isSomeoneElses,
+                    onStart = { startingId = it.id },
+                    onOpen = { openedId = it.id },
+                    onHistory = { showHistory = true },
+                    onTech = { techLogging = true },
+                )
+            }
+        }
+    }
+
+    startingId?.let { id ->
+        val station = hall?.stations?.firstOrNull { it.id == id }
+        if (station != null) ArenaStartSheet(vm, station, onDismiss = { startingId = null }) else if (hall != null) startingId = null
     }
     openedId?.let { id ->
         val station = hall?.stations?.firstOrNull { it.id == id }
-        if (station != null) {
-            ArenaSessionSheet(store, station, onDismiss = { openedId = null })
-        } else {
-            openedId = null
-        }
+        if (station != null) ArenaSessionSheet(vm, station, onDismiss = { openedId = null }) else if (hall != null) openedId = null
     }
     if (techLogging) {
-        ArenaTechSheet(store, hall?.stations.orEmpty(), onDismiss = { techLogging = false })
+        ArenaTechSheet(vm, hall?.stations.orEmpty(), onDismiss = { techLogging = false })
     }
     if (showHistory && hall != null) {
         ArenaHistorySheet(hall, onDismiss = { showHistory = false })
+    }
+}
+
+@Composable
+private fun HallContent(
+    now: StateFlow<Long>,
+    hall: ArenaHall,
+    canSell: Boolean,
+    someoneElses: Boolean,
+    onStart: (ArenaStation) -> Unit,
+    onOpen: (ArenaStation) -> Unit,
+    onHistory: () -> Unit,
+    onTech: () -> Unit,
+) {
+    // Раскладка считается один раз на загруженный зал, а не на каждую перерисовку.
+    val entries = remember(hall) { buildEntries(hall) }
+
+    // Широкий экран — больше колонок: плитки не растягиваются, а встают рядом.
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 160.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        if (!canSell) {
+            item(key = "shift", span = { GridItemSpan(maxLineSpan) }, contentType = "banner") { ShiftWarning(someoneElses) }
+        }
+        item(key = "summary", span = { GridItemSpan(maxLineSpan) }, contentType = "summary") { SummaryCard(hall) }
+        item(key = "attention", span = { GridItemSpan(maxLineSpan) }, contentType = "attention") {
+            AttentionCard(hall, now, onOpen)
+        }
+        items(
+            entries,
+            key = { it.key },
+            span = { if (it is HallEntry.Header) GridItemSpan(maxLineSpan) else GridItemSpan(1) },
+            contentType = { if (it is HallEntry.Header) "header" else "station" },
+        ) { entry ->
+            when (entry) {
+                is HallEntry.Header -> Text(
+                    entry.title, color = Orda.colors.textMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+                is HallEntry.Tile -> StationTile(entry.station, entry.session, now, canSell) {
+                    // Открытую сессию смотреть можно всегда: посмотреть остаток не значит тронуть деньги.
+                    if (entry.session != null) onOpen(entry.station) else if (canSell) onStart(entry.station)
+                }
+            }
+        }
+        item(key = "history", span = { GridItemSpan(maxLineSpan) }, contentType = "action") {
+            ActionButton("Что было сегодня", Icons.Filled.History, onHistory)
+        }
+        item(key = "tech", span = { GridItemSpan(maxLineSpan) }, contentType = "action") {
+            ActionButton("Записать техпроблему", Icons.Filled.Build, onTech)
+        }
+    }
+}
+
+private fun buildEntries(hall: ArenaHall): List<HallEntry> = buildList {
+    zoneGroups(hall).forEach { group ->
+        add(HallEntry.Header(group.id, group.title))
+        group.stations.forEach { add(HallEntry.Tile(it, hall.session(it.id))) }
     }
 }
 
@@ -213,69 +270,87 @@ private fun SummaryCard(hall: ArenaHall) {
 
 /** Кому пора продлевать — и кто уже сидит сверх оплаченного. */
 @Composable
-private fun AttentionCard(stations: List<ArenaStation>, hall: ArenaHall, now: Long, onOpen: (ArenaStation) -> Unit) {
+private fun AttentionCard(hall: ArenaHall, now: StateFlow<Long>, onOpen: (ArenaStation) -> Unit) {
+    val nowState = now.collectAsStateWithLifecycle()
+    // Состав списка меняется редко (станция вошла в последние десять минут), хотя время тикает каждую секунду:
+    // derivedStateOf не даёт карточке перерисовываться, пока состав тот же.
+    val soonIds by remember(hall) { derivedStateOf { endingSoon(hall, nowState.value).map { it.id } } }
+    if (soonIds.isEmpty()) return
+    val byId = remember(hall) { hall.stations.associateBy { it.id } }
     AccentCard(Orda.colors.warning) {
         Text("Подойти сейчас", color = Orda.colors.text, fontWeight = FontWeight.Medium)
-        stations.forEach { station ->
-            val session = hall.session(station.id) ?: return@forEach
+        soonIds.forEach { id ->
+            val station = byId[id] ?: return@forEach
+            val session = hall.session(id) ?: return@forEach
             Row(
                 Modifier.fillMaxWidth().clickable { onOpen(station) }.padding(vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(station.name, color = Orda.colors.text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                Text(
-                    countdownText(session.remaining(now)),
-                    color = if (session.isExpired(now)) Orda.colors.negative else Orda.colors.warning,
-                    fontSize = 14.sp, fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace,
+                CountdownText(
+                    session, now,
+                    colorFor = { expired -> if (expired) Orda.colors.negative else Orda.colors.warning },
+                    fontSize = 14.sp, fontWeight = FontWeight.Medium,
                 )
             }
         }
     }
 }
 
+/**
+ * Таймер: единственное место, которое перерисовывается каждую секунду. Экран,
+ * плитка и лист о времени не знают, пока не сменится статус.
+ */
 @Composable
-private fun StationGrid(
-    stations: List<ArenaStation>,
-    hall: ArenaHall,
-    now: Long,
-    canSell: Boolean,
-    onTap: (ArenaStation, Boolean) -> Unit,
+internal fun CountdownText(
+    session: ArenaSession,
+    now: StateFlow<Long>,
+    colorFor: @Composable (expired: Boolean) -> Color,
+    fontSize: TextUnit,
+    fontWeight: FontWeight,
+    modifier: Modifier = Modifier,
 ) {
-    // Два столбца на телефоне; ленивая сетка внутри прокрутки экрана не нужна.
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        stations.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                pair.forEach { station ->
-                    val session = hall.session(station.id)
-                    StationTile(station, session, now, canSell, Modifier.weight(1f)) { onTap(station, session != null) }
-                }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
+    val nowMillis by now.collectAsStateWithLifecycle()
+    val left = session.remaining(nowMillis)
+    Text(
+        countdownText(left),
+        color = colorFor(left <= 0),
+        fontSize = fontSize, fontWeight = fontWeight, fontFamily = FontFamily.Monospace,
+        modifier = modifier,
+    )
 }
 
 @Composable
 private fun StationTile(
     station: ArenaStation,
     session: ArenaSession?,
-    now: Long,
+    now: StateFlow<Long>,
     canSell: Boolean,
-    modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val colors = Orda.colors
-    val expired = session?.isExpired(now) ?: false
-    val soon = session?.isEndingSoon(now) ?: false
-    val tint = when {
-        expired -> colors.negative
-        soon -> colors.warning
-        session != null -> colors.positive
-        else -> colors.textMuted
+    val nowState = now.collectAsStateWithLifecycle()
+    // Плитка перерисовывается только при смене статуса, а не каждую секунду.
+    val status by remember(session) {
+        derivedStateOf {
+            when {
+                session == null -> TileStatus.Free
+                session.isExpired(nowState.value) -> TileStatus.Expired
+                session.isEndingSoon(nowState.value) -> TileStatus.Soon
+                else -> TileStatus.Active
+            }
+        }
+    }
+    val tint = when (status) {
+        TileStatus.Expired -> colors.negative
+        TileStatus.Soon -> colors.warning
+        TileStatus.Active -> colors.positive
+        TileStatus.Free -> colors.textMuted
     }
     val shape = RoundedCornerShape(Radius.md)
     Column(
-        modifier
+        Modifier
+            .fillMaxWidth()
             .pressScale()
             .background(colors.surfaceRaised, shape)
             .border(1.dp, if (session == null) Color.Transparent else tint.copy(alpha = 0.35f), shape)
@@ -288,16 +363,13 @@ private fun StationTile(
             Box(Modifier.size(8.dp).background(tint, CircleShape))
         }
         if (session != null) {
-            Text(
-                countdownText(session.remaining(now)),
-                color = tint, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
-            )
-            Text(if (expired) "время вышло" else "осталось", color = colors.textMuted, fontSize = 12.sp)
+            CountdownText(session, now, colorFor = { tint }, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (status == TileStatus.Expired) "время вышло" else "осталось", color = colors.textMuted, fontSize = 12.sp)
         } else {
             Text("свободна", color = colors.textMuted, fontSize = 14.sp)
             Text(
                 if (canSell) "нажмите, чтобы посадить" else "нужна своя смена",
-                color = colors.textMuted, fontSize = 12.sp, maxLines = 1,
+                color = colors.textMuted, fontSize = 12.sp, maxLines = 2,
             )
         }
     }
