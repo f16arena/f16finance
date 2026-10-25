@@ -71,7 +71,8 @@ class ApiClient(
         .callTimeout(300, TimeUnit.SECONDS)
         .build()
 
-    private val cacheDir = File(context.cacheDir, "api").apply { mkdirs() }
+    // Ленивая: к кэшу ходят только из Dispatchers.IO, а не при старте приложения.
+    private val cacheDir by lazy { File(context.cacheDir, "api").apply { mkdirs() } }
 
     @Volatile
     var organizationId: String? = null

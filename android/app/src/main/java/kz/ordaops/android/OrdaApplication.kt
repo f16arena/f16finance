@@ -1,6 +1,7 @@
 package kz.ordaops.android
 
 import android.app.Application
+import android.os.StrictMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +21,15 @@ class OrdaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) {
+            // В отладке громко ловим диск и сеть в главном потоке — источник рывков и ANR.
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy.Builder().detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build(),
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy.Builder().detectLeakedClosableObjects().detectActivityLeaks().penaltyLog().build(),
+            )
+        }
         val baseUrl = BuildConfig.API_BASE_URL
         auth = AuthStore(SessionClient(baseUrl), SessionStorage(this), appScope)
         api = ApiClient(this, baseUrl, auth)

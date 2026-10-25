@@ -53,7 +53,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.CompositionLocalProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
 import kz.ordaops.android.feature.operator.shift.rememberOperatorStore
@@ -219,45 +228,67 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
         }
     }
 
-    Scaffold(
+    // Телефон — вкладки снизу; планшет и раскрытый складной — панель сбоку, и в
+    // ней сразу все разделы: место есть, лишний заход в «Профиль» ни к чему.
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val navItems = if (wide) {
+        tabs.filterNot { it == OperatorSection.Profile } + OperatorSection.moreSections(sellsGoods, hasArena) + OperatorSection.Profile
+    } else {
+        tabs
+    }
+    // Цвета считаются вне списка пунктов: он не composable-контекст.
+    val itemColors = NavigationSuiteDefaults.itemColors(
+        navigationBarItemColors = NavigationBarItemDefaults.colors(
+            selectedIconColor = Orda.colors.brand,
+            selectedTextColor = Orda.colors.brand,
+            unselectedIconColor = Orda.colors.textDim,
+            unselectedTextColor = Orda.colors.textDim,
+            indicatorColor = Orda.colors.brand.copy(alpha = 0.15f),
+        ),
+        navigationRailItemColors = NavigationRailItemDefaults.colors(
+            selectedIconColor = Orda.colors.brand,
+            selectedTextColor = Orda.colors.brand,
+            unselectedIconColor = Orda.colors.textDim,
+            unselectedTextColor = Orda.colors.textDim,
+            indicatorColor = Orda.colors.brand.copy(alpha = 0.15f),
+        ),
+    )
+    val current = opened ?: selected
+    NavigationSuiteScaffold(
         containerColor = Orda.colors.background,
-        bottomBar = {
-            NavigationBar(containerColor = Orda.colors.elevated) {
-                tabs.forEach { section ->
-                    NavigationBarItem(
-                        selected = selected == section && opened == null,
-                        onClick = {
-                            selected = section
-                            opened = null
-                        },
-                        icon = {
-                            val bounce by animateFloatAsState(
-                                if (selected == section && opened == null) 1.18f else 1f,
-                                spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                                label = "navBounce",
-                            )
-                            Box(Modifier.graphicsLayer { scaleX = bounce; scaleY = bounce }) {
+        navigationSuiteColors = NavigationSuiteDefaults.colors(
+            navigationBarContainerColor = Orda.colors.elevated,
+            navigationRailContainerColor = Orda.colors.elevated,
+            navigationDrawerContainerColor = Orda.colors.elevated,
+        ),
+        navigationSuiteItems = {
+            navItems.forEach { section ->
+                val isSelected = current == section
+                item(
+                    selected = isSelected,
+                    onClick = { env.open(section.name) },
+                    icon = {
+                        val bounce by animateFloatAsState(
+                            if (isSelected) 1.18f else 1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                            label = "navBounce",
+                        )
+                        Box(Modifier.graphicsLayer { scaleX = bounce; scaleY = bounce }) {
                             // Неотправленное без связи — видно на «Смене», чтобы не уйти домой с ним.
                             if (section == OperatorSection.Shift && pending > 0) {
                                 BadgedBox(badge = { Badge { Text("$pending") } }) { Icon(section.icon, contentDescription = null) }
                             } else {
                                 Icon(section.icon, contentDescription = null)
                             }
-                            }
-                        },
-                        label = { Text(section.tabTitle, fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Orda.colors.brand,
-                            selectedTextColor = Orda.colors.brand,
-                            unselectedIconColor = Orda.colors.textDim,
-                            unselectedTextColor = Orda.colors.textDim,
-                            indicatorColor = Orda.colors.brand.copy(alpha = 0.15f),
-                        ),
-                    )
-                }
+                        }
+                    },
+                    label = { Text(section.tabTitle, fontSize = 11.sp, maxLines = 1) },
+                    colors = itemColors,
+                )
             }
         },
-    ) { padding ->
+    ) {
+        val padding = WindowInsets.statusBars.asPaddingValues()
         Column(Modifier.fillMaxSize().padding(padding)) {
             CompositionLocalProvider(LocalOperatorEnv provides env) {
                 ShiftNotificationEffect()
@@ -352,18 +383,21 @@ private fun ShiftNotificationEffect() {
             mine -> WidgetSnapshot.State.Mine
             else -> WidgetSnapshot.State.Other
         }
-        val previous = WidgetSnapshot.load(context)
-        WidgetSnapshot.save(
-            context,
-            WidgetSnapshot(
-                state = kind,
-                company = store.companyName,
-                who = shift?.operatorName.orEmpty(),
-                revenue = if (kind == WidgetSnapshot.State.Mine) state.totals.netTotal else 0.0,
-                salesCount = if (kind == WidgetSnapshot.State.Mine) state.totals.salesCount else 0,
-                weekEarned = weekEarned ?: previous.weekEarned,
-            ),
-        )
+        // Снимок виджета — файл настроек: читаем и пишем вне главного потока.
+        withContext(Dispatchers.IO) {
+            val previous = WidgetSnapshot.load(context)
+            WidgetSnapshot.save(
+                context,
+                WidgetSnapshot(
+                    state = kind,
+                    company = store.companyName,
+                    who = shift?.operatorName.orEmpty(),
+                    revenue = if (kind == WidgetSnapshot.State.Mine) state.totals.netTotal else 0.0,
+                    salesCount = if (kind == WidgetSnapshot.State.Mine) state.totals.salesCount else 0,
+                    weekEarned = weekEarned ?: previous.weekEarned,
+                ),
+            )
+        }
     }
     DisposableEffect(Unit) {
         onDispose { ShiftNotification.hide(context) }

@@ -11,7 +11,11 @@ import kz.ordaops.android.core.net.ApiJson
  * как Keychain на айфоне.
  */
 class SessionStorage(context: Context) {
-    private val prefs: SharedPreferences = runCatching {
+    // Ленивое: открытие Keystore и расшифровка занимают десятки миллисекунд —
+    // первым к хранилищу обращается restore() уже в фоновом потоке.
+    private val prefs: SharedPreferences by lazy { open(context) }
+
+    private fun open(context: Context): SharedPreferences = runCatching {
         val key = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
         EncryptedSharedPreferences.create(
             context,

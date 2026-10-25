@@ -45,7 +45,8 @@ class SaleQueue(context: Context, private val api: ApiClient) {
 
     data class FlushResult(val sent: Int, val remaining: Int, val failed: Int)
 
-    private val file = File(context.filesDir, "orda-sale-queue.json")
+    // filesDir — обращение к диску; первым к файлу идут чтения в фоновом потоке.
+    private val file by lazy { File(context.filesDir, "orda-sale-queue.json") }
     private val mutex = Mutex()
     private var pending: List<Entry> = emptyList()
     private var owner: String? = null

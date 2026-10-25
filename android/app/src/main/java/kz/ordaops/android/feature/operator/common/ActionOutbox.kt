@@ -47,7 +47,8 @@ class ActionOutbox(context: Context, private val api: ApiClient) {
 
     data class FlushResult(val sent: Int, val remaining: Int, val failed: Int)
 
-    private val file = File(context.filesDir, "orda-action-outbox.json")
+    // filesDir — обращение к диску; первым к файлу идёт load() уже в фоновом потоке.
+    private val file by lazy { File(context.filesDir, "orda-action-outbox.json") }
     private val mutex = Mutex()
     private var pending: List<Item> = emptyList()
     private var owner: String? = null

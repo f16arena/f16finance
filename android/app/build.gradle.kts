@@ -68,6 +68,19 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
+
+    // Адаптивность: навигация (вкладки снизу / панель сбоку) и «список + подробности» под ширину экрана.
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha04")
+    implementation("androidx.compose.material3.adaptive:adaptive:1.2.0")
+    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.2.0")
+    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.2.0")
+
+    // Фото товаров и вложений: кэш в памяти и на диске, загрузка вне главного потока.
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+
+    // Утечки памяти — только в отладочной сборке.
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
     implementation("androidx.navigation:navigation-compose:2.9.4")
     implementation("androidx.security:security-crypto:1.1.0")
     // Вход по отпечатку/лицу — как Face ID на айфоне.

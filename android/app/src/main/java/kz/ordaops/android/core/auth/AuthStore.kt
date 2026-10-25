@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kz.ordaops.android.core.access.AccessResolver
@@ -72,9 +74,10 @@ class AuthStore(
     // ── Жизненный цикл ───────────────────────────────────────────────────────
 
     fun restore() {
-        _state.update { it.copy(hasQuickEntry = storage.hasQuick()) }
         scope.launch {
-            val stored = storage.load()
+            // Хранилище — с диска и через Keystore: не в главном потоке.
+            val (stored, hasQuick) = withContext(Dispatchers.IO) { storage.load() to storage.hasQuick() }
+            _state.update { it.copy(hasQuickEntry = hasQuick) }
             if (stored == null) {
                 _state.update { it.copy(phase = Phase.SignedOut) }
                 return@launch
@@ -136,7 +139,7 @@ class AuthStore(
 
     fun signOut() {
         storage.clear()
-        api.clearCache()
+        scope.launch(Dispatchers.IO) { api.clearCache() }
         api.organizationId = null
         session = null
         _state.update { State(phase = Phase.SignedOut, signOutReason = it.signOutReason, hasQuickEntry = storage.hasQuick()) }
@@ -181,12 +184,15 @@ class AuthStore(
         false
     }
 
-    private fun persist(newSession: SessionClient.Session) {
+    private suspend fun persist(newSession: SessionClient.Session) {
         session = newSession
         lastRefreshRejected = false
         // Свежий токен — и в копию быстрого входа: старый refresh после продления уже не примут.
-        storage.saveQuick(newSession)
-        if (!storage.save(newSession)) {
+        val saved = withContext(Dispatchers.IO) {
+            storage.saveQuick(newSession)
+            storage.save(newSession)
+        }
+        if (!saved) {
             _state.update { it.copy(signOutReason = "Сессию не удалось сохранить на устройстве — вход не переживёт закрытие приложения.") }
         }
     }
