@@ -60,6 +60,7 @@ import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
 import kz.ordaops.android.feature.operator.common.OperatorEnv
 import kz.ordaops.android.feature.operator.knowledge.KnowledgeTab
 import kz.ordaops.android.feature.operator.money.MoneyTab
+import kz.ordaops.android.feature.operator.money.OperatorProfileContent
 import kz.ordaops.android.feature.operator.money.ScheduleTab
 import kz.ordaops.android.feature.operator.sale.SaleTab
 import kz.ordaops.android.feature.operator.shift.ShiftTab
@@ -204,12 +205,9 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                     OperatorSection.Messages -> MessagesTab()
                     OperatorSection.Money -> MoneyTab()
                     OperatorSection.Schedule -> ScheduleTab()
-                    OperatorSection.Profile -> OperatorProfile(
-                        name = resolver.session.displayName ?: "Оператор",
-                        roleLabel = resolver.session.roleLabel,
+                    OperatorSection.Profile -> OperatorProfileContent(
                         more = OperatorSection.moreSections(sellsGoods, hasArena),
                         onOpen = { opened = it },
-                        onSignOut = onSignOut,
                     )
                 }
             }
