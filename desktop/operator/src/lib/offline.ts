@@ -337,6 +337,10 @@ async function processQueueItem(config: AppConfig, item: QueueItem): Promise<voi
       operator_id: p.operator_id as string | null,
       client_name: p.client_name as string | null,
       item_name: p.item_name as string,
+      // Без item_id сервер ищет товар по имени — при похожих названиях списал бы не тот.
+      item_id: (p.item_id as string | null) || null,
+      barcode: (p.barcode as string | null) || null,
+      created_by_operator_id: (p.created_by_operator_id as string | null) || null,
       quantity: Number(p.quantity || 1),
       unit_price: Number(p.unit_price || 0),
       total_amount: Number(p.total_amount || 0),

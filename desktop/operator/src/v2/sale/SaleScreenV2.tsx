@@ -6,11 +6,13 @@ import {
   Gift,
   PauseCircle,
   RotateCw,
+  ScanBarcode,
   UserRound,
   Clock,
   Cookie,
   CupSoda,
   LayoutGrid,
+  List,
   Loader2,
   Minus,
   Package,
@@ -25,6 +27,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { getSalesLayout, setSalesLayout, type SalesLayout } from '@/lib/preferences'
 import { buildReceiptHtmlForPreview, formatShiftLabel, printReceiptFromIframe } from '@/lib/receipt-html'
 import type { AppConfig, BootstrapData, Customer, OperatorSession, PointInventorySaleItem, PointInventorySaleRow } from '@/types'
 
@@ -121,6 +124,45 @@ const ProductCard = memo(
     a.item.category?.name === b.item.category?.name,
 )
 
+/** Строка результата поиска в виде «без плиток». */
+function ResultRow(props: { item: PointInventorySaleItem; inCart: number; active: boolean; onAdd: () => void; onHover: () => void }) {
+  const { item } = props
+  const stock = Number(item.display_qty || 0)
+  const out = stock <= 0
+  return (
+    <button
+      type="button"
+      onClick={props.onAdd}
+      onMouseMove={props.onHover}
+      disabled={out}
+      className={`press flex w-full items-center gap-4 rounded-[14px] px-4 py-3 text-left ${props.active ? 'surface' : ''}`}
+      style={props.active ? { boxShadow: 'inset 0 0 0 2px var(--blue)' } : undefined}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[16px] font-medium">{item.name}</span>
+        {item.barcode ? <span className="muted block text-[12px]">{item.barcode}</span> : null}
+      </span>
+      {props.inCart ? <span className="badge grid h-7 min-w-7 place-items-center rounded-full px-2 text-[14px] font-semibold">{props.inCart}</span> : null}
+      <span className={`w-20 text-right text-[13px] ${out || stock <= 3 ? 't-red' : 'muted'}`}>
+        {out ? 'нет' : stock >= 999 ? item.unit : `${stock} ${item.unit || 'шт'}`}
+      </span>
+      <span className="w-24 text-right text-[17px] font-semibold">{money(item.sale_price)} ₸</span>
+    </button>
+  )
+}
+
+const LIST_LIMIT = 60
+
+/** Купюры, которыми чаще всего платят: ближайшие суммы не меньше чека. */
+function cashSuggestions(total: number) {
+  const out: number[] = []
+  for (const bill of [500, 1000, 2000, 5000, 10000, 20000]) {
+    const v = Math.ceil(total / bill) * bill
+    if (v > total && !out.includes(v)) out.push(v)
+  }
+  return out.slice(0, 4)
+}
+
 /** Шторка поверх панели заказа — для смешанной оплаты, скидки, универсального товара. */
 function Sheet(props: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -159,7 +201,7 @@ export default function SaleScreenV2(props: Props) {
   const engine = useSaleEngine({ config: props.config, bootstrap: props.bootstrap, session: props.session })
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
-  const [sheet, setSheet] = useState<null | 'mixed' | 'discount' | 'universal' | 'customer' | 'parked' | 'correct'>(null)
+  const [sheet, setSheet] = useState<null | 'cash' | 'mixed' | 'discount' | 'universal' | 'customer' | 'parked' | 'correct'>(null)
   const [pane, setPane] = useState<'catalog' | 'sales'>('catalog')
   const [promoDraft, setPromoDraft] = useState('')
   const [customerQuery, setCustomerQuery] = useState('')
@@ -174,6 +216,12 @@ export default function SaleScreenV2(props: Props) {
   const [uniName, setUniName] = useState('')
   const [uniPrice, setUniPrice] = useState('')
   const [popKey, setPopKey] = useState<{ id: string; n: number } | null>(null)
+  // «Без плиток»: пустой экран с поиском, товары — только по поиску или сканеру.
+  const [layout, setLayoutState] = useState<SalesLayout>(() => getSalesLayout())
+  const [hi, setHi] = useState(0)
+  // Наличные: сколько дал покупатель — чтобы кассир видел сдачу.
+  const [cashGiven, setCashGiven] = useState('')
+  const [lastCash, setLastCash] = useState<{ given: number; change: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const receiptRef = useRef<HTMLIFrameElement>(null)
 
@@ -227,6 +275,23 @@ export default function SaleScreenV2(props: Props) {
   }, [sortedItems, category, deferredQuery])
 
   const grid = useProgressiveList(visible, `${category}|${deferredQuery}`)
+  const listMode = layout === 'list'
+  const results = useMemo(() => (listMode && deferredQuery.trim() ? visible.slice(0, LIST_LIMIT) : []), [listMode, visible, deferredQuery])
+  useEffect(() => setHi(0), [deferredQuery])
+
+  function toggleLayout() {
+    const next: SalesLayout = listMode ? 'cards' : 'list'
+    setSalesLayout(next)
+    setLayoutState(next)
+    if (next === 'list') setCategory('all')
+    searchRef.current?.focus()
+  }
+
+  function addFromList(item: PointInventorySaleItem) {
+    add(item)
+    setQuery('')
+    searchRef.current?.focus()
+  }
   const cartQty = useMemo(() => {
     const m = new Map<string, number>()
     for (const l of engine.cart) if (l.item_id) m.set(l.item_id, (m.get(l.item_id) || 0) + l.quantity)
@@ -250,6 +315,12 @@ export default function SaleScreenV2(props: Props) {
       setQuery('')
       return
     }
+    if (listMode) {
+      // Enter добавляет подсвеченную строку (стрелки ↑↓ двигают подсветку).
+      const pick = results[hi]
+      if (pick && Number(pick.display_qty || 0) > 0) addFromList(pick)
+      return
+    }
     const matches = engine.items.filter((it) => Number(it.display_qty || 0) > 0 && (it.name.toLowerCase().includes(q.toLowerCase()) || (it.barcode || '').includes(q)))
     if (matches.length === 1) {
       add(matches[0])
@@ -259,7 +330,23 @@ export default function SaleScreenV2(props: Props) {
 
   async function payNow(method: 'cash' | 'kaspi') {
     setSheet(null)
+    setLastCash(null)
     await engine.pay(method)
+  }
+
+  function openCash() {
+    setCashGiven('')
+    setSheet('cash')
+  }
+
+  // Пусто = без сдачи (дали ровно). Меньше суммы чека — не проводим.
+  async function payCash() {
+    const total = engine.total
+    const given = Number(cashGiven || 0) || total
+    if (given < total) return
+    setSheet(null)
+    if (await engine.pay('cash')) setLastCash({ given, change: given - total })
+    setCashGiven('')
   }
 
   async function payMixed() {
@@ -317,9 +404,16 @@ export default function SaleScreenV2(props: Props) {
         searchRef.current?.focus()
         return
       }
-      if ((e.key === 'F5' || e.key === 'F6') && engine.cart.length > 0 && !sheet) {
+      // F5 — окно «Получено/сдача», повторный F5 — провести.
+      if (e.key === 'F5' && engine.cart.length > 0 && (!sheet || sheet === 'cash')) {
         e.preventDefault()
-        void payNow(e.key === 'F5' ? 'cash' : 'kaspi')
+        if (sheet === 'cash') void payCash()
+        else openCash()
+        return
+      }
+      if (e.key === 'F6' && engine.cart.length > 0 && !sheet) {
+        e.preventDefault()
+        void payNow('kaspi')
         return
       }
       if (e.key === 'F4' && engine.cart.length > 0) {
@@ -385,7 +479,14 @@ export default function SaleScreenV2(props: Props) {
                 ref={searchRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitSearch()
+                  else if (listMode && results.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault()
+                    setHi((i) => (e.key === 'ArrowDown' ? Math.min(results.length - 1, i + 1) : Math.max(0, i - 1)))
+                  }
+                }}
+                autoFocus={listMode}
                 placeholder="Поиск или штрихкод"
                 className="placeholder-muted h-full flex-1 bg-transparent text-[16px] outline-none"
               />
@@ -400,6 +501,17 @@ export default function SaleScreenV2(props: Props) {
             ) : (
               <div className="flex-1" />
             )}
+            {pane === 'catalog' ? (
+              <button
+                type="button"
+                onClick={toggleLayout}
+                className="press surface grid h-12 w-12 shrink-0 place-items-center rounded-[14px]"
+                title={listMode ? 'Показать плитки товаров' : 'Убрать плитки: только поиск и сканер'}
+                aria-label={listMode ? 'Плитки' : 'Без плиток'}
+              >
+                {listMode ? <LayoutGrid className="t-blue h-[18px] w-[18px]" /> : <List className="t-blue h-[18px] w-[18px]" />}
+              </button>
+            ) : null}
             {pane === 'catalog' ? (
               <button type="button" onClick={() => setSheet('universal')} className="press surface flex h-12 items-center gap-2 rounded-[14px] px-4 text-[15px] font-medium">
                 <PenLine className="t-blue h-[18px] w-[18px]" /> Универсальный товар
@@ -446,6 +558,7 @@ export default function SaleScreenV2(props: Props) {
             onExtend={(service, variant, session) => engine.addService(service, variant, session)}
             onFinish={(id) => void engine.finishSession(id)}
           />
+          {listMode ? null : (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((c) => {
               const look = c === 'all' ? { icon: LayoutGrid, color: '#8e8e93' } : c === SERVICES ? { icon: Clock, color: SERVICE_COLOR } : lookFor(c)
@@ -465,7 +578,52 @@ export default function SaleScreenV2(props: Props) {
               )
             })}
           </div>
+          )}
 
+          {listMode ? (
+            <div className="min-h-0 flex-1 overflow-auto pr-1">
+              {!deferredQuery.trim() ? (
+                <div className="muted flex h-full flex-col items-center justify-center gap-2 text-center">
+                  <ScanBarcode className="h-10 w-10" />
+                  <p className="text-[17px]">Найдите товар через поиск или отсканируйте штрихкод</p>
+                  <p className="text-[13px]">F2 — поиск · ↑↓ и Enter — выбрать</p>
+                  {engine.services.length ? (
+                    <div className="mt-6 w-full text-left">
+                      <ServiceGrid services={engine.services} inCart={serviceQty} onAdd={(service, variant) => engine.addService(service, variant)} />
+                    </div>
+                  ) : null}
+                </div>
+              ) : results.length === 0 && visibleServices.length === 0 ? (
+                <div className="muted flex h-full flex-col items-center justify-center gap-2">
+                  <Search className="h-8 w-8" />
+                  <p className="text-[16px]">Ничего не нашлось по «{query}»</p>
+                </div>
+              ) : (
+                <>
+                  {visibleServices.length ? (
+                    <div className="mb-3">
+                      <ServiceGrid services={visibleServices} inCart={serviceQty} onAdd={(service, variant) => engine.addService(service, variant)} />
+                    </div>
+                  ) : null}
+                  <div className="space-y-1">
+                    {results.map((item, i) => (
+                      <ResultRow
+                        key={item.id}
+                        item={item}
+                        inCart={cartQty.get(item.id) || 0}
+                        active={i === hi}
+                        onHover={() => setHi(i)}
+                        onAdd={() => addFromList(item)}
+                      />
+                    ))}
+                  </div>
+                  {visible.length > LIST_LIMIT ? (
+                    <p className="muted px-4 py-3 text-[13px]">Показаны первые {LIST_LIMIT} из {visible.length} — уточните поиск</p>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : (
           <div className="min-h-0 flex-1 overflow-auto pr-1">
             {engine.loading && engine.items.length === 0 ? (
               <div className="muted flex h-full items-center justify-center gap-2">
@@ -505,6 +663,7 @@ export default function SaleScreenV2(props: Props) {
               </>
             )}
           </div>
+          )}
           </>
           )}
         </main>
@@ -609,7 +768,7 @@ export default function SaleScreenV2(props: Props) {
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => void payNow('cash')} disabled={engine.cart.length === 0 || engine.saving} className="press btn-green flex h-[72px] flex-col items-center justify-center rounded-[20px]">
+            <button type="button" onClick={openCash} disabled={engine.cart.length === 0 || engine.saving} className="press btn-green flex h-[72px] flex-col items-center justify-center rounded-[20px]">
               <span className="text-[17px] font-semibold">Наличные</span>
               <span className="text-[12px] opacity-80">F5</span>
             </button>
@@ -618,6 +777,48 @@ export default function SaleScreenV2(props: Props) {
               <span className="text-[12px] opacity-80">F6</span>
             </button>
           </div>
+
+          {sheet === 'cash' ? (() => {
+            const total = engine.total
+            const given = Number(cashGiven || 0)
+            const short = given > 0 && given < total
+            return (
+              <Sheet title={`Наличные · ${money(total)} ₸`} onClose={() => setSheet(null)}>
+                <label className="block">
+                  <span className="muted text-[13px]">Получено от покупателя</span>
+                  <div className="surface mt-1 flex h-14 items-center rounded-[14px] px-4">
+                    <input
+                      value={cashGiven}
+                      onChange={(e) => setCashGiven(e.target.value.replace(/[^\d]/g, ''))}
+                      onKeyDown={(e) => e.key === 'Enter' && void payCash()}
+                      inputMode="numeric"
+                      autoFocus
+                      className="h-full flex-1 bg-transparent text-[22px] font-semibold outline-none"
+                      placeholder={money(total)}
+                    />
+                    <span className="muted text-[18px]">₸</span>
+                  </div>
+                </label>
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {cashSuggestions(total).map((v) => (
+                    <button key={v} type="button" onClick={() => setCashGiven(String(v))} className={`press h-12 rounded-[14px] text-[15px] font-semibold ${given === v ? 'btn-blue' : 'fill'}`}>
+                      {money(v)}
+                    </button>
+                  ))}
+                </div>
+                <div className="surface mt-4 flex items-baseline justify-between rounded-[16px] px-4 py-3">
+                  <span className="muted text-[15px]">{short ? 'Не хватает' : 'Сдача'}</span>
+                  <span className={`text-[34px] font-bold leading-none ${short ? 't-red' : ''}`} style={short ? undefined : { color: 'var(--green)' }}>
+                    {money(short ? total - given : Math.max(0, given - total))} ₸
+                  </span>
+                </div>
+                <button type="button" onClick={() => void payCash()} disabled={short || engine.saving} className="press btn-green mt-4 h-14 w-full rounded-[16px] text-[17px] font-semibold">
+                  {given > total ? `Оплатить · сдача ${money(given - total)} ₸` : 'Оплатить без сдачи'}
+                  <span className="ml-2 text-[12px] opacity-80">Enter / F5</span>
+                </button>
+              </Sheet>
+            )
+          })() : null}
 
           {sheet === 'mixed' ? (
             <Sheet title={`Смешанная оплата · ${money(engine.total)} ₸`} onClose={() => setSheet(null)}>
@@ -876,7 +1077,7 @@ export default function SaleScreenV2(props: Props) {
         <ReceiptModal
           success
           title={`Оплачено ${money(receipt.totalAmount)} ₸`}
-          subtitle={receipt.paymentMethod === 'cash' ? 'Наличными' : receipt.paymentMethod === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная оплата'}
+          subtitle={receipt.paymentMethod === 'cash' ? (lastCash && lastCash.change > 0 ? `Наличными · получено ${money(lastCash.given)} ₸ · СДАЧА ${money(lastCash.change)} ₸` : 'Наличными') : receipt.paymentMethod === 'kaspi' ? engine.cashLabels.providerName : 'Смешанная оплата'}
           html={buildReceiptHtmlForPreview(receipt)}
           onClose={engine.closeReceipt}
           closeLabel="Новая продажа"
