@@ -2,6 +2,7 @@ import 'server-only'
 
 import { isApnsToken, sendApnsPush, type ApnsPayload } from '@/lib/server/apns'
 import { writeNotificationLogSafe } from '@/lib/server/audit'
+import { isFcmToken, sendFcmPush } from '@/lib/server/fcm'
 import type { AdminSupabaseClient } from '@/lib/server/supabase'
 
 type ExpoMessage = { to: string; title: string; body: string; data?: Record<string, unknown>; sound?: 'default' }
@@ -45,7 +46,7 @@ export async function sendExpoPush(
 }
 
 /**
- * Отправка на любые устройства: Expo и нативные Apple одновременно.
+ * Отправка на любые устройства: Expo, нативные Apple и нативное Android (FCM).
  *
  * Приложений два и они будут сосуществовать: Expo-версия остаётся на Android и
  * у тех, кто ещё не перешёл, нативное — на iPhone/iPad/Mac. Токены лежат в
@@ -63,6 +64,7 @@ export async function sendPush(
 
   const expoTokens = cleaned.filter(isExpoToken)
   const apnsTokens = cleaned.filter(isApnsToken)
+  const fcmTokens = cleaned.filter(isFcmToken)
 
   const apnsPayload: ApnsPayload = {
     title: payload.title,
@@ -73,10 +75,15 @@ export async function sendPush(
     collapseId: payload.collapseId,
   }
 
-  const [, apnsResult] = await Promise.all([
+  const [, apnsResult, fcmResult] = await Promise.all([
     sendExpoPush(expoTokens, payload),
     sendApnsPush(apnsTokens, apnsPayload),
+    sendFcmPush(fcmTokens, { title: payload.title, body: payload.body, data: payload.data, collapseId: payload.collapseId }),
   ])
+  const sent = apnsResult.sent + fcmResult.sent
+  const configError = [apnsTokens.length ? apnsResult.configError : null, fcmTokens.length ? fcmResult.configError : null]
+    .filter(Boolean)
+    .join('; ') || undefined
 
   // Записываем каждую отправку.
   //
@@ -89,26 +96,27 @@ export async function sendPush(
   void writeNotificationLogSafe({
     channel: 'push',
     recipient: `устройств: ${cleaned.length}`,
-    status: apnsResult.configError ? 'failed' : apnsResult.sent > 0 ? 'sent' : 'skipped',
+    status: configError ? 'failed' : sent > 0 ? 'sent' : 'skipped',
     payload: {
       title: payload.title,
       tokens: cleaned.length,
       apple: apnsTokens.length,
       expo: expoTokens.length,
-      sent: apnsResult.sent,
-      invalid: apnsResult.invalidTokens.length,
-      config_error: apnsResult.configError || null,
-      reasons: apnsResult.reasons.slice(0, 5),
+      android: fcmTokens.length,
+      sent,
+      invalid: apnsResult.invalidTokens.length + fcmResult.invalidTokens.length,
+      config_error: configError || null,
+      reasons: [...apnsResult.reasons, ...fcmResult.reasons].slice(0, 5),
     },
   })
 
   // Наверх отдаём и причины отказа: без них поломка настройки выглядит как
   // успешная отправка, и разбираться в «уведомления не приходят» нечем.
   return {
-    invalidTokens: apnsResult.invalidTokens,
-    sent: apnsResult.sent,
-    reasons: apnsResult.reasons,
-    configError: apnsResult.configError,
+    invalidTokens: [...apnsResult.invalidTokens, ...fcmResult.invalidTokens],
+    sent,
+    reasons: [...apnsResult.reasons, ...fcmResult.reasons],
+    configError,
   }
 }
 

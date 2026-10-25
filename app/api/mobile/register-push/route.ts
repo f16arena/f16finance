@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { isApnsToken } from '@/lib/server/apns'
+import { isFcmToken } from '@/lib/server/fcm'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
 /**
  * Регистрация push-токена устройства (мобилка зовёт после входа).
  *
- * Принимаем оба вида токенов: Expo (`ExponentPushToken[...]`) от React Native
+ * Принимаем три вида токенов: FCM от нативного Android-приложения, Expo (`ExponentPushToken[...]`) от React Native
  * приложения и сырой hex-токен APNs от нативного Apple-приложения. Приложения
  * будут сосуществовать, поэтому таблица общая, а вид определяется по форме
  * токена — при отправке `lib/server/push.ts` разведёт их по каналам.
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
     const token = String(body?.token || '').trim()
 
     const isExpo = token.startsWith('ExponentPushToken') || token.startsWith('ExpoPushToken')
-    if (!isExpo && !isApnsToken(token)) {
+    const isFcm = !isExpo && isFcmToken(token)
+    if (!isExpo && !isFcm && !isApnsToken(token)) {
       // Тоже записываем: пустой или неузнанный адрес выглядит снаружи так же,
       // как отсутствие телефона.
       await writeSystemErrorLogSafe({
@@ -55,7 +57,9 @@ export async function POST(request: Request) {
     const APPLE_PLATFORMS = new Set(['ios', 'ipados', 'macos'])
     const platform = isExpo
       ? claimedPlatform.slice(0, 16) || 'expo'
-      : APPLE_PLATFORMS.has(claimedPlatform)
+      : isFcm
+        ? 'android'
+        : APPLE_PLATFORMS.has(claimedPlatform)
         ? claimedPlatform
         : 'ios'
 
