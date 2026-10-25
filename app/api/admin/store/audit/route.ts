@@ -224,11 +224,59 @@ export async function GET(request: Request) {
         total: snapItemIds.filter((id) => sec.all || (itemCat.get(id) && sec.cats.has(itemCat.get(id) as string))).length,
       }))
 
+      // Подсказки к обнулению: непосчитанное часто физически есть. Признаки —
+      // товар продавался с этой локации за последние 7 дней или лежит на второй
+      // локации той же точки (упаковка на складе вместо витрины и наоборот).
+      const uncountedIds = snapRows
+        .filter((r) => !countsByItem.has(String(r.item_id)) && num(r.expected_qty) > 0)
+        .map((r) => String(r.item_id))
+      const soldRecent = new Map<string, number>()
+      const otherQty = new Map<string, number>()
+      let otherLocationType: string | null = null
+      if ((act as any).status === 'open' && uncountedIds.length) {
+        const locRow = (loc.data || null) as any
+        const sinceIso = new Date(Date.now() - 7 * 86_400_000).toISOString()
+        const otherLoc = locRow?.company_id
+          ? (
+              await supabase
+                .from('inventory_locations')
+                .select('id, location_type')
+                .eq('company_id', locRow.company_id)
+                .eq('location_type', locRow.location_type === 'warehouse' ? 'point_display' : 'warehouse')
+                .limit(1)
+                .maybeSingle()
+            ).data
+          : null
+        otherLocationType = otherLoc ? String((otherLoc as any).location_type) : null
+        for (let i = 0; i < uncountedIds.length; i += 200) {
+          const chunk = uncountedIds.slice(i, i + 200)
+          const [moves, other] = await Promise.all([
+            fetchAllRows((from, to) =>
+              supabase
+                .from('inventory_movements')
+                .select('id, item_id, quantity')
+                .eq('from_location_id', String((act as any).location_id))
+                .in('movement_type', ['sale', 'debt'])
+                .gte('created_at', sinceIso)
+                .in('item_id', chunk)
+                .order('id')
+                .range(from, to),
+            ),
+            otherLoc
+              ? supabase.from('inventory_balances').select('item_id, quantity').eq('location_id', String((otherLoc as any).id)).in('item_id', chunk)
+              : Promise.resolve({ data: [] as any[] }),
+          ])
+          for (const m of moves as any[]) soldRecent.set(String(m.item_id), (soldRecent.get(String(m.item_id)) || 0) + num(m.quantity))
+          for (const b of ((other as any).data || []) as any[]) if (num(b.quantity) > 0) otherQty.set(String(b.item_id), num(b.quantity))
+        }
+      }
+
       return json({
         ok: true,
         data: {
           act,
           location: loc.data || null,
+          otherLocationType,
           assignments: ((assigns.data || []) as any[]).map((a) => ({
             id: String(a.id),
             operator_id: String(a.operator_id),
@@ -249,6 +297,8 @@ export async function GET(request: Request) {
               name: itemName.get(String(r.item_id)) || 'Товар',
               expected: num(r.expected_qty),
               purchase_price: itemPrice.get(String(r.item_id)) || 0,
+              sold_recent: soldRecent.get(String(r.item_id)) || 0,
+              other_location_qty: otherQty.get(String(r.item_id)) || 0,
             }))
             .sort((a, b) => b.expected * b.purchase_price - a.expected * a.purchase_price),
         },
@@ -290,6 +340,33 @@ export async function GET(request: Request) {
     const countedByAct = new Map<string, number>()
     for (const r of (cntCounts || []) as any[]) countedByAct.set(String(r.act_id), (countedByAct.get(String(r.act_id)) || 0) + 1)
 
+    // Итог проведённых актов в ₸ по закупу (недостача − излишек) и сколько из
+    // него дало обнуление непосчитанного. Только 12 последних закрытых — тяжёлый расчёт.
+    const resultByStocktake = new Map<string, { value: number; zeroed: number }>()
+    const stocktakeIds = actRows
+      .filter((a) => a.status === 'closed' && a.stocktake_id)
+      .slice(0, 12)
+      .map((a) => String(a.stocktake_id))
+    if (stocktakeIds.length) {
+      const stItems = await fetchAllRows((from, to) =>
+        supabase
+          .from('inventory_stocktake_items')
+          .select('id, stocktake_id, delta_qty, comment, inventory_items(default_purchase_price)')
+          .in('stocktake_id', stocktakeIds)
+          .order('id')
+          .range(from, to),
+      ).catch(() => [] as any[])
+      for (const r of stItems as any[]) {
+        const item = Array.isArray(r.inventory_items) ? r.inventory_items[0] : r.inventory_items
+        const v = num(r.delta_qty) * num(item?.default_purchase_price)
+        const key = String(r.stocktake_id)
+        const acc = resultByStocktake.get(key) || { value: 0, zeroed: 0 }
+        acc.value += v
+        if (String(r.comment || '').startsWith('Полная ревизия: не посчитано')) acc.zeroed += v
+        resultByStocktake.set(key, acc)
+      }
+    }
+
     return json({
       ok: true,
       data: actRows.map((a) => {
@@ -303,6 +380,10 @@ export async function GET(request: Request) {
           locationName: loc ? `${loc.companies?.name ? loc.companies.name + ' · ' : ''}${loc.location_type === 'point_display' ? 'Витрина' : loc.location_type === 'warehouse' ? 'Склад' : loc.name}` : '—',
           totalItems: totalByAct.get(String(a.id)) || 0,
           countedItems: countedByAct.get(String(a.id)) || 0,
+          companyId: a.company_id ? String(a.company_id) : null,
+          locationType: loc?.location_type || null,
+          resultValue: a.stocktake_id ? resultByStocktake.get(String(a.stocktake_id))?.value ?? null : null,
+          zeroedValue: a.stocktake_id ? resultByStocktake.get(String(a.stocktake_id))?.zeroed ?? null : null,
         }
       }),
     })
@@ -528,9 +609,13 @@ export async function POST(request: Request) {
       // Жёсткий режим: всё из снимка, что осталось без счёта, проводим нулём.
       // В долг такие позиции по умолчанию не идут (отдельная галочка ниже).
       const zeroedItemIds: string[] = []
+      // Выборочное обнуление: владелец снял галочки с того, что физически есть.
+      // Без списка — прежнее поведение (всё непосчитанное).
+      const zeroOnly = Array.isArray(body?.zero_item_ids) ? new Set((body.zero_item_ids as unknown[]).map(String)) : null
       if (zeroUncounted) {
         for (const [itemId, expectedRaw] of expectedBy) {
           if (grouped.has(itemId)) continue
+          if (zeroOnly && !zeroOnly.has(itemId)) continue
           const expected = num(expectedRaw)
           if (expected <= 0) continue
           zeroedItemIds.push(itemId)

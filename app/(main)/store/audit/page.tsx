@@ -19,13 +19,44 @@ import { toast } from '@/hooks/use-toast'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 
 type Loc = { id: string; name: string; location_type: string; company?: { name?: string | null } | null }
-type ActListRow = { id: string; status: string; comment: string | null; opened_at: string; closed_at: string | null; locationName: string; totalItems: number; countedItems: number }
+type ActListRow = {
+  id: string
+  status: string
+  comment: string | null
+  opened_at: string
+  closed_at: string | null
+  locationName: string
+  totalItems: number
+  countedItems: number
+  companyId?: string | null
+  locationType?: string | null
+  /** Итог проведения по закупу: минус = недостача */
+  resultValue?: number | null
+  /** Сколько из итога дало обнуление непосчитанного */
+  zeroedValue?: number | null
+}
+
+// Ревизия второй локации той же точки (витрина ↔ склад), закрытая в пределах 3 дней:
+// товар, лежащий не на своём месте, даёт минус в одной и плюс в другой — по точке ноль.
+function pairedAct(a: ActListRow, all: ActListRow[]): ActListRow | null {
+  if (a.status !== 'closed' || a.resultValue == null || !a.companyId || !a.closed_at) return null
+  const at = new Date(a.closed_at).getTime()
+  let best: ActListRow | null = null
+  for (const b of all) {
+    if (b.id === a.id || b.status !== 'closed' || b.resultValue == null || !b.closed_at) continue
+    if (b.companyId !== a.companyId || !b.locationType || b.locationType === a.locationType) continue
+    const diff = Math.abs(new Date(b.closed_at).getTime() - at)
+    if (diff > 3 * 86_400_000) continue
+    if (!best || diff < Math.abs(new Date(best.closed_at as string).getTime() - at)) best = b
+  }
+  return best
+}
 type FormData = { operators: Array<{ id: string; name: string }>; otherOperators?: Array<{ id: string; name: string }>; categories: Array<{ id: string; name: string }> }
 type Assignment = { operator_id: string; category_id: string | null }
 type ReportRow = { item_id: string; name: string; expected: number; counted: number; variance: number; purchase_price?: number; countedBy: string | null; conflict?: boolean; counts?: Array<{ qty: number; by: string | null }> }
 type CloseRow = { item_id: string; name: string; expected: number; counted: number; movedIn: number; movedOut: number; final: number; variance: number; shrinkage: number; surplus: number; purchase_price?: number; zeroed?: boolean }
 type CloseSummary = { movedItems: number; movedIn: number; movedOut: number; shrinkageItems: number; shrinkageQty: number; surplusItems: number; surplusQty: number; shrinkageValue?: number; surplusValue?: number; zeroedItems?: number; zeroedQty?: number; zeroedValue?: number }
-type UncountedRow = { item_id: string; name: string; expected: number; purchase_price: number }
+type UncountedRow = { item_id: string; name: string; expected: number; purchase_price: number; sold_recent?: number; other_location_qty?: number }
 type Detail = {
   act: { id: string; status: string; comment: string | null; opened_at: string; closed_at: string | null }
   location: Loc | null
@@ -35,6 +66,13 @@ type Detail = {
   countedItems: number
   report: ReportRow[]
   uncounted?: UncountedRow[]
+  otherLocationType?: string | null
+}
+
+// Порог «громкого» предупреждения: обнуление такого объёма почти всегда недосчёт, а не пропажа
+const isBigZeroing = (rows: UncountedRow[], totalItems: number) => {
+  const value = rows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
+  return rows.length > Math.max(5, totalItems * 0.05) || value >= 50_000
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
@@ -71,6 +109,8 @@ export default function StoreAuditPage() {
   const [zeroUncounted, setZeroUncounted] = useState(false)
   const [assignDebtZeroed, setAssignDebtZeroed] = useState(false)
   const [zeroPreviewOpen, setZeroPreviewOpen] = useState(false)
+  // Что именно обнулить: по умолчанию не трогаем то, что продавалось за неделю
+  const [zeroSelected, setZeroSelected] = useState<Set<string>>(new Set())
   const [debtsCreated, setDebtsCreated] = useState<number | null>(null)
   const [closeReport, setCloseReport] = useState<CloseRow[] | null>(null)
   const [closeSummary, setCloseSummary] = useState<CloseSummary | null>(null)
@@ -191,7 +231,7 @@ export default function StoreAuditPage() {
     setZeroPreviewOpen(false)
     setClosing(true)
     try {
-      const res = await fetch('/api/admin/store/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', act_id: detailId, assignDebt, force, zero_uncounted: !force && zeroUncounted, assignDebtZeroed: !force && zeroUncounted && assignDebtZeroed }) })
+      const res = await fetch('/api/admin/store/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', act_id: detailId, assignDebt, force, zero_uncounted: !force && zeroUncounted, zero_item_ids: !force && zeroUncounted ? Array.from(zeroSelected) : undefined, assignDebtZeroed: !force && zeroUncounted && assignDebtZeroed }) })
       const j = await res.json().catch(() => null)
       if (!res.ok) throw new Error(j?.message || j?.error || 'Ошибка закрытия')
       setCloseReport((j?.data?.report || []) as CloseRow[])
@@ -373,6 +413,30 @@ export default function StoreAuditPage() {
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                         <div className={`h-full rounded-full ${barCls} transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
                       </div>
+                      {a.resultValue != null ? (
+                        <div className="space-y-0.5 pt-1 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Итог по закупу</span>
+                            <span className={`tabular-nums font-semibold ${a.resultValue < -0.5 ? 'text-rose-600 dark:text-rose-300' : 'text-foreground'}`}>{money(Math.round(a.resultValue))}</span>
+                          </div>
+                          {a.zeroedValue && Math.abs(a.zeroedValue) >= 1 ? (
+                            <div className="flex items-center justify-between gap-2 text-muted-foreground">
+                              <span>из них обнулено непосчитанное</span>
+                              <span className="tabular-nums">{money(Math.round(a.zeroedValue))}</span>
+                            </div>
+                          ) : null}
+                          {(() => {
+                            const pair = pairedAct(a, acts)
+                            if (!pair || pair.resultValue == null) return null
+                            return (
+                              <div className="flex items-center justify-between gap-2 text-muted-foreground">
+                                <span>по точке с {pair.locationType === 'warehouse' ? 'складом' : 'витриной'} {fmtDate(pair.closed_at).split(',')[0]}</span>
+                                <span className="tabular-nums font-medium text-foreground">{money(Math.round(a.resultValue + pair.resultValue))}</span>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      ) : null}
                     </div>
                   </Card>
                 </button>
@@ -565,6 +629,17 @@ export default function StoreAuditPage() {
                           <span className="text-muted-foreground">Не посчитано {uncountedRows.length} поз. на {money(zeroSum)} по закупу — «чего не посчитали, того нет». Перед проведением покажем список.</span>
                         </span>
                       </label>
+                      {isBigZeroing(uncountedRows, detail.totalItems) ? (
+                        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
+                          <b>Не посчитано {uncountedRows.length} из {detail.totalItems} поз. на {money(zeroSum)}.</b>{' '}
+                          Обнуление такого объёма почти всегда даёт ложную недостачу: товар есть, его просто не досчитали.
+                          {(() => {
+                            const sold = uncountedRows.filter((r) => (r.sold_recent || 0) > 0).length
+                            return sold > 0 ? ` ${sold} из них продавались за последнюю неделю.` : ''
+                          })()}{' '}
+                          Лучше досчитать.
+                        </div>
+                      ) : null}
                       {zeroUncounted ? (
                         <label className="flex cursor-pointer items-start gap-2 pl-6 text-xs text-muted-foreground">
                           <input type="checkbox" checked={assignDebtZeroed} onChange={(e) => setAssignDebtZeroed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-500" />
@@ -578,7 +653,10 @@ export default function StoreAuditPage() {
                 {can('store-revisions.commit') && (
                 <Button
                   onClick={() => {
-                    if (zeroUncounted && (detail.uncounted || []).length > 0) setZeroPreviewOpen(true)
+                    if (zeroUncounted && (detail.uncounted || []).length > 0) {
+                      setZeroSelected(new Set((detail.uncounted || []).filter((r) => !(r.sold_recent || 0)).map((r) => r.item_id)))
+                      setZeroPreviewOpen(true)
+                    }
                     else void closeAct(false)
                   }}
                   disabled={closing || detail.countedItems === 0 || hasConflicts}
@@ -821,30 +899,61 @@ export default function StoreAuditPage() {
               <Card className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto border-rose-500/30 p-5">
                 {(() => {
                   const uncountedRows = detail.uncounted || []
-                  const zeroSum = uncountedRows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
+                  const selectedRows = uncountedRows.filter((r) => zeroSelected.has(r.item_id))
+                  const zeroSum = selectedRows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
+                  const keptSold = uncountedRows.filter((r) => (r.sold_recent || 0) > 0 && !zeroSelected.has(r.item_id)).length
+                  const otherLabel = detail.otherLocationType === 'warehouse' ? 'на складе' : 'на витрине'
+                  const toggle = (id: string) =>
+                    setZeroSelected((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(id)) next.delete(id)
+                      else next.add(id)
+                      return next
+                    })
                   return (
                     <div className="space-y-3">
                       <div>
                         <h3 className="text-sm font-semibold text-foreground">Полная ревизия: обнуление непосчитанного</h3>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Эти позиции никто не посчитал — их остаток в системе будет установлен в <b>0</b>.
-                          Будет обнулено <b className="text-foreground">{uncountedRows.length} поз.</b> на{' '}
+                          Эти позиции никто не посчитал. У отмеченных остаток в системе станет <b>0</b>, остальные останутся как есть.
+                          Будет обнулено <b className="text-foreground">{selectedRows.length} из {uncountedRows.length} поз.</b> на{' '}
                           <b className="text-rose-500">{money(zeroSum)}</b> по закупу.
                           {assignDebtZeroed ? ' Сумма ляжет долгом поровну на операторов акта.' : ' В долг операторам это не пойдёт.'}
-                          {' '}Если что-то из списка физически есть — закройте окно и досчитайте.
                         </p>
+                        {keptSold > 0 ? (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            {keptSold} поз. продавались за последние 7 дней — скорее всего они есть, поэтому отметка с них снята. Лучше досчитать их.
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-3 text-xs">
+                        <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => setZeroSelected(new Set(uncountedRows.map((r) => r.item_id)))}>Отметить все</button>
+                        <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => setZeroSelected(new Set())}>Снять все</button>
                       </div>
                       <div className="max-h-72 overflow-auto rounded-lg border border-border">
-                        {uncountedRows.slice(0, 200).map((r) => (
-                          <div key={r.item_id} className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-white/5 px-3 py-1.5 text-sm last:border-0">
-                            <span className="min-w-0 truncate text-foreground">{r.name}</span>
+                        {uncountedRows.slice(0, 300).map((r) => (
+                          <label key={r.item_id} className="flex cursor-pointer items-center justify-between gap-3 border-b border-slate-100 dark:border-white/5 px-3 py-1.5 text-sm last:border-0">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <input type="checkbox" checked={zeroSelected.has(r.item_id)} onChange={() => toggle(r.item_id)} className="h-4 w-4 shrink-0 accent-rose-500" />
+                              <span className="min-w-0">
+                                <span className="block truncate text-foreground">{r.name}</span>
+                                {(r.sold_recent || 0) > 0 || (r.other_location_qty || 0) > 0 ? (
+                                  <span className="block truncate text-xs text-amber-700 dark:text-amber-300">
+                                    {[
+                                      (r.sold_recent || 0) > 0 ? `продано ${fmt(r.sold_recent || 0)} шт за 7 дней` : null,
+                                      (r.other_location_qty || 0) > 0 ? `${otherLabel} ${fmt(r.other_location_qty || 0)} шт` : null,
+                                    ].filter(Boolean).join(' · ')}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </span>
                             <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
                               {fmt(r.expected)} шт{r.purchase_price ? ` · ${money(r.expected * r.purchase_price)}` : ''}
                             </span>
-                          </div>
+                          </label>
                         ))}
-                        {uncountedRows.length > 200 ? (
-                          <div className="px-3 py-2 text-center text-xs text-muted-foreground">…и ещё {uncountedRows.length - 200} поз.</div>
+                        {uncountedRows.length > 300 ? (
+                          <div className="px-3 py-2 text-center text-xs text-muted-foreground">…и ещё {uncountedRows.length - 300} поз. (обнуляются по отметке «Отметить все»)</div>
                         ) : null}
                       </div>
                       <div className="flex justify-end gap-2">
@@ -856,7 +965,7 @@ export default function StoreAuditPage() {
                           className="gap-2 bg-rose-600 hover:bg-rose-700"
                         >
                           {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                          Обнулить {uncountedRows.length} поз. и провести
+                          {selectedRows.length > 0 ? `Обнулить ${selectedRows.length} поз. и провести` : 'Провести без обнуления'}
                         </Button>
                         )}
                       </div>
