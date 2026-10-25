@@ -19,8 +19,8 @@ android {
         applicationId = "kz.ordaops.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
         // Как ORDA_API_BASE_URL в apple/Config.xcconfig: приложение знает только сайт.
         buildConfigField("String", "API_BASE_URL", "\"https://www.ordaops.kz\"")
     }
@@ -46,6 +46,8 @@ android {
         }
         release {
             manifestPlaceholders["crashlyticsEnabled"] = true
+            // Символы встроенных библиотек (камера, ML Kit) — чтобы Play и Crashlytics разбирали их падения.
+            ndk { debugSymbolLevel = "FULL" }
             // R8: ужимает и оптимизирует код — Compose в релизе в разы плавнее отладочной сборки.
             isMinifyEnabled = true
             isShrinkResources = true

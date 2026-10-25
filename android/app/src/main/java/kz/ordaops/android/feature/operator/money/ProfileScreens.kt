@@ -200,6 +200,7 @@ fun OperatorProfileContent(more: List<OperatorSection>, onOpen: (OperatorSection
                         }
                     }
                 }
+                item(key = "delete-account", contentType = "delete-account") { DeleteAccountCard() }
             }
         }
     }
