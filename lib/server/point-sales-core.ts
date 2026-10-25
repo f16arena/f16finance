@@ -71,17 +71,35 @@ export function buildAuthoritativeSaleLines(params: {
   requestedItems: Array<{
     item_id?: string | null
     universal_name?: string | null
+    service_variant_id?: string | null
     quantity: number
     unit_price?: number
     comment?: string | null
   }>
   dbItems: Array<{ id: string; name: string; sale_price: number; is_active: boolean; item_type?: string | null }>
   showcaseBalances: Map<string, number>
+  /** Справочник услуг точки (variant id -> услуга+вариант); без него строки-услуги отвергаются. */
+  serviceVariants?: Map<string, { service: { name: string }; variant: { id: string; name: string; price: number } }>
   paymentTotal: number
 }) {
   const itemMap = new Map(params.dbItems.map((row) => [row.id, row]))
 
   const baseLines = params.requestedItems.map((item) => {
+    // Услуга: название и цена из справочника, остатка нет (как в /api/point/inventory-sales)
+    if (item.service_variant_id) {
+      const ref = params.serviceVariants?.get(item.service_variant_id)
+      if (!ref) throw new Error('Услуга недоступна на этой точке — обновите кассу')
+      const unitPrice = normalizeMoney(ref.variant.price)
+      return {
+        item_id: null as string | null,
+        universal_name: `${ref.service.name.trim()} · ${ref.variant.name.trim()}` as string | null,
+        service_variant_id: ref.variant.id as string | null,
+        quantity: item.quantity,
+        base_unit_price: unitPrice,
+        base_total: roundLineTotal(item.quantity, unitPrice),
+        comment: item.comment?.trim() || null,
+      }
+    }
     // Универсальный товар: цена и название от оператора, без проверки остатков
     if (!item.item_id && item.universal_name) {
       const unitPrice = normalizeMoney(item.unit_price || 0)
@@ -90,7 +108,8 @@ export function buildAuthoritativeSaleLines(params: {
       }
       return {
         item_id: null as string | null,
-        universal_name: item.universal_name.trim(),
+        universal_name: item.universal_name.trim() as string | null,
+        service_variant_id: null as string | null,
         quantity: item.quantity,
         base_unit_price: unitPrice,
         base_total: roundLineTotal(item.quantity, unitPrice),
@@ -119,6 +138,7 @@ export function buildAuthoritativeSaleLines(params: {
     return {
       item_id: item.item_id,
       universal_name: null as string | null,
+      service_variant_id: null as string | null,
       quantity: item.quantity,
       base_unit_price: unitPrice,
       base_total: roundLineTotal(item.quantity, unitPrice),
@@ -136,6 +156,7 @@ export function buildAuthoritativeSaleLines(params: {
     return baseLines.map((line) => ({
       item_id: line.item_id,
       universal_name: line.universal_name,
+      service_variant_id: line.service_variant_id,
       quantity: line.quantity,
       unit_price: line.base_unit_price,
       comment: line.comment,
@@ -145,6 +166,7 @@ export function buildAuthoritativeSaleLines(params: {
   const lines = baseLines.map((line) => ({
     item_id: line.item_id,
     universal_name: line.universal_name,
+    service_variant_id: line.service_variant_id,
     quantity: line.quantity,
     unit_price: line.base_unit_price,
     comment: line.comment,

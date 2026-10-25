@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sync
@@ -64,12 +65,24 @@ internal fun quantityText(value: Double): String {
     return String.format(java.util.Locale("ru"), "%.3f", value).trimEnd('0').trimEnd(',')
 }
 
+/** Купюры, которыми чаще всего платят: ближайшие суммы не меньше чека (как на кассе десктопа). */
+internal fun cashSuggestions(total: Double): List<Long> {
+    val out = mutableListOf<Long>()
+    for (bill in longArrayOf(500, 1000, 2000, 5000, 10000, 20000)) {
+        val v = Math.ceil(total / bill).toLong() * bill
+        if (v > total && v !in out) out += v
+    }
+    return out.take(4)
+}
+
 /** Оплата: состав чека, способ, суммы, клиент — CheckoutSheet.swift. */
 @Composable
 internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
     var method by remember { mutableStateOf(PaymentMethod.Cash) }
     var cashText by remember { mutableStateOf(store.cartTotal.let { Math.round(it).toString() }) }
     var kaspiText by remember { mutableStateOf("0") }
+    /** «Получено от покупателя» при оплате наличными; пусто — без сдачи. */
+    var givenText by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     /** Клиент чека: карта лояльности. Без него бонусы не начисляются. */
@@ -84,7 +97,7 @@ internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
     fun select(option: PaymentMethod) {
         method = option
         when (option) {
-            PaymentMethod.Cash -> { cashText = Math.round(total).toString(); kaspiText = "0" }
+            PaymentMethod.Cash -> { cashText = Math.round(total).toString(); kaspiText = "0"; givenText = "" }
             PaymentMethod.Kaspi -> { cashText = "0"; kaspiText = Math.round(total).toString() }
             PaymentMethod.Mixed -> if (parseAmount(cashText) + parseAmount(kaspiText) == 0.0) { cashText = ""; kaspiText = "" }
         }
@@ -155,6 +168,47 @@ internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
             }
         }
 
+        if (method == PaymentMethod.Cash) {
+            val given = parseAmount(givenText)
+            val short = givenText.isNotBlank() && given < total - 0.5
+            FormSection("Получено от покупателя") {
+                AmountField("Получено", givenText, { givenText = it }, placeholder = Math.round(total).toString())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    cashSuggestions(total).forEach { bill ->
+                        val on = Math.round(given) == bill
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .background(if (on) Orda.colors.brand else Orda.colors.surfaceRaised, RoundedCornerShape(12.dp))
+                                .clickable { givenText = bill.toString(); haptics.tick() }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                String.format(java.util.Locale("ru"), "%,d", bill).replace(' ', ' '),
+                                color = if (on) Color.White else Orda.colors.text,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().background(Orda.colors.surface, RoundedCornerShape(Radius.md)).padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(if (short) "Не хватает" else "Сдача", color = Orda.colors.textMuted, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Text(
+                        money(if (short) total - given else (given - total).coerceAtLeast(0.0)),
+                        color = if (short) Orda.colors.negative else Orda.colors.positive,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+
         if (method == PaymentMethod.Mixed) {
             val entered = parseAmount(cashText) + parseAmount(kaspiText)
             if (abs(entered - total) >= 1) {
@@ -211,11 +265,21 @@ internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
         }
 
         error?.let { ErrorBanner(it) }
-        PrimaryButton("Провести продажу", Modifier.fillMaxWidth(), loading = submitting) {
+        val cashGiven = parseAmount(givenText)
+        val cashShort = method == PaymentMethod.Cash && givenText.isNotBlank() && cashGiven < total - 0.5
+        val payLabel = when {
+            method != PaymentMethod.Cash -> "Провести продажу"
+            givenText.isNotBlank() && cashGiven > total + 0.5 -> "Оплатить · сдача ${money(cashGiven - total)}"
+            else -> "Оплатить без сдачи"
+        }
+        PrimaryButton(payLabel, Modifier.fillMaxWidth(), enabled = !cashShort, loading = submitting) {
             submitting = true
             error = null
             scope.launch {
-                val failure = store.checkout(method, parseAmount(cashText), parseAmount(kaspiText), customer?.id)
+                val failure = store.checkout(
+                    method, parseAmount(cashText), parseAmount(kaspiText), customer?.id,
+                    cashReceived = if (method == PaymentMethod.Cash && givenText.isNotBlank()) cashGiven else null,
+                )
                 submitting = false
                 if (failure != null) {
                     error = failure
@@ -251,7 +315,13 @@ private fun MethodTile(option: PaymentMethod, icon: ImageVector, on: Boolean, mo
 
 /** Подтверждение проведённой продажи и ссылка на чек (публичная страница по QR). */
 @Composable
-internal fun SaleReceiptSheet(feedback: OperatorStore.SaleFeedback, onDismiss: () -> Unit) {
+internal fun SaleReceiptSheet(
+    feedback: OperatorStore.SaleFeedback,
+    settings: SaleSettings,
+    printState: PrintState,
+    onPrint: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val context = LocalContext.current
     OrdaSheet("", onDismiss) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -267,6 +337,15 @@ internal fun SaleReceiptSheet(feedback: OperatorStore.SaleFeedback, onDismiss: (
                 color = Orda.colors.textMuted,
                 fontSize = 16.sp,
             )
+            feedback.cashReceived?.let { received ->
+                Text(
+                    "получено ${money(received)} · СДАЧА ${money(feedback.change)}",
+                    color = Orda.colors.positive,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
             if (feedback.wasQueued) {
                 Text(
                     "Чек уйдёт на сервер, как только появится связь.",
@@ -293,6 +372,28 @@ internal fun SaleReceiptSheet(feedback: OperatorStore.SaleFeedback, onDismiss: (
                     Icon(Icons.Filled.Share, contentDescription = null, tint = Orda.colors.text)
                     Text("Отправить чек", color = Orda.colors.text, fontWeight = FontWeight.SemiBold)
                 }
+            }
+            if (settings.canPrint) {
+                Row(
+                    Modifier
+                        .background(Orda.colors.surfaceRaised, RoundedCornerShape(Radius.md))
+                        .clickable(enabled = printState.status != PrintStatus.Printing, onClick = onPrint)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    Icon(Icons.Filled.Print, contentDescription = null, tint = Orda.colors.text)
+                    Text(
+                        when (printState.status) {
+                            PrintStatus.Printing -> "Печатаю…"
+                            PrintStatus.Done -> "Напечатано · ещё раз"
+                            else -> "Печать чека"
+                        },
+                        color = Orda.colors.text,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                printState.error?.let { ErrorBanner(it) }
             }
             PrimaryButton("Готово", Modifier.fillMaxWidth(), onClick = onDismiss)
         }

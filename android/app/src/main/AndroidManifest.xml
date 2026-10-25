@@ -7,7 +7,16 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Android 16: капсула смены в строке состояния (Live Updates). -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- Bluetooth-принтер чеков: до Android 12 хватает обычных прав, с 12 нужно BLUETOOTH_CONNECT (спрашиваем в настройках печати). -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
+    <!-- Видимость службы печати Sunmi (Android 11+). -->
+    <queries>
+        <package android:name="woyou.aidlservice.jiuiv5" />
+    </queries>
 
     <application
         android:name=".OrdaApplication"

@@ -89,6 +89,12 @@ class OperatorStore internal constructor(
     var catalogError by mutableStateOf<String?>(null)
         private set
 
+    /** Услуги точки (теннис, печать) и идущие таймеры. */
+    var services by mutableStateOf<List<SaleService>>(emptyList())
+        private set
+    var sessions by mutableStateOf<List<ServiceSession>>(emptyList())
+        private set
+
     var cart by mutableStateOf<List<SaleLine>>(emptyList())
         private set
     val cartTotal: Double get() = cart.sumOf { it.total }
@@ -107,8 +113,18 @@ class OperatorStore internal constructor(
         val total: Double,
         val receiptUrl: String?,
         val wasQueued: Boolean,
+        /** Состав чека — для печати и экрана подтверждения (корзина после продажи пуста). */
+        val lines: List<SaleLine> = emptyList(),
+        val method: PaymentMethod = PaymentMethod.Cash,
+        val cashAmount: Double = 0.0,
+        val kaspiAmount: Double = 0.0,
+        /** Сколько дал покупатель наличными; null — без сдачи. */
+        val cashReceived: Double? = null,
+        val soldAtMillis: Long = System.currentTimeMillis(),
         val id: String = UUID.randomUUID().toString(),
-    )
+    ) {
+        val change: Double get() = cashReceived?.let { (it - cashAmount).coerceAtLeast(0.0) } ?: 0.0
+    }
 
     private var started = false
     private var shiftWatch: Job? = null
@@ -217,6 +233,38 @@ class OperatorStore internal constructor(
         catalog = data.items
         recentSales = data.sales
         companyName = data.company?.name ?: "Точка"
+        services = data.services
+    }
+
+    /** Идущие таймеры услуг. Не критично: при сбое остаются прежние. */
+    suspend fun loadSessions() {
+        if (services.isEmpty() && sessions.isEmpty()) return
+        try {
+            sessions = api.send<ServiceSessionsResponse>(ApiRequest("/api/operator/service-sessions")).data?.sessions.orEmpty()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
+    }
+
+    /** «Завершить»: убираем сразу, на сервер — следом; не дошло — следующая загрузка вернёт таймер. */
+    suspend fun finishSession(id: String) {
+        sessions = sessions.filterNot { it.id == id }
+        try {
+            api.sendUnit(
+                ApiRequest.json(
+                    "/api/operator/service-sessions",
+                    buildJsonObject {
+                        put("action", "finish")
+                        put("session_id", id)
+                    },
+                ),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            loadSessions()
+        }
     }
 
     // ── Смена: открыть / закрыть ─────────────────────────────────────────────
@@ -315,6 +363,22 @@ class OperatorStore internal constructor(
         }
     }
 
+    /**
+     * Услуга в чек. Разные варианты — разные строки; продление — отдельная строка
+     * на конкретный таймер, чтобы оплата прибавила время именно к нему.
+     */
+    fun addService(service: SaleService, variant: SaleServiceVariant, extend: ServiceSession? = null) {
+        if (variant.price <= 0) return
+        val key = "service:${variant.id}" + (extend?.let { ":${it.id}" } ?: "")
+        val index = cart.indexOfFirst { it.itemId == key }
+        cart = if (index >= 0) {
+            cart.toMutableList().also { it[index] = it[index].copy(quantity = it[index].quantity + 1) }
+        } else {
+            val name = "${service.name} · ${variant.name}" + if (extend != null) " (продление)" else ""
+            cart + SaleLine(key, name, 1.0, variant.price, serviceVariantId = variant.id, extendSessionId = extend?.id)
+        }
+    }
+
     fun setQuantity(quantity: Double, itemId: String) {
         val index = cart.indexOfFirst { it.itemId == itemId }
         if (index < 0) return
@@ -343,7 +407,13 @@ class OperatorStore internal constructor(
     // ── Продажа ──────────────────────────────────────────────────────────────
 
     /** Провести чек. Возвращает текст ошибки или null. */
-    suspend fun checkout(method: PaymentMethod, cash: Double, kaspi: Double, customerId: String? = null): String? {
+    suspend fun checkout(
+        method: PaymentMethod,
+        cash: Double,
+        kaspi: Double,
+        customerId: String? = null,
+        cashReceived: Double? = null,
+    ): String? {
         if (cart.isEmpty()) return "Корзина пуста."
         val kind = if (shift?.shiftType == "night") ShiftKind.Night else ShiftKind.Day
         var draft = SaleDraft(
@@ -361,16 +431,29 @@ class OperatorStore internal constructor(
         if (kind == ShiftKind.Night && kaspi > 0) {
             draft = if (LocalTime.now().hour < 12) draft.copy(kaspiAfterMidnight = kaspi) else draft.copy(kaspiBeforeMidnight = kaspi)
         }
+        // Сдача имеет смысл только с наличными и только если дали не меньше, чем нужно.
+        val received = cashReceived?.takeIf { cash > 0 && it >= cash }
         return when (val outcome = queue.submit(draft)) {
             is SaleQueue.SubmitOutcome.Sent -> {
-                lastSale = SaleFeedback(outcome.result.totalAmount, outcome.result.receiptUrl, wasQueued = false)
+                lastSale = SaleFeedback(
+                    outcome.result.totalAmount, outcome.result.receiptUrl, wasQueued = false,
+                    lines = draft.lines, method = method, cashAmount = cash, kaspiAmount = kaspi, cashReceived = received,
+                )
+                if (outcome.result.serviceSessions.isNotEmpty()) {
+                    // Продление возвращает тот же таймер с новым концом — заменяем, а не дублируем.
+                    val started = outcome.result.serviceSessions
+                    sessions = sessions.filterNot { old -> started.any { it.id == old.id } } + started
+                }
                 clearCart()
                 loadShift()
                 null
             }
             is SaleQueue.SubmitOutcome.Queued -> {
                 refreshQueueCount()
-                lastSale = SaleFeedback(draft.total, null, wasQueued = true)
+                lastSale = SaleFeedback(
+                    draft.total, null, wasQueued = true,
+                    lines = draft.lines, method = method, cashAmount = cash, kaspiAmount = kaspi, cashReceived = received,
+                )
                 clearCart()
                 null
             }
@@ -391,6 +474,7 @@ class OperatorStore internal constructor(
         val actions = outbox.flush()
         refreshQueueCount()
         if (result.sent > 0 || actions.sent > 0) loadShift()
+        if (result.sent > 0) loadSessions()
     }
 
     private suspend fun refreshQueueCount() {

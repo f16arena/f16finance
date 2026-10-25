@@ -81,7 +81,7 @@ class SaleQueue(context: Context, private val api: ApiClient) {
     private suspend fun createSale(draft: SaleDraft): SaleResult {
         val response = api.send<SaleResultResponse>(ApiRequest.json("/api/operator/inventory-sales", draft.requestBody()))
         val d = response.data ?: SaleResultData()
-        return SaleResult(d.saleId, d.totalAmount, d.receiptUrl, d.loyaltyPointsEarned, d.idempotent)
+        return SaleResult(d.saleId, d.totalAmount, d.receiptUrl, d.loyaltyPointsEarned, d.idempotent, d.serviceSessions)
     }
 
     /**
