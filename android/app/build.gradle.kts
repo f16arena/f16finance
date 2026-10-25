@@ -25,6 +25,20 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"https://www.ordaops.kz\"")
     }
 
+    // Постоянный ключ релизов: обновление APK ставится поверх, только если подпись та же.
+    // Ключ и пароли — вне репозитория (~/.gradle/gradle.properties); без них подписываем отладочным.
+    val releaseStore = (findProperty("ORDA_RELEASE_STORE_FILE") as String?)?.let(::file)?.takeIf { it.exists() }
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = releaseStore
+                storePassword = findProperty("ORDA_RELEASE_STORE_PASSWORD") as String?
+                keyAlias = findProperty("ORDA_RELEASE_KEY_ALIAS") as String?
+                keyPassword = findProperty("ORDA_RELEASE_KEY_PASSWORD") as String?
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Отладочные падения в отчёты не шлём — там и так видно в Android Studio.
@@ -36,9 +50,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Пока раздаём APK вручную — подписываем отладочным ключом,
-            // чтобы файл ставился без отдельного keystore.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
