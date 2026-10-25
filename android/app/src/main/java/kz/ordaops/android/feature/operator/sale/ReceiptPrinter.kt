@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,23 +33,42 @@ enum class PrinterKind { None, Sunmi, Bluetooth }
 
 /** Выбранный принтер — на устройстве, а не на сервере: у каждого телефона/терминала он свой. */
 class SaleSettings(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("orda_sale_settings", Context.MODE_PRIVATE)
+    // Ленивый доступ: первое чтение настроек — диск, на главном потоке ему не место.
+    private val appContext = context.applicationContext
+    private val prefs by lazy { appContext.getSharedPreferences("orda_sale_settings", Context.MODE_PRIVATE) }
 
-    var kind by mutableStateOf(runCatching { PrinterKind.valueOf(prefs.getString("printer_kind", null) ?: "None") }.getOrDefault(PrinterKind.None))
+    var kind by mutableStateOf(PrinterKind.None)
         private set
-    var btAddress by mutableStateOf(prefs.getString("bt_address", null))
+    var btAddress by mutableStateOf<String?>(null)
         private set
-    var btName by mutableStateOf(prefs.getString("bt_name", null))
+    var btName by mutableStateOf<String?>(null)
         private set
     /** Ширина ленты в знаках: 32 — 58 мм, 48 — 80 мм. */
-    var width by mutableStateOf(prefs.getInt("paper_width", 32))
+    var width by mutableStateOf(32)
         private set
-    var autoPrint by mutableStateOf(prefs.getBoolean("auto_print", false))
+    var autoPrint by mutableStateOf(false)
         private set
+
+    /** Подтянуть сохранённое с диска (IO), значения публикуются на главном потоке. */
+    suspend fun load() {
+        val p = withContext(Dispatchers.IO) {
+            val prefs = prefs
+            listOf(
+                prefs.getString("printer_kind", null), prefs.getString("bt_address", null),
+                prefs.getString("bt_name", null), prefs.getInt("paper_width", 32), prefs.getBoolean("auto_print", false),
+            )
+        }
+        kind = runCatching { PrinterKind.valueOf(p[0] as? String ?: "None") }.getOrDefault(PrinterKind.None)
+        btAddress = p[1] as? String
+        btName = p[2] as? String
+        width = p[3] as Int
+        autoPrint = p[4] as Boolean
+    }
 
     /** Печать вообще возможна: выбран принтер (для Bluetooth — ещё и конкретный). */
     val canPrint: Boolean get() = kind == PrinterKind.Sunmi || (kind == PrinterKind.Bluetooth && btAddress != null)
 
+    // Запись `apply()` асинхронна, но сам объект prefs уже загружен в load().
     fun selectKind(value: PrinterKind) { kind = value; prefs.edit().putString("printer_kind", value.name).apply() }
     fun selectBluetooth(address: String, name: String?) {
         btAddress = address; btName = name
@@ -61,7 +81,9 @@ class SaleSettings(context: Context) {
 @Composable
 fun rememberSaleSettings(): SaleSettings {
     val context = LocalContext.current
-    return remember { SaleSettings(context.applicationContext) }
+    val settings = remember { SaleSettings(context.applicationContext) }
+    LaunchedEffect(settings) { settings.load() }
+    return settings
 }
 
 /** Пара «имя — адрес» спаренного Bluetooth-принтера. */

@@ -1,5 +1,6 @@
 package kz.ordaops.android.feature.operator.sale
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,11 +79,11 @@ internal fun cashSuggestions(total: Double): List<Long> {
 /** Оплата: состав чека, способ, суммы, клиент — CheckoutSheet.swift. */
 @Composable
 internal fun CheckoutSheet(store: OperatorStore, onDismiss: () -> Unit) {
-    var method by remember { mutableStateOf(PaymentMethod.Cash) }
-    var cashText by remember { mutableStateOf(store.cartTotal.let { Math.round(it).toString() }) }
-    var kaspiText by remember { mutableStateOf("0") }
+    var method by rememberSaveable { mutableStateOf(PaymentMethod.Cash) }
+    var cashText by rememberSaveable { mutableStateOf(store.cartTotal.let { Math.round(it).toString() }) }
+    var kaspiText by rememberSaveable { mutableStateOf("0") }
     /** «Получено от покупателя» при оплате наличными; пусто — без сдачи. */
-    var givenText by remember { mutableStateOf("") }
+    var givenText by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
     /** Клиент чека: карта лояльности. Без него бонусы не начисляются. */
