@@ -31,7 +31,9 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,12 +42,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.Serializable
 import kz.ordaops.android.core.access.AccessResolver
 import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiRequest
+import kz.ordaops.android.feature.operator.arena.ArenaTab
+import kz.ordaops.android.feature.operator.audit.AuditTab
+import kz.ordaops.android.feature.operator.chat.ChatTab
+import kz.ordaops.android.feature.operator.chat.MessagesTab
+import kz.ordaops.android.feature.operator.common.ActionOutbox
+import kz.ordaops.android.feature.operator.common.LocalOperatorEnv
+import kz.ordaops.android.feature.operator.common.OperatorEnv
+import kz.ordaops.android.feature.operator.knowledge.KnowledgeTab
+import kz.ordaops.android.feature.operator.money.MoneyTab
+import kz.ordaops.android.feature.operator.money.ScheduleTab
+import kz.ordaops.android.feature.operator.sale.SaleTab
+import kz.ordaops.android.feature.operator.shift.ShiftTab
+import kz.ordaops.android.feature.operator.work.ChecklistsTab
+import kz.ordaops.android.feature.operator.work.TasksTab
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.OrdaCard
 import kz.ordaops.android.ui.theme.Orda
@@ -96,7 +115,16 @@ data class OverviewHead(val points: OperatorPoints? = null)
 
 @Composable
 fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit) {
+    val context = LocalContext.current
+    val outbox = remember { ActionOutbox(context.applicationContext, api) }
     var points by remember { mutableStateOf<OperatorPoints?>(null) }
+    LaunchedEffect(Unit) {
+        // Хозяин очереди — до первой отправки: иначе накопленное сменщиком
+        // уйдёт под именем того, кто вошёл сейчас.
+        outbox.load()
+        outbox.setOwner(resolver.session.operatorId)
+        outbox.flush()
+    }
     LaunchedEffect(Unit) {
         val request = ApiRequest("/api/operator/overview")
         api.cached<OverviewHead>(request)?.let { points = it.points }
@@ -110,6 +138,25 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
     val tabs = OperatorSection.phoneTabs(sellsGoods, hasArena)
     var selected by rememberSaveable { mutableStateOf(OperatorSection.Shift) }
     var opened by rememberSaveable { mutableStateOf<OperatorSection?>(null) }
+    val pending by outbox.pendingCount.collectAsState()
+    val env = remember(resolver) {
+        OperatorEnv(
+            api = api,
+            outbox = outbox,
+            resolver = resolver,
+            open = { name ->
+                OperatorSection.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }?.let { target ->
+                    if (target in tabs) {
+                        selected = target
+                        opened = null
+                    } else {
+                        opened = target
+                    }
+                }
+            },
+            signOut = onSignOut,
+        )
+    }
 
     Scaffold(
         containerColor = Orda.colors.background,
@@ -122,7 +169,14 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                             selected = section
                             opened = null
                         },
-                        icon = { Icon(section.icon, contentDescription = null) },
+                        icon = {
+                            // Неотправленное без связи — видно на «Смене», чтобы не уйти домой с ним.
+                            if (section == OperatorSection.Shift && pending > 0) {
+                                BadgedBox(badge = { Badge { Text("$pending") } }) { Icon(section.icon, contentDescription = null) }
+                            } else {
+                                Icon(section.icon, contentDescription = null)
+                            }
+                        },
                         label = { Text(section.tabTitle, fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Orda.colors.brand,
@@ -137,16 +191,27 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            val section = opened ?: selected
-            when (section) {
-                OperatorSection.Profile -> OperatorProfile(
-                    name = resolver.session.displayName ?: "Оператор",
-                    roleLabel = resolver.session.roleLabel,
-                    more = OperatorSection.moreSections(sellsGoods, hasArena),
-                    onOpen = { opened = it },
-                    onSignOut = onSignOut,
-                )
-                else -> SectionPlaceholder(section)
+            CompositionLocalProvider(LocalOperatorEnv provides env) {
+                when (opened ?: selected) {
+                    OperatorSection.Shift -> ShiftTab()
+                    OperatorSection.Sale -> SaleTab()
+                    OperatorSection.Arena -> ArenaTab()
+                    OperatorSection.Audit -> AuditTab()
+                    OperatorSection.Tasks -> TasksTab()
+                    OperatorSection.Checklists -> ChecklistsTab()
+                    OperatorSection.Knowledge -> KnowledgeTab()
+                    OperatorSection.Chat -> ChatTab()
+                    OperatorSection.Messages -> MessagesTab()
+                    OperatorSection.Money -> MoneyTab()
+                    OperatorSection.Schedule -> ScheduleTab()
+                    OperatorSection.Profile -> OperatorProfile(
+                        name = resolver.session.displayName ?: "Оператор",
+                        roleLabel = resolver.session.roleLabel,
+                        more = OperatorSection.moreSections(sellsGoods, hasArena),
+                        onOpen = { opened = it },
+                        onSignOut = onSignOut,
+                    )
+                }
             }
         }
     }
@@ -154,7 +219,7 @@ fun OperatorRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
 
 /** Раздел ещё переносится с айфона. */
 @Composable
-private fun SectionPlaceholder(section: OperatorSection) {
+fun SectionPlaceholder(section: OperatorSection) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
         EmptyState(
             icon = Icons.Filled.Construction,

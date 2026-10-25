@@ -61,4 +61,10 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Сканер штрихкодов (касса, ревизия) — камера + ML Kit, как AVFoundation на айфоне.
+    implementation("androidx.camera:camera-camera2:1.5.0")
+    implementation("androidx.camera:camera-lifecycle:1.5.0")
+    implementation("androidx.camera:camera-view:1.5.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 }
