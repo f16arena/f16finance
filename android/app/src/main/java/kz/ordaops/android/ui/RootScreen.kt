@@ -47,7 +47,10 @@ fun RootScreen(app: OrdaApplication) {
                 if (resetOpen) PasswordResetDialog(app, onDismiss = { resetOpen = false })
             }
             AuthStore.Phase.LoadingRole -> LoadingView("Проверяем доступ…")
-            AuthStore.Phase.SignedIn -> WorkspaceView(app, state)
+            AuthStore.Phase.SignedIn -> {
+                PushRegistration(app)
+                WorkspaceView(app, state)
+            }
         }
     }
 }
@@ -94,5 +97,23 @@ private fun NotYetOnAndroid(name: String?, onSignOut: () -> Unit) {
         )
         name?.let { Text("Вы вошли как $it", color = Orda.colors.textDim) }
         TextButton(onClick = onSignOut) { Text("Выйти из аккаунта", color = Orda.colors.negative) }
+    }
+}
+
+/**
+ * После входа: разрешение на уведомления и адрес устройства для push. Спрашиваем
+ * здесь, а не на экране входа — до входа непонятно, о чём будут уведомлять.
+ */
+@Composable
+private fun PushRegistration(app: OrdaApplication) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!kz.ordaops.android.platform.ShiftNotification.canPost(context) && android.os.Build.VERSION.SDK_INT >= 33) {
+            permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        kz.ordaops.android.platform.Push.register(context)
     }
 }

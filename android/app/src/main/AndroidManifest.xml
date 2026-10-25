@@ -41,6 +41,15 @@
         </activity>
 
         <service
+            android:name=".platform.OrdaMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <receiver android:name=".platform.ReplyReceiver" android:exported="false" />
+
+        <service
             android:name=".platform.SellTileService"
             android:exported="true"
             android:icon="@drawable/ic_stat_orda"

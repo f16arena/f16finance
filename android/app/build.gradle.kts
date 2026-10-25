@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    // Push через Firebase: читает app/google-services.json (в git его нет — репозиторий публичный).
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -70,6 +72,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
     // Сканер штрихкодов (касса, ревизия) — камера + ML Kit, как AVFoundation на айфоне.
     implementation("androidx.camera:camera-camera2:1.5.0")
