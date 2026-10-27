@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Building2, FileText, Info, Loader2, Receipt, Save, ShieldCheck } from 'lucide-react'
+import { Building2, CheckCircle2, Circle, FileText, Info, Loader2, Printer, Receipt, Save, ShieldCheck, Landmark, Cpu } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
+import { toast } from '@/hooks/use-toast'
+import { StoreSection, StoreChip } from '@/components/store/store-ui'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
@@ -82,6 +83,8 @@ export default function ReceiptSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [savedJson, setSavedJson] = useState('')
+  const dirty = !!settings && JSON.stringify(settings) !== savedJson
 
   const selectedCompany = useMemo(
     () => companies.find((c) => c.id === selectedCompanyId) || null,
@@ -102,10 +105,12 @@ export default function ReceiptSettingsPage() {
       setCompanies(json.data.companies || [])
       if (json.data.settings) {
         setSettings(json.data.settings)
+        setSavedJson(JSON.stringify(json.data.settings))
         setSelectedCompanyId(json.data.settings.company_id)
       } else if (json.data.companies.length > 0) {
         const firstId = json.data.companies[0].id
         setSettings(emptySettings(firstId))
+        setSavedJson(JSON.stringify(emptySettings(firstId)))
         setSelectedCompanyId(firstId)
       } else {
         setSettings(null)
@@ -153,6 +158,8 @@ export default function ReceiptSettingsPage() {
       const json = await response.json().catch(() => null)
       if (!response.ok || !json?.ok) throw new Error(json?.error || 'Не удалось сохранить')
       setSuccess('Реквизиты чека сохранены')
+      setSavedJson(JSON.stringify(settings))
+      toast({ title: 'Реквизиты чека сохранены' })
       setTimeout(() => setSuccess(null), 2500)
     } catch (err: any) {
       setError(err?.message || 'Не удалось сохранить')
@@ -161,9 +168,21 @@ export default function ReceiptSettingsPage() {
     }
   }
 
+  const checks: Array<{ ok: boolean; label: string }> = settings
+    ? [
+        { ok: !!settings.tax_payer_name.trim(), label: 'Наименование налогоплательщика' },
+        { ok: settings.tax_payer_bin.trim().length === 12, label: 'БИН/ИИН (12 цифр)' },
+        { ok: !!settings.point_address.trim(), label: 'Адрес точки' },
+        { ok: !!settings.kkm_registration_number.trim(), label: 'Рег. номер ККМ' },
+        { ok: !!settings.ofd_name.trim(), label: 'Оператор фискальных данных' },
+        { ok: !settings.is_vat_payer || Number(settings.vat_rate) > 0, label: 'Ставка НДС (если плательщик)' },
+      ]
+    : []
+  const done = checks.filter((c) => c.ok).length
+  const allDone = checks.length > 0 && done === checks.length
+
   return (
-    <div className="app-page-wide space-y-6">
-      {/* Header */}
+    <div className="app-page-wide space-y-5">
       <AdminPageHeader
         title="Реквизиты чека ККМ"
         description="Приказ Министра финансов РК №626 от 24.10.2025 (действует с 01.01.2026)"
@@ -171,308 +190,213 @@ export default function ReceiptSettingsPage() {
         accent="emerald"
         backHref="/"
         actions={
-          <>
-            {!storeCompanyId && (
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                <SelectTrigger className="h-9 w-full sm:w-auto sm:min-w-[220px]">
-                  <SelectValue placeholder="Выберите точку" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                      {c.code ? ` · ${c.code}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {can('store-receipt-settings.edit') && (
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={saving || loading || !settings}
-              className="h-9 gap-1.5 bg-amber-600 hover:bg-amber-700"
+          !storeCompanyId ? (
+            <NativeSelect
+              className="w-full sm:w-auto sm:min-w-[220px]"
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              aria-label="Точка"
             >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Сохранить
-            </Button>
-            )}
-          </>
+              <option value="" disabled>Выберите точку</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.code ? ` · ${c.code}` : ''}
+                </option>
+              ))}
+            </NativeSelect>
+          ) : undefined
         }
       />
 
       {error ? (
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div>
       ) : null}
-      {success ? (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-300">{success}</div>
-      ) : null}
-
-      {/* Inform banner */}
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3 text-xs text-amber-700 dark:text-amber-200">
-        <div className="flex gap-2">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-medium">Что должно быть на чеке ККМ (требования приказа №626):</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5 leading-relaxed">
-              <li>Наименование налогоплательщика и его БИН/ИИН</li>
-              <li>Адрес торговой точки</li>
-              <li>Заводской и регистрационный номера ККМ</li>
-              <li>Наименование товара (НКТ — код по Национальному каталогу — пока не обязательно, появится позже)</li>
-              <li>Маркировка товара (только для маркируемых — пока не обязательно)</li>
-              <li>Ставка и сумма НДС (если плательщик)</li>
-              <li>Дата и время покупки, фискальный признак</li>
-              <li>Штриховой код для проверки чека</li>
-              <li>Наименование ОФД и ссылка на его портал</li>
-              <li>По необходимости — ИИН покупателя</li>
-              <li>Чек на казахском и/или русском языке</li>
-            </ul>
-          </div>
-        </div>
-      </div>
 
       {loading || !settings ? (
-        <Card className="border-border bg-card/70 p-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <StoreSection title="Загружаем настройки…">
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Загружаем настройки…
+            Подождите секунду
           </div>
-        </Card>
+        </StoreSection>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Готовность к №626 — обязательные реквизиты чека */}
-          {(() => {
-            const checks: Array<{ ok: boolean; label: string }> = [
-              { ok: !!settings.tax_payer_name.trim(), label: 'Наименование налогоплательщика' },
-              { ok: settings.tax_payer_bin.trim().length === 12, label: 'БИН/ИИН (12 цифр)' },
-              { ok: !!settings.point_address.trim(), label: 'Адрес точки' },
-              { ok: !!settings.kkm_registration_number.trim(), label: 'Рег. номер ККМ' },
-              { ok: !!settings.ofd_name.trim(), label: 'Оператор фискальных данных' },
-              { ok: !settings.is_vat_payer || Number(settings.vat_rate) > 0, label: 'Ставка НДС (если плательщик)' },
-            ]
-            const done = checks.filter((c) => c.ok).length
-            const all = done === checks.length
-            return (
-              <Card className={`p-4 lg:col-span-2 ${all ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-amber-500/30 bg-amber-500/[0.06]'}`}>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <ShieldCheck className={`h-4 w-4 ${all ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'}`} />
-                  Готовность чека к Приказу МФ РК №626 · {done}/{checks.length}
+        <>
+          {/* Готовность к №626 */}
+          <StoreSection
+            title="Готовность чека к Приказу МФ РК №626"
+            subtitle={allDone ? 'Все обязательные реквизиты заполнены' : 'Без обязательных реквизитов чек не соответствует закону'}
+            icon={<ShieldCheck className={`h-4 w-4 ${allDone ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'}`} />}
+            action={<StoreChip tone={allDone ? 'emerald' : 'amber'}>{done} из {checks.length}</StoreChip>}
+          >
+            <div className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              {checks.map((c) => (
+                <span key={c.label} className={`flex items-center gap-2 ${c.ok ? 'text-foreground' : 'text-amber-700 dark:text-amber-300'}`}>
+                  {c.ok
+                    ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                    : <Circle className="h-4 w-4 shrink-0 text-amber-500" />}
+                  {c.label}
+                </span>
+              ))}
+            </div>
+            <details className="mt-3 text-xs text-muted-foreground">
+              <summary className="flex cursor-pointer items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300">
+                <Info className="h-3.5 w-3.5" /> Что должно быть на чеке по приказу №626
+              </summary>
+              <ul className="mt-2 list-inside list-disc space-y-0.5 leading-relaxed">
+                <li>Наименование налогоплательщика и его БИН/ИИН</li>
+                <li>Адрес торговой точки</li>
+                <li>Заводской и регистрационный номера ККМ</li>
+                <li>Наименование товара (НКТ — код по Национальному каталогу — пока не обязательно, появится позже)</li>
+                <li>Маркировка товара (только для маркируемых — пока не обязательно)</li>
+                <li>Ставка и сумма НДС (если плательщик)</li>
+                <li>Дата и время покупки, фискальный признак</li>
+                <li>Штриховой код для проверки чека</li>
+                <li>Наименование ОФД и ссылка на его портал</li>
+                <li>По необходимости — ИИН покупателя</li>
+                <li>Чек на казахском и/или русском языке</li>
+              </ul>
+            </details>
+          </StoreSection>
+
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-5">
+              <StoreSection title="Налогоплательщик" subtitle="Печатается в шапке чека" icon={<Building2 className="h-4 w-4" />}>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Наименование</Label>
+                    <Input value={settings.tax_payer_name} onChange={(e) => patch('tax_payer_name', e.target.value)} placeholder="ТОО / ИП «...»" />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>БИН / ИИН</Label>
+                      <Input
+                        value={settings.tax_payer_bin}
+                        onChange={(e) => patch('tax_payer_bin', e.target.value.replace(/\D/g, '').slice(0, 12))}
+                        placeholder="12 цифр"
+                        inputMode="numeric"
+                      />
+                      <p className="text-xs text-muted-foreground">Только цифры, ровно 12.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Адрес торговой точки</Label>
+                      <Input value={settings.point_address} onChange={(e) => patch('point_address', e.target.value)} placeholder="Город, улица, дом, помещение" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                  {checks.map((c) => (
-                    <span key={c.label} className={c.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}>
-                      {c.ok ? '✓' : '•'} {c.label}
-                    </span>
-                  ))}
+              </StoreSection>
+
+              <StoreSection title="Контрольно-кассовая машина" subtitle="Номера из документов на ККМ" icon={<Cpu className="h-4 w-4" />}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Заводской номер ККМ</Label>
+                    <Input value={settings.kkm_factory_number} onChange={(e) => patch('kkm_factory_number', e.target.value)} placeholder="С шильдика устройства" />
+                    <p className="text-xs text-muted-foreground">Указан на корпусе устройства.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Регистрационный номер ККМ</Label>
+                    <Input value={settings.kkm_registration_number} onChange={(e) => patch('kkm_registration_number', e.target.value)} placeholder="Присвоен налоговым органом" />
+                    <p className="text-xs text-muted-foreground">Выдаётся при регистрации в налоговой.</p>
+                  </div>
                 </div>
-                {!all && <p className="mt-2 text-[11px] text-amber-700/80 dark:text-amber-200/80">Заполните обязательные реквизиты — без них чек не соответствует закону.</p>}
-              </Card>
-            )
-          })()}
+              </StoreSection>
 
-          {/* Налогоплательщик */}
-          <Card className="border-border bg-card/70 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">Налогоплательщик</h2>
-            </div>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Наименование</Label>
-                <Input
-                  value={settings.tax_payer_name}
-                  onChange={(e) => patch('tax_payer_name', e.target.value)}
-                  placeholder="ТОО / ИП «...»"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>БИН / ИИН</Label>
-                <Input
-                  value={settings.tax_payer_bin}
-                  onChange={(e) => patch('tax_payer_bin', e.target.value.replace(/\D/g, '').slice(0, 12))}
-                  placeholder="12 цифр"
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Адрес торговой точки</Label>
-                <Input
-                  value={settings.point_address}
-                  onChange={(e) => patch('point_address', e.target.value)}
-                  placeholder="Город, улица, дом, помещение"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* ККМ */}
-          <Card className="border-border bg-card/70 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">Контрольно-кассовая машина</h2>
-            </div>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Заводской номер ККМ</Label>
-                <Input
-                  value={settings.kkm_factory_number}
-                  onChange={(e) => patch('kkm_factory_number', e.target.value)}
-                  placeholder="С шильдика устройства"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Регистрационный номер ККМ</Label>
-                <Input
-                  value={settings.kkm_registration_number}
-                  onChange={(e) => patch('kkm_registration_number', e.target.value)}
-                  placeholder="Присвоен налоговым органом при регистрации"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* НДС */}
-          <Card className="border-border bg-card/70 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">НДС</h2>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="cursor-pointer">Плательщик НДС</Label>
-                <p className="text-xs text-muted-foreground">Если ИП/юр.лицо — плательщик НДС</p>
-              </div>
-              <Switch
-                checked={settings.is_vat_payer}
-                onCheckedChange={(v) => patch('is_vat_payer', v)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ставка НДС, %</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={String(settings.vat_rate)}
-                onChange={(e) => patch('vat_rate', Number(e.target.value) || 0)}
-                disabled={!settings.is_vat_payer}
-              />
-            </div>
-          </Card>
-
-          {/* ОФД */}
-          <Card className="border-border bg-card/70 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">Оператор фискальных данных (ОФД)</h2>
-            </div>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Наименование ОФД</Label>
-                <Input
-                  value={settings.ofd_name}
-                  onChange={(e) => patch('ofd_name', e.target.value)}
-                  placeholder="Например: АО «Казахтелеком», АО «КЦМР»"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Ссылка на портал ОФД для проверки чека</Label>
-                <Input
-                  value={settings.ofd_check_url}
-                  onChange={(e) => patch('ofd_check_url', e.target.value)}
-                  placeholder="https://…"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Языки и доп. */}
-          <Card className="border-border bg-card/70 p-5 space-y-4 lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">Параметры чека</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Язык чека</Label>
-                <Select
-                  value={settings.receipt_language}
-                  onValueChange={(v) => patch('receipt_language', v as Settings['receipt_language'])}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ru">Русский</SelectItem>
-                    <SelectItem value="kk">Қазақша</SelectItem>
-                    <SelectItem value="both">Қазақша / Русский</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2">
-                <div>
-                  <Label className="cursor-pointer">Запрашивать ИИН покупателя</Label>
-                  <p className="text-xs text-muted-foreground">По требованию (для юр.лиц)</p>
+              <StoreSection title="НДС" icon={<Landmark className="h-4 w-4" />}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-3 py-2.5">
+                    <div>
+                      <Label className="cursor-pointer">Плательщик НДС</Label>
+                      <p className="text-xs text-muted-foreground">Если ИП или юрлицо платит НДС</p>
+                    </div>
+                    <Switch checked={settings.is_vat_payer} onCheckedChange={(v) => patch('is_vat_payer', v)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Ставка НДС, %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={String(settings.vat_rate)}
+                      onChange={(e) => patch('vat_rate', Number(e.target.value) || 0)}
+                      disabled={!settings.is_vat_payer}
+                    />
+                    <p className="text-xs text-muted-foreground">{settings.is_vat_payer ? 'Печатается в строке «в т.ч. НДС».' : 'Включите «Плательщик НДС», чтобы указать ставку.'}</p>
+                  </div>
                 </div>
-                <Switch
-                  checked={settings.require_buyer_iin}
-                  onCheckedChange={(v) => patch('require_buyer_iin', v)}
-                />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Подпись чека (нижний колонтитул)</Label>
-                <Textarea
-                  value={settings.receipt_footer_text}
-                  onChange={(e) => patch('receipt_footer_text', e.target.value)}
-                  rows={2}
-                  placeholder="Например: «Спасибо за покупку! Возврат в течение 14 дней по чеку.»"
-                />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Ссылка на отзывы (2GIS / Google Maps)</Label>
-                <Input
-                  value={settings.review_url}
-                  onChange={(e) => patch('review_url', e.target.value)}
-                  placeholder="https://2gis.kz/almaty/firm/..."
-                />
-                <p className="text-xs text-muted-foreground">QR «Оцените нас» на экране покупателя после оплаты. Пусто — QR не показывается.</p>
-              </div>
-            </div>
-          </Card>
+              </StoreSection>
 
-          {/* Маркировка / НКТ — будущее */}
-          <Card className="border-amber-500/20 bg-amber-500/[0.04] p-5 space-y-3 lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <Info className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold text-amber-700 dark:text-amber-200">Маркировка и НКТ — появятся позже</h2>
-            </div>
-            <p className="text-xs text-amber-700/80 dark:text-amber-200/80">
-              Печать кода маркируемого товара и кода по Национальному каталогу товаров (НКТ) станет обязательной в составе чека.
-              Поддержка появится отдельным релизом. Переключатели ниже зарезервированы — не включайте, пока не появится логика.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2 opacity-60">
-                <Label>Печать маркировки на чеке</Label>
-                <Switch checked={settings.marking_enabled} onCheckedChange={(v) => patch('marking_enabled', v)} disabled />
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2 opacity-60">
-                <Label>Код товара по НКТ</Label>
-                <Switch checked={settings.nkt_enabled} onCheckedChange={(v) => patch('nkt_enabled', v)} disabled />
-              </div>
-            </div>
-          </Card>
+              <StoreSection title="Оператор фискальных данных (ОФД)" subtitle="Куда уходят чеки" icon={<FileText className="h-4 w-4" />}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Наименование ОФД</Label>
+                    <Input value={settings.ofd_name} onChange={(e) => patch('ofd_name', e.target.value)} placeholder="Например: АО «Казахтелеком»" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Портал ОФД для проверки чека</Label>
+                    <Input value={settings.ofd_check_url} onChange={(e) => patch('ofd_check_url', e.target.value)} placeholder="https://…" />
+                  </div>
+                </div>
+              </StoreSection>
 
-          {/* Живой предпросмотр чека */}
-          <Card className="border-border bg-card/70 p-5 lg:col-span-2">
-            <div className="mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-              <h2 className="text-sm font-semibold">Предпросмотр чека</h2>
-              <span className="text-xs text-muted-foreground">— как чек увидит покупатель</span>
+              <StoreSection title="Параметры чека" icon={<Printer className="h-4 w-4" />}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Язык чека</Label>
+                    <NativeSelect
+                      value={settings.receipt_language}
+                      onChange={(e) => patch('receipt_language', e.target.value as Settings['receipt_language'])}
+                    >
+                      <option value="ru">Русский</option>
+                      <option value="kk">Қазақша</option>
+                      <option value="both">Қазақша / Русский</option>
+                    </NativeSelect>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-3 py-2.5">
+                    <div>
+                      <Label className="cursor-pointer">Запрашивать ИИН покупателя</Label>
+                      <p className="text-xs text-muted-foreground">По требованию, для юрлиц</p>
+                    </div>
+                    <Switch checked={settings.require_buyer_iin} onCheckedChange={(v) => patch('require_buyer_iin', v)} />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Подпись чека (нижний колонтитул)</Label>
+                    <Textarea
+                      value={settings.receipt_footer_text}
+                      onChange={(e) => patch('receipt_footer_text', e.target.value)}
+                      rows={2}
+                      placeholder="Например: «Спасибо за покупку! Возврат в течение 14 дней по чеку.»"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Ссылка на отзывы (2GIS / Google Maps)</Label>
+                    <Input value={settings.review_url} onChange={(e) => patch('review_url', e.target.value)} placeholder="https://2gis.kz/almaty/firm/..." />
+                    <p className="text-xs text-muted-foreground">QR «Оцените нас» на экране покупателя после оплаты. Пусто — QR не показывается.</p>
+                  </div>
+                </div>
+              </StoreSection>
+
+              <StoreSection title="Маркировка и НКТ" subtitle="Появятся отдельным релизом — переключатели пока недоступны" icon={<Info className="h-4 w-4" />}>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Печать кода маркируемого товара и кода по Национальному каталогу товаров станет обязательной частью чека.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2 opacity-60">
+                    <Label>Печать маркировки на чеке</Label>
+                    <Switch checked={settings.marking_enabled} onCheckedChange={(v) => patch('marking_enabled', v)} disabled />
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-3 py-2 opacity-60">
+                    <Label>Код товара по НКТ</Label>
+                    <Switch checked={settings.nkt_enabled} onCheckedChange={(v) => patch('nkt_enabled', v)} disabled />
+                  </div>
+                </div>
+              </StoreSection>
             </div>
-            <div className="flex justify-center">
-              <div className="w-[300px] rounded-md border border-slate-300 bg-white p-4 font-mono text-[12px] leading-relaxed text-black shadow-sm dark:border-white/15">
+
+            <div className="xl:sticky xl:top-4">
+              <StoreSection title="Предпросмотр чека" subtitle="Как чек увидит покупатель" icon={<FileText className="h-4 w-4" />}>
+                <div className="flex justify-center">
+              <div className="w-full max-w-[300px] rounded-md border border-slate-300 bg-white p-4 font-mono text-[12px] leading-relaxed text-black shadow-sm dark:border-white/15">
                 <div className="text-center">
                   <div className="font-bold">{settings.tax_payer_name || 'ТОО / ИП «…»'}</div>
                   <div>БИН/ИИН {settings.tax_payer_bin || '____________'}</div>
@@ -507,9 +431,11 @@ export default function ReceiptSettingsPage() {
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">Пример с фиктивными товарами. Реальные данные подставятся при продаже.</p>
-          </Card>
-        </div>
+                <p className="mt-3 text-center text-[11px] text-muted-foreground">Пример с фиктивными товарами. Реальные данные подставятся при продаже.</p>
+              </StoreSection>
+            </div>
+          </div>
+        </>
       )}
 
       {selectedCompany ? (
@@ -518,6 +444,21 @@ export default function ReceiptSettingsPage() {
           {selectedCompany.code ? ` · ${selectedCompany.code}` : ''}
         </p>
       ) : null}
+
+      {/* Панель сохранения всегда на виду */}
+      {can('store-receipt-settings.edit') && (
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white/95 px-4 py-3 shadow-lg backdrop-blur dark:bg-slate-900/90">
+          {dirty
+            ? <StoreChip tone="amber">Есть несохранённые изменения</StoreChip>
+            : success
+              ? <StoreChip tone="emerald">{success}</StoreChip>
+              : <span className="text-xs text-muted-foreground">Все изменения сохранены</span>}
+          <Button onClick={handleSave} disabled={saving || loading || !settings || !dirty} className="ml-auto bg-emerald-600 text-white hover:bg-emerald-700">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Сохранить
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

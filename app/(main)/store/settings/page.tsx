@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { Skeleton } from '@/components/skeleton'
-import { Settings, Store, Check, Loader2, Save } from 'lucide-react'
+import { Settings, Store, Loader2, Save } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { toast } from '@/hooks/use-toast'
+import { StoreSection, StoreChip, StoreEmpty } from '@/components/store/store-ui'
 
 type Company = { id: string; name: string; code: string | null; store_enabled?: boolean }
 
@@ -51,6 +55,7 @@ export default function StoreSettingsPage() {
       if (!res.ok || !j.ok) throw new Error(j.error || 'Ошибка сохранения')
       setSavedEnabled(new Set(enabled))
       setMsg('Сохранено')
+      toast({ title: 'Настройки магазина сохранены' })
       setTimeout(() => setMsg(null), 2500)
     } catch (e: any) { setErr(e?.message || 'Ошибка') } finally { setSaving(false) }
   }
@@ -68,65 +73,55 @@ export default function StoreSettingsPage() {
         backHref="/store"
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900/60 p-4 sm:p-5 shadow-lg shadow-black/20">
-        <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Store className="h-4 w-4 text-emerald-300" /> Точки-магазины
-        </div>
+      <StoreSection
+        title="Точки-магазины"
+        subtitle={loading ? undefined : `Выбрано ${enabled.size} из ${companies.length}`}
+        icon={<Store className="h-4 w-4" />}
+      >
         <p className="mb-4 text-xs text-muted-foreground">
-          Отметьте точки, которые работают как магазин. Можно несколько. В шапке модуля вы переключаетесь между отмеченными точками и режимом «Общий» (все магазины сразу).
+          Включите точки, которые работают как магазин — можно несколько. В шапке модуля вы переключаетесь между ними и режимом «Общий» (все магазины сразу).
         </p>
 
         {loading ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Skeleton className="h-[58px] w-full rounded-xl" />
-            <Skeleton className="h-[58px] w-full rounded-xl" />
-            <Skeleton className="h-[58px] w-full rounded-xl" />
-            <Skeleton className="h-[58px] w-full rounded-xl" />
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[58px] w-full rounded-xl" />)}
           </div>
         ) : companies.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">Нет точек. Создайте их в «Настройки → Компании».</div>
+          <StoreEmpty title="Нет точек" hint="Создайте их в «Настройки → Компании»." icon={<Store className="h-5 w-5" />} />
         ) : (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {companies.map((c) => {
               const active = enabled.has(c.id)
               return (
-                <button
+                <label
                   key={c.id}
-                  type="button"
-                  disabled={!canManage}
-                  onClick={() => toggle(c.id)}
-                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
-                    active ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20'
-                  } ${!canManage ? 'cursor-not-allowed opacity-70' : ''}`}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                    active ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-border bg-slate-50 hover:border-slate-300 dark:bg-white/[0.02] dark:hover:border-white/20'
+                  } ${canManage ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-foreground">{c.name}</div>
-                    {c.code ? <div className="text-xs text-slate-500">{c.code}</div> : null}
+                    <div className="text-xs text-muted-foreground">{c.code || (active ? 'Магазин' : 'Не магазин')}</div>
                   </div>
-                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border ${active ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 text-transparent dark:border-white/15'}`}>
-                    <Check className="h-3.5 w-3.5" />
-                  </span>
-                </button>
+                  <Switch checked={active} disabled={!canManage} onCheckedChange={() => toggle(c.id)} aria-label={c.name} />
+                </label>
               )
             })}
           </div>
         )}
+      </StoreSection>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {can('store-settings.edit') && (
-          <button
-            onClick={save}
-            disabled={!canManage || saving || !dirty}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+      {/* Панель сохранения всегда на виду */}
+      <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white/95 px-4 py-3 shadow-lg backdrop-blur dark:bg-slate-900/90">
+        {dirty ? <StoreChip tone="amber">Есть несохранённые изменения</StoreChip> : msg ? <StoreChip tone="emerald">{msg}</StoreChip> : <span className="text-xs text-muted-foreground">Все изменения сохранены</span>}
+        {err && <span className="text-sm text-rose-600 dark:text-rose-300">{err}</span>}
+        {!canManage && <span className="text-xs text-muted-foreground">Менять может только владелец или менеджер</span>}
+        {can('store-settings.edit') && (
+          <Button onClick={save} disabled={!canManage || saving || !dirty} className="ml-auto bg-emerald-600 text-white hover:bg-emerald-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Сохранить
-          </button>
-          )}
-          {msg && <span className="text-sm text-emerald-700 dark:text-emerald-300">{msg}</span>}
-          {err && <span className="text-sm text-rose-700 dark:text-rose-300">{err}</span>}
-          {!canManage && <span className="text-xs text-slate-500">Только владелец/менеджер может менять</span>}
-        </div>
+          </Button>
+        )}
       </div>
     </div>
   )

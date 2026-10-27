@@ -12,27 +12,18 @@ import { getSectionById } from '@/lib/nav/sections'
 type Item = { href: string; label: string; icon: any; exact?: boolean }
 
 /**
- * Порядок пунктов в меню модуля. Сами пункты (заголовок, иконка, фича) берутся
- * из раздела «Магазин» общей навигации — раньше здесь лежал второй, руками
- * поддерживаемый список, и он успел разъехаться с первым.
+ * Группы меню модуля. Сами пункты (заголовок, иконка, фича) берутся из раздела
+ * «Магазин» общей навигации — здесь только порядок и заголовки групп.
  */
-const NAV_ORDER = [
-  '/store/sales',
-  '/store/insights',
-  '/store',
-  '/store/stock',
-  '/store/production',
-  '/store/documents',
-  '/store/orders',
-  '/store/purchase-plan',
-  '/store/vendors',
-  '/store/cashbox',
-  '/store/shifts',
-  '/store/clients',
-  '/pos',
-  '/store/receipt-settings',
-  '/store/settings',
+const NAV_GROUPS: Array<{ title: string | null; hrefs: string[] }> = [
+  { title: null, hrefs: ['/store'] },
+  { title: 'Аналитика', hrefs: ['/store/sales', '/store/insights'] },
+  { title: 'Склад', hrefs: ['/store/stock', '/store/production'] },
+  { title: 'Документы и заявки', hrefs: ['/store/documents', '/store/orders', '/store/purchase-plan', '/store/vendors'] },
+  { title: 'Касса', hrefs: ['/store/cashbox', '/store/shifts', '/store/clients', '/pos'] },
+  { title: 'Настройки', hrefs: ['/store/receipt-settings', '/store/settings'] },
 ]
+const NAV_ORDER = NAV_GROUPS.flatMap((g) => g.hrefs)
 
 // Внутри модуля названия короче: раздел и так подписан в шапке.
 const SHORT_LABEL: Record<string, string> = {
@@ -99,7 +90,7 @@ function StoreCompanySwitcher() {
         aria-haspopup="listbox"
         aria-expanded={open}
         title="Точка магазина"
-        className="inline-flex max-w-[180px] items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 py-1.5 pl-2.5 pr-2 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-500/15 dark:text-emerald-200"
+        className="inline-flex max-w-[220px] items-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-1.5 pl-2.5 pr-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-500/15 dark:text-emerald-200"
       >
         {current ? <Store className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" /> : <Boxes className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />}
         <span className="truncate">{label}</span>
@@ -169,25 +160,40 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
   }, [])
 
   const navList = (onNavigate?: () => void) => (
-    <nav className="flex-1 space-y-1 px-2 py-3">
-      {navItems.map((item) => {
-        const active = isActive(item)
-        const Icon = item.icon
+    <nav className="flex-1 space-y-4 px-2.5 py-3">
+      {NAV_GROUPS.map((group) => {
+        const items = group.hrefs
+          .map((href) => navItems.find((i) => i.href === href))
+          .filter((i): i is Item => !!i)
+        if (items.length === 0) return null
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            prefetch
-            onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-              active ? 'bg-slate-100 text-slate-900 ring-1 ring-slate-200 dark:bg-white/[0.07] dark:text-white dark:ring-white/10' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'
-            }`}
-          >
-            <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${active ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-200 text-slate-500 dark:bg-white/5 dark:text-slate-500'}`}>
-              <Icon className="h-4 w-4" />
-            </span>
-            {item.label}
-          </Link>
+          <div key={group.title || 'root'} className="space-y-0.5">
+            {group.title && (
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{group.title}</div>
+            )}
+            {items.map((item) => {
+              const active = isActive(item)
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch
+                  onClick={onNavigate}
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
+                    active
+                      ? 'bg-emerald-500/10 font-semibold text-emerald-800 dark:text-emerald-200'
+                      : 'font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'
+                  }`}
+                >
+                  {active && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-emerald-500" aria-hidden />}
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'}`} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              )
+            })}
+          </div>
         )
       })}
     </nav>
@@ -196,24 +202,24 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-20 flex flex-col bg-white dark:bg-slate-950">
       {/* Топ-бар модуля «Магазин» — зафиксирован сверху, не скролится */}
-      <header className="relative z-50 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-3 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 sm:px-4">
+      <header className="relative z-50 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-3 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80 sm:px-4">
         <div className="flex items-center gap-2">
           <button onClick={() => setMobileOpen(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10 md:hidden" aria-label="Меню">
             <Menu className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-xl border border-emerald-400/30 bg-emerald-500/15">
-              <Store className="h-4 w-4 text-emerald-300" />
+            <div className="grid h-7 w-7 place-items-center rounded-lg border border-emerald-400/30 bg-emerald-500/15">
+              <Store className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-foreground">Orda</span>
-              <span className="hidden text-slate-600 sm:inline">·</span>
+              <span className="hidden text-slate-400 sm:inline">·</span>
               <span className="hidden text-sm font-semibold text-emerald-600 dark:text-emerald-300 sm:inline">Магазин</span>
-              <span className="ml-1 hidden rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-700/90 dark:text-emerald-300/90 lg:inline">модуль</span>
+              
             </div>
           </div>
           <div className="mx-1 hidden h-6 w-px bg-slate-200 dark:bg-white/10 sm:block" />
-          <StoreCompanySwitcher />
+          <div className="hidden sm:block"><StoreCompanySwitcher /></div>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => setSearchOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white">
@@ -253,11 +259,12 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-y-0 left-0 flex w-[80%] max-w-[18rem] flex-col border-r border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-950">
             <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4 dark:border-white/10">
               <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-xl border border-emerald-400/30 bg-emerald-500/15"><Store className="h-4 w-4 text-emerald-300" /></div>
+                <div className="grid h-8 w-8 place-items-center rounded-xl border border-emerald-400/30 bg-emerald-500/15"><Store className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /></div>
                 <span className="text-sm font-semibold text-foreground">Магазин</span>
               </div>
               <button onClick={() => setMobileOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"><X className="h-4 w-4" /></button>
             </div>
+            <div className="border-b border-slate-200 p-3 dark:border-white/10 sm:hidden"><StoreCompanySwitcher /></div>
             <div className="flex-1 overflow-y-auto">{navList(() => setMobileOpen(false))}</div>
             <div className="border-t border-slate-200 p-2 dark:border-white/10">
               <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
