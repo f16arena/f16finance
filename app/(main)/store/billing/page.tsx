@@ -621,7 +621,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
         )
       })()}
 
-      <Card className="p-3 bg-white dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
+      <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           <Input
             value={searchQuery}
@@ -653,17 +653,17 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
       {activeTab === 'debts' ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-            <Card className="p-3 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
               <div className="text-[11px] text-muted-foreground uppercase">Открытых долгов</div>
               <div className="text-lg font-bold text-amber-700 dark:text-amber-300">{totalsByStatus.openCount}</div>
               <div className="text-xs text-muted-foreground">{formatMoney(totalsByStatus.open)}</div>
             </Card>
-            <Card className="p-3 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
               <div className="text-[11px] text-muted-foreground uppercase">Просрочено</div>
               <div className="text-lg font-bold text-red-700 dark:text-red-300">{totalsByStatus.overdueCount}</div>
               <div className="text-xs text-muted-foreground">{formatMoney(totalsByStatus.overdue)}</div>
             </Card>
-            <Card className="p-3 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
               <div className="text-[11px] text-muted-foreground uppercase">Фильтр статуса</div>
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
@@ -717,7 +717,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
           ) : (
             <div className="space-y-2">
               {filteredDebts.map((debt) => (
-                <Card key={debt.id} className="p-4 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+                <Card key={debt.id} className="p-4 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     {debt.status === 'open' ? (
                       <input
@@ -840,7 +840,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
                     {fmtDate(date)} · накладных: {items.length}
                   </div>
                   {items.map((r) => (
-                    <Card key={r.id} className="p-4 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800">
+                    <Card key={r.id} className="p-4 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2 text-sm">

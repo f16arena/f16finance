@@ -1,5 +1,7 @@
-import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+
+// Тот же вид, что у storeCard (store-ui — клиентский модуль, в серверный скелет константу не тянем).
+const storeCard = 'rounded-2xl border border-border bg-white dark:bg-slate-900/60 shadow-sm'
 
 type Props = { cards?: number }
 
@@ -8,7 +10,7 @@ export function StorePanelSkeleton({ cards = 3 }: Props) {
   return (
     <div className="space-y-3">
       {Array.from({ length: cards }).map((_, i) => (
-        <Card key={i} className="border-white/10 bg-card/70 p-4">
+        <div key={i} className={`${storeCard} p-4`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <Skeleton className="h-4 w-4 shrink-0 rounded" />
             <div className="min-w-0 flex-1 space-y-2">
@@ -20,7 +22,7 @@ export function StorePanelSkeleton({ cards = 3 }: Props) {
               <Skeleton className="h-24 w-full" />
             </div>
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   )
