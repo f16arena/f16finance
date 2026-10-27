@@ -81,12 +81,13 @@ private class ExpenseFormModel(private val api: FinanceApi) {
         }
     }
 
-    suspend fun submit(draft: ExpenseDraft): Boolean {
+    suspend fun submit(draft: ExpenseDraft, series: Pair<SeriesKind, List<SeriesRow>>? = null): Boolean {
         if (submitting) return false
         submitting = true
         submitError = null
         return try {
-            api.submitExpense(ensureSession(), draft)
+            if (series == null) api.submitExpense(ensureSession(), draft)
+            else api.submitExpenseSeries(ensureSession(), draft, series.first, series.second)
             sessionId = null
             true
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -131,6 +132,11 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
     var payee by remember { mutableStateOf("") }
     var reason by remember { mutableStateOf("") }
     var backdated by remember { mutableStateOf(false) }
+    // Серия: налог за полгода одним платежом, а в отчётах он лежит по месяцам.
+    var seriesOn by remember { mutableStateOf(false) }
+    var seriesKind by remember { mutableStateOf(SeriesKind.Month) }
+    var seriesCount by remember { mutableStateOf("6") }
+    var seriesMode by remember { mutableStateOf(SeriesAmountMode.PerPeriod) }
 
     LaunchedEffect(Unit) { vm.loadExpenseRefs(); vm.loadOperators() }
     LaunchedEffect(companies) { if (companyId.isEmpty() && companies.size == 1) companyId = companies[0].id }
@@ -148,10 +154,19 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
         documentKind = kind, documentUrls = model.documentUrls,
         whitelistVendorId = vendorId.ifEmpty { null }, oneOffPayee = payee, oneOffReason = reason, backdatedConfirmed = backdated,
     )
-    val isBackdated = runCatching { LocalDate.parse(date).isBefore(AnalyticsPeriod.businessToday().minusDays(7)) }.getOrDefault(false)
+    val seriesRows = if (seriesOn) {
+        runCatching { ExpenseSeriesLogic.rows(date, seriesKind, seriesCount.toIntOrNull() ?: 0, draft.amountCash, draft.amountKaspi, seriesMode) }.getOrDefault(emptyList())
+    } else emptyList()
+    val weekAgo = AnalyticsPeriod.businessToday().minusDays(7)
+    val isBackdated = runCatching {
+        if (seriesOn) seriesRows.any { LocalDate.parse(it.date).isBefore(weekAgo) } else LocalDate.parse(date).isBefore(weekAgo)
+    }.getOrDefault(false)
     // Подтверждение нужно только для старых дат: без галочки такая дата не пройдёт.
     val effective = if (isBackdated) draft else draft.copy(backdatedConfirmed = false)
-    val blocker = effective.validationMessage ?: if (isBackdated && !backdated) "Подтвердите, что расход задним числом" else null
+    val today = AnalyticsPeriod.businessToday()
+    val seriesBlocker = if (!seriesOn) null else ExpenseSeriesLogic.problem(seriesRows, seriesKind)
+        ?: if (seriesRows.any { LocalDate.parse(it.date).isAfter(today) }) "Дата периода не может быть в будущем" else null
+    val blocker = effective.validationMessage ?: seriesBlocker ?: if (isBackdated && !backdated) "Подтвердите, что расход задним числом" else null
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -183,6 +198,29 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
             AmountField("Безналичный", kaspi, { kaspi = it })
             FieldHint("Комментарий — не меньше 20 символов: через полгода по нему будут вспоминать, за что заплатили.")
             TextAreaField("Зачем и кому", comment, { comment = it })
+        }
+        FormSection("Серия") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Разнести на несколько периодов", color = Orda.colors.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Switch(checked = seriesOn, onCheckedChange = { seriesOn = it })
+            }
+            if (seriesOn) {
+                FieldHint("Дата выше — начало серии: каждая запись получит дату своего периода (март — в марте, апрель — в апреле).")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SeriesKind.entries.forEach { k -> DocChip(k.title, seriesKind == k, Modifier.weight(1f)) { seriesKind = k } }
+                }
+                TextLineField("Сколько периодов (до ${seriesKind.maxPeriods})", seriesCount, { seriesCount = it.filter(Char::isDigit).take(2) })
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SeriesAmountMode.entries.forEach { m -> DocChip(m.title, seriesMode == m, Modifier.weight(1f)) { seriesMode = m } }
+                }
+                seriesRows.forEach { r ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(r.label, color = Orda.colors.textMuted, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        Text(money(r.total), color = Orda.colors.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                if (seriesRows.isNotEmpty()) Text("Итого: ${money(seriesRows.sumOf { it.total })}", color = Orda.colors.textMuted, fontSize = 13.sp)
+            }
         }
         FormSection("Чем подтверждён") {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -239,7 +277,8 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
             loading = model.submitting,
         ) {
             scope.launch {
-                if (model.submit(effective)) {
+                val series = if (seriesOn) seriesKind to seriesRows else null
+                if (model.submit(effective, series)) {
                     haptics.success()
                     vm.reload()
                     onDismiss()

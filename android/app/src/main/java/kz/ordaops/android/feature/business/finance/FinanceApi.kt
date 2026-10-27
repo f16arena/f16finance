@@ -176,4 +176,20 @@ class FinanceApi(val api: ApiClient) {
         )
         api.sendUnit(ApiRequest.json("/api/admin/expenses/wizard/submit", buildJsonObject { put("session_id", sessionId) }))
     }
+
+    /** Серия: то же сохранение полей, но вместо одной записи — по записи на период (`submit-series`). */
+    suspend fun submitExpenseSeries(sessionId: String, draft: ExpenseDraft, kind: SeriesKind, rows: List<SeriesRow>) {
+        api.sendUnit(
+            ApiRequest.json(
+                "/api/admin/expenses/wizard",
+                buildJsonObject {
+                    put("session_id", sessionId)
+                    put("step", 3)
+                    put("payload", draft.payload())
+                },
+                HttpMethod.PATCH,
+            ),
+        )
+        api.sendUnit(ApiRequest.json("/api/admin/expenses/wizard/submit-series", ExpenseSeriesLogic.body(sessionId, kind, rows)))
+    }
 }
