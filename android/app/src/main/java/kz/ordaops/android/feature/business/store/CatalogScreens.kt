@@ -101,7 +101,7 @@ fun CatalogScreen() {
                                 quantity = it2.catalogQty,
                                 unit = it2.unit ?: "шт",
                                 threshold = it2.lowStockThreshold,
-                                caption = listOfNotNull(it2.categoryName, it2.salePrice?.let { p -> money(p) }).joinToString(" · ").ifEmpty { null },
+                                caption = listOfNotNull(if (it2.isService) "услуга" else null, it2.categoryName, it2.salePrice?.let { p -> money(p) }).joinToString(" · ").ifEmpty { null },
                                 onClick = { selectedId = it2.id },
                             )
                         }
@@ -145,7 +145,7 @@ private fun CatalogDetail(vm: StoreViewModel, item: CatalogItem, toast: ToastSta
     val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
-    val canEdit = env.can("store-catalog.edit")
+    val canEdit = env.can("store-catalog.edit") && !item.isService
     val canDelete = env.can("store-catalog.delete")
     StoreLazy {
         item {
@@ -171,7 +171,10 @@ private fun CatalogDetail(vm: StoreViewModel, item: CatalogItem, toast: ToastSta
                     if (item.requiresExpiry) StatLine("Срок годности", "учитывается")
                     if (!item.notes.isNullOrBlank()) Text(item.notes, color = Orda.colors.textMuted, fontSize = 14.sp)
                 }
-                StoreCard {
+                // Услуга — позиция без остатка: цены, варианты и время правятся на сайте (Склад → Услуги).
+                if (item.isService) {
+                    StoreCard { Text("Услуга: остатка нет. Варианты цены и время настраиваются на сайте, в разделе «Услуги».", color = Orda.colors.textMuted, fontSize = 14.sp) }
+                } else StoreCard {
                     SectionTitle("Остатки")
                     // Нули приглушаем: ноль — не событие.
                     StatLine("Всего", formatQtyUnit(item.catalogQty, item.unit), if (item.catalogQty <= 0) StoreTone.neutral else Orda.colors.text)

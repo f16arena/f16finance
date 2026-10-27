@@ -42,9 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kz.ordaops.android.feature.business.AttentionCard
 import kz.ordaops.android.feature.business.HeroColors
-import kz.ordaops.android.feature.business.HorizontalRow
 import kz.ordaops.android.feature.business.LocalBusiness
 import kz.ordaops.android.feature.business.OwnerScreenColumn
 import kz.ordaops.android.feature.business.OwnerSection
@@ -155,36 +153,46 @@ private fun HeroStat(label: String, value: String) {
 }
 
 /**
- * «Требует внимания». Цвет по смыслу: rose — потеря, amber — ждёт человека,
- * sky — подсобка. Блок рисуется, только если сервер прислал счётчики и есть что показать.
+ * «Требует внимания» — только то, что ждёт человека; нули не показываем. Тексты и
+ * цвета — как на сайте: amber — ждёт решения, rose — потеря или просрочка. Пусто на
+ * витрине, но есть в подсобке — «выставить»; закончилось совсем — «закупить».
+ * Если делать нечего — «Всё спокойно».
  */
 @Composable
 private fun Attention(overview: StoreOverview, open: (String) -> Unit) {
     val m = overview.metrics ?: return
-    if (!m.needsAttention) return
+    val todo = buildList {
+        if (m.pendingRequests > 0) add(Todo(Icons.Filled.PendingActions, StoreTone.waits, "${m.pendingRequests} ${plural(m.pendingRequests, "заявка ждёт", "заявки ждут", "заявок ждут")} решения", "store-requests"))
+        if (m.disputedRequests > 0) add(Todo(Icons.Filled.Warning, StoreTone.loss, "${m.disputedRequests} ${plural(m.disputedRequests, "спорная заявка", "спорные заявки", "спорных заявок")}: пришло не столько, сколько выдали", "store-requests"))
+        if (m.outOfStockInBackroom > 0) add(Todo(Icons.Filled.Storefront, StoreTone.waits, "${m.outOfStockInBackroom} ${plural(m.outOfStockInBackroom, "позиция пустая", "позиции пустые", "позиций пустые")} на витрине, но есть в подсобке — выставить", "store-requests"))
+        if (m.toBuy > 0) add(Todo(Icons.Filled.Inventory2, StoreTone.loss, "${m.toBuy} ${plural(m.toBuy, "позиция закончилась", "позиции закончились", "позиций закончились")} совсем — закупить", "store-purchase-plan"))
+        if (m.overdueCount > 0) add(Todo(Icons.Filled.Payments, StoreTone.loss, "Просрочена оплата поставщикам: ${m.overdueCount} ${plural(m.overdueCount, "накладная", "накладные", "накладных")} на ${money(m.overdueSum)}", "store-suppliers"))
+        else if (m.unpaidCount > 0) add(Todo(Icons.Filled.Payments, StoreTone.waits, "К оплате поставщикам: ${m.unpaidCount} ${plural(m.unpaidCount, "накладная", "накладные", "накладных")} на ${money(m.unpaidSum)}", "store-suppliers"))
+        if (m.receiptDrafts > 0) add(Todo(Icons.Filled.PendingActions, StoreTone.waits, "${m.receiptDrafts} ${plural(m.receiptDrafts, "черновик приёмки", "черновика приёмки", "черновиков приёмки")} не проведено", "store-receipts"))
+        if (m.unresolvedWriteoffs > 0) add(Todo(Icons.Filled.Delete, StoreTone.waits, "${m.unresolvedWriteoffs} ${plural(m.unresolvedWriteoffs, "списание", "списания", "списаний")} без причины за 90 дней", "store-writeoffs"))
+    }
+    if (todo.isEmpty()) {
+        OwnerSection("Требует внимания") {
+            InlineEmpty(Icons.Filled.CheckCircle, "Всё спокойно. Заявки разобраны, списания с причинами, ничего не закончилось.", StoreTone.good)
+        }
+        return
+    }
     OwnerSection("Требует внимания") {
-        HorizontalRow {
-            if (m.disputedRequests > 0) {
-                AttentionCard(Icons.Filled.Warning, StoreTone.waits, "Спорные заявки: ${m.disputedRequests}", "Точка и склад не сошлись", { open("store-requests") })
-            }
-            if (m.outOfStock > 0) {
-                val tail = if (m.outOfStockInBackroom > 0) "${m.outOfStockInBackroom} есть в подсобке — выставить" else "закупить"
-                AttentionCard(Icons.Filled.Inventory2, StoreTone.loss, "Нет в наличии: ${m.outOfStock}", tail, { open("store-warehouse") })
-            }
-            if (m.overdueCount > 0) {
-                AttentionCard(Icons.Filled.Payments, StoreTone.loss, "Просрочено: ${money(m.overdueSum)}", "${m.overdueCount} ${plural(m.overdueCount, "накладная", "накладные", "накладных")} поставщикам", { open("store-suppliers") })
-            } else if (m.unpaidCount > 0) {
-                AttentionCard(Icons.Filled.Payments, StoreTone.waits, "К оплате: ${money(m.unpaidSum)}", "${m.unpaidCount} ${plural(m.unpaidCount, "накладная", "накладные", "накладных")} поставщикам", { open("store-suppliers") })
-            }
-            if (m.receiptDrafts > 0) {
-                AttentionCard(Icons.Filled.PendingActions, StoreTone.waits, "Черновики приёмок: ${m.receiptDrafts}", "Не проведены — остатки не выросли", { open("store-receipts") })
-            }
-            if (m.unresolvedWriteoffs > 0) {
-                AttentionCard(Icons.Filled.Delete, StoreTone.waits, "Списания без причины: ${m.unresolvedWriteoffs}", "Укажите, почему списали", { open("store-writeoffs") })
+        todo.forEachIndexed { i, t ->
+            if (i > 0) RowDivider()
+            Row(
+                Modifier.fillMaxWidth().clickable { open(t.page) }.padding(vertical = Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                kz.ordaops.android.feature.operator.money.TintedIcon(t.icon, t.tone, 38, corner = 12.dp)
+                Text(t.text, color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             }
         }
     }
 }
+
+private data class Todo(val icon: androidx.compose.ui.graphics.vector.ImageVector, val tone: androidx.compose.ui.graphics.Color, val text: String, val page: String)
 
 /** Деньги в товаре по закупочной цене: подсобка отдельно от витрин. */
 @Composable
@@ -198,10 +206,44 @@ private fun StockValueCard(m: StoreMetrics?) {
     }
 }
 
+/**
+ * «Остатки под контролем»: что закончилось и что на исходе. Если сервер прислал
+ * `lowStockTop` — берём его (там видно, где мало и лежит ли в подсобке), иначе
+ * считаем из остатков.
+ */
 @Composable
 private fun LowStockCard(overview: StoreOverview, onAll: () -> Unit) {
-    val low = overview.totalsByItem.filter { it.isLow }
-    OwnerSection("Заканчивается", trailing = { LinkText("Весь склад", onAll) }) {
+    val m = overview.metrics
+    val top = m?.lowTop.orEmpty()
+    OwnerSection("Остатки под контролем", trailing = { LinkText("Весь склад", onAll) }) {
+        if (top.isNotEmpty() && m != null) {
+            Text(
+                if (m.lowStock == 0) "Всё выше порога" else "Закончилось ${m.outOfStock} · мало ${m.fewCount}",
+                color = Orda.colors.textDim, fontSize = 13.sp,
+            )
+            top.sortedBy { if (it.quantity <= 0) 0 else 1 }.forEachIndexed { i, r ->
+                if (i > 0) RowDivider()
+                val out = r.quantity <= 0
+                val where = when (r.locationKind) {
+                    "warehouse" -> "подсобка"
+                    "showcase" -> "витрина"
+                    else -> null
+                }
+                Row(Modifier.fillMaxWidth().padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    ItemBadge(r.name, if (out) StoreTone.loss else StoreTone.waits)
+                    Column(Modifier.weight(1f)) {
+                        Text(r.name, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text(listOfNotNull(where, r.locationName, "порог ${formatQty(r.threshold)}").joinToString(" · "), color = Orda.colors.textDim, fontSize = 13.sp, maxLines = 1)
+                        // Пусто на витрине, а в подсобке лежит — не закупать, а выставить.
+                        if (r.backroomQty > 0) Text("в подсобке ${formatQty(r.backroomQty)}", color = StoreTone.backroom, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Text(formatQty(r.quantity), color = if (out) StoreTone.loss else StoreTone.waits, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (m.lowStock > top.size) Text("Ещё ${m.lowStock - top.size} — на складе", color = Orda.colors.textDim, fontSize = 13.sp)
+            return@OwnerSection
+        }
+        val low = overview.totalsByItem.filter { it.isLow }
         if (low.isEmpty()) {
             InlineEmpty(Icons.Filled.CheckCircle, "Все запасы выше порога", StoreTone.good)
         } else {
@@ -299,6 +341,16 @@ internal fun RequestRow(request: StockRequest, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(request.companyName ?: "Точка", color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(positions(request.lines.size), color = Orda.colors.textDim, fontSize = 13.sp)
+            // «на N ₸ по закупке · M ₸ в продаже» — размер заявки виден, не открывая её.
+            if (request.purchaseTotal > 0 || request.saleTotal > 0) {
+                Text(
+                    listOfNotNull(
+                        request.purchaseTotal.takeIf { it > 0 }?.let { "${money(it)} по закупке" },
+                        request.saleTotal.takeIf { it > 0 }?.let { "${money(it)} в продаже" },
+                    ).joinToString(" · "),
+                    color = Orda.colors.textMuted, fontSize = 12.sp,
+                )
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             StatusCaption(request.statusLabel, tint)

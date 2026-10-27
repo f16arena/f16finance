@@ -5,9 +5,9 @@ import androidx.compose.runtime.Composable
 /**
  * Нативные экраны раздела: `pageID` → экран. Подключены в [kz.ordaops.android.feature.business.NativePage].
  *
- * Как `NativeSection` на айфоне: что здесь есть — открывается приложением, чего нет
- * (закупки, расходники, производство, настройки магазина, смены магазина, реклама,
- * оплата поставщикам, настройки чека) — сайтом во вкладке Chrome.
+ * Все 23 страницы раздела «Магазин» открываются приложением. Разбор ответов и тела
+ * записей сверены с текущим вебом (маршруты `app/api/admin/store` и `inventory`), а не
+ * с iOS, который отстал.
  */
 internal val storePages: Map<String, @Composable () -> Unit> = mapOf(
     "store" to { StoreOverviewScreen() },
@@ -24,4 +24,13 @@ internal val storePages: Map<String, @Composable () -> Unit> = mapOf(
     "store-suppliers" to { SuppliersScreen() },
     "store-forecast" to { StockForecastScreen() },
     "store-analytics" to { StoreAnalyticsScreen() },
+    "store-settings" to { StoreSettingsScreen() },
+    "store-shifts" to { StoreShiftsScreen() },
+    "store-receipt-settings" to { ReceiptSettingsScreen() },
+    "store-advertising" to { AdvertisingScreen() },
+    "store-billing" to { BillingScreen() },
+    "store-purchase-orders" to { PurchaseOrdersScreen() },
+    "store-purchase-plan" to { PurchasePlanScreen() },
+    "store-consumables" to { ConsumablesScreen() },
+    "production" to { ProductionScreen() },
 )

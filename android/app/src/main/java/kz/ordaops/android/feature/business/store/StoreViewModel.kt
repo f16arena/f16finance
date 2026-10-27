@@ -17,6 +17,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.HttpMethod
@@ -50,8 +53,17 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
     private val _catalog = MutableStateFlow(Loadable<List<CatalogItem>>())
     val catalog: StateFlow<Loadable<List<CatalogItem>>> = _catalog.asStateFlow()
 
-    private val _receipts = MutableStateFlow(Loadable<List<Receipt>>())
-    val receipts: StateFlow<Loadable<List<Receipt>>> = _receipts.asStateFlow()
+    private val _receipts = MutableStateFlow(Loadable<ReceiptsData>())
+    val receipts: StateFlow<Loadable<ReceiptsData>> = _receipts.asStateFlow()
+
+    /** Заявки с ценами и «хватает ли на складе» — `GET /inventory/requests`; обзор цен не отдаёт. */
+    private val _requests = MutableStateFlow(Loadable<List<StockRequest>>())
+    val requests: StateFlow<Loadable<List<StockRequest>>> = _requests.asStateFlow()
+
+    /** Живые магазины: включённые и не закрытые точки (`/store/config`). null — ещё не знаем. */
+    @Volatile
+    var shopIds: Set<String>? = null
+        private set
 
     private val _writeoffs = MutableStateFlow(Loadable<List<Writeoff>>())
     val writeoffs: StateFlow<Loadable<List<Writeoff>>> = _writeoffs.asStateFlow()
@@ -99,7 +111,28 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
     }
 
     fun loadOverview() = launchLoad {
-        _overview.fetch("/api/admin/store/overview") { StoreOverview.parse(it as? JsonObject ?: JsonObject(emptyMap())) }
+        ensureShopIds()
+        _overview.fetch("/api/admin/store/overview") {
+            StoreOverview.parse(it as? JsonObject ?: JsonObject(emptyMap())).restrictedTo(shopIds)
+        }
+    }
+
+    /**
+     * Закрытая точка (archived_at) — только история, в выбор места она не попадает;
+     * как и точка без включённого магазина. Тот же фильтр, что у переключателя на сайте.
+     */
+    private suspend fun ensureShopIds() {
+        if (shopIds != null) return
+        runCatching {
+            val data = api.send<JsonElement>(ApiRequest("/api/admin/store/config")).payload() as? JsonObject
+            shopIds = data?.get("companies").asObjects()
+                .filter { it.bool("store_enabled", false) && it.str("archived_at") == null }
+                .mapNotNull { it.str("id") }.toSet()
+        }
+    }
+
+    fun loadRequests() = launchLoad {
+        _requests.fetch("/api/admin/inventory/requests") { (it as? JsonObject)?.get("requests").asObjects().map(StockRequest::parse) }
     }
 
     fun loadShowcase(companyId: String? = null) = launchLoad {
@@ -113,7 +146,8 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
     }
 
     fun loadReceipts() = launchLoad {
-        _receipts.fetch("/api/admin/store/receipts") { (it as? JsonObject)?.get("receipts").asObjects().map(Receipt::parse) }
+        ensureShopIds()
+        _receipts.fetch("/api/admin/store/receipts") { ReceiptsData.parse(it as? JsonObject ?: JsonObject(emptyMap())) }
     }
 
     fun loadWriteoffs() = launchLoad {
@@ -222,12 +256,37 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
             },
         ).also { refreshIfOk(it) }
 
-    suspend fun createReceipt(draft: ReceiptDraft, companyId: String?, posting: Boolean): String? =
-        write("/api/admin/store/receipts", if (posting) draft.postingBody(companyId) else draft.receiptBody(companyId)).also {
-            if (it == null) {
-                loadOverview()
-                loadReceipts()
-            }
+    /**
+     * Приёмка или оприходование. Сервер может ответить `ok: true` с `warning`: товар
+     * оприходован, а расход или долг не записался. Предупреждение нельзя глотать —
+     * иначе приёмку проведут повторно и остаток задвоится.
+     */
+    suspend fun createReceipt(draft: ReceiptDraft, companyId: String?, posting: Boolean): WriteOutcome =
+        try {
+            val body = if (posting) draft.postingBody(companyId) else draft.receiptBody(companyId)
+            val response = api.send<JsonElement>(ApiRequest.json("/api/admin/store/receipts", body))
+            loadOverview()
+            loadReceipts()
+            WriteOutcome(null, (response as? JsonObject)?.str("warning"))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            WriteOutcome(e.userMessage(), null)
+        }
+
+    /** Загрузить файл накладной или чека; вернёт ссылку на документ либо текст ошибки. */
+    suspend fun uploadReceiptFile(bytes: ByteArray, mime: String, name: String): Pair<String?, String?> =
+        try {
+            val form = MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", name, bytes.toRequestBody(mime.toMediaType()))
+                .build()
+            val response = api.send<JsonElement>(ApiRequest("/api/admin/store/receipts/upload", HttpMethod.POST, body = form))
+            val url = (response as? JsonObject)?.str("document_url")
+            if (url.isNullOrBlank()) null to "Сервер не вернул ссылку на файл" else url to null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null to e.userMessage()
         }
 
     suspend fun createWriteoff(draft: WriteoffDraft, companyId: String?): String? =
@@ -366,7 +425,25 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
     suspend fun cancelAct(id: String): String? = actAction("cancel", id)
 
     /** Провести акт: остатки становятся пересчитанными, расхождения — движениями и долгами. */
-    suspend fun closeAct(id: String): String? = actAction("close", id)
+    suspend fun closeAct(id: String, zeroItemIds: Set<String>? = null, assignDebt: Boolean = false, assignDebtZeroed: Boolean = false): Pair<AuditCloseSummary?, String?> =
+        try {
+            val response = api.send<JsonElement>(ApiRequest.json("/api/admin/store/audit", closeActBody(id, zeroItemIds, assignDebt, assignDebtZeroed)))
+            loadActs()
+            loadOverview()
+            AuditCloseSummary.parse(response.payload() as? JsonObject ?: JsonObject(emptyMap())) to null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null to e.userMessage()
+        }
+
+    /** Сбросить подсчёты позиции: операторы посчитают заново. */
+    suspend fun resetActItem(actId: String, itemId: String): String? =
+        write("/api/admin/store/audit", buildJsonObject {
+            put("action", "recount")
+            put("act_id", actId)
+            put("item_id", itemId)
+        }).also { if (it == null) loadActDetail(actId) }
 
     /** Откатить проведённый акт. Тяжёлое действие: сервер пускает только владельца. */
     suspend fun revertAct(id: String): String? = actAction("revert", id)
@@ -383,9 +460,15 @@ class StoreViewModel(private val api: ApiClient) : ViewModel() {
         ).also { if (it == null) loadActDetail(actId) }
 
     private fun refreshIfOk(error: String?) {
-        if (error == null) loadOverview()
+        if (error == null) {
+            loadOverview()
+            loadRequests()
+        }
     }
 }
+
+/** Итог записи, которая может завершиться предупреждением: `error` — отказ, `warning` — сделано, но с оговоркой. */
+data class WriteOutcome(val error: String?, val warning: String? = null)
 
 /** Общее состояние магазина для экранов раздела. Ключ включает организацию — чужой склад не переезжает. */
 @Composable

@@ -208,6 +208,12 @@ data class RequestLine(
     val unit: String,
     val requested: Double,
     val approved: Double?,
+    /** Цена продажи и закупки за единицу (`GET /inventory/requests`); 0 — не пришла. */
+    val salePrice: Double = 0.0,
+    val purchasePrice: Double = 0.0,
+    /** Сколько реально можно выдать со склада (за вычетом резервов); null — сервер не сказал. */
+    val available: Double? = null,
+    val enough: Boolean = true,
 ) {
     companion object {
         fun parse(o: JsonObject): RequestLine {
@@ -218,6 +224,10 @@ data class RequestLine(
                 unit = item?.str("unit") ?: "шт",
                 requested = o.dbl("requested_qty") ?: 0.0,
                 approved = o.dbl("approved_qty"),
+                salePrice = item?.dbl("sale_price") ?: 0.0,
+                purchasePrice = item?.dbl("default_purchase_price") ?: 0.0,
+                available = o.dbl("available_qty"),
+                enough = o.bool("enough_for_requested", true),
             )
         }
     }
@@ -241,6 +251,14 @@ data class StockRequest(
     val lines: List<RequestLine>,
 ) {
     val isPending: Boolean get() = status == "pending" || status == "new"
+
+    /** Сумма заявки по закупке и по продаже: одобренное количество, а пока не решено — запрошенное. */
+    private fun qty(l: RequestLine) = if (isPending) l.requested else (l.approved ?: l.requested)
+    val purchaseTotal: Double get() = lines.sumOf { qty(it) * it.purchasePrice }
+    val saleTotal: Double get() = lines.sumOf { qty(it) * it.salePrice }
+
+    /** Хоть одной позиции не хватает на складе. */
+    val hasShortage: Boolean get() = lines.any { !it.enough }
 
     /** Одобрена, но со склада ещё не выдана. */
     val isApproved: Boolean get() = status == "approved_full" || status == "approved_partial"
@@ -306,10 +324,29 @@ data class StoreMetrics(
     val stockWarehouse: Double,
     val stockShowcase: Double,
     val stockPositions: Int,
+    /** Самые горячие позиции «Остатков под контролем». */
+    val lowTop: List<LowRow> = emptyList(),
 ) {
-    /** Есть ли что показать в блоке «Требует внимания». */
+    /** Мало на витрине/в подсобке; `backroomQty > 0` при нуле — не закупать, а выставить. */
+    data class LowRow(
+        val itemId: String,
+        val name: String,
+        val quantity: Double,
+        val threshold: Double,
+        val locationName: String?,
+        val locationKind: String?,
+        val backroomQty: Double,
+    )
+
+    /** Закончилось совсем: пусто и нигде не лежит — это закупать. */
+    val toBuy: Int get() = maxOf(0, outOfStock - outOfStockInBackroom)
+
+    /** Мало, но не ноль. */
+    val fewCount: Int get() = maxOf(0, lowStock - outOfStock)
+
+    /** Есть ли что показать в блоке «Требует внимания»; иначе — «Всё спокойно». */
     val needsAttention: Boolean
-        get() = disputedRequests > 0 || outOfStock > 0 || receiptDrafts > 0 || unresolvedWriteoffs > 0 || unpaidCount > 0
+        get() = pendingRequests > 0 || disputedRequests > 0 || outOfStock > 0 || receiptDrafts > 0 || unresolvedWriteoffs > 0 || unpaidCount > 0
 
     val stockTotal: Double get() = stockWarehouse + stockShowcase
 
@@ -332,6 +369,17 @@ data class StoreMetrics(
                 stockWarehouse = value?.dbl("warehouse") ?: 0.0,
                 stockShowcase = value?.dbl("showcase") ?: 0.0,
                 stockPositions = value?.int("positions") ?: 0,
+                lowTop = o["lowStockTop"].asObjects().map {
+                    LowRow(
+                        itemId = it.str("item_id") ?: "",
+                        name = it.str("name") ?: "Товар",
+                        quantity = it.dbl("quantity") ?: 0.0,
+                        threshold = it.dbl("threshold") ?: 0.0,
+                        locationName = it.str("location_name"),
+                        locationKind = it.str("location_kind"),
+                        backroomQty = it.dbl("backroom_qty") ?: 0.0,
+                    )
+                },
             )
         }
     }
@@ -371,6 +419,17 @@ data class StoreOverview(
     val requests: List<StockRequest>,
     val metrics: StoreMetrics?,
 ) {
+    /**
+     * Только живые магазины: закрытая точка (archived_at) и точка без включённого
+     * магазина — это история, в выборе места ей не место. `null` — конфиг не пришёл, не режем.
+     */
+    fun restrictedTo(shopIds: Set<String>?): StoreOverview {
+        if (shopIds == null) return this
+        val locs = locations.filter { it.companyId == null || it.companyId in shopIds }
+        val ids = locs.map { it.id }.toSet()
+        return copy(locations = locs, balances = balances.filter { it.locationId in ids })
+    }
+
     val totalsByItem: List<ItemTotal> by lazy { totalsOf(balances) }
     val pendingRequests: List<StockRequest> get() = requests.filter { it.isPending }
 
@@ -499,10 +558,13 @@ data class CatalogItem(
     val requiresExpiry: Boolean,
     val imageUrl: String?,
 ) {
-    /** Заведена, но нигде не лежит. */
-    val isOutOfStock: Boolean get() = catalogQty <= 0
+    /** Заведена, но нигде не лежит. У услуги остатка нет по определению. */
+    val isOutOfStock: Boolean get() = !isService && catalogQty <= 0
 
     val isConsumable: Boolean get() = itemType == "consumable"
+
+    /** Услуга (теннис, печать): позиция каталога без остатка, цены и время правятся на сайте. */
+    val isService: Boolean get() = itemType == "service"
 
     companion object {
         fun parse(o: JsonObject) = CatalogItem(
@@ -597,6 +659,7 @@ data class Receipt(
     val locationName: String?,
     val supplierName: String?,
     val items: List<DocumentLine>,
+    val invoiceUrl: String? = null,
     /** `supplier` — по накладной, `posting` — оприходование излишков. */
     val kind: String,
 ) {
@@ -623,6 +686,7 @@ data class Receipt(
             locationName = o.nestedName("location"),
             supplierName = o.nestedName("supplier"),
             items = o["items"].asObjects().map(DocumentLine::parse),
+            invoiceUrl = o.str("invoice_file_url"),
             kind = o.str("kind") ?: "supplier",
         )
     }
@@ -734,8 +798,12 @@ data class Supplier(
     val lastReceiptDate: Long?,
     val openDebtsCount: Int,
     val openDebtsAmount: Double,
+    /** Просрочено из открытого долга и ближайший срок оплаты (новые поля сервера). */
+    val overdueAmount: Double = 0.0,
+    val nextDueDate: Long? = null,
 ) {
     val hasDebt: Boolean get() = openDebtsAmount > 0
+    val isOverdue: Boolean get() = overdueAmount > 0
 
     companion object {
         fun parse(o: JsonObject) = Supplier(
@@ -750,6 +818,8 @@ data class Supplier(
             lastReceiptDate = parseWhen(o.str("last_receipt_date")),
             openDebtsCount = o.int("open_debts_count") ?: 0,
             openDebtsAmount = o.dbl("open_debts_sum") ?: 0.0,
+            overdueAmount = o.dbl("overdue_debts_sum") ?: 0.0,
+            nextDueDate = parseWhen(o.str("next_due_date")),
         )
     }
 }
@@ -764,6 +834,12 @@ data class RevisionAct(
     val closedAt: Long?,
     val totalItems: Int,
     val countedItems: Int,
+    val companyId: String? = null,
+    /** `warehouse` или `point_display`. */
+    val locationType: String? = null,
+    /** Итог проведения по закупу (минус — недостача) и доля обнуления непосчитанного. */
+    val resultValue: Double? = null,
+    val zeroedValue: Double? = null,
 ) {
     val isOpen: Boolean get() = status == "open"
     val isClosed: Boolean get() = status == "closed"
@@ -790,8 +866,27 @@ data class RevisionAct(
             closedAt = parseWhen(o.str("closed_at")),
             totalItems = o.int("totalItems") ?: 0,
             countedItems = o.int("countedItems") ?: 0,
+            companyId = o.str("companyId"),
+            locationType = o.str("locationType"),
+            resultValue = o.dbl("resultValue"),
+            zeroedValue = o.dbl("zeroedValue"),
         )
     }
+}
+
+/**
+ * Итог по точке: ревизию склада и витрины той же точки, закрытые в пределах трёх
+ * суток, надо читать вместе — товар не на своём месте даёт минус в одной и плюс в
+ * другой, по точке ноль. Порт `pairedAct` с веб-страницы аудита.
+ */
+fun pairedAct(a: RevisionAct, all: List<RevisionAct>): RevisionAct? {
+    val closed = a.closedAt
+    if (!a.isClosed || a.resultValue == null || a.companyId == null || closed == null) return null
+    return all.filter { b ->
+        b.id != a.id && b.isClosed && b.resultValue != null && b.closedAt != null &&
+            b.companyId == a.companyId && b.locationType != null && b.locationType != a.locationType &&
+            kotlin.math.abs(b.closedAt - closed) <= 3 * 86_400_000L
+    }.minByOrNull { kotlin.math.abs((it.closedAt ?: 0L) - closed) }
 }
 
 /** Состав акта: пересчитанное с расхождениями и непосчитанное. */
@@ -800,6 +895,8 @@ data class RevisionActDetail(
     val countedItems: Int,
     val report: List<Line>,
     val uncounted: List<Pending>,
+    /** Тип второй локации точки: `warehouse` или `point_display`. */
+    val otherLocationType: String? = null,
 ) {
     data class Line(
         val itemId: String,
@@ -816,7 +913,17 @@ data class RevisionActDetail(
         val varianceCost: Double get() = variance * purchasePrice
     }
 
-    data class Pending(val itemId: String, val name: String, val expected: Double)
+    /** Не дошли: `soldRecent` — продано за 7 дней (скорее всего товар есть), `otherLocationQty` — лежит на второй локации. */
+    data class Pending(
+        val itemId: String,
+        val name: String,
+        val expected: Double,
+        val purchasePrice: Double = 0.0,
+        val soldRecent: Double = 0.0,
+        val otherLocationQty: Double = 0.0,
+    ) {
+        val value: Double get() = expected * purchasePrice
+    }
 
     companion object {
         fun parse(o: JsonObject) = RevisionActDetail(
@@ -835,8 +942,12 @@ data class RevisionActDetail(
                 )
             },
             uncounted = o["uncounted"].asObjects().map {
-                Pending(it.str("item_id") ?: "", it.str("name") ?: "Товар", it.dbl("expected") ?: 0.0)
+                Pending(
+                    it.str("item_id") ?: "", it.str("name") ?: "Товар", it.dbl("expected") ?: 0.0,
+                    it.dbl("purchase_price") ?: 0.0, it.dbl("sold_recent") ?: 0.0, it.dbl("other_location_qty") ?: 0.0,
+                )
             },
+            otherLocationType = o.str("otherLocationType"),
         )
     }
 }

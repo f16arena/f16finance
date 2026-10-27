@@ -53,22 +53,25 @@ import kz.ordaops.android.ui.theme.Spacing
 fun RequestsScreen(journal: Boolean) {
     val env = LocalBusiness.current
     val vm = rememberStoreViewModel()
-    val state by vm.overview.collectAsState()
+    val state by vm.requests.collectAsState()
     val toast = rememberToast()
     var selectedId by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf<String?>(null) }
     val canCreate = env.can("store-requests.create")
-    LaunchedEffect(Unit) { vm.loadOverview() }
+    LaunchedEffect(Unit) {
+        vm.loadRequests()
+        vm.loadOverview()
+    }
     BackHandler(enabled = selectedId != null) { selectedId = null }
 
     StoreScaffold(toast.message) {
-        val selected = state.data?.requests?.firstOrNull { it.id == selectedId }
+        val selected = state.data?.firstOrNull { it.id == selectedId }
         if (selected != null) {
             RequestDetail(vm, selected, toast, onBack = { selectedId = null })
         } else {
-            StateContainer(state, onRetry = vm::loadOverview, emptyTitle = "Заявок нет", isEmpty = { false }) { overview ->
-                val all = if (journal) overview.requests else overview.pendingRequests
+            StateContainer(state, onRetry = vm::loadRequests, emptyTitle = "Заявок нет", isEmpty = { false }) { requests ->
+                val all = if (journal) requests else requests.filter { it.isPending }
                 val shown = if (filter == null) all else all.filter { it.statusLabel == filter }
                 val statuses = all.map { it.statusLabel }.distinct()
                 StoreLazy {
@@ -165,6 +168,14 @@ private fun RequestDetail(vm: StoreViewModel, request: StockRequest, toast: Toas
                         }
                     }
                 }
+                if (request.isPending && request.hasShortage) {
+                    StoreCard(accent = StoreTone.waits) {
+                        Text(
+                            "Не хватает на складе: " + request.lines.filter { !it.enough }.joinToString(", ") { it.name } + ". Одобрение сервер не пропустит, пока остаток не пополнен.",
+                            color = StoreTone.waits, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
                 StoreCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(request.companyName ?: "Точка", color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -172,6 +183,8 @@ private fun RequestDetail(vm: StoreViewModel, request: StockRequest, toast: Toas
                     }
                     if (request.sourceName != null && request.targetName != null) StatLine("Маршрут", "${request.sourceName} → ${request.targetName}")
                     if (request.createdAt != null) StatLine("Создана", fmtDayTime(request.createdAt))
+                    if (request.purchaseTotal > 0) StatLine("По закупке", kz.ordaops.android.ui.components.money(request.purchaseTotal))
+                    if (request.saleTotal > 0) StatLine("В продаже", kz.ordaops.android.ui.components.money(request.saleTotal))
                     if (!request.comment.isNullOrBlank()) Text(request.comment, color = Orda.colors.textMuted, fontSize = 14.sp)
                 }
                 StoreCard {
@@ -188,7 +201,13 @@ private fun RequestDetail(vm: StoreViewModel, request: StockRequest, toast: Toas
                                 Text(formatQty(line.requested), color = Orda.colors.textDim, fontSize = 13.sp, textDecoration = TextDecoration.LineThrough)
                                 Text(formatQtyUnit(approved, line.unit), color = StoreTone.good, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             } else {
-                                Text(formatQtyUnit(line.requested, line.unit), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(formatQtyUnit(line.requested, line.unit), color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                    // Сколько реально есть на складе — чтобы не одобрять вслепую.
+                                    if (request.isPending && line.available != null) {
+                                        Text("на складе ${formatQty(line.available)}", color = if (line.enough) Orda.colors.textDim else StoreTone.waits, fontSize = 12.sp)
+                                    }
+                                }
                             }
                         }
                     }

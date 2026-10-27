@@ -1,6 +1,7 @@
 package kz.ordaops.android.feature.business.store
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,11 +31,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kz.ordaops.android.feature.business.BizFormat
 import kz.ordaops.android.feature.business.LetterBadge
 import kz.ordaops.android.feature.business.LocalBusiness
@@ -62,26 +67,32 @@ fun ReceiptsScreen(posting: Boolean) {
     val toast = rememberToast()
     var selectedId by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
+    // Предупреждение сервера после проводки: нельзя пропустить, иначе приёмку проведут дважды.
+    var warning by remember { mutableStateOf<String?>(null) }
     val canCreate = env.can(if (posting) "store-postings.create" else "store-receipts.create")
     LaunchedEffect(Unit) {
         vm.loadReceipts()
         vm.loadOverview()
-        vm.loadSuppliers()
     }
     BackHandler(enabled = selectedId != null) { selectedId = null }
 
     StoreScaffold(toast.message) {
-        val selected = state.data?.firstOrNull { it.id == selectedId }
+        val selected = state.data?.receipts?.firstOrNull { it.id == selectedId }
         if (selected != null) {
             ReceiptDetail(vm, selected, toast, onBack = { selectedId = null })
         } else {
-            StateContainer(state, onRetry = vm::loadReceipts, emptyTitle = if (posting) "Оприходований нет" else "Приёмок нет", isEmpty = { false }) { all ->
-                val list = all.filter { it.isPosting == posting }
+            StateContainer(state, onRetry = vm::loadReceipts, emptyTitle = if (posting) "Оприходований нет" else "Приёмок нет", isEmpty = { false }) { receiptsData ->
+                val list = receiptsData.receipts.filter { it.isPosting == posting }
                 val total = list.filter { !it.isCancelled }.sumOf { it.totalAmount }
                 StoreLazy {
                     if (!posting && list.isNotEmpty()) {
                         item {
-                            StoreCard { StatLine("Принято товара на", money(total)); StatLine("Документов", "${list.count { !it.isCancelled }}") }
+                            StoreCard {
+                                StatLine("Принято товара на", money(total))
+                                StatLine("Документов", "${list.count { !it.isCancelled }}")
+                                // Черновики проводятся на сайте: там же их накладные и категории.
+                                if (receiptsData.draftCount > 0) StatLine("Черновиков (на сайте)", "${receiptsData.draftCount}", StoreTone.waits)
+                            }
                         }
                     }
                     if (list.isEmpty()) {
@@ -101,10 +112,18 @@ fun ReceiptsScreen(posting: Boolean) {
         }
     }
     if (adding) {
-        ReceiptSheet(vm, posting, onDone = {
+        ReceiptSheet(vm, posting, onDone = { warn ->
             adding = false
-            toast.show(if (posting) "Оприходовано" else "Приёмка проведена")
+            if (warn != null) warning = warn else toast.show(if (posting) "Оприходовано" else "Приёмка проведена")
         }, onDismiss = { adding = false })
+    }
+    warning?.let { text ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { warning = null },
+            title = { Text("Проверьте расход") },
+            text = { Text(text) },
+            confirmButton = { TextButton(onClick = { warning = null }) { Text("Понятно") } },
+        )
     }
 }
 
@@ -165,6 +184,12 @@ private fun ReceiptDetail(vm: StoreViewModel, r: Receipt, toast: ToastState, onB
                     if (r.isCancelled && !r.cancelReason.isNullOrBlank()) Text("Отменена: ${r.cancelReason}", color = StoreTone.loss, fontSize = 14.sp)
                 }
                 StoreCard { DocumentLines(r.items) }
+                if (!r.invoiceUrl.isNullOrBlank()) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    TextButton(onClick = {
+                        runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, r.invoiceUrl.toUri())) }
+                    }) { Text("Открыть накладную") }
+                }
                 if (canCancel) TextButton(onClick = { cancelling = true }) { Text("Отменить приёмку", color = StoreTone.loss) }
             }
         }
@@ -243,40 +268,94 @@ internal fun pickItems(overview: StoreOverview?, locationId: String?, onlyAtLoca
     return balances.distinctBy { it.itemId }.map { PickItem(it.itemId, it.name, it.unit, it.barcode) }
 }
 
+/**
+ * Форма приёмки / оприходования. С 27.10 сервер требует: файл накладной, категорию
+ * расхода COGS (под неё он сам заведёт расход или долг), чек оплаты при оплате сразу
+ * и «годен до» у товаров со сроком. Справочники приходят тем же ответом, что и
+ * список документов. Все проверки идут до проводки — после неё остаток уже вырос.
+ */
 @Composable
-private fun ReceiptSheet(vm: StoreViewModel, posting: Boolean, onDone: () -> Unit, onDismiss: () -> Unit) {
+private fun ReceiptSheet(vm: StoreViewModel, posting: Boolean, onDone: (String?) -> Unit, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val overview by vm.overview.collectAsState()
-    val suppliers by vm.suppliers.collectAsState()
-    val ov = overview.data
-    // Оприходовать сервер разрешает только на склад или витрину.
-    val locations = ov?.locations.orEmpty().filter { if (posting) it.kind == "warehouse" || it.kind == "point_display" else it.kind != "catalog" }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val receiptsState by vm.receipts.collectAsState()
+    val data = receiptsState.data
+    val shopIds = vm.shopIds
+    // Оприходовать сервер разрешает только на склад или витрину; закрытые точки не предлагаем.
+    val locations = data?.locations.orEmpty()
+        .filter { if (posting) it.kind == "warehouse" || it.kind == "point_display" else it.kind != "catalog" }
+        .filter { shopIds == null || it.companyId == null || it.companyId in shopIds }
+    val categories = data?.categories.orEmpty().filter { it.isCogs }
     var draft by remember { mutableStateOf(ReceiptDraft(receivedAt = todayString())) }
     var search by remember { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(locations.size) {
         if (draft.locationId.isEmpty() && locations.isNotEmpty()) draft = draft.copy(locationId = locations.first().id)
     }
+    // Категория по умолчанию — первая COGS, как на сайте.
+    LaunchedEffect(categories.size) {
+        if (draft.expenseCategoryId.isEmpty() && categories.isNotEmpty()) draft = draft.copy(expenseCategoryId = categories.first().id)
+    }
+
+    /** Прочитать выбранный файл и отправить на сервер; допустимы JPG, PNG, WEBP, PDF до 10 МБ. */
+    fun upload(uri: android.net.Uri?, onUrl: (String) -> Unit) {
+        if (uri == null) return
+        uploading = true
+        error = null
+        scope.launch {
+            val resolver = context.contentResolver
+            val mime = resolver.getType(uri) ?: "application/octet-stream"
+            val bytes = withContext(Dispatchers.IO) { runCatching { resolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull() }
+            when {
+                bytes == null -> error = "Не удалось прочитать файл"
+                bytes.size > 10 * 1024 * 1024 -> error = "Максимальный размер файла — 10 МБ"
+                mime !in setOf("image/jpeg", "image/png", "image/webp", "application/pdf") -> error = "Допустимы только JPG, PNG, WEBP и PDF"
+                else -> {
+                    val ext = when (mime) { "image/png" -> "png"; "image/webp" -> "webp"; "application/pdf" -> "pdf"; else -> "jpg" }
+                    val (url, e) = vm.uploadReceiptFile(bytes, mime, "document.$ext")
+                    if (url != null) onUrl(url) else error = e
+                }
+            }
+            uploading = false
+        }
+    }
+    val invoicePicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        upload(uri) { draft = draft.copy(invoiceFileUrl = it) }
+    }
+    val receiptPicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        upload(uri) { draft = draft.copy(paymentReceiptUrl = it) }
+    }
+    val fileTypes = arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf")
+
     val location = locations.firstOrNull { it.id == draft.locationId }
     val blocker = if (posting) draft.postingValidationMessage else draft.validationMessage
-    val supplierList = suppliers.data.orEmpty()
+    val suppliers = data?.suppliers.orEmpty()
 
     OrdaSheet(if (posting) "Оприходование" else "Приёмка товара", onDismiss) {
         PickerField("Куда принимаем", location, locations, { "${it.name} · ${it.kindLabel}" }) { draft = draft.copy(locationId = it.id) }
         if (!posting) {
-            PickerField("Поставщик", supplierList.firstOrNull { it.id == draft.supplierId }, supplierList, { it.name }) { draft = draft.copy(supplierId = it.id) }
+            PickerField("Поставщик", suppliers.firstOrNull { it.first == draft.supplierId }, suppliers, { it.second }) { draft = draft.copy(supplierId = it.first) }
         }
         DateInput(if (posting) "Дата" else "Дата поставки", draft.receivedAt, { draft = draft.copy(receivedAt = it) }, maxToday = true)
         if (!posting) {
             TextInput("Номер накладной", draft.invoiceNumber, { draft = draft.copy(invoiceNumber = it) })
+            FormSection("Документы") {
+                FileSlot("Накладная (обязательна)", draft.invoiceFileUrl, uploading) { invoicePicker.launch(fileTypes) }
+                PickerField(
+                    "Категория расхода (COGS)", categories.firstOrNull { it.id == draft.expenseCategoryId }, categories, { it.name },
+                    placeholder = if (categories.isEmpty()) "Нет категорий COGS — заведите на сайте" else "Не выбрана",
+                ) { draft = draft.copy(expenseCategoryId = it.id) }
+            }
             FormSection("Оплата") {
                 PillSegmentSimple(ReceiptPayment.entries.map { it to it.title }, draft.payment) {
                     draft = draft.copy(payment = it, dueDate = if (it == ReceiptPayment.Deferred && draft.dueDate == null) todayString() else draft.dueDate)
                 }
                 if (draft.payment == ReceiptPayment.Now) {
                     PillSegmentSimple(listOf("cash" to "Наличными", "kaspi" to "Kaspi"), draft.paymentMethod) { draft = draft.copy(paymentMethod = it) }
+                    FileSlot("Чек об оплате (обязателен)", draft.paymentReceiptUrl, uploading) { receiptPicker.launch(fileTypes) }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Реализация", color = Orda.colors.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
@@ -303,26 +382,64 @@ private fun ReceiptSheet(vm: StoreViewModel, posting: Boolean, onDone: () -> Uni
             }
             if (!posting) StatLine("Итого по накладной", money(draft.total))
         }
+        val catalog = data?.items.orEmpty()
         ItemPicker(
-            items = pickItems(ov, null, false).filter { p -> draft.lines.none { it.itemId == p.id } },
+            items = catalog.filter { p -> draft.lines.none { it.itemId == p.id } }.map { PickItem(it.id, it.name, it.unit, it.barcode) },
             search = search, onSearch = { search = it }, onScan = { scanning = true },
             onPick = { p ->
-                draft = draft.copy(lines = draft.lines + ReceiptLine(p.id, p.name, p.unit))
+                val ref = catalog.firstOrNull { it.id == p.id }
+                draft = draft.copy(
+                    lines = draft.lines + ReceiptLine(
+                        itemId = p.id, name = p.name, unit = p.unit,
+                        // Закупочная цена из каталога — подсказка, правится строкой.
+                        unitCost = ref?.purchasePrice ?: 0.0,
+                        requiresExpiry = ref?.requiresExpiry ?: false,
+                    ),
+                )
                 search = ""
             },
         )
         BlockerHint(blocker)
         FormError(error)
-        PrimaryButton(if (posting) "Оприходовать" else "Принять", Modifier.fillMaxWidth(), enabled = blocker == null, loading = saving) {
+        PrimaryButton(if (posting) "Оприходовать" else "Принять", Modifier.fillMaxWidth(), enabled = blocker == null && !uploading, loading = saving) {
             saving = true
+            error = null
             scope.launch {
-                val e = vm.createReceipt(draft, location?.companyId, posting)
+                val outcome = vm.createReceipt(draft, location?.companyId, posting)
                 saving = false
-                if (e == null) onDone() else error = e
+                if (outcome.error == null) onDone(outcome.warning) else error = outcome.error
             }
         }
     }
     if (scanning) ScanDialog(onCode = { search = it }, onDismiss = { scanning = false })
+}
+
+/** Слот файла: «прикрепить» или «загружен»; сам файл на телефоне не хранится, уходит на сервер. */
+@Composable
+private fun FileSlot(title: String, url: String, uploading: Boolean, onPick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .background(Orda.colors.surfaceRaised)
+            .clickable(enabled = !uploading, onClick = onPick)
+            .padding(horizontal = Spacing.md, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Orda.colors.textDim, fontSize = 12.sp)
+            Text(
+                when {
+                    uploading -> "Загружаем…"
+                    url.isNotBlank() -> "Загружен — нажмите, чтобы заменить"
+                    else -> "Прикрепить фото или PDF"
+                },
+                color = if (url.isNotBlank()) StoreTone.good else Orda.colors.text,
+                fontSize = 16.sp,
+            )
+        }
+    }
 }
 
 @Composable
@@ -351,6 +468,10 @@ private fun ReceiptLineEditor(line: ReceiptLine, posting: Boolean, onChange: (Re
                 line.markup?.let { Text(BizFormat.percent(it), color = if (it > 0) StoreTone.good else StoreTone.loss, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
             }
             if (line.total > 0) StatLine("Строка", money(line.total))
+        }
+        // Срок годности обязателен для товаров со сроком (бургеры/хотдоги снимают галочку в каталоге).
+        if (line.requiresExpiry) {
+            DateInput("Годен до", line.expiryDate.orEmpty(), { onChange(line.copy(expiryDate = it)) })
         }
     }
 }

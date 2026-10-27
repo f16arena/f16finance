@@ -54,14 +54,17 @@ class StoreDraftsTest {
     private fun line(qty: Double = 2.0, cost: Double = 100.0, bonus: Boolean = false) =
         ReceiptLine("i1", "Вода", "шт", qty, cost, isBonus = bonus)
 
-    private fun draft(vararg lines: ReceiptLine) =
-        ReceiptDraft(receivedAt = "2026-10-27", locationId = "loc", supplierId = "sup", lines = lines.toList())
+    /** Накладная, у которой есть всё, что с 27.10 требует сервер: файл, категория COGS, чек оплаты. */
+    private fun draft(vararg lines: ReceiptLine) = ReceiptDraft(
+        receivedAt = "2026-10-27", locationId = "loc", supplierId = "sup", lines = lines.toList(),
+        invoiceFileUrl = "https://x/invoice.jpg", expenseCategoryId = "cogs", paymentReceiptUrl = "https://x/pay.jpg",
+    )
 
     @Test
     fun receiptNeedsLocationSupplierAndLines() {
         assertEquals("Выберите, куда принимаем", ReceiptDraft("2026-10-27").validationMessage)
-        assertEquals("Поставщик обязателен", ReceiptDraft("2026-10-27", locationId = "l").validationMessage)
         assertEquals("Добавьте хотя бы одну позицию", draft().validationMessage)
+        assertEquals("Поставщик обязателен", draft(line()).copy(supplierId = "").validationMessage)
         assertNull(draft(line()).validationMessage)
     }
 
@@ -81,6 +84,33 @@ class StoreDraftsTest {
     }
 
     @Test
+    fun receiptNeedsInvoiceFileCategoryAndPaymentReceipt() {
+        val ok = draft(line())
+        assertEquals("Загрузите файл накладной. Без документа приёмка запрещена.", ok.copy(invoiceFileUrl = "").validationMessage)
+        assertEquals("Выберите категорию расхода COGS для автодобавления", ok.copy(expenseCategoryId = "").validationMessage)
+        // Платим сразу — чек обязателен; в долг — нет.
+        assertEquals("Загрузите чек об оплате или выберите «В долг»", ok.copy(paymentReceiptUrl = "").validationMessage)
+        assertNull(ok.copy(paymentReceiptUrl = "", payment = ReceiptPayment.Deferred, dueDate = "2026-11-01").validationMessage)
+    }
+
+    @Test
+    fun expiryIsRequiredOnlyForPerishableItems() {
+        val perishable = line().copy(name = "Йогурт", requiresExpiry = true)
+        assertEquals("Укажите «годен до» для: Йогурт", draft(perishable).validationMessage)
+        assertNull(draft(perishable.copy(expiryDate = "2026-12-01")).validationMessage)
+        assertNull(draft(line()).validationMessage)
+        // Оприходование проверяется так же.
+        val posting = ReceiptDraft("2026-10-27", locationId = "loc", lines = listOf(perishable.copy(unitCost = 0.0)))
+        assertEquals("Укажите «годен до» для: Йогурт", posting.postingValidationMessage)
+    }
+
+    @Test
+    fun expiryMessageNamesAtMostFiveItems() {
+        val many = (1..7).map { line().copy(itemId = "i$it", name = "Т$it", requiresExpiry = true) }
+        assertEquals("Укажите «годен до» для: Т1, Т2, Т3, Т4, Т5 и ещё 2", draft(*many.toTypedArray()).expiryMessage())
+    }
+
+    @Test
     fun bonusIsNotCountedInTotal() {
         val d = draft(line(qty = 2.0, cost = 100.0), line(qty = 5.0, cost = 50.0, bonus = true))
         assertEquals(200.0, d.total, 0.0)
@@ -95,6 +125,9 @@ class StoreDraftsTest {
         val payload = body["payload"]!!.jsonObject
         assertEquals("loc", payload["location_id"]!!.jsonPrimitive.content)
         assertEquals("77", payload["invoice_number"]!!.jsonPrimitive.content)
+        assertEquals("https://x/invoice.jpg", payload["invoice_file_url"]!!.jsonPrimitive.content)
+        assertEquals("cogs", payload["expense_category_id"]!!.jsonPrimitive.content)
+        assertEquals("https://x/pay.jpg", payload["payment_receipt_file_url"]!!.jsonPrimitive.content)
         assertEquals("now", payload["payment_mode"]!!.jsonPrimitive.content)
         assertEquals("kaspi", payload["payment_method"]!!.jsonPrimitive.content)
         assertEquals(JsonNull, payload["due_date"])
@@ -110,6 +143,8 @@ class StoreDraftsTest {
         val body = draft(line()).copy(payment = ReceiptPayment.Deferred, dueDate = "2026-11-05").receiptBody(null)
         val payload = body["payload"]!!.jsonObject
         assertEquals(JsonNull, payload["payment_method"])
+        // Чек оплаты уходит только при оплате сразу.
+        assertEquals(JsonNull, payload["payment_receipt_file_url"])
         assertEquals("2026-11-05", payload["due_date"]!!.jsonPrimitive.content)
         assertEquals(JsonNull, body["company_id"])
     }
@@ -252,5 +287,70 @@ class StoreDraftsTest {
         assertEquals(50.0, markupPercent(100.0, 150.0)!!, 0.0001)
         assertNull(markupPercent(0.0, 150.0))
         assertNull(markupPercent(100.0, null))
+    }
+}
+
+class StoreAuditCloseTest {
+    private fun pending(id: String, expected: Double = 10.0, price: Double = 100.0, sold: Double = 0.0) =
+        RevisionActDetail.Pending(id, "Т$id", expected, price, sold, 0.0)
+
+    @Test
+    fun softCloseSendsNoZeroing() {
+        val body = closeActBody("act")
+        assertEquals("close", body["action"]!!.jsonPrimitive.content)
+        assertEquals("act", body["act_id"]!!.jsonPrimitive.content)
+        assertFalse(body["assignDebt"]!!.jsonPrimitive.boolean)
+        assertNull(body["zero_uncounted"])
+        assertNull(body["zero_item_ids"])
+    }
+
+    @Test
+    fun selectiveZeroingSendsExactlyTheChosenItems() {
+        val body = closeActBody("act", zeroItemIds = setOf("b", "a"), assignDebtZeroed = true)
+        assertTrue(body["zero_uncounted"]!!.jsonPrimitive.boolean)
+        assertEquals(listOf("a", "b"), body["zero_item_ids"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertTrue(body["assignDebtZeroed"]!!.jsonPrimitive.boolean)
+        // Пустой выбор — «ничего не обнулять», но не «обнулить всё».
+        assertEquals(0, closeActBody("act", zeroItemIds = emptySet())["zero_item_ids"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun itemsSoldThisWeekAreNotPreselectedForZeroing() {
+        val rows = listOf(pending("1"), pending("2", sold = 3.0), pending("3"))
+        assertEquals(setOf("1", "3"), defaultZeroSelection(rows))
+    }
+
+    @Test
+    fun bigZeroingIsDetectedByCountOrValue() {
+        // Больше 5 позиций и больше 5 % снимка — громко.
+        assertTrue(isBigZeroing((1..6).map { pending("$it", price = 1.0) }, 100))
+        // Мало позиций, но дорого — тоже.
+        assertTrue(isBigZeroing(listOf(pending("1", expected = 10.0, price = 6000.0)), 100))
+        assertFalse(isBigZeroing(listOf(pending("1", price = 10.0)), 100))
+    }
+
+    private fun act(id: String, type: String, closed: Long?, result: Double?, company: String? = "c") =
+        RevisionAct(id, "closed", null, "Склад", 0L, closed, 10, 10, company, type, result, null)
+
+    @Test
+    fun pairedActIsTheOtherLocationOfTheSamePointWithinThreeDays() {
+        val day = 86_400_000L
+        val warehouse = act("w", "warehouse", 10 * day, -100.0)
+        val showcase = act("s", "point_display", 11 * day, 100.0)
+        val farAway = act("f", "point_display", 20 * day, 5.0)
+        val otherPoint = act("o", "point_display", 10 * day, 1.0, company = "other")
+        val sameType = act("t", "warehouse", 10 * day, 1.0)
+        val all = listOf(warehouse, showcase, farAway, otherPoint, sameType)
+        assertEquals("s", pairedAct(warehouse, all)?.id)
+        assertEquals("w", pairedAct(showcase, all)?.id)
+        assertNull(pairedAct(farAway, all))
+        // Склад -100 и витрина +100 дают по точке ноль.
+        assertEquals(0.0, warehouse.resultValue!! + pairedAct(warehouse, all)!!.resultValue!!, 0.0)
+    }
+
+    @Test
+    fun openActHasNoPair() {
+        val open = RevisionAct("o", "open", null, "Склад", 0L, null, 1, 0, "c", "warehouse", null, null)
+        assertNull(pairedAct(open, listOf(open)))
     }
 }

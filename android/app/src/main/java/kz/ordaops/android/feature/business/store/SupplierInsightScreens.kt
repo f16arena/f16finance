@@ -74,19 +74,22 @@ fun SuppliersScreen() {
     StoreScaffold(toast.message) {
         StateContainer(state, onRetry = vm::loadSuppliers, emptyTitle = "Поставщиков нет", emptyMessage = "Заведите первого — он понадобится при приёмке.", isEmpty = { it.isEmpty() }) { list ->
             val debt = list.sumOf { it.openDebtsAmount }
+            val overdue = list.sumOf { it.overdueAmount }
             StoreLazy {
                 item {
-                    StoreCard(accent = if (debt > 0) StoreTone.waits else null) {
+                    StoreCard(accent = if (overdue > 0) StoreTone.loss else if (debt > 0) StoreTone.waits else null) {
                         StatLine("Поставщиков", "${list.size}")
-                        // Долг — ждёт оплаты человеком, поэтому янтарный; ноль не кричит.
+                        // Просрочка — потеря доверия поставщика (rose); долг в срок — ждёт оплаты (amber); ноль не кричит.
                         StatLine("Должны поставщикам", if (debt > 0) money(debt) else "—", if (debt > 0) StoreTone.waits else StoreTone.neutral)
+                        if (overdue > 0) StatLine("Из них просрочено", money(overdue), StoreTone.loss)
                     }
                 }
-                items(list.sortedByDescending { it.openDebtsAmount }, key = { it.id }) { s ->
+                // Просроченные первыми, дальше по размеру долга.
+                items(list.sortedWith(compareByDescending<Supplier> { it.overdueAmount }.thenByDescending { it.openDebtsAmount }), key = { it.id }) { s ->
                     RowCard {
                         Column(Modifier.fillMaxWidth().clickable { selectedId = if (selectedId == s.id) null else s.id }.padding(vertical = Spacing.sm)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                                LetterBadge(s.name, if (s.hasDebt) StoreTone.waits else Orda.colors.brand)
+                                LetterBadge(s.name, if (s.isOverdue) StoreTone.loss else if (s.hasDebt) StoreTone.waits else Orda.colors.brand)
                                 Column(Modifier.weight(1f)) {
                                     Text(s.name, color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                                     Text(
@@ -94,7 +97,13 @@ fun SuppliersScreen() {
                                         color = Orda.colors.textDim, fontSize = 13.sp, maxLines = 1,
                                     )
                                 }
-                                if (s.hasDebt) Text(money(s.openDebtsAmount), color = StoreTone.waits, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                if (s.hasDebt) {
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(money(s.openDebtsAmount), color = if (s.isOverdue) StoreTone.loss else StoreTone.waits, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                        if (s.isOverdue) Text("просрочено ${money(s.overdueAmount)}", color = StoreTone.loss, fontSize = 12.sp)
+                                        else if (s.nextDueDate != null) Text("оплатить до ${fmtDay(s.nextDueDate)}", color = StoreTone.waits, fontSize = 12.sp)
+                                    }
+                                }
                             }
                             if (selectedId == s.id) {
                                 Column(Modifier.padding(top = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
