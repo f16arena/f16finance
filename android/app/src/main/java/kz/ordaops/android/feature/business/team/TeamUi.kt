@@ -357,3 +357,27 @@ fun generatePassword(random: java.util.Random = java.security.SecureRandom()): S
     val alphabet = "abcdefghijkmnpqrstuvwxyz23456789"
     return (0 until 10).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")
 }
+
+/** Градиентная карточка с главной цифрой-текстом (не деньгами): «7 из 10», «85 %». */
+@Composable
+fun TeamHeroCard(title: String, value: String, footer: List<Pair<String, String>>, colors: List<Color> = kz.ordaops.android.feature.business.HeroColors.Accent, caption: String? = null) {
+    val shape = RoundedCornerShape(28.dp)
+    Column(
+        Modifier.fillMaxWidth()
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(colors), shape)
+            .padding(Spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        Text(title, color = Color.White.copy(alpha = 0.85f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(value, color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        if (caption != null) Text(caption, color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+        Row(Modifier.padding(top = Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+            footer.forEach { (label, text) ->
+                Column {
+                    Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                    Text(text, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+            }
+        }
+    }
+}

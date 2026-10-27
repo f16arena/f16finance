@@ -13,4 +13,6 @@ internal val teamPages: Map<String, @Composable () -> Unit> = mapOf(
     "salary-rules" to { SalaryRulesScreen() },
     "hr" to { HrScreen() },
     "structure" to { StructureScreen() },
+    "operator-exams" to { AdminExamsScreen() },
+    "operator-analytics" to { OperatorRosterScreen() },
 )
