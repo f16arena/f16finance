@@ -10,7 +10,6 @@ import {
   Boxes,
   Check,
   CheckCircle2,
-  ChevronDown,
   FileSpreadsheet,
   Loader2,
   MoreHorizontal,
@@ -61,6 +60,7 @@ import { useVisibleSlice } from '@/lib/client/use-visible-slice'
 import { CopyText } from '@/components/ui/copy-text'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from '@/hooks/use-toast'
+import { NativeSelect } from '@/components/ui/native-select'
 import type { LabelItem } from '@/components/store/label-print-dialog'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
 import { SortableTh } from '@/components/ui/sortable-th'
@@ -313,7 +313,7 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
 
   async function handleCreateItem() {
     if (!newItemDialog || !newItemName.trim()) return
-    if (!selectedCompanyId) { alert('Выберите точку-магазин'); return }
+    if (!selectedCompanyId) { toast({ title: 'Выберите точку-магазин', variant: 'destructive' }); return }
     setCreatingItem(true)
     try {
       const res = await fetch('/api/admin/store/warehouse', {
@@ -775,16 +775,15 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
           <>
             {companies.length > 1 && !storeCompanyId && (
               <div className="relative">
-                <select
+                <NativeSelect
                   value={selectedCompanyId || ''}
                   onChange={(e) => setChosenCompanyId(e.target.value)}
-                  className="h-9 appearance-none rounded-lg border border-border bg-white dark:bg-white/[0.04] pl-3 pr-8 text-sm text-foreground outline-none focus:border-amber-400/50"
+                  className="h-9 w-auto"
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                </NativeSelect>
               </div>
             )}
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="h-9 gap-1.5">
@@ -1271,16 +1270,16 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
                     />
                   </div>
                   {categories.length > 0 && (
-                    <select
+                    <NativeSelect
                       value={selectedCategory || ''}
                       onChange={(e) => setSelectedCategory(e.target.value || null)}
-                      className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none"
+                      className="h-8 w-auto px-2 text-xs"
                     >
                       <option value="">Все категории</option>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   )}
                 </div>
                 <div className="max-h-52 overflow-y-auto space-y-1 rounded-xl border border-border bg-slate-50 dark:bg-black/20 p-1">
