@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Loader2, Receipt, FileText, Wallet, X, Trash2 } from 'lucide-react'
+import { AlertTriangle, Download, Loader2, Receipt, FileText, Wallet, Trash2 } from 'lucide-react'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { useStoreApiUrl, useStoreScope } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 
@@ -11,13 +10,14 @@ import { downloadReportPdf } from '@/lib/client/download-pdf'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { CardSkeleton } from '@/components/skeleton'
-import { ModalPortal } from '@/components/ui/modal-portal'
+import { AppModal } from '@/components/ui/app-modal'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
+import { StoreStat, StoreStatGrid, storeCard, StoreAttention, plural } from '@/components/store/store-ui'
 import { Textarea } from '@/components/ui/textarea'
 import { formatMoney } from '@/lib/core/format'
 import { summarizeSupplierDebts } from '@/lib/domain/supplier-debts'
@@ -148,10 +148,6 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
   const [bulkPaying, setBulkPaying] = useState(false)
   const [bulkUploading, setBulkUploading] = useState(false)
   // Esc + scroll-lock для всех 4-х модалок страницы
-  useModalEscape(!!payDebt, () => { if (!paying) setPayDebt(null) })
-  useModalEscape(!!writeOffDebt, () => { if (!writingOff) setWriteOffDebt(null) })
-  useModalEscape(bulkPayOpen, () => { if (!bulkPaying) setBulkPayOpen(false) })
-  useModalEscape(!!reschedDebt, () => { if (!rescheduling) setReschedDebt(null) })
 
   const debtsUrl = storeUrl(`/api/admin/store/debts?status=${statusFilter}&include_receipts=1`)
   const debtsCacheKey = `${debtsUrl}#billing`
@@ -631,13 +627,10 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
           <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="С" />
           <DatePicker value={dateTo} onChange={setDateTo} placeholder="По" />
           {activeTab === 'debts' && companies.length > 0 && !storeCompanyId ? (
-            <Select value={companyFilter || '__all__'} onValueChange={(v) => setCompanyFilter(v === '__all__' ? '' : v)}>
-              <SelectTrigger><SelectValue placeholder="Все точки" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Все точки</SelectItem>
-                {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <NativeSelect value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} aria-label="Точка">
+              <option value="">Все точки</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </NativeSelect>
           ) : (
             <button
               type="button"
@@ -652,30 +645,42 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
 
       {activeTab === 'debts' ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
-              <div className="text-[11px] text-muted-foreground uppercase">Открытых долгов</div>
-              <div className="text-lg font-bold text-amber-700 dark:text-amber-300">{totalsByStatus.openCount}</div>
-              <div className="text-xs text-muted-foreground">{formatMoney(totalsByStatus.open)}</div>
-            </Card>
-            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
-              <div className="text-[11px] text-muted-foreground uppercase">Просрочено</div>
-              <div className="text-lg font-bold text-red-700 dark:text-red-300">{totalsByStatus.overdueCount}</div>
-              <div className="text-xs text-muted-foreground">{formatMoney(totalsByStatus.overdue)}</div>
-            </Card>
-            <Card className="p-3 rounded-2xl border-border bg-white shadow-sm dark:bg-slate-900/60">
-              <div className="text-[11px] text-muted-foreground uppercase">Фильтр статуса</div>
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-                <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="open">Открытые</SelectItem>
-                  <SelectItem value="paid">Оплаченные</SelectItem>
-                  <SelectItem value="written_off">Списанные</SelectItem>
-                  <SelectItem value="all">Все</SelectItem>
-                </SelectContent>
-              </Select>
-            </Card>
-          </div>
+          <StoreStatGrid cols={3}>
+            <StoreStat
+              label="Открытых долгов"
+              value={totalsByStatus.openCount}
+              hint={formatMoney(totalsByStatus.open)}
+              tone={totalsByStatus.openCount > 0 ? 'amber' : 'neutral'}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <StoreStat
+              label="Просрочено"
+              value={totalsByStatus.overdueCount}
+              hint={formatMoney(totalsByStatus.overdue)}
+              tone={totalsByStatus.overdueCount > 0 ? 'rose' : 'neutral'}
+              icon={<AlertTriangle className="h-4 w-4" />}
+            />
+            <div className={`${storeCard} p-3.5 sm:p-4`}>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Показать</p>
+              <NativeSelect className="mt-1.5" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} aria-label="Статус долгов">
+                <option value="open">Открытые</option>
+                <option value="paid">Оплаченные</option>
+                <option value="written_off">Списанные</option>
+                <option value="all">Все</option>
+              </NativeSelect>
+            </div>
+          </StoreStatGrid>
+
+          <StoreAttention
+            loading={loading && filteredDebts.length === 0}
+            calm="Просроченных долгов нет"
+            items={totalsByStatus.overdueCount > 0 ? [{
+              key: 'overdue',
+              icon: AlertTriangle,
+              tone: 'rose',
+              text: <>Просрочено {totalsByStatus.overdueCount} {plural(totalsByStatus.overdueCount, ['долг', 'долга', 'долгов'])} на {formatMoney(totalsByStatus.overdue)}</>,
+            }] : []}
+          />
 
           {selectedIds.size > 0 ? (
             <Card className="sticky top-2 z-10 p-3 bg-emerald-500/15 border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
@@ -875,256 +880,211 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
       )}
 
       {payDebt ? (
-        <ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={closePay}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Оплата долга</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {payDebt.supplier?.organization_name || payDebt.supplier?.name || '—'} · {formatMoney(payDebt.total_amount)}
-                </p>
-              </div>
-              <button onClick={closePay} className="rounded-xl border border-border p-2 text-muted-foreground hover:text-slate-900 dark:hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+        <AppModal
+          open
+          onClose={() => { if (!paying) closePay() }}
+          title="Оплата долга"
+          description={<>{payDebt.supplier?.organization_name || payDebt.supplier?.name || '—'} · {formatMoney(payDebt.total_amount)}</>}
+          maxWidth="max-w-lg"
+          footer={
+            <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={closePay} disabled={paying}>Отмена</Button>
+          <Button onClick={submitPay} disabled={paying || !payReceiptUrl}>
+            {paying ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : 'Провести оплату'}
+          </Button>
+        
             </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Дата оплаты</Label>
-                <DatePicker value={payDate} onChange={setPayDate} />
+          }
+        >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Дата оплаты</Label>
+            <DatePicker value={payDate} onChange={setPayDate} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Способ оплаты</Label>
+            <NativeSelect value={payMethod} onChange={(e) => setPayMethod(e.target.value === 'kaspi' ? 'kaspi' : 'cash')}>
+                    <option value="cash">Наличные</option>
+                    <option value="kaspi">Безналичный</option>
+                  </NativeSelect>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Чек об оплате (обязательно)</Label>
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(e) => void uploadPayReceipt(e.target.files?.[0] || null)}
+              disabled={uploadingReceipt}
+            />
+            {uploadingReceipt ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
+            {payReceiptUrl ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <a href={payReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
+                  Чек загружен — открыть файл
+                </a>
+                {can('store-billing.parse_receipt') && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px]"
+                  onClick={() => void parsePayReceipt()}
+                  disabled={parsingReceipt}
+                >
+                  {parsingReceipt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                  Распознать ИИ
+                </Button>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <Label>Способ оплаты</Label>
-                <Select value={payMethod} onValueChange={(value) => setPayMethod(value === 'kaspi' ? 'kaspi' : 'cash')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Наличные</SelectItem>
-                    <SelectItem value="kaspi">Безналичный</SelectItem>
-                  </SelectContent>
-                </Select>
+            ) : null}
+            {receiptParseHint ? (
+              <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/[0.06] p-2 text-[11px] text-emerald-700 dark:text-emerald-100 space-y-1">
+                {receiptParseHint.total != null ? <p>Сумма в чеке: <b>{Math.round(receiptParseHint.total)} ₸</b></p> : null}
+                {receiptParseHint.method ? <p>Способ: {receiptParseHint.method === 'kaspi' ? 'Безналичный' : 'Наличные'}</p> : null}
+                {receiptParseHint.paid_at ? <p>Дата: {receiptParseHint.paid_at}</p> : null}
+                {receiptParseHint.merchant ? <p>Получатель: {receiptParseHint.merchant}</p> : null}
+                {receiptParseHint.warning ? (
+                  <p className="text-rose-600 dark:text-rose-300 mt-1">⚠ {receiptParseHint.warning}</p>
+                ) : (
+                  <p className="text-emerald-600 dark:text-emerald-300 mt-1">✓ Совпадает с долгом</p>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <Label>Чек об оплате (обязательно)</Label>
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => void uploadPayReceipt(e.target.files?.[0] || null)}
-                  disabled={uploadingReceipt}
-                />
-                {uploadingReceipt ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
-                {payReceiptUrl ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <a href={payReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
-                      Чек загружен — открыть файл
-                    </a>
-                    {can('store-billing.parse_receipt') && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[11px]"
-                      onClick={() => void parsePayReceipt()}
-                      disabled={parsingReceipt}
-                    >
-                      {parsingReceipt ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                      Распознать ИИ
-                    </Button>
-                    )}
-                  </div>
-                ) : null}
-                {receiptParseHint ? (
-                  <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/[0.06] p-2 text-[11px] text-emerald-700 dark:text-emerald-100 space-y-1">
-                    {receiptParseHint.total != null ? <p>Сумма в чеке: <b>{Math.round(receiptParseHint.total)} ₸</b></p> : null}
-                    {receiptParseHint.method ? <p>Способ: {receiptParseHint.method === 'kaspi' ? 'Безналичный' : 'Наличные'}</p> : null}
-                    {receiptParseHint.paid_at ? <p>Дата: {receiptParseHint.paid_at}</p> : null}
-                    {receiptParseHint.merchant ? <p>Получатель: {receiptParseHint.merchant}</p> : null}
-                    {receiptParseHint.warning ? (
-                      <p className="text-rose-600 dark:text-rose-300 mt-1">⚠ {receiptParseHint.warning}</p>
-                    ) : (
-                      <p className="text-emerald-600 dark:text-emerald-300 mt-1">✓ Совпадает с долгом</p>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Комментарий</Label>
-                <Textarea rows={3} value={payComment} onChange={(e) => setPayComment(e.target.value)} placeholder="Опционально" />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={closePay} disabled={paying}>Отмена</Button>
-              <Button onClick={submitPay} disabled={paying || !payReceiptUrl}>
-                {paying ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : 'Провести оплату'}
-              </Button>
-            </div>
+            ) : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Комментарий</Label>
+            <Textarea rows={3} value={payComment} onChange={(e) => setPayComment(e.target.value)} placeholder="Опционально" />
           </div>
         </div>
-        </ModalPortal>
+
+        
+        </AppModal>
       ) : null}
 
       {writeOffDebt ? (
-        <ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => !writingOff && setWriteOffDebt(null)}>
-          <div
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Списать долг</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {writeOffDebt.supplier?.organization_name || writeOffDebt.supplier?.name || '—'} · {formatMoney(writeOffDebt.total_amount)}
-                </p>
-              </div>
-              <button onClick={() => !writingOff && setWriteOffDebt(null)} className="rounded-xl border border-border p-2 text-muted-foreground hover:text-slate-900 dark:hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+        <AppModal
+          open
+          onClose={() => { if (!writingOff) setWriteOffDebt(null) }}
+          title="Списать долг"
+          description={<>{writeOffDebt.supplier?.organization_name || writeOffDebt.supplier?.name || '—'} · {formatMoney(writeOffDebt.total_amount)}</>}
+          maxWidth="max-w-md" tone="warning"
+          footer={
+            <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setWriteOffDebt(null)} disabled={writingOff}>Отмена</Button>
+          <Button onClick={submitWriteOff} disabled={writingOff} className="bg-amber-600 hover:bg-amber-500">
+            {writingOff ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Списываю...</> : 'Списать'}
+          </Button>
+        
             </div>
-
-            <div className="space-y-2">
-              <Label>Причина списания</Label>
-              <Textarea
-                rows={3}
-                value={writeOffReason}
-                onChange={(e) => setWriteOffReason(e.target.value)}
-                placeholder="Например: возврат поставщику, поставщик закрылся, бракованный товар"
-              />
-              <p className="text-xs text-muted-foreground">
-                Списанный долг не создаст расход. Действие будет в журнале аудита.
-              </p>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setWriteOffDebt(null)} disabled={writingOff}>Отмена</Button>
-              <Button onClick={submitWriteOff} disabled={writingOff} className="bg-amber-600 hover:bg-amber-500">
-                {writingOff ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Списываю...</> : 'Списать'}
-              </Button>
-            </div>
-          </div>
+          }
+        >
+        <div className="space-y-2">
+          <Label>Причина списания</Label>
+          <Textarea
+            rows={3}
+            value={writeOffReason}
+            onChange={(e) => setWriteOffReason(e.target.value)}
+            placeholder="Например: возврат поставщику, поставщик закрылся, бракованный товар"
+          />
+          <p className="text-xs text-muted-foreground">
+            Списанный долг не создаст расход. Действие будет в журнале аудита.
+          </p>
         </div>
-        </ModalPortal>
+
+        
+        </AppModal>
       ) : null}
 
       {bulkPayOpen ? (
-        <ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => !bulkPaying && setBulkPayOpen(false)}>
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Оплата нескольких долгов</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Будет закрыто {selectedIds.size} долгов на сумму {formatMoney(selectedSum)} одним чеком.
-                </p>
-              </div>
-              <button onClick={() => !bulkPaying && setBulkPayOpen(false)} className="rounded-xl border border-border p-2 text-muted-foreground hover:text-slate-900 dark:hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+        <AppModal
+          open
+          onClose={() => { if (!bulkPaying) setBulkPayOpen(false) }}
+          title="Оплата нескольких долгов"
+          description={<>Будет закрыто {selectedIds.size} долгов на сумму {formatMoney(selectedSum)} одним чеком.</>}
+          maxWidth="max-w-lg"
+          footer={
+            <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setBulkPayOpen(false)} disabled={bulkPaying}>Отмена</Button>
+          <Button onClick={submitBulkPay} disabled={bulkPaying || !bulkReceiptUrl}>
+            {bulkPaying ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : `Закрыть ${selectedIds.size} долгов`}
+          </Button>
+        
             </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Дата оплаты</Label>
-                <DatePicker value={bulkDate} onChange={setBulkDate} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Способ оплаты</Label>
-                <Select value={bulkMethod} onValueChange={(v) => setBulkMethod(v === 'kaspi' ? 'kaspi' : 'cash')}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Наличные</SelectItem>
-                    <SelectItem value="kaspi">Безналичный</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Чек об оплате (общий, обязательно)</Label>
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => void uploadBulkReceipt(e.target.files?.[0] || null)}
-                  disabled={bulkUploading}
-                />
-                {bulkUploading ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
-                {bulkReceiptUrl ? (
-                  <a href={bulkReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
-                    Чек загружен — открыть файл
-                  </a>
-                ) : null}
-                <p className="text-[10px] text-muted-foreground">Один и тот же чек прикрепится ко всем выбранным расходам.</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Комментарий</Label>
-                <Textarea rows={2} value={bulkComment} onChange={(e) => setBulkComment(e.target.value)} placeholder="Опционально" />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setBulkPayOpen(false)} disabled={bulkPaying}>Отмена</Button>
-              <Button onClick={submitBulkPay} disabled={bulkPaying || !bulkReceiptUrl}>
-                {bulkPaying ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : `Закрыть ${selectedIds.size} долгов`}
-              </Button>
-            </div>
+          }
+        >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Дата оплаты</Label>
+            <DatePicker value={bulkDate} onChange={setBulkDate} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Способ оплаты</Label>
+            <NativeSelect value={bulkMethod} onChange={(e) => setBulkMethod(e.target.value === 'kaspi' ? 'kaspi' : 'cash')}>
+                    <option value="cash">Наличные</option>
+                    <option value="kaspi">Безналичный</option>
+                  </NativeSelect>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Чек об оплате (общий, обязательно)</Label>
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(e) => void uploadBulkReceipt(e.target.files?.[0] || null)}
+              disabled={bulkUploading}
+            />
+            {bulkUploading ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
+            {bulkReceiptUrl ? (
+              <a href={bulkReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
+                Чек загружен — открыть файл
+              </a>
+            ) : null}
+            <p className="text-[10px] text-muted-foreground">Один и тот же чек прикрепится ко всем выбранным расходам.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Комментарий</Label>
+            <Textarea rows={2} value={bulkComment} onChange={(e) => setBulkComment(e.target.value)} placeholder="Опционально" />
           </div>
         </div>
-        </ModalPortal>
+
+        
+        </AppModal>
       ) : null}
 
       {reschedDebt ? (
-        <ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => !rescheduling && setReschedDebt(null)}>
-          <div
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Перенести срок оплаты</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {reschedDebt.supplier?.organization_name || reschedDebt.supplier?.name || '—'} · {formatMoney(reschedDebt.total_amount)}
-                </p>
-                {reschedDebt.due_date ? (
-                  <p className="text-xs text-muted-foreground mt-1">Текущий срок: {fmtDate(reschedDebt.due_date)}</p>
-                ) : null}
-              </div>
-              <button onClick={() => !rescheduling && setReschedDebt(null)} className="rounded-xl border border-border p-2 text-muted-foreground hover:text-slate-900 dark:hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+        <AppModal
+          open
+          onClose={() => { if (!rescheduling) setReschedDebt(null) }}
+          title="Перенести срок оплаты"
+          description={<><span className="block">{reschedDebt.supplier?.organization_name || reschedDebt.supplier?.name || '—'} · {formatMoney(reschedDebt.total_amount)}</span>{reschedDebt.due_date ? <span className="block">Текущий срок: {fmtDate(reschedDebt.due_date)}</span> : null}</>}
+          maxWidth="max-w-md"
+          footer={
+            <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setReschedDebt(null)} disabled={rescheduling}>Отмена</Button>
+          <Button onClick={submitReschedule} disabled={rescheduling}>
+            {rescheduling ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : 'Перенести срок'}
+          </Button>
+        
             </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Новый срок (пусто = снять срок)</Label>
-                <DatePicker value={reschedDate} onChange={setReschedDate} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Причина (опционально)</Label>
-                <Textarea
-                  rows={2}
-                  value={reschedReason}
-                  onChange={(e) => setReschedReason(e.target.value)}
-                  placeholder="Например: договорились с поставщиком о рассрочке"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setReschedDebt(null)} disabled={rescheduling}>Отмена</Button>
-              <Button onClick={submitReschedule} disabled={rescheduling}>
-                {rescheduling ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : 'Перенести срок'}
-              </Button>
-            </div>
+          }
+        >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Новый срок (пусто = снять срок)</Label>
+            <DatePicker value={reschedDate} onChange={setReschedDate} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Причина (опционально)</Label>
+            <Textarea
+              rows={2}
+              value={reschedReason}
+              onChange={(e) => setReschedReason(e.target.value)}
+              placeholder="Например: договорились с поставщиком о рассрочке"
+            />
           </div>
         </div>
-        </ModalPortal>
+
+        
+        </AppModal>
       ) : null}
     </div>
   )
