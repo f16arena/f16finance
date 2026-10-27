@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArchiveX, Loader2, MoreHorizontal, Package, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { ArchiveX, Loader2, MoreHorizontal, RefreshCw, Search, Trash2 } from 'lucide-react'
 
 import { useStoreScope } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AppModal } from '@/components/ui/app-modal'
+import { StoreChip, StoreEmpty, StoreSection, StoreStat, StoreStatGrid } from '@/components/store/store-ui'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { formatMoney } from '@/lib/core/format'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { StoreDataTableSkeleton } from '@/components/store/store-data-table-skeleton'
-import { Skeleton } from '@/components/ui/skeleton'
 import { isAbortError } from '@/lib/is-abort-error'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
 import { SortableTh } from '@/components/ui/sortable-th'
@@ -519,25 +518,12 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
         )
       })()}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Документов</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold">{(data?.writeoffs || []).length}</p>}
-        </Card>
-        <Card className="border-rose-500/20 bg-rose-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300/70">Сумма всех списаний</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-28" /> : (
-            <p className="mt-1 truncate text-xl font-semibold text-rose-700 dark:text-rose-200" title={formatMoney(totalWriteoffsAmount)}>{formatMoney(totalWriteoffsAmount)}</p>
-          )}
-        </Card>
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Причин</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : (
-            <p className="mt-1 text-xl font-semibold">{new Set((data?.writeoffs || []).map((w) => w.reason).filter(Boolean)).size}</p>
-          )}
-        </Card>
-      </div>
+      {/* Сводка */}
+      <StoreStatGrid cols={3}>
+        <StoreStat label="Документов" value={(data?.writeoffs || []).length} loading={loading} />
+        <StoreStat label="Сумма списаний" value={formatMoney(totalWriteoffsAmount)} loading={loading} tone={totalWriteoffsAmount > 0 ? 'rose' : 'neutral'} hint="По себестоимости" />
+        <StoreStat label="Причин" value={new Set((data?.writeoffs || []).map((w) => w.reason).filter(Boolean)).size} loading={loading} />
+      </StoreStatGrid>
 
       {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
       {success ? <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-700 dark:text-emerald-300">{success}</div> : null}
@@ -581,17 +567,56 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
         </DropdownMenu>
       </div>
 
-      {/* Main table */}
-      <Card className="overflow-hidden border-border bg-card/70 p-0">
+      {/* Документы */}
+      <StoreSection title="Списания" subtitle={`${filteredWriteoffs.length} шт`} flush>
         {loading && filteredWriteoffs.length === 0 ? (
           <StoreDataTableSkeleton columns={6} />
         ) : filteredWriteoffs.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 opacity-50" />
-            {writeoffSearch ? 'Ничего не найдено' : 'Списаний пока нет — нажмите «Новое списание»'}
-          </div>
+          <StoreEmpty
+            icon={<ArchiveX className="h-5 w-5" />}
+            title={writeoffSearch ? 'Ничего не найдено' : 'Списаний пока нет'}
+            hint={writeoffSearch ? 'Попробуйте другую локацию, причину или товар.' : 'Брак, порчу и просрочку фиксируем документом списания: товар уходит с остатка, а сумма попадает в расходы.'}
+            action={!writeoffSearch ? <Button size="sm" onClick={() => setFormSheetOpen(true)} className="gap-1.5 bg-rose-600 hover:bg-rose-700"><ArchiveX className="h-3.5 w-3.5" /> Новое списание</Button> : undefined}
+          />
         ) : (
-          <div className="relative max-h-[calc(100vh-380px)] overflow-auto">
+          <>
+          <div className="relative md:hidden">
+            {refreshing ? (
+              <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/35 pt-10 backdrop-blur-[0.5px]">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Обновление…
+                </div>
+              </div>
+            ) : null}
+            <div className={`divide-y divide-border ${refreshing ? 'pointer-events-none opacity-50' : ''}`}>
+              {sortedWriteoffs.map((writeoff) => (
+                <button
+                  key={writeoff.id}
+                  type="button"
+                  className="flex w-full items-start gap-3 p-4 text-left"
+                  onClick={() => {
+                    setSelectedWriteoff(writeoff)
+                    setWriteoffDetailsOpen(true)
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{writeoff.reason || 'Без причины'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(writeoff.written_at)} · {writeoff.location?.company?.name || writeoff.location?.name || '—'} · {(writeoff.items || []).length} поз.
+                    </p>
+                    {writeoff.comment ? <p className="truncate text-[11px] text-muted-foreground">{writeoff.comment}</p> : null}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-base font-bold tabular-nums text-rose-600 dark:text-rose-300">{formatMoney(Number(writeoff.total_amount || 0))}</div>
+                    {writeoff.status === 'cancelled' ? <StoreChip tone="amber">отменено</StoreChip> : null}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative hidden max-h-[calc(100vh-380px)] overflow-auto md:block">
             {refreshing ? (
               <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/35 pt-10 backdrop-blur-[0.5px]">
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
@@ -670,22 +695,22 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
             </table>
             </div>
           </div>
+          </>
         )}
-      </Card>
+      </StoreSection>
 
       {/* Create writeoff dialog */}
-      <Dialog open={formSheetOpen} onOpenChange={setFormSheetOpen}>
-        <DialogContent className="flex h-[90dvh] max-h-[90dvh] !w-[96vw] !max-w-[96vw] sm:!max-w-[1300px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border p-5 text-left">
-            <DialogTitle className="flex items-center gap-2">
-              <ArchiveX className="h-5 w-5 text-rose-700 dark:text-rose-300" />
-              Новый документ списания
-            </DialogTitle>
-            <DialogDescription>
-              Сначала локация и причина, потом только нужные позиции.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createWriteoff} className="flex-1 space-y-5 overflow-y-auto p-5">
+      <AppModal
+        open={formSheetOpen}
+        onClose={() => setFormSheetOpen(false)}
+        disableBackdropClose
+        maxWidth="max-w-6xl"
+        tone="danger"
+        icon={<ArchiveX className="h-4.5 w-4.5" />}
+        title="Новый документ списания"
+        description="Сначала локация и причина, потом только нужные позиции."
+      >
+          <form onSubmit={createWriteoff} className="space-y-5">
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.05] p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -865,20 +890,20 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
               Провести списание
             </Button>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AppModal>
 
-      <Dialog open={writeoffDetailsOpen} onOpenChange={setWriteoffDetailsOpen}>
-        <DialogContent className="flex h-[85dvh] max-h-[85dvh] !w-[92vw] !max-w-[92vw] sm:!max-w-[1200px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border p-5 text-left">
-            <DialogTitle>Детали списания</DialogTitle>
-            <DialogDescription>
-              {selectedWriteoff
-                ? `${formatDate(selectedWriteoff.written_at)} · ${selectedWriteoff.location?.company?.name || selectedWriteoff.location?.name || 'Локация'}`
-                : 'Проведенный акт списания'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto p-5">
+      <AppModal
+        open={writeoffDetailsOpen}
+        onClose={() => setWriteoffDetailsOpen(false)}
+        maxWidth="max-w-4xl"
+        tone="danger"
+        icon={<ArchiveX className="h-4.5 w-4.5" />}
+        title="Детали списания"
+        description={selectedWriteoff
+          ? `${formatDate(selectedWriteoff.written_at)} · ${selectedWriteoff.location?.company?.name || selectedWriteoff.location?.name || 'Локация'}`
+          : 'Проведённый акт списания'}
+      >
+          <div>
             {!selectedWriteoff ? (
               <p className="text-sm text-muted-foreground">Документ не выбран.</p>
             ) : (
@@ -942,8 +967,7 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+      </AppModal>
     </div>
     </TooltipProvider>
   )

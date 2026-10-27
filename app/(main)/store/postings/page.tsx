@@ -14,7 +14,10 @@ import { useStoreScope } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { downloadXlsx } from '@/lib/client/excel'
 import { todayISO } from '@/lib/core/date'
-import { useModalEscape } from '@/lib/client/use-modal-escape'
+import { AppModal } from '@/components/ui/app-modal'
+import { StoreChip, StoreEmpty, StoreSection } from '@/components/store/store-ui'
+import { formatMoney } from '@/lib/core/format'
+import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { PageSkeleton, TableSkeleton } from '@/components/skeleton'
@@ -133,12 +136,10 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
   const [dupWarn, setDupWarn] = useState<string | null>(null) // предупреждение о повторном добавлении товара
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPhrase, setConfirmPhrase] = useState('')
-  useModalEscape(confirmOpen, () => { if (!saving) setConfirmOpen(false) })
 
   // Просмотр проведённого оприходования + «отменить и редактировать»
   const [viewPosting, setViewPosting] = useState<RecentPosting | null>(null)
   const [cancelling, setCancelling] = useState(false)
-  useModalEscape(!!viewPosting, () => { if (!cancelling) setViewPosting(null) })
 
   useEffect(() => {
     let cancelled = false
@@ -380,7 +381,13 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
   // Отмена проведённого оприходования (остатки откатываются) + строки в форму на доработку.
   const cancelAndEdit = async () => {
     if (!viewPosting) return
-    if (!window.confirm('Оприходование будет отменено (остатки откатятся), а строки загрузятся в форму для редактирования. Продолжить?')) return
+    const okCancel = await confirmDialog({
+      title: 'Отменить оприходование?',
+      description: 'Остатки откатятся, а строки загрузятся в форму для редактирования.',
+      confirmLabel: 'Отменить и редактировать',
+      destructive: true,
+    })
+    if (!okCancel) return
     setCancelling(true)
     setError(null)
     try {
@@ -560,21 +567,18 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
         />
       )}
 
-      <Card className="border-amber-500/20 bg-amber-500/5">
-        <CardContent className="p-4 flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
-          <div className="text-sm text-slate-700 dark:text-amber-100">
-            <p className="font-medium">Ответственная операция</p>
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-200/80">
-              Оприходование изменяет фактический остаток без документа от поставщика. Каждое действие записывается в журнал движений и аудит.
-              Перед проведением потребуется подтверждение.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3">
+        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
+        <div className="text-sm text-foreground">
+          <p className="font-medium">Ответственная операция</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Оприходование меняет остаток без документа от поставщика. Каждое действие попадает в журнал движений и аудит, перед проведением нужно подтверждение.
+          </p>
+        </div>
+      </div>
 
-      <Card className="border-border bg-card/70 p-0">
-        <CardContent className="p-4 sm:p-5 space-y-4">
+      <StoreSection title="Новое оприходование" subtitle="Куда, когда и какие товары" icon={<Upload className="h-4 w-4" />}>
+        <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Куда оприходовать</Label>
@@ -857,77 +861,87 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
             </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      {confirmOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
-          onClick={(e) => { if (e.target === e.currentTarget && !saving) setConfirmOpen(false) }}>
-          <Card className="w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto border-amber-500/30 bg-card">
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-amber-700 dark:text-amber-300" />
-                <h3 className="font-semibold">Подтверждение оприходования</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Будет проведено оприходование на <strong className="text-foreground">{selectedLocation?.name || '—'}</strong> ({targetLabel}).
-                Позиций: <strong className="text-foreground">{lines.filter((l) => l.item_id && parseNum(l.quantity) > 0).length}</strong>.
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-200/80">
-                Действие будет записано в журнал движений и аудит. Откатить можно через «Отмену приёмки».
-              </p>
-              <div className="space-y-1.5">
-                <Label className="text-xs">
-                  Введите фразу <code className="bg-surface-hover px-1 rounded text-xs">{CONFIRM_PHRASE}</code> для подтверждения:
-                </Label>
-                <Input
-                  value={confirmPhrase}
-                  onChange={(e) => setConfirmPhrase(e.target.value)}
-                  placeholder={CONFIRM_PHRASE}
-                  autoFocus
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={saving}>Отмена</Button>
-                <Button
-                  onClick={() => void submit()}
-                  disabled={saving || confirmPhrase.trim() !== CONFIRM_PHRASE}
-                >
-                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                  Провести
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-      )}
+      </StoreSection>
 
-      {viewPosting && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
-          onClick={(e) => { if (e.target === e.currentTarget && !cancelling) setViewPosting(null) }}
-        >
-          <Card className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto border-border bg-card">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="flex items-center gap-2 font-semibold">
-                    <Package className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
-                    Оприходование от {viewPosting.received_at}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {viewPosting.location?.name || '—'} ({viewPosting.location?.location_type === 'point_display' ? 'витрина' : 'склад'})
-                    {viewPosting.comment ? ` · ${viewPosting.comment}` : ''}
-                  </p>
-                </div>
-                {viewPosting.status === 'cancelled' ? (
-                  <Badge variant="outline" className="shrink-0 border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-200">Отменён</Badge>
-                ) : (
-                  <Badge variant="outline" className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">Проведён</Badge>
+      <AppModal
+        open={confirmOpen}
+        onClose={() => { if (!saving) setConfirmOpen(false) }}
+        disableBackdropClose={saving}
+        tone="warning"
+        icon={<ShieldAlert className="h-4.5 w-4.5" />}
+        title="Подтверждение оприходования"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={saving}>Отмена</Button>
+            <Button onClick={() => void submit()} disabled={saving || confirmPhrase.trim() !== CONFIRM_PHRASE}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+              Провести
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Будет проведено оприходование на <strong className="text-foreground">{selectedLocation?.name || '—'}</strong> ({targetLabel}).
+            Позиций: <strong className="text-foreground">{lines.filter((l) => l.item_id && parseNum(l.quantity) > 0).length}</strong>.
+          </p>
+          <p className="text-xs text-amber-700 dark:text-amber-200/80">
+            Действие будет записано в журнал движений и аудит. Откатить можно через «Отмену приёмки».
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              Введите фразу <code className="bg-surface-hover px-1 rounded text-xs">{CONFIRM_PHRASE}</code> для подтверждения:
+            </Label>
+            <Input value={confirmPhrase} onChange={(e) => setConfirmPhrase(e.target.value)} placeholder={CONFIRM_PHRASE} autoFocus />
+          </div>
+        </div>
+      </AppModal>
+
+      <AppModal
+        open={!!viewPosting}
+        onClose={() => { if (!cancelling) setViewPosting(null) }}
+        disableBackdropClose={cancelling}
+        maxWidth="max-w-2xl"
+        icon={<Package className="h-4.5 w-4.5" />}
+        title={viewPosting ? `Оприходование от ${viewPosting.received_at}` : ''}
+        description={viewPosting ? (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span>
+              {viewPosting.location?.name || '—'} ({viewPosting.location?.location_type === 'point_display' ? 'витрина' : 'склад'})
+              {viewPosting.comment ? ` · ${viewPosting.comment}` : ''}
+            </span>
+            {viewPosting.status === 'cancelled' ? (
+              <Badge variant="outline" className="shrink-0 border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-200">Отменён</Badge>
+            ) : (
+              <Badge variant="outline" className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">Проведён</Badge>
+            )}
+          </span>
+        ) : undefined}
+        footer={viewPosting ? (
+          <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => void exportPostingExcel(viewPosting)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Экспорт Excel
+                </Button>
+                <Button variant="ghost" onClick={() => setViewPosting(null)} disabled={cancelling}>Закрыть</Button>
+                {viewPosting.status === 'cancelled' && (
+                  <Button variant="outline" onClick={editCancelled}>
+                    Загрузить в форму для редактирования
+                  </Button>
+                )}
+                {viewPosting.status === 'posted' && can('store-receipts.cancel') && (
+                  <Button variant="outline" className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-300" onClick={() => void cancelAndEdit()} disabled={cancelling}>
+                    {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    Отменить и редактировать
+                  </Button>
                 )}
               </div>
-
-              <div className="overflow-auto rounded-lg border border-border">
+        ) : undefined}
+      >
+        {viewPosting ? (
+          <div className="space-y-4">
+            <div className="overflow-auto rounded-lg border border-border">
                 <table className="w-full min-w-[520px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-slate-50 dark:bg-white/[0.03] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -959,104 +973,102 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
                   </tfoot>
                 </table>
               </div>
-
-              {viewPosting.status === 'posted' && (
+            {viewPosting.status === 'posted' && (
                 <p className="text-xs text-amber-700 dark:text-amber-200/80">
                   «Отменить и редактировать» откатит остатки этого оприходования и загрузит строки в форму выше —
                   отредактируйте количество/цены, добавьте товары и проведите заново.
                 </p>
               )}
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" onClick={() => void exportPostingExcel(viewPosting)}>
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Экспорт Excel
-                </Button>
-                <Button variant="ghost" onClick={() => setViewPosting(null)} disabled={cancelling}>Закрыть</Button>
-                {viewPosting.status === 'cancelled' && (
-                  <Button variant="outline" onClick={editCancelled}>
-                    Загрузить в форму для редактирования
-                  </Button>
-                )}
-                {viewPosting.status === 'posted' && can('store-receipts.cancel') && (
-                  <Button variant="outline" className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-300" onClick={() => void cancelAndEdit()} disabled={cancelling}>
-                    {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                    Отменить и редактировать
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <Card className="border-border bg-card/70 p-0">
-        <CardContent className="p-4 sm:p-5">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Package className="h-4 w-4 text-emerald-700 dark:text-emerald-300" /> Последние оприходования
-            </div>
-            <Button variant="outline" size="sm" onClick={exportExcel} disabled={exporting}>
-              {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
-              Экспорт Excel
-            </Button>
           </div>
-          {loading && recent.length === 0 ? (
-            <TableSkeleton rows={5} cols={7} />
-          ) : recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Пока нет оприходований.</p>
-          ) : (
-            <div className="overflow-auto">
+        ) : null}
+      </AppModal>
+
+      <StoreSection
+        title="Последние оприходования"
+        subtitle={recent.length ? `${recent.length} шт` : undefined}
+        icon={<Package className="h-4 w-4" />}
+        flush
+        action={
+          <Button variant="outline" size="sm" onClick={exportExcel} disabled={exporting}>
+            {exporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+            Экспорт Excel
+          </Button>
+        }
+      >
+        {loading && recent.length === 0 ? (
+          <div className="p-4"><TableSkeleton rows={5} cols={7} /></div>
+        ) : recent.length === 0 ? (
+          <StoreEmpty
+            icon={<Upload className="h-5 w-5" />}
+            title="Оприходований пока нет"
+            hint="Здесь появятся документы, которые вы проведёте формой выше: начальный остаток, излишек по ревизии, возврат от сотрудника."
+          />
+        ) : (
+          <>
+            {/* Телефон: карточки */}
+            <div className="divide-y divide-border md:hidden">
+              {sortedRecent.map((r) => (
+                <button key={r.id} type="button" onClick={() => setViewPosting(r)} className={`flex w-full items-start gap-3 p-4 text-left ${r.status === 'cancelled' ? 'opacity-60' : ''}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{r.location?.name || '—'}</p>
+                    <p className="text-xs text-muted-foreground">{r.received_at} · {(r.items || []).length} поз.</p>
+                    {r.comment ? <p className="truncate text-[11px] text-muted-foreground">{r.comment}</p> : null}
+                  </div>
+                  <div className="shrink-0 space-y-1 text-right">
+                    <div className="text-base font-bold tabular-nums text-foreground">{formatMoney(Number(r.total_amount || 0))}</div>
+                    <div className="flex justify-end gap-1">
+                      <StoreChip tone={r.location?.location_type === 'point_display' ? 'emerald' : 'sky'}>{r.location?.location_type === 'point_display' ? 'витрина' : 'подсобка'}</StoreChip>
+                      {r.status === 'cancelled' ? <StoreChip tone="rose">Отменён</StoreChip> : null}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Компьютер: таблица */}
+            <div className="hidden overflow-auto md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <SortableTh label="Дата" sortKey="date" sort={recentSort} onSort={toggleRecentSort} className="py-2 pl-2 pr-2 font-normal" />
-                    <SortableTh label="Куда" sortKey="location" sort={recentSort} onSort={toggleRecentSort} className="py-2 px-2 font-normal" />
-                    <SortableTh label="Тип" sortKey="type" sort={recentSort} onSort={toggleRecentSort} className="py-2 px-2 font-normal" />
-                    <SortableTh label="Комментарий" sortKey="comment" sort={recentSort} onSort={toggleRecentSort} className="py-2 px-2 font-normal" />
-                    <SortableTh label="Позиций" sortKey="positions" sort={recentSort} onSort={toggleRecentSort} align="right" className="py-2 px-2 font-normal" />
-                    <SortableTh label="Сумма" sortKey="amount" sort={recentSort} onSort={toggleRecentSort} align="right" className="py-2 px-2 font-normal" />
-                    <SortableTh label="Статус" sortKey="status" sort={recentSort} onSort={toggleRecentSort} className="py-2 px-2 font-normal" />
+                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <SortableTh label="Дата" sortKey="date" sort={recentSort} onSort={toggleRecentSort} className="py-2.5 pl-4 pr-2 font-normal" />
+                    <SortableTh label="Куда" sortKey="location" sort={recentSort} onSort={toggleRecentSort} className="py-2.5 px-2 font-normal" />
+                    <SortableTh label="Тип" sortKey="type" sort={recentSort} onSort={toggleRecentSort} className="py-2.5 px-2 font-normal" />
+                    <SortableTh label="Комментарий" sortKey="comment" sort={recentSort} onSort={toggleRecentSort} className="py-2.5 px-2 font-normal" />
+                    <SortableTh label="Позиций" sortKey="positions" sort={recentSort} onSort={toggleRecentSort} align="right" className="py-2.5 px-2 font-normal" />
+                    <SortableTh label="Сумма" sortKey="amount" sort={recentSort} onSort={toggleRecentSort} align="right" className="py-2.5 px-2 font-normal" />
+                    <SortableTh label="Статус" sortKey="status" sort={recentSort} onSort={toggleRecentSort} className="py-2.5 px-2 pr-4 font-normal" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
+                <tbody className="divide-y divide-border">
                   {sortedRecent.map((r) => (
                     <tr
                       key={r.id}
                       onClick={() => setViewPosting(r)}
                       title="Нажмите, чтобы посмотреть позиции"
-                      className={`cursor-pointer transition hover:bg-slate-50 dark:hover:bg-white/[0.03] ${r.status === 'cancelled' ? 'opacity-50 line-through' : ''}`}
+                      className={`cursor-pointer transition hover:bg-slate-50 dark:hover:bg-white/[0.03] ${r.status === 'cancelled' ? 'opacity-50' : ''}`}
                     >
-                      <td className="py-2 pl-2 pr-2 text-xs text-muted-foreground">{r.received_at}</td>
-                      <td className="py-2 px-2 text-xs">{r.location?.name || '—'}</td>
-                      <td className="py-2 px-2 text-xs">
-                        {r.location?.location_type === 'point_display' ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
-                            <Store className="h-3 w-3" /> витрина
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300">
-                            <Warehouse className="h-3 w-3" /> склад
-                          </span>
-                        )}
+                      <td className="py-2.5 pl-4 pr-2 text-xs text-muted-foreground">{r.received_at}</td>
+                      <td className="px-2 py-2.5 text-xs">{r.location?.name || '—'}</td>
+                      <td className="px-2 py-2.5 text-xs">
+                        <StoreChip tone={r.location?.location_type === 'point_display' ? 'emerald' : 'sky'}>
+                          {r.location?.location_type === 'point_display' ? <Store className="h-3 w-3" /> : <Warehouse className="h-3 w-3" />}
+                          {r.location?.location_type === 'point_display' ? 'витрина' : 'подсобка'}
+                        </StoreChip>
                       </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{r.comment || '—'}</td>
-                      <td className="py-2 px-2 text-right text-xs">{(r.items || []).length}</td>
-                      <td className="py-2 px-2 text-right text-xs">{Number(r.total_amount || 0).toLocaleString('ru-RU')}</td>
-                      <td className="py-2 px-2 text-xs">
-                        {r.status === 'cancelled' ? (
-                          <Badge variant="outline" className="border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-200">Отменён</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">Проведён</Badge>
-                        )}
+                      <td className="px-2 py-2.5 text-xs text-muted-foreground">{r.comment || '—'}</td>
+                      <td className="px-2 py-2.5 text-right text-xs tabular-nums text-muted-foreground">{(r.items || []).length}</td>
+                      <td className="px-2 py-2.5 text-right text-sm font-semibold tabular-nums">{formatMoney(Number(r.total_amount || 0))}</td>
+                      <td className="px-2 py-2.5 pr-4 text-xs">
+                        {r.status === 'cancelled' ? <StoreChip tone="rose">Отменён</StoreChip> : <StoreChip tone="emerald">Проведён</StoreChip>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        )}
+      </StoreSection>
     </div>
   )
 }

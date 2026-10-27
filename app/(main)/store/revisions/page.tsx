@@ -1,72 +1,37 @@
 'use client'
 
+import { toast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, ClipboardCheck, ClipboardList, Loader2, Package, RefreshCw, ScanLine, ScanSearch, Search, Smartphone, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ClipboardCheck, ClipboardList, Loader2, RefreshCw, ScanLine, ScanSearch, Search, Smartphone, Trash2 } from 'lucide-react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useStoreScope } from '@/components/store/store-scope'
-import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { StoreDataTableSkeleton } from '@/components/store/store-data-table-skeleton'
-import { Skeleton } from '@/components/ui/skeleton'
 import { isAbortError } from '@/lib/is-abort-error'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
-
-type InventoryLocation = {
-  id: string
-  name: string
-  code: string | null
-  location_type: 'warehouse' | 'point_display'
-  company?: { id: string; name: string; code: string | null } | null
-}
-
-type InventoryItem = {
-  id: string
-  name: string
-  barcode: string
-  unit: string
-  item_type: string
-  sale_price?: number
-  default_purchase_price?: number
-}
-
-type InventoryBalance = {
-  location_id: string
-  item_id: string
-  quantity: number
-  item?: InventoryItem | null
-}
-
-type InventoryRevision = {
-  id: string
-  counted_at: string
-  comment: string | null
-  created_by?: string | null
-  created_by_staff?: { id: string; full_name: string | null; role: string | null } | null
-  /** Заполнено, если акт убран в архив. Приходит только суперадминистратору. */
-  archived_at?: string | null
-  archive_reason?: string | null
-  location?: InventoryLocation | null
-  items?: Array<{
-    id: string
-    expected_qty: number
-    actual_qty: number
-    delta_qty: number
-    comment: string | null
-    item?: InventoryItem | null
-  }>
-}
+import { AppModal } from '@/components/ui/app-modal'
+import { StoreSection, StoreStat, StoreStatGrid } from '@/components/store/store-ui'
+import { RevisionsList } from './_parts/revisions-list'
+import { RevisionDetailsModal } from './_parts/revision-details-modal'
+import {
+  actorLabel,
+  formatDate,
+  formatQty,
+  type InventoryBalance,
+  type InventoryItem,
+  type InventoryLocation,
+  type InventoryRevision,
+} from './_parts/shared'
 
 type RevisionsResponse = {
   ok: boolean
@@ -99,21 +64,6 @@ function parseQty(value: string) {
   return Math.round((numeric + Number.EPSILON) * 1000) / 1000
 }
 
-function formatQty(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(parsed)
-}
-
 /** «1 акт», «2 акта», «5 актов» — иначе интерфейс говорит на ломаном русском. */
 function plural(count: number, one: string, few: string, many: string) {
   const mod100 = Math.abs(count) % 100
@@ -122,12 +72,6 @@ function plural(count: number, one: string, few: string, many: string) {
   if (mod10 === 1) return one
   if (mod10 >= 2 && mod10 <= 4) return few
   return many
-}
-
-function actorLabel(staff: { full_name: string | null } | null | undefined, fallbackId: string | null | undefined) {
-  if (staff?.full_name) return staff.full_name
-  if (fallbackId) return `ID ${String(fallbackId).slice(0, 8)}`
-  return '—'
 }
 
 export default function StoreRevisionsPage({ embedded = false }: { embedded?: boolean } = {}) {
@@ -556,7 +500,7 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
 
     const w = window.open('', '_blank', 'width=900,height=700')
     if (!w) {
-      window.alert('Не удалось открыть окно печати — разрешите всплывающие окна для этого сайта.')
+      toast({ title: 'Не удалось открыть окно печати — разрешите всплывающие окна для этого сайта.', variant: 'destructive' })
       return
     }
     w.document.open()
@@ -904,25 +848,13 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
         )
       })()}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Актов</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold">{revisionsStats.count}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">С расхождениями</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{revisionsStats.withMismatch}</p>}
-        </Card>
-        <Card className="border-rose-500/20 bg-rose-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-rose-700 dark:text-rose-300/70">Недостача (всего)</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-20" /> : <p className="mt-1 text-xl font-semibold text-rose-700 dark:text-rose-200">{formatQty(revisionsStats.totalShortage)}</p>}
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300/70">Излишек (всего)</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-20" /> : <p className="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-200">{formatQty(revisionsStats.totalSurplus)}</p>}
-        </Card>
-      </div>
+      {/* Сводка: потери красным только когда они есть */}
+      <StoreStatGrid cols={4}>
+        <StoreStat label="Актов" value={revisionsStats.count} loading={loading} />
+        <StoreStat label="С расхождениями" value={revisionsStats.withMismatch} loading={loading} tone={revisionsStats.withMismatch > 0 ? 'amber' : 'neutral'} />
+        <StoreStat label="Недостача, шт" value={revisionsStats.totalShortage > 0 ? `−${formatQty(revisionsStats.totalShortage)}` : '0'} loading={loading} tone={revisionsStats.totalShortage > 0 ? 'rose' : 'neutral'} />
+        <StoreStat label="Излишек, шт" value={revisionsStats.totalSurplus > 0 ? `+${formatQty(revisionsStats.totalSurplus)}` : '0'} loading={loading} tone={revisionsStats.totalSurplus > 0 ? 'emerald' : 'neutral'} />
+      </StoreStatGrid>
 
       {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
       {success ? <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-700 dark:text-emerald-300">{success}</div> : null}
@@ -991,217 +923,53 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
         </div>
       ) : null}
 
-      {/* Main table */}
-      <Card className="overflow-hidden border-border bg-card/70 p-0">
+      {/* Акты */}
+      <StoreSection title={archiveView ? 'Архив ревизий' : 'Акты ревизии'} subtitle={`${filteredRevisions.length} шт`} flush>
         {loading && filteredRevisions.length === 0 ? (
           <StoreDataTableSkeleton columns={canArchive ? 11 : 10} />
-        ) : filteredRevisions.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 opacity-50" />
-            {revisionSearch
-              ? 'Ничего не найдено'
-              : archiveView
-                ? 'В архиве пусто — сюда попадают акты, которые вы убрали из списка'
-                : 'Ревизий пока нет — нажмите «Новый акт»'}
-          </div>
         ) : (
-          <div className="relative max-h-[calc(100vh-380px)] overflow-auto">
-            {refreshing ? (
-              <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/35 pt-10 backdrop-blur-[0.5px]">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Обновление…
-                </div>
-              </div>
-            ) : null}
-            <div className={refreshing ? 'pointer-events-none opacity-50' : undefined}>
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="sticky top-0 z-10 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur">
-                <tr className="border-b border-slate-200 dark:border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {canArchive ? (
-                    <th className="w-10 py-2.5 pl-4 pr-0 font-normal">
-                      <Checkbox
-                        checked={allVisibleSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Выделить все акты"
-                      />
-                    </th>
-                  ) : null}
-                  <th className={`w-24 py-2.5 pr-2 font-normal ${canArchive ? 'pl-3' : 'pl-4'}`}>Дата</th>
-                  <th className="w-40 py-2.5 px-2 font-normal">Провел</th>
-                  <th className="w-48 py-2.5 px-2 font-normal">Локация</th>
-                  <th className="py-2.5 px-2 font-normal">Комментарий</th>
-                  <th className="w-20 py-2.5 px-2 text-right font-normal">Позиций</th>
-                  <th className="w-24 py-2.5 px-2 text-right font-normal">Недостача</th>
-                  <th className="w-24 py-2.5 px-2 pr-4 text-right font-normal">Излишек</th>
-                  <th className="w-28 py-2.5 px-2 text-right font-normal">Сумма (прод.)</th>
-                  <th className="w-28 py-2.5 px-2 pr-4 text-right font-normal">Сумма (закуп.)</th>
-                  <th className="w-28 py-2.5 px-2 pr-4 text-right font-normal">Акт</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
-                {filteredRevisions.map((revision) => {
-                  const items = revision.items || []
-                  const shortage = items.reduce((s, i) => s + (Number(i.delta_qty || 0) < 0 ? Math.abs(Number(i.delta_qty || 0)) : 0), 0)
-                  const surplus = items.reduce((s, i) => s + (Number(i.delta_qty || 0) > 0 ? Number(i.delta_qty || 0) : 0), 0)
-                  const saleAmount = items.reduce((s, i) => {
-                    const deltaAbs = Math.abs(Number(i.delta_qty || 0))
-                    const salePrice = Number(i.item?.sale_price || 0)
-                    return s + deltaAbs * salePrice
-                  }, 0)
-                  const purchaseAmount = items.reduce((s, i) => {
-                    const deltaAbs = Math.abs(Number(i.delta_qty || 0))
-                    const purchasePrice = Number(i.item?.default_purchase_price || 0)
-                    return s + deltaAbs * purchasePrice
-                  }, 0)
-                  const mismatches = items.filter((i) => Number(i.delta_qty || 0) !== 0)
-                  return (
-                    <tr
-                      key={revision.id}
-                      className={`transition hover:bg-slate-50 dark:hover:bg-white/[0.02] ${selectedSet.has(revision.id) ? 'bg-amber-400/[0.07]' : ''}`}
-                    >
-                      {canArchive ? (
-                        <td className="w-10 py-2.5 pl-4 pr-0 align-middle">
-                          <Checkbox
-                            checked={selectedSet.has(revision.id)}
-                            onCheckedChange={() => toggleSelectOne(revision.id)}
-                            aria-label="Выделить акт"
-                          />
-                        </td>
-                      ) : null}
-                      <td className={`w-24 py-2.5 pr-2 align-middle ${canArchive ? 'pl-3' : 'pl-4'}`}>
-                        <span className="text-xs text-muted-foreground">{formatDate(revision.counted_at)}</span>
-                      </td>
-                      <td className="w-40 py-2.5 px-2 align-middle">
-                        <span className="line-clamp-1 text-xs text-muted-foreground">
-                          {actorLabel(revision.created_by_staff, revision.created_by || null)}
-                        </span>
-                      </td>
-                      <td className="w-48 py-2.5 px-2 align-middle">
-                        <span className="line-clamp-1 text-xs text-muted-foreground">{revision.location?.company?.name || revision.location?.name || '—'}</span>
-                      </td>
-                      <td className="min-w-0 max-w-0 py-2.5 px-2 align-middle">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="truncate text-sm">{revision.comment || <span className="text-muted-foreground">Без комментария</span>}</p>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start" className="max-w-md">
-                            {revision.archived_at ? (
-                              <div className="mb-1 text-xs text-amber-600 dark:text-amber-300">
-                                В архиве с {formatDate(revision.archived_at)}
-                                {revision.archive_reason ? ` · ${revision.archive_reason}` : ''}
-                              </div>
-                            ) : null}
-                            {revision.comment || 'Без комментария'}
-                            {mismatches.length ? (
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {mismatches.map((i) => `${i.item?.name || 'Товар'}: ${Number(i.delta_qty) > 0 ? '+' : ''}${formatQty(Number(i.delta_qty || 0))}`).join(', ')}
-                              </div>
-                            ) : null}
-                          </TooltipContent>
-                        </Tooltip>
-                      </td>
-                      <td className="w-20 py-2.5 px-2 text-right align-middle">
-                        <span className="text-sm font-semibold">{items.length}</span>
-                      </td>
-                      <td className="w-24 py-2.5 px-2 text-right align-middle">
-                        <span className={`text-sm font-semibold ${shortage > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-muted-foreground'}`}>
-                          {shortage > 0 ? `-${formatQty(shortage)}` : '—'}
-                        </span>
-                      </td>
-                      <td className="w-24 py-2.5 px-2 pr-4 text-right align-middle">
-                        <span className={`text-sm font-semibold ${surplus > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
-                          {surplus > 0 ? `+${formatQty(surplus)}` : '—'}
-                        </span>
-                      </td>
-                      <td className="w-28 py-2.5 px-2 text-right align-middle">
-                        <span className={`text-sm font-semibold ${saleAmount > 0 ? 'text-amber-700 dark:text-amber-200' : 'text-muted-foreground'}`}>
-                          {saleAmount > 0 ? `${Math.round(saleAmount).toLocaleString('ru-RU')} ₸` : '—'}
-                        </span>
-                      </td>
-                      <td className="w-28 py-2.5 px-2 pr-4 text-right align-middle">
-                        <span className={`text-sm font-semibold ${purchaseAmount > 0 ? 'text-amber-700 dark:text-amber-200' : 'text-muted-foreground'}`}>
-                          {purchaseAmount > 0 ? `${Math.round(purchaseAmount).toLocaleString('ru-RU')} ₸` : '—'}
-                        </span>
-                      </td>
-                      <td className="w-28 py-2.5 px-2 pr-4 text-right align-middle">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRevision(revision)
-                              setRevisionDetailsOpen(true)
-                            }}
-                          >
-                            Открыть
-                          </Button>
-                          {canArchive ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                  disabled={archiveBusy}
-                                  onClick={() => {
-                                    if (revision.archived_at) {
-                                      void toggleArchive([revision.id], false)
-                                    } else {
-                                      setArchiveReason('')
-                                      setArchiveTarget(revision)
-                                    }
-                                  }}
-                                >
-                                  {revision.archived_at ? (
-                                    <ArchiveRestore className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <Archive className="h-3.5 w-3.5" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left">
-                                {revision.archived_at ? 'Вернуть в список' : 'Убрать в архив'}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            </div>
-          </div>
+          <RevisionsList
+            revisions={filteredRevisions}
+            canArchive={canArchive}
+            archiveBusy={archiveBusy}
+            refreshing={refreshing}
+            searching={Boolean(revisionSearch)}
+            archiveView={archiveView}
+            selectedSet={selectedSet}
+            allVisibleSelected={allVisibleSelected}
+            onToggleAll={toggleSelectAll}
+            onToggleOne={toggleSelectOne}
+            onCreate={() => setFormSheetOpen(true)}
+            onOpen={(revision) => {
+              setSelectedRevision(revision)
+              setRevisionDetailsOpen(true)
+            }}
+            onArchive={(revision) => {
+              setArchiveReason('')
+              setArchiveTarget(revision)
+            }}
+            onRestore={(revision) => void toggleArchive([revision.id], false)}
+          />
         )}
-      </Card>
+      </StoreSection>
 
       {/* Create revision dialog */}
-      <Dialog
+      <AppModal
         open={formSheetOpen}
-        onOpenChange={(open) => {
-          setFormSheetOpen(open)
-          if (!open) {
-            setScanInput('')
-            setScanFeedback(null)
-            setRecentScanItemId(null)
-          }
+        onClose={() => {
+          setFormSheetOpen(false)
+          setScanInput('')
+          setScanFeedback(null)
+          setRecentScanItemId(null)
         }}
+        disableBackdropClose
+        maxWidth="max-w-6xl"
+        tone="warning"
+        icon={<ClipboardCheck className="h-4.5 w-4.5" />}
+        title="Новый акт ревизии"
+        description="Подтяни остатки системы, исправь факт и проведи один чистый акт."
       >
-        <DialogContent className="flex h-[90dvh] max-h-[90dvh] !w-[96vw] !max-w-[96vw] sm:!max-w-[1400px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border p-5 text-left">
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-300" />
-              Новый акт ревизии
-            </DialogTitle>
-            <DialogDescription>
-              Подтяни остатки системы, исправь факт и проведи один чистый акт.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createRevision} className="flex-1 space-y-5 overflow-y-auto p-5">
+          <form onSubmit={createRevision} className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Локация</Label>
@@ -1528,105 +1296,48 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button type="button" variant="outline" onClick={() => setLines((current) => [...current, emptyLine()])}>
-                Добавить строку
-              </Button>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <span>Строк: <span className="font-semibold text-foreground">{totals.count}</span></span>
-                <span>Недостача: <span className="font-semibold text-rose-600 dark:text-rose-300">{formatQty(totals.shortage)}</span></span>
-                <span>Излишек: <span className="font-semibold text-emerald-700 dark:text-emerald-300">{formatQty(totals.surplus)}</span></span>
-              </div>
-            </div>
-
-            {/* Ошибка дублируется в окне: общая плашка страницы остаётся под ним и её не видно. */}
-            {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
-            {can('store-revisions.commit') && (
-            <Button type="submit" disabled={saving} className="w-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
-              Провести ревизию
+            <Button type="button" variant="outline" onClick={() => setLines((current) => [...current, emptyLine()])}>
+              Добавить строку
             </Button>
-            )}
-          </form>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={revisionDetailsOpen} onOpenChange={setRevisionDetailsOpen}>
-        <DialogContent className="flex h-[85dvh] max-h-[85dvh] !w-[92vw] !max-w-[92vw] sm:!max-w-[1200px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="flex flex-row flex-wrap items-start justify-between gap-3 border-b border-border p-4 text-left sm:p-5">
-            <div className="space-y-1">
-              <DialogTitle>Детали ревизии</DialogTitle>
-              <DialogDescription>
-                {selectedRevision
-                  ? `${formatDate(selectedRevision.counted_at)} · ${selectedRevision.location?.company?.name || selectedRevision.location?.name || 'Локация'}`
-                  : 'Проведенный акт ревизии'}
-              </DialogDescription>
-            </div>
-            {selectedRevision && can('store-revisions.export') ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => printRevision(selectedRevision)}
-              >
-                Печать / PDF
-              </Button>
-            ) : null}
-          </DialogHeader>
-          <div className="flex-1 overflow-auto p-5">
-            {!selectedRevision ? (
-              <p className="text-sm text-muted-foreground">Акт не выбран.</p>
-            ) : (
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  Провел: <span className="text-foreground">{actorLabel(selectedRevision.created_by_staff, selectedRevision.created_by || null)}</span>
-                  {selectedRevision.comment ? (
-                    <span> · Комментарий: <span className="text-foreground">{selectedRevision.comment}</span></span>
-                  ) : null}
+            {/* Итоги и «Провести» всегда на виду */}
+            <div className="sticky -bottom-4 z-10 -mx-5 -mb-4 space-y-2 border-t border-border bg-card/95 px-5 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+              {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span>Строк: <span className="font-semibold text-foreground">{totals.count}</span></span>
+                  <span>Недостача: <span className={`font-semibold ${totals.shortage > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-muted-foreground'}`}>{formatQty(totals.shortage)}</span></span>
+                  <span>Излишек: <span className={`font-semibold ${totals.surplus > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>{formatQty(totals.surplus)}</span></span>
                 </div>
-                <div className="overflow-x-auto rounded-xl border border-border">
-                  <table className="w-full min-w-[640px] table-fixed text-sm">
-                    <thead className="bg-surface-muted">
-                      <tr className="text-left text-xs text-muted-foreground">
-                        <th className="px-3 py-2 font-normal">Товар</th>
-                        <th className="px-3 py-2 font-normal">Штрихкод</th>
-                        <th className="px-3 py-2 text-right font-normal">Система</th>
-                        <th className="px-3 py-2 text-right font-normal">Факт</th>
-                        <th className="px-3 py-2 text-right font-normal">Δ</th>
-                        <th className="px-3 py-2 font-normal">Комментарий</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(selectedRevision.items || []).map((item) => (
-                        <tr key={item.id} className="border-t border-slate-100 dark:border-white/[0.06]">
-                          <td className="px-3 py-2" title={item.item?.name || 'Товар'}>
-                            <span className="block truncate">{item.item?.name || 'Товар'}</span>
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{item.item?.barcode || '—'}</td>
-                          <td className="px-3 py-2 text-right">{formatQty(Number(item.expected_qty || 0))}</td>
-                          <td className="px-3 py-2 text-right">{formatQty(Number(item.actual_qty || 0))}</td>
-                          <td className="px-3 py-2 text-right">{Number(item.delta_qty || 0) > 0 ? '+' : ''}{formatQty(Number(item.delta_qty || 0))}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{item.comment || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {can('store-revisions.commit') && (
+                  <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
+                    Провести ревизию
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+            </div>
+          </form>
+      </AppModal>
+
+      <RevisionDetailsModal
+        open={revisionDetailsOpen}
+        revision={selectedRevision}
+        canExport={can('store-revisions.export')}
+        onClose={() => setRevisionDetailsOpen(false)}
+        onPrint={printRevision}
+      />
 
       {/* Убрать пачку актов в архив */}
-      <Dialog open={bulkOpen} onOpenChange={(open) => { if (!open) setBulkOpen(false) }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              Убрать в архив {visibleSelected.length} {plural(visibleSelected.length, 'акт', 'акта', 'актов')}
-            </DialogTitle>
-            <DialogDescription>Причина будет записана ко всем выбранным актам сразу.</DialogDescription>
-          </DialogHeader>
+      <AppModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        maxWidth="max-w-md"
+        tone="warning"
+        icon={<Archive className="h-4.5 w-4.5" />}
+        title={`Убрать в архив ${visibleSelected.length} ${plural(visibleSelected.length, 'акт', 'акта', 'актов')}`}
+        description="Причина будет записана ко всем выбранным актам сразу."
+      >
           <div className="space-y-4">
             <div className="max-h-40 space-y-1 overflow-auto rounded-lg border border-border bg-surface-muted p-2.5 text-xs text-muted-foreground">
               {filteredRevisions
@@ -1669,20 +1380,20 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </AppModal>
 
       {/* Убрать акт в архив */}
-      <Dialog open={Boolean(archiveTarget)} onOpenChange={(open) => { if (!open) setArchiveTarget(null) }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Убрать акт в архив</DialogTitle>
-            <DialogDescription>
-              {archiveTarget
-                ? `Ревизия от ${formatDate(archiveTarget.counted_at)}, ${archiveTarget.location?.company?.name || archiveTarget.location?.name || 'точка не указана'}`
-                : ''}
-            </DialogDescription>
-          </DialogHeader>
+      <AppModal
+        open={Boolean(archiveTarget)}
+        onClose={() => setArchiveTarget(null)}
+        maxWidth="max-w-md"
+        tone="warning"
+        icon={<Archive className="h-4.5 w-4.5" />}
+        title="Убрать акт в архив"
+        description={archiveTarget
+          ? `Ревизия от ${formatDate(archiveTarget.counted_at)}, ${archiveTarget.location?.company?.name || archiveTarget.location?.name || 'точка не указана'}`
+          : ''}
+      >
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Акт пропадёт из списка ревизий и из обзора склада. Остатки и движения по нему
@@ -1717,8 +1428,7 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </AppModal>
     </div>
     </TooltipProvider>
   )

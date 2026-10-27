@@ -1,5 +1,7 @@
 'use client'
 
+import { AppModal } from '@/components/ui/app-modal'
+import { StoreAttention, StoreChip, StoreEmpty, plural, storeCard } from '@/components/store/store-ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Check, ClipboardList, Loader2, Lock, Plus, RefreshCw, Trash2, Undo2, Users } from 'lucide-react'
 
@@ -378,29 +380,45 @@ export default function StoreAuditPage() {
 
         {error ? <Card className="border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</Card> : null}
 
+        <StoreAttention
+          loading={loading}
+          calm={<><span className="font-semibold">Открытых актов нет.</span> Все подсчёты закрыты.</>}
+          items={acts.filter((a) => a.status === 'open').length > 0 ? [{
+            key: 'open',
+            icon: ClipboardList,
+            tone: 'amber',
+            text: `${acts.filter((a) => a.status === 'open').length} ${plural(acts.filter((a) => a.status === 'open').length, ['акт', 'акта', 'актов'])} в работе: подсчёт идёт, итог ещё не закрыт`,
+            onClick: () => { const first = acts.find((a) => a.status === 'open'); if (first) void openDetail(first.id) },
+            cta: 'Открыть',
+          }] : []}
+        />
+
         {loading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} rows={3} />)}
           </div>
         ) : acts.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">Актов пока нет. Создайте первый аудит-акт.</Card>
+          <div className={storeCard}>
+            <StoreEmpty
+              icon={<ClipboardList className="h-5 w-5" />}
+              title="Аудит-актов пока нет"
+              hint="Аудит — слепой подсчёт: операторы считают товар по секциям и не видят остатков системы. После закрытия акта появятся недостачи и излишки."
+              action={<Button size="sm" onClick={() => { setView('create'); setLocationId(''); setAssignments([]); setComment(''); setMode('single') }} className="gap-1.5 bg-amber-600 hover:bg-amber-700"><Plus className="h-3.5 w-3.5" /> Создать первый акт</Button>}
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {acts.map((a) => {
               const pct = a.totalItems ? Math.round((a.countedItems / a.totalItems) * 100) : 0
-              const statusCls =
-                a.status === 'open' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                : a.status === 'closed' ? 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300'
-                : 'bg-red-500/15 text-red-700 dark:text-red-300'
               const barCls = a.status === 'closed' ? 'bg-emerald-500' : a.status === 'cancelled' ? 'bg-red-400/70' : 'bg-amber-500'
               return (
                 <button key={a.id} type="button" onClick={() => void openDetail(a.id)} className="text-left">
-                  <Card className="flex h-full flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:border-amber-400/50 hover:shadow-md">
+                  <div className={`${storeCard} flex h-full flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:border-amber-400/50 hover:shadow-md`}>
                     <div className="flex items-start justify-between gap-2">
                       <span className="min-w-0 truncate text-sm font-semibold text-foreground">{a.locationName}</span>
-                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls}`}>
-                        {a.status === 'open' ? 'Открыт' : a.status === 'closed' ? 'Закрыт' : 'Отменён'}
-                      </span>
+                      <StoreChip tone={a.status === 'open' ? 'amber' : a.status === 'closed' ? 'neutral' : 'rose'}>
+                        {a.status === 'open' ? 'Идёт подсчёт' : a.status === 'closed' ? 'Закрыт' : 'Отменён'}
+                      </StoreChip>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {fmtDate(a.opened_at)}{a.comment ? ` · ${a.comment}` : ''}
@@ -438,7 +456,7 @@ export default function StoreAuditPage() {
                         </div>
                       ) : null}
                     </div>
-                  </Card>
+                  </div>
                 </button>
               )
             })}
@@ -891,12 +909,16 @@ export default function StoreAuditPage() {
           )}
 
           {/* Предпросмотр жёсткого закрытия: что будет обнулено */}
-          {zeroPreviewOpen && detail ? (
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 p-4"
-              onClick={(e) => { if (e.target === e.currentTarget && !closing) setZeroPreviewOpen(false) }}
-            >
-              <Card className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto border-rose-500/30 p-5">
+          <AppModal
+            open={zeroPreviewOpen && !!detail}
+            onClose={() => { if (!closing) setZeroPreviewOpen(false) }}
+            disableBackdropClose={closing}
+            tone="danger"
+            maxWidth="max-w-2xl"
+            title="Полная ревизия: обнуление непосчитанного"
+          >
+            {detail ? (
+                <>
                 {(() => {
                   const uncountedRows = detail.uncounted || []
                   const selectedRows = uncountedRows.filter((r) => zeroSelected.has(r.item_id))
@@ -913,8 +935,7 @@ export default function StoreAuditPage() {
                   return (
                     <div className="space-y-3">
                       <div>
-                        <h3 className="text-sm font-semibold text-foreground">Полная ревизия: обнуление непосчитанного</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Эти позиции никто не посчитал. У отмеченных остаток в системе станет <b>0</b>, остальные останутся как есть.
                           Будет обнулено <b className="text-foreground">{selectedRows.length} из {uncountedRows.length} поз.</b> на{' '}
                           <b className="text-rose-500">{money(zeroSum)}</b> по закупу.
@@ -972,9 +993,9 @@ export default function StoreAuditPage() {
                     </div>
                   )
                 })()}
-              </Card>
-            </div>
-          ) : null}
+                </>
+            ) : null}
+          </AppModal>
         </>
       )}
     </div>
