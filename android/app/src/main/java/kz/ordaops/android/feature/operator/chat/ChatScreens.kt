@@ -154,7 +154,8 @@ private fun FollowNewest(listState: LazyListState, newestKey: String?, newestIsM
 @Composable
 fun ChatTab() {
     val env = LocalOperatorEnv.current
-    val vm = operatorViewModel { e -> TeamChatViewModel(ChatService(e.api), e.operatorId) }
+    // Учётка входа нужна сотруднику: у него нет operatorId, и свои сообщения узнаются по sender_user_id.
+    val vm = operatorViewModel(key = LocalOperatorEnv.current.api.currentUserId) { e -> TeamChatViewModel(ChatService(e.api), e.operatorId, e.api.currentUserId) }
     val state by vm.content.collectAsStateWithLifecycle()
 
     var actingId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -257,7 +258,7 @@ fun ChatTab() {
         MessageActionsSheet(
             message = message,
             canPin = canPin,
-            isMine = message.isPending || (env.operatorId != null && message.senderOperatorId == env.operatorId),
+            isMine = isOwnTeamMessage(message, env.operatorId, env.api.currentUserId),
             onDismiss = { actingId = null },
             onReact = { vm.react(message.id, it) },
             onReply = { vm.replyTo = message },
