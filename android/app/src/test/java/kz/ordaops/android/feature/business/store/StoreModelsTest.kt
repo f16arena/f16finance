@@ -79,8 +79,10 @@ class StoreModelsTest {
 
     @Test
     fun zeroCountersDoNotNeedAttention() {
-        val m = StoreMetrics.parse(obj("""{"pendingRequests":4,"lowStock":2}"""))
+        val m = StoreMetrics.parse(obj("""{"pendingRequests":0,"lowStock":2}"""))
         assertFalse(m.needsAttention)
+        // Заявка, ждущая решения, — уже повод заглянуть.
+        assertTrue(StoreMetrics.parse(obj("""{"pendingRequests":4}""")).needsAttention)
     }
 
     @Test
@@ -205,5 +207,112 @@ class StoreModelsTest {
         assertNotNull(parseWhen("2026-10-27T10:15:00.123456"))
         assertNull(parseWhen(""))
         assertNull(parseWhen("вчера"))
+    }
+
+    // ── Сверка с вебом 27.10 ─────────────────────────────────────────────────
+
+    @Test
+    fun requestShowsSumsByPurchaseAndSalePrice() {
+        val r = StockRequest.parse(
+            obj(
+                """{"id":"r","status":"new","items":[
+                    {"id":"1","requested_qty":10,"available_qty":4,"enough_for_requested":false,"item":{"name":"Вода","default_purchase_price":100,"sale_price":150}},
+                    {"id":"2","requested_qty":"2","item":{"name":"Чипсы","default_purchase_price":"300","sale_price":"400"}}]}""",
+            ),
+        )
+        assertEquals(1600.0, r.purchaseTotal, 0.0)
+        assertEquals(2300.0, r.saleTotal, 0.0)
+        assertTrue(r.hasShortage)
+        assertEquals(4.0, r.lines[0].available!!, 0.0)
+        assertNull(r.lines[1].available)
+    }
+
+    @Test
+    fun decidedRequestIsSummedByApprovedQuantity() {
+        val r = StockRequest.parse(obj("""{"id":"r","status":"approved_full","items":[{"id":"1","requested_qty":10,"approved_qty":4,"item":{"name":"Вода","default_purchase_price":100,"sale_price":150}}]}"""))
+        assertEquals(400.0, r.purchaseTotal, 0.0)
+    }
+
+    @Test
+    fun overviewSplitsOutOfStockIntoShelfAndBuy() {
+        val m = StoreMetrics.parse(obj("""{"pendingRequests":0,"lowStock":9,"outOfStock":5,"outOfStockInBackroom":2,
+            "lowStockTop":[{"item_id":"1","name":"Вода","quantity":0,"threshold":5,"location_kind":"showcase","location_name":"Магазин","backroom_qty":7}]}"""))
+        assertEquals(3, m.toBuy)
+        assertEquals(4, m.fewCount)
+        assertEquals(7.0, m.lowTop[0].backroomQty, 0.0)
+        assertTrue(m.needsAttention)
+        assertFalse(StoreMetrics.parse(obj("""{}""")).needsAttention)
+    }
+
+    @Test
+    fun closedOrDisabledPointsAreHiddenFromPickers() {
+        val ov = StoreOverview.parse(
+            obj(
+                """{"locations":[{"id":"a","location_type":"warehouse","company_id":"live"},{"id":"b","location_type":"warehouse","company_id":"closed"},{"id":"c","location_type":"catalog"}],
+                    "balances":[{"item_id":"1","location_id":"a","quantity":1},{"item_id":"1","location_id":"b","quantity":2}],"movements":[],"requests":[]}""",
+            ),
+        )
+        val r = ov.restrictedTo(setOf("live"))
+        assertEquals(listOf("a", "c"), r.locations.map { it.id })
+        assertEquals(1, r.balances.size)
+        // Конфиг не пришёл — ничего не режем.
+        assertEquals(3, ov.restrictedTo(null).locations.size)
+    }
+
+    @Test
+    fun suppliersCarryOverdueAndNextDue() {
+        val s = Supplier.parse(obj("""{"id":"s","name":"А","open_debts_sum":1000,"overdue_debts_sum":400,"next_due_date":"2026-11-05"}"""))
+        assertTrue(s.isOverdue)
+        assertEquals(400.0, s.overdueAmount, 0.0)
+        assertNotNull(s.nextDueDate)
+        val fine = Supplier.parse(obj("""{"id":"s","name":"Б","open_debts_sum":10}"""))
+        assertFalse(fine.isOverdue)
+        assertNull(fine.nextDueDate)
+    }
+
+    @Test
+    fun serviceItemsHaveNoStock() {
+        val s = CatalogItem.parse(obj("""{"id":"1","name":"Теннис","item_type":"service","catalog_qty":0}"""))
+        assertTrue(s.isService)
+        assertFalse(s.isOutOfStock)
+        assertTrue(CatalogItem.parse(obj("""{"id":"2","name":"Вода","catalog_qty":0}""")).isOutOfStock)
+    }
+
+    @Test
+    fun receiptsDataCarriesFormDictionaries() {
+        val d = ReceiptsData.parse(
+            obj(
+                """{"receipts":[{"id":"r","invoice_file_url":"https://x/i.pdf","items":[]}],
+                    "items":[{"id":"1","name":"Йогурт","requires_expiry":true,"default_purchase_price":"80","sale_price":120},{"id":"2","name":"Теннис","item_type":"service"}],
+                    "suppliers":[{"id":"s","name":"ООО"}],"locations":[{"id":"l","location_type":"warehouse"}],
+                    "expense_categories":[{"id":"c1","name":"Закуп","accounting_group":"COGS"},{"id":"c2","name":"Аренда","accounting_group":"opex"}],
+                    "drafts":[{"id":"d"}]}""",
+            ),
+        )
+        assertEquals("https://x/i.pdf", d.receipts[0].invoiceUrl)
+        // Услуга в приёмке не нужна.
+        assertEquals(listOf("Йогурт"), d.items.map { it.name })
+        assertTrue(d.items[0].requiresExpiry)
+        assertEquals(80.0, d.items[0].purchasePrice, 0.0)
+        assertEquals(listOf("c1"), d.categories.filter { it.isCogs }.map { it.id })
+        assertEquals(1, d.draftCount)
+    }
+
+    @Test
+    fun actListCarriesResultAndDetailCarriesZeroingHints() {
+        val a = RevisionAct.parse(obj("""{"id":"a","status":"closed","locationName":"Склад","resultValue":-5000,"zeroedValue":-3000,"companyId":"c","locationType":"warehouse"}"""))
+        assertEquals(-5000.0, a.resultValue!!, 0.0)
+        assertEquals("warehouse", a.locationType)
+        val d = RevisionActDetail.parse(obj("""{"otherLocationType":"point_display","report":[],"uncounted":[{"item_id":"1","name":"A","expected":4,"purchase_price":50,"sold_recent":2,"other_location_qty":1}]}"""))
+        assertEquals("point_display", d.otherLocationType)
+        assertEquals(200.0, d.uncounted[0].value, 0.0)
+        assertEquals(2.0, d.uncounted[0].soldRecent, 0.0)
+    }
+
+    @Test
+    fun auditCloseSummary() {
+        val s = AuditCloseSummary.parse(obj("""{"debtsCreated":2,"summary":{"shrinkageItems":3,"shrinkageValue":900,"surplusItems":1,"surplusValue":50,"zeroedItems":4,"zeroedValue":1200}}"""))
+        assertEquals(1200.0, s.zeroedValue, 0.0)
+        assertEquals(2, s.debtsCreated)
     }
 }

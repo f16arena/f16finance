@@ -48,6 +48,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import kz.ordaops.android.feature.business.LocalBusiness
 import kz.ordaops.android.feature.operator.audit.AuditScannerPane
+import kz.ordaops.android.feature.operator.shift.OrdaSheet
 import kz.ordaops.android.feature.operator.shift.todayString
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.PrimaryButton
@@ -213,6 +214,19 @@ private fun ActsScreen(vm: StoreViewModel, toast: ToastState, onBack: () -> Unit
                             }
                             Text("${a.countedItems} из ${a.totalItems}", color = Orda.colors.textDim, fontSize = 12.sp)
                         }
+                        // Итог проведённого акта по закупу: минус — недостача; обнулённое непосчитанное отдельно.
+                        if (a.resultValue != null) {
+                            StatLine("Итог по закупу", money(kotlin.math.round(a.resultValue)), if (a.resultValue < -0.5) StoreTone.loss else Orda.colors.text)
+                            if (a.zeroedValue != null && kotlin.math.abs(a.zeroedValue) >= 1) StatLine("из них обнулено непосчитанное", money(kotlin.math.round(a.zeroedValue)), Orda.colors.textMuted)
+                            // Склад и витрина той же точки читаем вместе: товар не на своём месте даёт минус тут и плюс там.
+                            val pair = pairedAct(a, list)
+                            if (pair?.resultValue != null) {
+                                StatLine(
+                                    "по точке с ${if (pair.locationType == "warehouse") "складом" else "витриной"} ${fmtDay(pair.closedAt)}",
+                                    money(kotlin.math.round(a.resultValue + pair.resultValue)),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -229,6 +243,8 @@ private fun ActDetailScreen(vm: StoreViewModel, act: RevisionAct, toast: ToastSt
     var busy by remember { mutableStateOf(false) }
     var recounting by remember { mutableStateOf<Pair<String, String>?>(null) }
     var confirm by remember { mutableStateOf<String?>(null) }
+    var closing by remember { mutableStateOf<RevisionActDetail?>(null) }
+    var summary by remember { mutableStateOf<AuditCloseSummary?>(null) }
     val canEdit = env.can("store-revisions.edit") && act.isOpen
     val canCancel = env.can("store-revisions.cancel")
     val canCommit = env.can("store-revisions.commit")
@@ -305,7 +321,7 @@ private fun ActDetailScreen(vm: StoreViewModel, act: RevisionAct, toast: ToastSt
                             }
                         }
                     }
-                    if (act.isOpen && canCommit) PrimaryButton("Провести акт", Modifier.fillMaxWidth(), loading = busy) { confirm = "close" }
+                    if (act.isOpen && canCommit) PrimaryButton("Провести акт", Modifier.fillMaxWidth(), loading = busy) { closing = detail }
                     if (act.isOpen && canCancel) TextButton(onClick = { confirm = "cancel" }, enabled = !busy) { Text("Отменить акт", color = StoreTone.loss) }
                     if (act.isClosed && canCancel) TextButton(onClick = { confirm = "revert" }, enabled = !busy) { Text("Откатить проведённый акт", color = StoreTone.loss) }
                 }
@@ -333,12 +349,53 @@ private fun ActDetailScreen(vm: StoreViewModel, act: RevisionAct, toast: ToastSt
                     }
                 }) { Text("Записать") }
             },
-            dismissButton = { TextButton(onClick = { recounting = null }) { Text("Отмена") } },
+            dismissButton = {
+                Row {
+                    // Сбросить подсчёты: операторы посчитают позицию заново.
+                    TextButton(onClick = {
+                        recounting = null
+                        scope.launch {
+                            val e = vm.resetActItem(act.id, itemId)
+                            if (e == null) toast.show("На пересчёт: $name") else error = e
+                        }
+                    }) { Text("На пересчёт") }
+                    TextButton(onClick = { recounting = null }) { Text("Отмена") }
+                }
+            },
+        )
+    }
+    closing?.let { detail ->
+        CloseActSheet(
+            vm = vm,
+            act = act,
+            detail = detail,
+            ownerLike = env.access.resolver.session.let { it.isSuperAdmin || it.staffRole == "owner" },
+            onClosed = { result ->
+                closing = null
+                summary = result
+                toast.show("Акт проведён")
+            },
+            onDismiss = { closing = null },
+        )
+    }
+    summary?.let { r ->
+        AlertDialog(
+            onDismissRequest = { summary = null; onBack() },
+            title = { Text("Результат ревизии") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    StatLine("Недостача", "${money(r.shrinkageValue)} · ${r.shrinkageItems} поз.", if (r.shrinkageValue > 0) StoreTone.loss else StoreTone.neutral)
+                    StatLine("Излишек", "${money(r.surplusValue)} · ${r.surplusItems} поз.", if (r.surplusValue > 0) StoreTone.good else StoreTone.neutral)
+                    if (r.zeroedItems > 0) StatLine("Обнулено (не посчитано)", "${money(r.zeroedValue)} · ${r.zeroedItems} поз.")
+                    if (r.debtsCreated > 0) StatLine("Долгов создано", "${r.debtsCreated}", StoreTone.waits)
+                }
+            },
+            confirmButton = { TextButton(onClick = { summary = null; onBack() }) { Text("Готово") } },
         )
     }
     confirm?.let { kind ->
         val (title, text, done) = when (kind) {
-            "close" -> Triple("Провести акт?", "Остатки станут такими, какими их пересчитали. Расхождения превратятся в движения, а недостача — в долг.", "Акт проведён")
+            "close" -> Triple("Провести акт?", "Остатки станут такими, какими их пересчитали.", "Акт проведён")
             "cancel" -> Triple("Отменить акт?", "Остатки не изменятся: снимок и подсчёты отбросятся.", "Акт отменён")
             else -> Triple("Откатить акт?", "Остатки вернутся к тому, что было до акта, а созданные им долги удалятся. Сервер пускает сюда только владельца.", "Акт откачен")
         }
@@ -351,7 +408,6 @@ private fun ActDetailScreen(vm: StoreViewModel, act: RevisionAct, toast: ToastSt
                     confirm = null
                     run(done) {
                         when (kind) {
-                            "close" -> vm.closeAct(act.id)
                             "cancel" -> vm.cancelAct(act.id)
                             else -> vm.revertAct(act.id)
                         }
@@ -456,6 +512,100 @@ private fun StocktakeDialog(vm: StoreViewModel, onDone: () -> Unit, onDismiss: (
                     saving = false
                     if (e == null) onDone() else error = e
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Проведение акта. Остатки станут пересчитанными. «Полная ревизия» — обнулить
+ * непосчитанное — только владельцу и выборочно: отмеченным остаток станет 0, остальные
+ * останутся как есть. Проданное за 7 дней по умолчанию не отмечено — скорее всего оно
+ * есть, его просто не досчитали (из-за этого ревизия «всегда в минус»).
+ */
+@Composable
+private fun CloseActSheet(vm: StoreViewModel, act: RevisionAct, detail: RevisionActDetail, ownerLike: Boolean, onClosed: (AuditCloseSummary) -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val rows = detail.uncounted
+    val zeroSum = rows.sumOf { it.value }
+    var zero by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(defaultZeroSelection(rows)) }
+    var assignDebt by remember { mutableStateOf(false) }
+    var assignDebtZeroed by remember { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val otherLabel = if (detail.otherLocationType == "warehouse") "на складе" else "на витрине"
+    val selectedRows = rows.filter { it.itemId in selected }
+    val selectedSum = selectedRows.sumOf { it.value }
+    val keptSold = rows.count { it.soldRecent > 0 && it.itemId !in selected }
+
+    OrdaSheet("Провести акт", onDismiss) {
+        Text("Остатки станут такими, какими их пересчитали. Расхождения превратятся в движения.", color = Orda.colors.textDim, fontSize = 14.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Повесить недостачу долгом на ответственных (удержится из зарплаты)", color = Orda.colors.text, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Switch(checked = assignDebt, onCheckedChange = { assignDebt = it })
+        }
+        if (rows.isEmpty()) {
+            InlineEmpty(Icons.Filled.Checklist, "Все позиции с остатком посчитаны — обнулять нечего.", StoreTone.good)
+        } else if (ownerLike) {
+            StoreCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Полная ревизия: обнулить непосчитанное", color = Orda.colors.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Text("Не посчитано ${rows.size} поз. на ${money(zeroSum)} по закупу — «чего не посчитали, того нет».", color = Orda.colors.textDim, fontSize = 13.sp)
+                    }
+                    Switch(checked = zero, onCheckedChange = { zero = it })
+                }
+                // Обнуление такого объёма почти всегда ложная недостача: товар есть, его не досчитали.
+                if (isBigZeroing(rows, detail.totalItems)) {
+                    val sold = rows.count { it.soldRecent > 0 }
+                    Text(
+                        "Не посчитано ${rows.size} из ${detail.totalItems} поз. на ${money(zeroSum)}. Обнуление такого объёма почти всегда даёт ложную недостачу: товар есть, его просто не досчитали." +
+                            (if (sold > 0) " $sold из них продавались за последнюю неделю." else "") + " Лучше досчитать.",
+                        color = StoreTone.loss, fontSize = 13.sp,
+                    )
+                }
+            }
+            if (zero) {
+                Text("У отмеченных остаток станет 0, остальные останутся как есть. Будет обнулено ${selectedRows.size} из ${rows.size} поз. на ${money(selectedSum)}.", color = Orda.colors.textMuted, fontSize = 13.sp)
+                if (keptSold > 0) Text("$keptSold поз. продавались за последние 7 дней — отметка с них снята. Лучше досчитать их.", color = StoreTone.waits, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                    TextButton(onClick = { selected = rows.map { it.itemId }.toSet() }) { Text("Отметить все") }
+                    TextButton(onClick = { selected = emptySet() }) { Text("Снять все") }
+                }
+                rows.take(100).forEach { r ->
+                    Row(Modifier.fillMaxWidth().clickable { selected = if (r.itemId in selected) selected - r.itemId else selected + r.itemId }, verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = r.itemId in selected, onCheckedChange = { selected = if (it) selected + r.itemId else selected - r.itemId })
+                        Column(Modifier.weight(1f)) {
+                            Text(r.name, color = Orda.colors.text, fontSize = 14.sp, maxLines = 1)
+                            val hint = listOfNotNull(
+                                r.soldRecent.takeIf { it > 0 }?.let { "продано ${formatQty(it)} шт за 7 дней" },
+                                r.otherLocationQty.takeIf { it > 0 }?.let { "$otherLabel ${formatQty(it)} шт" },
+                            ).joinToString(" · ")
+                            if (hint.isNotEmpty()) Text(hint, color = StoreTone.waits, fontSize = 12.sp)
+                        }
+                        Text(formatQty(r.expected), color = Orda.colors.textDim, fontSize = 13.sp)
+                    }
+                }
+                if (rows.size > 100) Text("…и ещё ${rows.size - 100} поз. (обнуляются по отметке «Отметить все»)", color = Orda.colors.textDim, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Обнулённое тоже повесить долгом — поровну на операторов акта. Для первой полной ревизии не рекомендуется.", color = Orda.colors.textMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Switch(checked = assignDebtZeroed, onCheckedChange = { assignDebtZeroed = it })
+                }
+            }
+        } else {
+            Text("Не посчитано ${rows.size} поз. Обнулить их при проведении может только владелец.", color = Orda.colors.textDim, fontSize = 13.sp)
+        }
+        FormError(error)
+        PrimaryButton(
+            if (zero && selectedRows.isNotEmpty()) "Обнулить ${selectedRows.size} поз. и провести" else "Провести акт",
+            Modifier.fillMaxWidth(), loading = saving,
+        ) {
+            saving = true
+            scope.launch {
+                val (result, e) = vm.closeAct(act.id, if (zero && ownerLike) selected else null, assignDebt, zero && assignDebtZeroed)
+                saving = false
+                if (result != null) onClosed(result) else error = e
             }
         }
     }

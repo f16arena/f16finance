@@ -61,6 +61,8 @@ data class ReceiptLine(
     val isBonus: Boolean = false,
     /** `yyyy-MM-dd`, если у товара есть срок. */
     val expiryDate: String? = null,
+    /** Товар со сроком годности: без «годен до» сервер откажет. */
+    val requiresExpiry: Boolean = false,
 ) {
     /** Бонус не стоит ничего: включать его в сумму накладной значит завысить себестоимость. */
     val total: Double get() = if (isBonus) 0.0 else quantity * unitCost
@@ -88,29 +90,48 @@ data class ReceiptDraft(
     val isConsignment: Boolean = false,
     val comment: String = "",
     val lines: List<ReceiptLine> = emptyList(),
+    /** Файл накладной (ссылка после загрузки): без документа приёмка запрещена. */
+    val invoiceFileUrl: String = "",
+    /** Категория расхода из группы COGS — под неё сервер сам заведёт расход или долг. */
+    val expenseCategoryId: String = "",
+    /** Чек об оплате: обязателен, если платим сразу. */
+    val paymentReceiptUrl: String = "",
 ) {
     val total: Double get() = lines.sumOf { it.total }
     val bonusCount: Int get() = lines.count { it.isBonus }
 
-    /** Что мешает провести; null — можно. */
+    /** Что мешает провести; null — можно. Порядок и тексты — как в форме на сайте. */
     val validationMessage: String?
         get() = when {
             locationId.isEmpty() -> "Выберите, куда принимаем"
-            supplierId.isEmpty() -> "Поставщик обязателен"
             lines.isEmpty() -> "Добавьте хотя бы одну позицию"
             lines.any { it.quantity <= 0 } -> "У каждой позиции должно быть количество"
             // Приёмка по нулевой цене обнуляет себестоимость товара.
             lines.any { !it.isBonus && it.unitCost <= 0 } -> "У платных позиций должна быть цена закупки"
+            expiryMessage() != null -> expiryMessage()
+            invoiceFileUrl.isBlank() -> "Загрузите файл накладной. Без документа приёмка запрещена."
+            expenseCategoryId.isBlank() -> "Выберите категорию расхода COGS для автодобавления"
+            supplierId.isEmpty() -> "Поставщик обязателен"
+            payment == ReceiptPayment.Now && paymentReceiptUrl.isBlank() -> "Загрузите чек об оплате или выберите «В долг»"
             payment == ReceiptPayment.Deferred && dueDate.isNullOrEmpty() && !isConsignment -> "У долга должен быть срок оплаты"
             else -> null
         }
 
-    /** Оприходование — излишки без поставщика, оплаты и цены. */
+    /** «Годен до» обязателен у товаров со сроком; отсутствие называем по именам, как сервер. */
+    fun expiryMessage(): String? {
+        val missing = lines.filter { it.requiresExpiry && it.expiryDate.isNullOrBlank() }.map { it.name }
+        if (missing.isEmpty()) return null
+        val tail = if (missing.size > 5) " и ещё ${missing.size - 5}" else ""
+        return "Укажите «годен до» для: ${missing.take(5).joinToString(", ")}$tail"
+    }
+
+    /** Оприходование — излишки без поставщика, оплаты и цены; срок годности нужен и здесь. */
     val postingValidationMessage: String?
         get() = when {
             locationId.isEmpty() -> "Выберите, куда оприходовать"
             lines.isEmpty() -> "Добавьте хотя бы одну позицию"
             lines.any { it.quantity <= 0 } -> "У каждой позиции должно быть количество"
+            expiryMessage() != null -> expiryMessage()
             else -> null
         }
 
@@ -125,8 +146,11 @@ data class ReceiptDraft(
             put("supplier_id", supplierId)
             put("received_at", receivedAt)
             putNullable("invoice_number", invoiceNumber.trim().ifEmpty { null })
+            put("invoice_file_url", invoiceFileUrl)
+            putNullable("expense_category_id", expenseCategoryId.ifBlank { null })
             putNullable("payment_method", if (payment == ReceiptPayment.Now) paymentMethod else null)
             put("payment_mode", payment.wire)
+            putNullable("payment_receipt_file_url", if (payment == ReceiptPayment.Now) paymentReceiptUrl.ifBlank { null } else null)
             put("is_consignment", isConsignment)
             putNullable("due_date", if (payment == ReceiptPayment.Deferred) dueDate else null)
             putNullable("comment", trimmedComment())
@@ -411,3 +435,37 @@ internal fun kotlinx.serialization.json.JsonObjectBuilder.putNullable(key: Strin
 internal fun kotlinx.serialization.json.JsonObjectBuilder.putNullable(key: String, value: Double?) {
     put(key, value?.let { JsonPrimitive(it) } ?: JsonNull)
 }
+
+// ── Акт ревизии: закрытие ────────────────────────────────────────────────────
+
+/**
+ * Тело `close`. Обнуление непосчитанного — только владельцу и выборочное:
+ * `zero_item_ids` — что именно обнулить, остальное остаётся как есть. Несовместимо
+ * с принудительным закрытием (сервер откажет), поэтому здесь его нет.
+ */
+fun closeActBody(
+    actId: String,
+    zeroItemIds: Set<String>? = null,
+    assignDebt: Boolean = false,
+    assignDebtZeroed: Boolean = false,
+): JsonObject = buildJsonObject {
+    put("action", "close")
+    put("act_id", actId)
+    put("assignDebt", assignDebt)
+    if (zeroItemIds != null) {
+        put("zero_uncounted", true)
+        put("zero_item_ids", buildJsonArray { zeroItemIds.sorted().forEach { add(JsonPrimitive(it)) } })
+        put("assignDebtZeroed", assignDebtZeroed)
+    }
+}
+
+/**
+ * Что отмечать к обнулению по умолчанию: проданное за неделю не трогаем — скорее
+ * всего оно есть, его просто не досчитали (из-за этого ревизия «всегда в минус»).
+ */
+fun defaultZeroSelection(rows: List<RevisionActDetail.Pending>): Set<String> =
+    rows.filter { it.soldRecent <= 0 }.map { it.itemId }.toSet()
+
+/** Обнуление такого объёма почти всегда ложная недостача: громкое предупреждение. */
+fun isBigZeroing(rows: List<RevisionActDetail.Pending>, totalItems: Int): Boolean =
+    rows.size > maxOf(5.0, totalItems * 0.05) || rows.sumOf { it.value } >= 50_000
