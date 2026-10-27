@@ -205,6 +205,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Приход уже на складе — после этого ошибка не должна выглядеть как «не провелось»:
+  // человек жмёт ещё раз, и без номера накладной товар приходуется второй раз.
+  let postedReceiptId: string | null = null
   try {
     const access = await getRequestAccessContext(request)
     if ('response' in access) return access.response
@@ -786,6 +789,7 @@ export async function POST(request: Request) {
     })
     const receiptId = String(result?.receipt_id || result?.id || '').trim()
     if (!receiptId) throw new Error('Не удалось получить id приемки')
+    postedReceiptId = receiptId
 
     const autoExpenseCommentParts = [
       `Авто из приемки №${invoiceNumber || receiptId}`,
@@ -1035,6 +1039,13 @@ export async function POST(request: Request) {
       area: 'api/admin/store/receipts.POST',
       message: error?.message || 'Store receipts POST error',
     })
+    if (postedReceiptId) {
+      return json({
+        ok: true,
+        data: { receipt_id: postedReceiptId },
+        warning: `Товар оприходован, но расход или долг поставщику не записался (${humanizeDbError(error, 'ошибка')}). Не проводите приёмку повторно — допишите расход вручную.`,
+      })
+    }
     return json({ error: humanizeDbError(error, 'Не удалось провести приемку') }, 500)
   }
 }

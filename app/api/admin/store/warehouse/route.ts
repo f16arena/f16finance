@@ -4,7 +4,7 @@ import { humanizeDbError } from '@/lib/server/db-error-humanize'
 import { requireOrgFeature } from '@/lib/server/entitlements'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
-import { postInventoryReceipt } from '@/lib/server/repositories/inventory'
+import { postInventoryReceipt, setInventoryBalances } from '@/lib/server/repositories/inventory'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { fetchAllRows } from '@/lib/server/fetch-all-rows'
 import { groupStockByItem, warehouseStockView } from '@/lib/domain/inventory-balances'
@@ -399,50 +399,14 @@ export async function POST(request: Request) {
         // SET mode: upsert warehouse to exact quantities.
         // Движение пишем как ДЕЛЬТУ (изменение), а не абсолют — иначе баланс
         // не сходится с историей движений. Сначала читаем текущие остатки.
-        const setIds = resolvedItems.map((i) => i.item_id)
-        const beforeQty = new Map<string, number>()
-        for (let i = 0; i < setIds.length; i += 500) {
-          const slice = setIds.slice(i, i + 500)
-          const { data: curRows } = await supabase
-            .from('inventory_balances')
-            .select('item_id, quantity')
-            .eq('location_id', warehouse.id)
-            .in('item_id', slice)
-          for (const r of curRows || []) beforeQty.set(String((r as any).item_id), Number((r as any).quantity) || 0)
-        }
-
-        const upserts = resolvedItems.map((item) => ({
+        await setInventoryBalances(supabase, {
           location_id: warehouse.id,
-          item_id: item.item_id,
-          quantity: item.quantity,
-          updated_at: now,
-        }))
-
-        const { error: upsertErr } = await supabase
-          .from('inventory_balances')
-          .upsert(upserts, { onConflict: 'location_id,item_id' })
-        if (upsertErr) throw upsertErr
-
-        const movements = resolvedItems
-          .map((item) => ({ item, delta: item.quantity - (beforeQty.get(item.item_id) || 0) }))
-          .filter(({ delta }) => Math.abs(delta) > 0.0005)
-          .map(({ item, delta }) => ({
-            item_id: item.item_id,
-            movement_type: 'set_stock',
-            quantity: Math.abs(delta),
-            unit_cost: item.unit_cost,
-            from_location_id: delta < 0 ? warehouse.id : null,
-            to_location_id: delta > 0 ? warehouse.id : null,
-            reference_type: 'warehouse_set',
-            reference_id: null,
-            comment: String(body.comment || '').trim() || 'Синхронизация подсобки',
-            actor_user_id: actorUserId,
-            created_at: now,
-          }))
-        if (movements.length) {
-          const { error: mErr } = await supabase.from('inventory_movements').insert(movements)
-          if (mErr) await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/store/warehouse.set:movements', message: mErr.message })
-        }
+          items: resolvedItems.map((item) => ({ item_id: item.item_id, quantity: item.quantity, unit_cost: item.unit_cost })),
+          movement_type: 'set_stock',
+          reference_type: 'warehouse_set',
+          comment: String(body.comment || '').trim() || 'Синхронизация подсобки',
+          actor_user_id: actorUserId,
+        })
 
         await writeAuditLog(supabase, {
           actorUserId,
@@ -496,39 +460,17 @@ export async function POST(request: Request) {
       const warehouse = await ensureCompanyLocation(supabase, companyId, 'warehouse')
 
       const actorUserId = access.staffMember?.id || null
-      const now = new Date().toISOString()
 
       // v8: склад и витрина независимы. Валидация warehouse vs catalog больше не нужна.
 
-      const { data: beforeRow } = await supabase
-        .from('inventory_balances')
-        .select('quantity')
-        .eq('location_id', warehouse.id)
-        .eq('item_id', itemId)
-        .maybeSingle()
-      const beforeWh = Number((beforeRow as any)?.quantity) || 0
-
-      const { error: upsertErr } = await supabase
-        .from('inventory_balances')
-        .upsert({ location_id: warehouse.id, item_id: itemId, quantity: qty, updated_at: now }, { onConflict: 'location_id,item_id' })
-      if (upsertErr) throw upsertErr
-
-      const whDelta = qty - beforeWh
-      if (Math.abs(whDelta) > 0.0005) {
-        const { error: mErr } = await supabase.from('inventory_movements').insert({
-          item_id: itemId,
-          movement_type: 'inventory_adjustment',
-          quantity: Math.abs(whDelta),
-          from_location_id: whDelta < 0 ? warehouse.id : null,
-          to_location_id: whDelta > 0 ? warehouse.id : null,
-          reference_type: 'warehouse_set',
-          reference_id: null,
-          comment: String(body.comment || '').trim() || 'Установка остатка подсобки',
-          actor_user_id: actorUserId,
-          created_at: now,
-        })
-        if (mErr) await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/store/warehouse.setWarehouse:movement', message: mErr.message })
-      }
+      await setInventoryBalances(supabase, {
+        location_id: warehouse.id,
+        items: [{ item_id: itemId, quantity: qty }],
+        movement_type: 'inventory_adjustment',
+        reference_type: 'warehouse_set',
+        comment: String(body.comment || '').trim() || 'Установка остатка подсобки',
+        actor_user_id: actorUserId,
+      })
 
       await writeAuditLog(supabase, {
         actorUserId,
@@ -690,53 +632,15 @@ export async function POST(request: Request) {
 
       const warehouse = await ensureCompanyLocation(supabase, companyId, 'warehouse')
       const actorUserId = access.staffMember?.id || null
-      const now = new Date().toISOString()
 
-      // Текущие остатки — для дельта-движений (движение = изменение, не абсолют)
-      const bgIds = rows.map((r) => r.item_id)
-      const bgBefore = new Map<string, number>()
-      for (let i = 0; i < bgIds.length; i += 500) {
-        const slice = bgIds.slice(i, i + 500)
-        const { data: curRows } = await supabase
-          .from('inventory_balances')
-          .select('item_id, quantity')
-          .eq('location_id', warehouse.id)
-          .in('item_id', slice)
-        for (const r of curRows || []) bgBefore.set(String((r as any).item_id), Number((r as any).quantity) || 0)
-      }
-
-      // Upsert warehouse balances
-      const warehouseUpserts = rows.map((r) => ({
+      await setInventoryBalances(supabase, {
         location_id: warehouse.id,
-        item_id: r.item_id,
-        quantity: r.new_warehouse,
-        updated_at: now,
-      }))
-      const { error: whErr } = await supabase
-        .from('inventory_balances')
-        .upsert(warehouseUpserts, { onConflict: 'location_id,item_id' })
-      if (whErr) throw whErr
-
-      // Движения = дельта изменения остатка
-      const movements = rows
-        .map((r) => ({ r, delta: r.new_warehouse - (bgBefore.get(r.item_id) || 0) }))
-        .filter(({ delta }) => Math.abs(delta) > 0.0005)
-        .map(({ r, delta }) => ({
-          item_id: r.item_id,
-          movement_type: 'inventory_adjustment',
-          quantity: Math.abs(delta),
-          from_location_id: delta < 0 ? warehouse.id : null,
-          to_location_id: delta > 0 ? warehouse.id : null,
-          reference_type: 'backroom_bulk',
-          reference_id: null,
-          comment: 'Загрузка подсобки из Excel',
-          actor_user_id: actorUserId,
-          created_at: now,
-        }))
-      if (movements.length) {
-        const { error: mErr } = await supabase.from('inventory_movements').insert(movements)
-        if (mErr) await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/store/warehouse.backroom:movements', message: mErr.message })
-      }
+        items: rows.map((r) => ({ item_id: r.item_id, quantity: r.new_warehouse })),
+        movement_type: 'inventory_adjustment',
+        reference_type: 'backroom_bulk',
+        comment: 'Загрузка подсобки из Excel',
+        actor_user_id: actorUserId,
+      })
 
       await writeAuditLog(supabase, {
         actorUserId,

@@ -2,7 +2,7 @@ import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import { requireAnyCapability, requireCapability } from '@/lib/server/capabilities'
 import { resolveEffectiveOrganizationId } from '@/lib/server/organizations'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
-import { bulkSyncInventoryItemsToPointProducts, syncInventoryItemToPointProducts } from '@/lib/server/repositories/inventory'
+import { bulkSyncInventoryItemsToPointProducts, setInventoryBalances, syncInventoryItemToPointProducts } from '@/lib/server/repositories/inventory'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { json } from '@/lib/server/api-response'
 import { chunkArray } from '@/lib/core/chunk'
@@ -716,70 +716,39 @@ export async function POST(request: Request) {
           targetItemIds.push(itemId)
         }
 
-        const balByItemLoc = new Map<string, number>()
-        if (targetItemIds.length > 0) {
-          const locIds = warehouseLocId ? [catalogId, warehouseLocId] : [catalogId]
-          for (const slice of chunkArray(targetItemIds, 200)) {
-            const { data: bal } = await supabase
-              .from('inventory_balances')
-              .select('location_id, item_id, quantity')
-              .in('location_id', locIds)
-              .in('item_id', slice)
-            for (const b of bal || []) {
-              balByItemLoc.set(`${(b as any).location_id}:${(b as any).item_id}`, Number((b as any).quantity || 0))
-            }
-          }
-        }
-
         // v8: склад и витрина независимы. Валидация warehouse vs new_showcase больше не нужна.
         stock_warnings_count = 0
 
-        // ─── Upsert балансов: витрина → point_display (catalogId), склад → warehouse ───
-        const upserts: Array<{ location_id: string; item_id: string; quantity: number }> = []
-        for (const it of itemsWithStock) {
-          if (it.showcaseQty !== null) upserts.push({ location_id: catalogId!, item_id: it.itemId, quantity: it.showcaseQty })
-          if (it.warehouseQty !== null && warehouseLocId) upserts.push({ location_id: warehouseLocId, item_id: it.itemId, quantity: it.warehouseQty })
-        }
-        if (upserts.length > 0) {
-          for (const slice of chunkArray(upserts, 500)) {
-            const { error: balErr } = await supabase.from('inventory_balances').upsert(slice, {
-              onConflict: 'location_id,item_id',
-            })
-            if (balErr) throw balErr
-            stock_updated += slice.length
-          }
-        }
-
-        // ─── Movements: фиксируем дельту по каждой локации (склад и витрина) ───
+        // ─── Остатки: витрина → point_display (catalogId), склад → warehouse ───
+        // Атомарно (inventory_set_balances): число и дельта-движение одной транзакцией,
+        // продажа во время импорта не затирается.
         const actorUserId = access.staffMember?.id || null
-        const nowIso = new Date().toISOString()
-        const movements: any[] = []
-        const pushMovement = (itemId: string, locId: string, newQty: number, label: string) => {
-          const prev = balByItemLoc.get(`${locId}:${itemId}`) || 0
-          const delta = round3(newQty - prev)
-          if (Math.abs(delta) < 0.0005) return
-          movements.push({
-            item_id: itemId,
+        let movementsWritten = 0
+        const applyLocation = async (locId: string, list: Array<{ item_id: string; quantity: number }>, label: string) => {
+          if (list.length === 0) return
+          const res = await setInventoryBalances(supabase, {
+            location_id: locId,
+            items: list,
             movement_type: 'inventory_adjustment',
-            quantity: Math.abs(delta),
-            from_location_id: delta < 0 ? locId : null,
-            to_location_id: delta > 0 ? locId : null,
             reference_type: 'stock_excel_import',
-            reference_id: null,
-            comment: `Импорт Excel остатков (${label}): ${prev} → ${newQty}`,
+            comment: `Импорт Excel остатков (${label})`,
             actor_user_id: actorUserId,
-            created_at: nowIso,
+            comment_with_change: true,
           })
+          stock_updated += res.length
+          movementsWritten += res.filter((r) => Math.abs(r.after_qty - r.before_qty) > 0.0005).length
         }
-        for (const it of itemsWithStock) {
-          if (it.showcaseQty !== null) pushMovement(it.itemId, catalogId!, it.showcaseQty, 'витрина')
-          if (it.warehouseQty !== null && warehouseLocId) pushMovement(it.itemId, warehouseLocId, it.warehouseQty, 'склад')
-        }
-        if (movements.length > 0) {
-          for (const slice of chunkArray(movements, 500)) {
-            const { error: mvErr } = await supabase.from('inventory_movements').insert(slice)
-            if (mvErr) throw mvErr
-          }
+        await applyLocation(
+          catalogId!,
+          itemsWithStock.filter((it) => it.showcaseQty !== null).map((it) => ({ item_id: it.itemId, quantity: it.showcaseQty as number })),
+          'витрина',
+        )
+        if (warehouseLocId) {
+          await applyLocation(
+            warehouseLocId,
+            itemsWithStock.filter((it) => it.warehouseQty !== null).map((it) => ({ item_id: it.itemId, quantity: it.warehouseQty as number })),
+            'склад',
+          )
         }
 
         // ─── Audit ───
@@ -792,7 +761,7 @@ export async function POST(request: Request) {
             company_id: catalogCompanyId || null,
             rows_with_stock: rowsWithStock.length,
             stock_updated,
-            movements_written: movements.length,
+            movements_written: movementsWritten,
             warnings_count: stock_warnings_count,
           },
         })

@@ -612,7 +612,8 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
       setDueDate('')
       setComment('')
       setLines([emptyLine()])
-      setSuccess('Приемка проведена. Остатки и цены обновлены везде.')
+      if (json.warning) setError(json.warning)
+      else setSuccess('Приемка проведена. Остатки и цены обновлены везде.')
       invalidateStoreCaches()
       await load(undefined, { soft: true })
     } catch (err: any) {

@@ -4,7 +4,6 @@
  */
 
 import type { CopilotTool } from '../../types'
-import { writeAuditLog } from '@/lib/server/audit'
 import { scopedCompanyIds } from '../../query-helpers'
 
 export const refundSaleTool: CopilotTool = {
@@ -61,25 +60,14 @@ export const refundSaleTool: CopilotTool = {
     }
     if (sale.refunded_at) return { ok: false, message: 'Уже возвращена.' }
 
-    const { error } = await ctx.supabase
-      .from('point_sales')
-      .update({ refunded_at: new Date().toISOString(), refund_reason: reason })
-      .eq('id', saleId)
-    if (error) return { ok: false, message: `Не удалось вернуть: ${error.message}` }
-
-    try {
-      await writeAuditLog(ctx.supabase, {
-        actorUserId: ctx.actorUserId,
-        // Тегируем событие организацией: иначе запись уходит в «общий» пул
-        // audit_log и её читают копилоты других клиентов.
-        organizationId: ctx.organizationId || null,
-        entityType: 'pos-sale',
-        entityId: saleId,
-        action: 'refund',
-        payload: { total: sale.total_amount, reason, via: 'copilot', source: ctx.source },
-      })
-    } catch {}
-
-    return { ok: true, message: `↩️ Возврат на ${Number(sale.total_amount).toLocaleString('ru-RU')} ₸ оформлен. Причина: ${reason}` }
+    // Настоящий возврат — документ point_returns: товар обратно на витрину,
+    // деньги из кассы смены (createPointInventoryReturn). Раньше здесь ставилась
+    // только отметка refunded_at: продажа пропадала из отчётов, а остаток и
+    // деньги оставались как были. Без смены и способа выплаты провести его
+    // честно нельзя — отправляем в кассу.
+    return {
+      ok: false,
+      message: `Возврат на ${Number(sale.total_amount).toLocaleString('ru-RU')} ₸ оформляется в кассе: «Возврат» → найти чек. Так товар вернётся на витрину, а деньги спишутся из смены.`,
+    }
   },
 }

@@ -1522,6 +1522,42 @@ export async function decideInventoryRequest(
   return Array.isArray(data) ? data[0] || null : data || null
 }
 
+/**
+ * «Установить остаток» атомарно: строка блокируется, число и дельта-движение
+ * пишутся одной транзакцией (inventory_set_balances). Раньше upsert поверх
+ * прочитанного остатка затирал продажу, прошедшую в ту же секунду.
+ */
+export async function setInventoryBalances(
+  supabase: AnySupabase,
+  payload: {
+    location_id: string
+    items: Array<{ item_id: string; quantity: number; unit_cost?: number | null }>
+    movement_type: string
+    reference_type: string
+    comment: string
+    actor_user_id?: string | null
+    comment_with_change?: boolean
+  },
+): Promise<Array<{ item_id: string; before_qty: number; after_qty: number }>> {
+  const out: Array<{ item_id: string; before_qty: number; after_qty: number }> = []
+  for (let i = 0; i < payload.items.length; i += 500) {
+    const { data, error } = await supabase.rpc('inventory_set_balances', {
+      p_location_id: payload.location_id,
+      p_items: payload.items.slice(i, i + 500),
+      p_movement_type: payload.movement_type,
+      p_reference_type: payload.reference_type,
+      p_comment: payload.comment,
+      p_actor_user_id: payload.actor_user_id || null,
+      p_comment_with_change: Boolean(payload.comment_with_change),
+    })
+    if (error) throw error
+    for (const r of (data || []) as any[]) {
+      out.push({ item_id: String(r.item_id), before_qty: Number(r.before_qty) || 0, after_qty: Number(r.after_qty) || 0 })
+    }
+  }
+  return out
+}
+
 export async function createPointInventorySale(
   supabase: AnySupabase,
   payload: {

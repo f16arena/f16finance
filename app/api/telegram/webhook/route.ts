@@ -3356,11 +3356,23 @@ export async function POST(req: Request) {
             return json({ ok: true })
           }
 
+          // SQL ждёт строку на каждую позицию: без них «Одобрить» всегда падал.
+          // Как на сайте и в копилоте — одобряем всё запрошенное.
+          let decisionItems: Array<{ request_item_id: string; approved_qty: number }> = []
+          if (action === 'approve') {
+            const { data: lines, error: linesErr } = await supabase
+              .from('inventory_request_items')
+              .select('id, requested_qty')
+              .eq('request_id', requestId)
+            if (linesErr) throw linesErr
+            decisionItems = (lines || []).map((l: any) => ({ request_item_id: String(l.id), approved_qty: Number(l.requested_qty || 0) }))
+          }
           await decideInventoryRequest(supabase, {
             request_id: requestId,
             approved: action === 'approve',
             decision_comment: action === 'approve' ? 'Одобрено через Telegram' : 'Отклонено через Telegram',
             actor_user_id: null,
+            items: decisionItems,
           })
 
           if (chatId && messageId) await clearCallbackButtons(chatId, messageId).catch(() => null)

@@ -4,7 +4,7 @@ import { resolveCompanyScope } from '@/lib/server/organizations'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAnyCapability, requireStaffCapability } from '@/lib/server/capabilities'
 import { requireOrgFeature } from '@/lib/server/entitlements'
-import { createInventoryRequest } from '@/lib/server/repositories/inventory'
+import { createInventoryRequest, setInventoryBalances } from '@/lib/server/repositories/inventory'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { notifyInventoryRequestCreated } from '@/lib/server/telegram'
 import { requireCapability } from '@/lib/server/capabilities'
@@ -258,37 +258,15 @@ export async function POST(request: Request) {
 
       const showcaseLoc = await ensureCompanyLocation(supabase, companyId, 'point_display')
       const actorUserId = access.staffMember?.id || null
-      const now = new Date().toISOString()
 
-      const { data: beforeRow } = await supabase
-        .from('inventory_balances')
-        .select('quantity')
-        .eq('location_id', showcaseLoc.id)
-        .eq('item_id', itemId)
-        .maybeSingle()
-      const beforeQty = Number((beforeRow as any)?.quantity) || 0
-
-      const { error: upsertErr } = await supabase
-        .from('inventory_balances')
-        .upsert({ location_id: showcaseLoc.id, item_id: itemId, quantity: qty, updated_at: now }, { onConflict: 'location_id,item_id' })
-      if (upsertErr) throw upsertErr
-
-      const delta = qty - beforeQty
-      if (Math.abs(delta) > 0.0005) {
-        const { error: mErr } = await supabase.from('inventory_movements').insert({
-          item_id: itemId,
-          movement_type: 'inventory_adjustment',
-          quantity: Math.abs(delta),
-          from_location_id: delta < 0 ? showcaseLoc.id : null,
-          to_location_id: delta > 0 ? showcaseLoc.id : null,
-          reference_type: 'showcase_set',
-          reference_id: null,
-          comment: String(body.comment || '').trim() || 'Установка остатка витрины',
-          actor_user_id: actorUserId,
-          created_at: now,
-        })
-        if (mErr) await writeSystemErrorLogSafe({ scope: 'server', area: 'api/admin/store/showcase.setShowcase:movement', message: mErr.message })
-      }
+      await setInventoryBalances(supabase, {
+        location_id: showcaseLoc.id,
+        items: [{ item_id: itemId, quantity: qty }],
+        movement_type: 'inventory_adjustment',
+        reference_type: 'showcase_set',
+        comment: String(body.comment || '').trim() || 'Установка остатка витрины',
+        actor_user_id: actorUserId,
+      })
 
       await writeAuditLog(supabase, {
         actorUserId,
