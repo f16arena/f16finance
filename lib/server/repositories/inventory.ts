@@ -260,7 +260,7 @@ export async function ensureInventoryRequestAccess(
 export async function fetchInventoryRequests(supabase: AnySupabase, scope?: InventoryScope) {
   const { data, error } = await supabase
     .from('inventory_requests')
-    .select('id, source_location_id, target_location_id, requesting_company_id, status, comment, decision_comment, created_by, approved_by, approved_at, issued_by, issued_at, received_by, received_at, received_qty_confirmed, created_at, updated_at, source_location:source_location_id(id, name, code, location_type), target_location:target_location_id(id, name, code, location_type), company:requesting_company_id(id, name, code), items:inventory_request_items(id, item_id, requested_qty, approved_qty, comment, item:item_id(id, name, barcode))')
+    .select('id, source_location_id, target_location_id, requesting_company_id, status, comment, decision_comment, created_by, approved_by, approved_at, issued_by, issued_at, received_by, received_at, received_qty_confirmed, created_at, updated_at, source_location:source_location_id(id, name, code, location_type), target_location:target_location_id(id, name, code, location_type), company:requesting_company_id(id, name, code), items:inventory_request_items(id, item_id, requested_qty, approved_qty, comment, item:item_id(id, name, barcode, sale_price, default_purchase_price))')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -436,6 +436,9 @@ export type StoreOverviewMetrics = {
   outOfStockInBackroom: number
   /** Деньги в товаре по закупочной цене: подсобка и витрины. */
   stockValue: { warehouse: number; showcase: number; positions: number }
+  /** Для хаба «Документы»: черновики приёмок и неоплаченные накладные поставщикам. */
+  receiptDrafts: number
+  unpaidSupplierDebts: { count: number; sum: number; overdueCount: number; overdueSum: number }
 }
 
 const EMPTY_STORE_METRICS: StoreOverviewMetrics = {
@@ -449,6 +452,8 @@ const EMPTY_STORE_METRICS: StoreOverviewMetrics = {
   outOfStock: 0,
   outOfStockInBackroom: 0,
   stockValue: { warehouse: 0, showcase: 0, positions: 0 },
+  receiptDrafts: 0,
+  unpaidSupplierDebts: { count: 0, sum: 0, overdueCount: 0, overdueSum: 0 },
 }
 
 /**
@@ -572,7 +577,26 @@ export async function fetchStoreOverviewMetrics(
     locations.map((row: any) => [String(row.id), String(row.location_type || '')]),
   )
 
-  const [pending, disputed, receipts, writeoffs, thresholdItems, valueRows] = await Promise.all([
+  // Черновики и долги поставщикам — по организации. Без организации и не суперадмин —
+  // ничего не считаем (fail-closed), иначе видны были бы чужие.
+  const orgId = scope?.organizationId ? String(scope.organizationId) : null
+  const docsAllowed = Boolean(orgId || scope?.isSuperAdmin)
+  const draftsCountQuery = () => {
+    let q: any = supabase.from('inventory_receipt_drafts').select('id', { count: 'exact', head: true }).eq('status', 'draft')
+    if (orgId) q = q.eq('organization_id', orgId)
+    return q
+  }
+  const openDebtsQuery = () => {
+    let q: any = supabase.from('supplier_debts').select('total_amount, due_date, company_id').eq('status', 'open')
+    if (orgId) q = q.eq('organization_id', orgId)
+    if (isRestrictedScope(scope)) {
+      const allowed = Array.from(getAllowedCompanyIdSet(scope))
+      q = q.in('company_id', allowed.length ? allowed : [NEVER_MATCH_UUID])
+    }
+    return q.limit(1000)
+  }
+
+  const [pending, disputed, receipts, writeoffs, thresholdItems, valueRows, draftsRes, debtsRes] = await Promise.all([
     countRequests('new'),
     countRequests('disputed'),
     supabase
@@ -610,7 +634,25 @@ export async function fetchStoreOverviewMetrics(
         .order('location_id')
         .range(from, to),
     ),
+    docsAllowed ? draftsCountQuery() : Promise.resolve({ count: 0, error: null }),
+    docsAllowed ? openDebtsQuery() : Promise.resolve({ data: [], error: null }),
   ])
+
+  if (draftsRes.error) throw draftsRes.error
+  if (debtsRes.error) throw debtsRes.error
+  const todayAlmaty = new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10)
+  const unpaidSupplierDebts = { count: 0, sum: 0, overdueCount: 0, overdueSum: 0 }
+  for (const d of (debtsRes.data || []) as any[]) {
+    const amount = Number(d.total_amount || 0)
+    unpaidSupplierDebts.count += 1
+    unpaidSupplierDebts.sum += amount
+    if (d.due_date && String(d.due_date).slice(0, 10) < todayAlmaty) {
+      unpaidSupplierDebts.overdueCount += 1
+      unpaidSupplierDebts.overdueSum += amount
+    }
+  }
+  unpaidSupplierDebts.sum = Math.round(unpaidSupplierDebts.sum)
+  unpaidSupplierDebts.overdueSum = Math.round(unpaidSupplierDebts.overdueSum)
 
   if (valueRows.error) throw valueRows.error
   const stockValue = { warehouse: 0, showcase: 0, positions: 0 }
@@ -734,6 +776,8 @@ export async function fetchStoreOverviewMetrics(
     outOfStock,
     outOfStockInBackroom,
     stockValue,
+    receiptDrafts: Number(draftsRes.count || 0),
+    unpaidSupplierDebts,
   }
 }
 

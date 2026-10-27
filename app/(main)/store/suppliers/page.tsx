@@ -30,6 +30,8 @@ type Supplier = {
   last_receipt_date: string | null
   open_debts_count: number
   open_debts_sum: number
+  overdue_debts_sum?: number
+  next_due_date?: string | null
   aliases_count: number
 }
 
@@ -124,12 +126,13 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
       )
     })
     // Сначала те, кому мы должны больше всего
-    return [...list].sort((a, b) => (b.open_debts_sum - a.open_debts_sum) || a.name.localeCompare(b.name, 'ru'))
+    return [...list].sort((a, b) => (Number(b.overdue_debts_sum || 0) - Number(a.overdue_debts_sum || 0)) || (b.open_debts_sum - a.open_debts_sum) || a.name.localeCompare(b.name, 'ru'))
   }, [suppliers, query, onlyDebt])
 
   const totals = useMemo(() => ({
     debtSum: suppliers.reduce((sum, s) => sum + Number(s.open_debts_sum || 0), 0),
     debtors: suppliers.filter((s) => s.open_debts_sum > 0).length,
+    overdueSum: suppliers.reduce((sum, s) => sum + Number(s.overdue_debts_sum || 0), 0),
     turnover: suppliers.reduce((sum, s) => sum + Number(s.receipts_total || 0), 0),
   }), [suppliers])
 
@@ -177,8 +180,10 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
         <StoreStat
           label="Мы должны"
           value={formatMoney(totals.debtSum)}
-          tone={totals.debtSum > 0 ? 'rose' : 'neutral'}
-          hint={totals.debtors > 0 ? `${totals.debtors} ${plural(totals.debtors, ['поставщик', 'поставщика', 'поставщиков'])}` : 'долгов нет'}
+          tone={totals.overdueSum > 0 ? 'rose' : totals.debtSum > 0 ? 'amber' : 'neutral'}
+          hint={totals.overdueSum > 0
+            ? `из них просрочено ${formatMoney(totals.overdueSum)}`
+            : totals.debtors > 0 ? `${totals.debtors} ${plural(totals.debtors, ['поставщик', 'поставщика', 'поставщиков'])}, без просрочки` : 'долгов нет'}
           loading={loading}
         />
         <StoreStat label="Оборот закупок" value={formatMoney(totals.turnover)} loading={loading} />
@@ -230,8 +235,14 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
                   <div className="shrink-0 text-right">
                     {hasDebt ? (
                       <>
-                        <p className="text-sm font-bold tabular-nums text-rose-600 dark:text-rose-300">{formatMoney(s.open_debts_sum)}</p>
-                        <p className="text-[11px] text-rose-600/80 dark:text-rose-300/80">{s.open_debts_count} {plural(s.open_debts_count, ['долг', 'долга', 'долгов'])}</p>
+                        <p className={`text-sm font-bold tabular-nums ${(s.overdue_debts_sum || 0) > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`}>{formatMoney(s.open_debts_sum)}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {(s.overdue_debts_sum || 0) > 0
+                            ? <span className="font-medium text-rose-600 dark:text-rose-300">просрочено {formatMoney(s.overdue_debts_sum || 0)}</span>
+                            : s.next_due_date
+                              ? `оплатить до ${fmtDate(s.next_due_date)}`
+                              : `${s.open_debts_count} ${plural(s.open_debts_count, ['долг', 'долга', 'долгов'])}`}
+                        </p>
                       </>
                     ) : (
                       <StoreChip>нет долга</StoreChip>

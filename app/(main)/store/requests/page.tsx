@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { formatMoney } from '@/lib/core/format'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, ClipboardList, History, Loader2, MoreHorizontal, PackageCheck, Pencil, RefreshCw, Search, XCircle } from 'lucide-react'
 import { useCapabilities } from '@/lib/client/use-capabilities'
@@ -46,7 +47,7 @@ type InventoryRequestItem = {
   comment: string | null
   available_qty?: number
   enough_for_requested?: boolean
-  item?: { id: string; name: string; barcode: string } | null
+  item?: { id: string; name: string; barcode: string; sale_price?: number | null; default_purchase_price?: number | null } | null
 }
 
 type InventoryRequest = {
@@ -213,6 +214,18 @@ function requestItemsCount(request: InventoryRequest) {
   return asArray(request.items).reduce((sum, item) => sum + Number(item.requested_qty || 0), 0)
 }
 
+/** Сумма заявки по закупочной цене (что уходит со склада) и по цене продажи. */
+function requestValue(request: InventoryRequest) {
+  let cost = 0
+  let retail = 0
+  for (const item of asArray(request.items)) {
+    const qty = Number(item.approved_qty ?? item.requested_qty ?? 0)
+    cost += qty * Number(item.item?.default_purchase_price || 0)
+    retail += qty * Number(item.item?.sale_price || 0)
+  }
+  return { cost, retail }
+}
+
 function pointNameOf(request: InventoryRequest) {
   return request.company?.name || request.target_location?.company?.name || request.target_location?.name || 'Точка'
 }
@@ -237,6 +250,7 @@ function PendingRequestCard(props: {
   const disputed = request.status === 'disputed'
   const totalQty = requestItemsCount(request)
   const short = items.filter((i) => i.enough_for_requested === false).length
+  const value = requestValue(request)
   return (
     <div className={`${storeCard} overflow-hidden ${disputed ? 'border-rose-500/40 bg-rose-500/[0.03]' : 'border-amber-500/30'}`}>
       <div className="flex flex-wrap items-start gap-3 px-4 py-3">
@@ -257,6 +271,8 @@ function PendingRequestCard(props: {
           </p>
           <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
             {items.length} {plural(items.length, ['позиция', 'позиции', 'позиций'])} · {formatQty(totalQty)} ед. запрошено
+            {value.cost > 0 ? <> · <span className="font-medium text-foreground">{formatMoney(value.cost)}</span> по закупке</> : null}
+            {value.retail > 0 ? <> · {formatMoney(value.retail)} в продаже</> : null}
           </p>
         </div>
       </div>

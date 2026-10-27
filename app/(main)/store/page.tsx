@@ -33,6 +33,7 @@ type StoreOverviewMetrics = {
   outOfStock?: number
   outOfStockInBackroom?: number
   stockValue?: { warehouse: number; showcase: number; positions: number }
+  unpaidSupplierDebts?: { count: number; sum: number; overdueCount: number; overdueSum: number }
 }
 type AuditTimelineEntry = {
   id: string; entity_type: string; entity_id: string; action: string; created_at: string
@@ -115,7 +116,7 @@ export default function StoreOverviewPage() {
           const metrics: StoreOverviewMetrics = {
             pendingRequests: d.pendingRequests, disputedRequests: d.disputedRequests, showcases: d.showcases,
             receipts: d.receipts, unresolvedWriteoffs: d.unresolvedWriteoffs, lowStock: d.lowStock,
-            lowStockTop: d.lowStockTop || [], outOfStock: d.outOfStock, outOfStockInBackroom: d.outOfStockInBackroom, stockValue: d.stockValue,
+            lowStockTop: d.lowStockTop || [], outOfStock: d.outOfStock, outOfStockInBackroom: d.outOfStockInBackroom, stockValue: d.stockValue, unpaidSupplierDebts: d.unpaidSupplierDebts,
           }
           writeApiCache(overviewCacheKey, metrics)
           setOverview(metrics)
@@ -152,6 +153,8 @@ export default function StoreOverviewPage() {
     if (overview.disputedRequests > 0) todo.push({ key: 'disp', icon: Scale, tone: 'rose', text: `${overview.disputedRequests} ${plural(overview.disputedRequests, ['спорная заявка', 'спорные заявки', 'спорных заявок'])}: пришло не столько, сколько выдали`, href: '/store/orders', cta: 'Разобрать' })
     if (inBackroom > 0) todo.push({ key: 'shelf', icon: Store, tone: 'amber', text: `${inBackroom} ${plural(inBackroom, ['позиция пустая', 'позиции пустые', 'позиций пустые'])} на витрине, но есть в подсобке — выставить`, href: '/store/orders', cta: 'Заявка' })
     if (toBuy > 0) todo.push({ key: 'out', icon: PackageX, tone: 'rose', text: `${toBuy} ${plural(toBuy, ['позиция закончилась', 'позиции закончились', 'позиций закончились'])} совсем — закупить`, href: '/store/purchase-plan', cta: 'В план закупа' })
+    const od = overview.unpaidSupplierDebts
+    if (od && od.overdueCount > 0) todo.push({ key: 'debt', icon: Building2, tone: 'rose', text: `Просрочена оплата поставщикам: ${od.overdueCount} ${plural(od.overdueCount, ['накладная', 'накладные', 'накладных'])} на ${formatMoney(od.overdueSum)}`, href: '/store/vendors', cta: 'Оплатить' })
     if (overview.unresolvedWriteoffs > 0) todo.push({ key: 'wo', icon: ArchiveX, tone: 'amber', text: `${overview.unresolvedWriteoffs} ${plural(overview.unresolvedWriteoffs, ['списание', 'списания', 'списаний'])} без причины за 90 дней`, href: '/store/documents', cta: 'Указать' })
   }
 

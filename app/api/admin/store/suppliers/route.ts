@@ -1,3 +1,4 @@
+import { almatyToday } from '@/lib/domain/owner-analytics'
 import { requireCapability } from '@/lib/server/capabilities'
 import { requireOrgFeature } from '@/lib/server/entitlements'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
@@ -61,14 +62,15 @@ export async function GET(request: Request) {
 
     const supplierIds = (suppliers || []).map((s: any) => s.id)
     let receiptStats = new Map<string, { count: number; total: number; last: string | null }>()
-    let debtStats = new Map<string, { open: number; openSum: number }>()
+    let debtStats = new Map<string, { open: number; openSum: number; overdueSum: number; nextDue: string | null }>()
     let aliasCounts = new Map<string, number>()
 
+    const today = almatyToday()
     if (supplierIds.length > 0) {
       // Это агрегация (суммы/количества) — забираем ВСЕ строки, не первые 1000.
       const [receiptRows, debtRows, aliasRows] = await Promise.all([
         fetchAllByChunkedIn(supabase, 'inventory_receipts', 'supplier_id, total_amount, received_at', 'supplier_id', supplierIds),
-        fetchAllByChunkedIn(supabase, 'supplier_debts', 'supplier_id, total_amount, status', 'supplier_id', supplierIds),
+        fetchAllByChunkedIn(supabase, 'supplier_debts', 'supplier_id, total_amount, status, due_date', 'supplier_id', supplierIds),
         fetchAllByChunkedIn(supabase, 'invoice_name_mappings', 'supplier_id', 'supplier_id', supplierIds),
       ])
 
@@ -82,10 +84,13 @@ export async function GET(request: Request) {
       }
       for (const row of debtRows as any[]) {
         const key = String(row.supplier_id)
-        const cur = debtStats.get(key) || { open: 0, openSum: 0 }
+        const cur = debtStats.get(key) || { open: 0, openSum: 0, overdueSum: 0, nextDue: null }
         if (row.status === 'open') {
           cur.open += 1
           cur.openSum += Number(row.total_amount || 0)
+          const due = row.due_date ? String(row.due_date).slice(0, 10) : null
+          if (due && due < today) cur.overdueSum += Number(row.total_amount || 0)
+          else if (due && (!cur.nextDue || due < cur.nextDue)) cur.nextDue = due
         }
         debtStats.set(key, cur)
       }
@@ -97,7 +102,7 @@ export async function GET(request: Request) {
 
     const enriched = (suppliers || []).map((s: any) => {
       const r = receiptStats.get(s.id) || { count: 0, total: 0, last: null }
-      const d = debtStats.get(s.id) || { open: 0, openSum: 0 }
+      const d = debtStats.get(s.id) || { open: 0, openSum: 0, overdueSum: 0, nextDue: null }
       return {
         ...s,
         receipts_count: r.count,
@@ -105,6 +110,9 @@ export async function GET(request: Request) {
         last_receipt_date: r.last,
         open_debts_count: d.open,
         open_debts_sum: d.openSum,
+        // Новые поля (старые клиенты их не читают): просрочено и ближайший срок оплаты.
+        overdue_debts_sum: d.overdueSum,
+        next_due_date: d.nextDue,
         aliases_count: aliasCounts.get(s.id) || 0,
       }
     })

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { FileText, PackagePlus, Upload, ArchiveX, ScanSearch, CalendarClock } from 'lucide-react'
 import { PageSkeleton } from '@/components/skeleton'
+import { formatMoney } from '@/lib/core/format'
 import { StoreAttention, plural, type StoreTodo } from '@/components/store/store-ui'
 import { useStoreApiUrl } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
@@ -33,6 +34,8 @@ export default function StoreDocumentsPage() {
   const [tab, setTab] = usePersistentState<Tab>('store.documents.tab', 'receipts')
   // Единственное, что на хабе требует решения: списания без причины (тот же счётчик, что на обзоре).
   const [unresolved, setUnresolved] = useState<number | null>(null)
+  const [drafts, setDrafts] = useState(0)
+  const [debts, setDebts] = useState<{ count: number; sum: number; overdueCount: number; overdueSum: number } | null>(null)
 
   const overviewUrl = storeUrl('/api/admin/store/overview')
   useEffect(() => {
@@ -45,6 +48,8 @@ export default function StoreDocumentsPage() {
         if (ac.signal.aborted || !ok || !json?.ok) return
         const n = Number(json.data?.unresolvedWriteoffs ?? 0)
         setUnresolved(n)
+        setDrafts(Number(json.data?.receiptDrafts ?? 0))
+        if (json.data?.unpaidSupplierDebts) setDebts(json.data.unpaidSupplierDebts)
         // Кэш обзора хранит полный набор счётчиков; обновляем только своё поле, если запись уже есть.
         const prev = readApiCache<Record<string, unknown>>(`${overviewUrl}#metrics`)
         if (prev) writeApiCache(`${overviewUrl}#metrics`, { ...prev, unresolvedWriteoffs: n })
@@ -62,6 +67,27 @@ export default function StoreDocumentsPage() {
       text: `${unresolved} ${plural(unresolved, ['списание', 'списания', 'списаний'])} без причины за 90 дней`,
       onClick: () => setTab('writeoffs'),
       cta: 'Указать причину',
+    })
+  }
+
+  if (drafts > 0) {
+    todo.push({
+      key: 'drafts',
+      icon: FileText,
+      tone: 'amber',
+      text: `${drafts} ${plural(drafts, ['черновик приёмки не проведён', 'черновика приёмки не проведены', 'черновиков приёмки не проведены'])} — товар ещё не на складе`,
+      onClick: () => setTab('receipts'),
+      cta: 'Открыть',
+    })
+  }
+  if (debts && debts.overdueCount > 0) {
+    todo.push({
+      key: 'debts',
+      icon: ArchiveX,
+      tone: 'rose',
+      text: `Просрочена оплата ${debts.overdueCount} ${plural(debts.overdueCount, ['накладной', 'накладных', 'накладных'])} поставщикам на ${formatMoney(debts.overdueSum)}`,
+      href: '/store/vendors',
+      cta: 'К оплате',
     })
   }
 
