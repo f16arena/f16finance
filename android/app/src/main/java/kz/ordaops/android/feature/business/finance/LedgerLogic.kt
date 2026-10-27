@@ -10,7 +10,7 @@ import java.util.Locale
 /** Способы оплаты дохода в порядке показа. */
 object Methods {
     const val Cash = "Наличные"
-    const val Kaspi = "Kaspi"
+    const val Kaspi = "Безналичный"
     const val Card = "Карта"
     const val Online = "Онлайн"
 }

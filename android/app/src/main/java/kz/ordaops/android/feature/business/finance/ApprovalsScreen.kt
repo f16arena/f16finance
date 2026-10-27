@@ -121,7 +121,7 @@ fun ApprovalsScreen() {
                 title = "Ждут решения",
                 value = money(list.sumOf { it.total }),
                 caption = "${list.size} ${BizFormat.expensesWord(list.size)} на согласовании",
-                footer = listOf("Наличные" to money(list.sumOf { it.cashAmount }), "Kaspi" to money(list.sumOf { it.kaspiAmount })),
+                footer = listOf("Наличные" to money(list.sumOf { it.cashAmount }), "Безналичный" to money(list.sumOf { it.kaspiAmount })),
             )
             list.forEach { item ->
                 PendingCard(
@@ -190,8 +190,8 @@ private fun PendingCard(
             Text(
                 when {
                     item.cashAmount > 0 && item.kaspiAmount > 0 ->
-                        "Смешанная оплата: наличные ${money(item.cashAmount)} · Kaspi ${money(item.kaspiAmount)}"
-                    item.kaspiAmount > 0 -> "Kaspi"
+                        "Смешанная оплата: наличные ${money(item.cashAmount)} · безналичный ${money(item.kaspiAmount)}"
+                    item.kaspiAmount > 0 -> "Безналичный"
                     else -> "Наличные"
                 },
                 color = Orda.colors.textDim, fontSize = 13.sp, fontWeight = FontWeight.Medium,

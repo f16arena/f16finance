@@ -16,4 +16,6 @@ internal val financePages: Map<String, @Composable () -> Unit> = mapOf(
     "point-debts" to { PointDebtsScreen() },
     "profitability" to { PnlScreen() },
     "cashflow" to { CashflowScreen() },
+    "reports" to { ReportsScreen() },
+    "sales-kpi" to { SalesKpiScreen() },
 )

@@ -53,89 +53,6 @@ import java.time.LocalDate
 // Листы выписки: новый доход, новый расход, правка. Порт AddIncomeSheet,
 // AddExpenseSheet, EditIncomeSheet / EditExpenseSheet.
 
-/** Новый доход за смену. Дубль (409) не ошибка: предлагаем «сохранить всё равно». */
-@Composable
-fun AddIncomeSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
-    val companies by vm.companies.collectAsState()
-    val operators by vm.operators.collectAsState()
-    val haptics = rememberHaptics()
-    val scope = rememberCoroutineScope()
-    var date by remember { mutableStateOf(AnalyticsPeriod.businessToday().toString()) }
-    var companyId by remember { mutableStateOf("") }
-    var operatorId by remember { mutableStateOf("") }
-    var shift by remember { mutableStateOf("day") }
-    var cash by remember { mutableStateOf("") }
-    var kaspi by remember { mutableStateOf("") }
-    var card by remember { mutableStateOf("") }
-    var online by remember { mutableStateOf("") }
-    var comment by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var duplicate by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) { vm.loadOperators() }
-    LaunchedEffect(companies) { if (companyId.isEmpty() && companies.size == 1) companyId = companies[0].id }
-
-    val draft = IncomeDraft(
-        date = date, companyId = companyId, operatorId = operatorId.ifEmpty { null }, shift = shift,
-        cash = parseAmount(cash), kaspi = parseAmount(kaspi), card = parseAmount(card), online = parseAmount(online),
-        comment = comment,
-    )
-
-    fun save(force: Boolean) {
-        error = null
-        saving = true
-        scope.launch {
-            when (val r = vm.createIncome(draft, force)) {
-                SaveOutcome.Saved -> { haptics.success(); onDismiss() }
-                SaveOutcome.Duplicate -> duplicate = true
-                is SaveOutcome.Failed -> error = r.message
-            }
-            saving = false
-        }
-    }
-
-    OrdaSheet("Новый доход", onDismiss) {
-        FormSection("Смена") {
-            DateField("Дата", date, { date = it })
-            PickerField("Точка", companies.map { Option(it.id, it.name) }, companyId, { companyId = it })
-            PickerField("Оператор", operators.filter { it.isActive }.map { Option(it.id, it.title) }, operatorId, { operatorId = it })
-            PillSegment(listOf("day" to "День", "night" to "Ночь"), shift) { shift = it }
-        }
-        FormSection("Суммы") {
-            AmountField("Наличные", cash, { cash = it })
-            AmountField("Kaspi", kaspi, { kaspi = it })
-            AmountField("Карта", card, { card = it })
-            AmountField("Онлайн", online, { online = it })
-            TextAreaField("Комментарий", comment, { comment = it }, placeholder = "Необязательно", minLines = 1)
-        }
-        Row(
-            Modifier.fillMaxWidth().background(Orda.colors.positive.copy(alpha = 0.12f), RoundedCornerShape(Radius.md)).padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Итого за смену", color = Orda.colors.textMuted, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Text(money(draft.total), color = Orda.colors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        if (duplicate) {
-            Column(
-                Modifier.fillMaxWidth().background(Orda.colors.warning.copy(alpha = 0.12f), RoundedCornerShape(Radius.md)).padding(Spacing.md),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                Text("Такая выручка уже заведена", color = Orda.colors.text, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "За эту дату и смену уже есть запись с теми же суммами. Обычно это повторная отправка. " +
-                        "Если выручку правда сдавали дважды — сохраните всё равно.",
-                    color = Orda.colors.textMuted, fontSize = 13.sp,
-                )
-                OutlinedButton(onClick = { save(true) }, enabled = !saving) { Text("Сохранить всё равно") }
-            }
-        }
-        draft.validationMessage?.let { Text(it, color = Orda.colors.warning, fontSize = 14.sp) }
-        error?.let { ErrorBanner(it) }
-        PrimaryButton(if (saving) "Сохраняем…" else "Сохранить", Modifier.fillMaxWidth(), enabled = draft.isValid, loading = saving) { save(false) }
-    }
-}
-
 /** Форма расхода держит сессию мастера: документ уходит на сервер сразу, как выбран. */
 private class ExpenseFormModel(private val api: FinanceApi) {
     var documentUrls by mutableStateOf<List<String>>(emptyList())
@@ -195,7 +112,8 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
-    val companies by vm.companies.collectAsState()
+    val companies by vm.openCompanies.collectAsState()
+    val operators by vm.operators.collectAsState()
     val categories by vm.categories.collectAsState()
     val vendors by vm.vendors.collectAsState()
     val model = remember { ExpenseFormModel(FinanceApi(env.api)) }
@@ -203,6 +121,7 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
     var date by remember { mutableStateOf(AnalyticsPeriod.businessToday().toString()) }
     var companyId by remember { mutableStateOf("") }
     var categoryId by remember { mutableStateOf("") }
+    var operatorId by remember { mutableStateOf("") }
     var itemName by remember { mutableStateOf("") }
     var cash by remember { mutableStateOf("") }
     var kaspi by remember { mutableStateOf("") }
@@ -213,7 +132,7 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
     var reason by remember { mutableStateOf("") }
     var backdated by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { vm.loadExpenseRefs() }
+    LaunchedEffect(Unit) { vm.loadExpenseRefs(); vm.loadOperators() }
     LaunchedEffect(companies) { if (companyId.isEmpty() && companies.size == 1) companyId = companies[0].id }
 
     // Себестоимость заводит только владелец: её место в приёмке, где есть накладная.
@@ -223,7 +142,7 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
     val picksCogs = selectable.firstOrNull { it.id == categoryId }?.isCogs == true
 
     val draft = ExpenseDraft(
-        date = date, companyId = companyId, categoryId = categoryId,
+        date = date, companyId = companyId, operatorId = operatorId.ifEmpty { null }, categoryId = categoryId,
         categoryName = selectable.firstOrNull { it.id == categoryId }?.name.orEmpty(),
         amountCash = parseAmount(cash), amountKaspi = parseAmount(kaspi), itemName = itemName, comment = comment,
         documentKind = kind, documentUrls = model.documentUrls,
@@ -247,6 +166,7 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
             DateField("Дата", date, { date = it })
             PickerField("Точка", companies.map { Option(it.id, it.name) }, companyId, { companyId = it })
             PickerField("Категория", selectable.map { Option(it.id, it.name) }, categoryId, { categoryId = it })
+            if (operators.isNotEmpty()) PickerField("Кто потратил", operators.map { Option(it.id, it.title) }, operatorId, { operatorId = it }, placeholder = "Не указан")
             if (categories.isNotEmpty() && selectable.size < categories.size) {
                 FieldHint("Статьи себестоимости здесь не заводятся — для них есть приёмка товара.")
             }
@@ -260,7 +180,7 @@ fun AddExpenseSheet(vm: LedgerViewModel, onDismiss: () -> Unit) {
         }
         FormSection("Сколько") {
             AmountField("Наличные", cash, { cash = it })
-            AmountField("Kaspi", kaspi, { kaspi = it })
+            AmountField("Безналичный", kaspi, { kaspi = it })
             FieldHint("Комментарий — не меньше 20 символов: через полгода по нему будут вспоминать, за что заплатили.")
             TextAreaField("Зачем и кому", comment, { comment = it })
         }
@@ -377,7 +297,7 @@ fun EditIncomeSheet(vm: LedgerViewModel, row: IncomeRow, onDismiss: () -> Unit) 
         DateField("Дата", current.date, { edit = edit.copy(date = it) })
         PickerField("Оператор", operators.map { Option(it.id, it.title) }, current.operatorId.orEmpty(), { edit = edit.copy(operatorId = it.ifEmpty { null }) })
         AmountField("Наличные", cash, { cash = it })
-        AmountField("Kaspi", kaspi, { kaspi = it })
+        AmountField("Безналичный", kaspi, { kaspi = it })
         AmountField("Карта", card, { card = it })
         AmountField("Онлайн", online, { online = it })
         TextAreaField("Комментарий", current.comment, { edit = edit.copy(comment = it) }, minLines = 1)
@@ -423,7 +343,7 @@ fun EditExpenseSheet(vm: LedgerViewModel, row: ExpenseRow, onDismiss: () -> Unit
         PickerField("Точка", companies.map { Option(it.id, it.name) }, current.companyId, { if (it.isNotEmpty()) edit = edit.copy(companyId = it) })
         PickerField("Категория", names.map { Option(it, it) }, current.category, { edit = edit.copy(category = it) })
         AmountField("Наличные", cash, { cash = it })
-        AmountField("Kaspi", kaspi, { kaspi = it })
+        AmountField("Безналичный", kaspi, { kaspi = it })
         TextAreaField("Комментарий", current.comment, { edit = edit.copy(comment = it) }, minLines = 1)
         current.problem?.let { Text(it, color = Orda.colors.warning, fontSize = 14.sp) }
         error?.let { ErrorBanner(it) }

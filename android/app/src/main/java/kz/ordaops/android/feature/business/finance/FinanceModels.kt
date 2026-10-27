@@ -146,6 +146,8 @@ data class IncomeDraft(
     val card: Double = 0.0,
     val online: Double = 0.0,
     val comment: String? = null,
+    /** Зона выручки (`incomes.zone`): `pc`, `ramen`, `other` — по профилю точки. */
+    val zone: String? = null,
 ) {
     val total: Double get() = cash + kaspi + card + online
 
@@ -176,8 +178,42 @@ data class IncomeDraft(
             put("card_amount", card)
             put("online_amount", online)
             put("comment", comment?.trim()?.takeIf { it.isNotEmpty() })
+            put("zone", zone)
+            put("is_virtual", false)
         })
     }
+}
+
+/**
+ * Приход точки с зонами (PS5, VR, бильярд…) — по записи на каждую зону с суммой,
+ * `createIncomeBatch`; подпись зоны дописывается в комментарий, как на сайте.
+ */
+fun zoneIncomeBatchBody(
+    date: String,
+    companyId: String,
+    operatorId: String,
+    shift: String,
+    comment: String,
+    zones: List<Pair<RevenueZone, ZoneAmount>>,
+): JsonObject = buildJsonObject {
+    put("action", "createIncomeBatch")
+    put("payload", kotlinx.serialization.json.JsonArray(
+        zones.filter { it.second.total > 0 }.map { (z, a) ->
+            buildJsonObject {
+                put("date", date)
+                put("company_id", companyId)
+                put("operator_id", operatorId)
+                put("shift", shift)
+                put("zone", z.key)
+                put("cash_amount", a.cash)
+                put("kaspi_amount", a.cashless)
+                put("online_amount", 0)
+                put("card_amount", 0)
+                put("comment", if (comment.trim().isNotEmpty()) "${comment.trim()} • ${z.label}" else z.label)
+                put("is_virtual", true)
+            }
+        },
+    ))
 }
 
 /** Исправление дохода. «Kaspi до полуночи» в форме нет — уходит как было. */

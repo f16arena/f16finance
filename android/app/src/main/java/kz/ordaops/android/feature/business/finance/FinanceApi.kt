@@ -44,6 +44,9 @@ class FinanceApi(val api: ApiClient) {
     suspend fun createIncome(draft: IncomeDraft, force: Boolean) =
         api.sendUnit(ApiRequest.json("/api/admin/incomes", draft.body(force)))
 
+    /** Приход по зонам точки — одна запись на зону с суммой. */
+    suspend fun createZoneIncome(body: JsonObject) = api.sendUnit(ApiRequest.json("/api/admin/incomes", body))
+
     suspend fun updateIncome(edit: IncomeEdit) = api.sendUnit(ApiRequest.json("/api/admin/incomes", edit.body()))
 
     suspend fun updateExpense(edit: ExpenseEdit) = api.sendUnit(ApiRequest.json("/api/admin/expenses", edit.body()))
@@ -99,7 +102,7 @@ class FinanceApi(val api: ApiClient) {
     // ── Долги с точки ───────────────────────────────────────────────────────
 
     suspend fun pointDebts(weekStart: String): PointDebtWeek =
-        api.send(ApiRequest("/api/admin/point-debts", query = mapOf("weekStart" to weekStart)))
+        api.send<kz.ordaops.android.feature.business.BizData<PointDebtWeek>>(ApiRequest("/api/admin/point-debts", query = mapOf("weekStart" to weekStart))).data
 
     /** Отметить долги погашенными. Право `point-debts.mark_paid`; запись видна в журнале. */
     suspend fun markDebtsPaid(itemIds: List<String>) = api.sendUnit(
@@ -114,7 +117,17 @@ class FinanceApi(val api: ApiClient) {
 
     // ── Справочники ─────────────────────────────────────────────────────────
 
-    suspend fun operators(): List<FinOperator> = api.send<BizList<FinOperator>>(ApiRequest("/api/admin/operators")).data
+    /** Операторы для выбора в форме прихода — только активные. */
+    suspend fun operators(): List<FinOperator> =
+        api.send<BizList<FinOperator>>(ApiRequest("/api/admin/operators", query = mapOf("active_only" to "true"))).data
+
+    /** Кто мог потратить — для формы расхода (роут учитывает охват сотрудника). */
+    suspend fun expenseOperators(): List<FinOperator> =
+        api.send<BizList<FinOperator>>(ApiRequest("/api/admin/expenses/operators")).data
+
+    /** Точки для форм новой работы. `open=1` — закрытые (archived_at) не предлагаем. */
+    suspend fun openCompanies(): List<FinCompany> =
+        api.send<BizList<FinCompany>>(ApiRequest("/api/admin/companies", query = mapOf("open" to "1"))).data
 
     suspend fun categories(): List<ExpenseCategory> =
         api.send<BizList<ExpenseCategory>>(ApiRequest("/api/admin/expense-categories")).data

@@ -108,7 +108,7 @@ data class MonthlyPnl(
     fun parts(line: PnlLine): List<PnlCategoryAmount> {
         if (line == PnlLine.Revenue) {
             return listOf(
-                PnlCategoryAmount("Наличные", income.cash), PnlCategoryAmount("Kaspi", income.kaspi),
+                PnlCategoryAmount("Наличные", income.cash), PnlCategoryAmount("Безналичный", income.kaspi),
                 PnlCategoryAmount("Карта", income.card), PnlCategoryAmount("Онлайн", income.online),
             ).filter { Math.round(it.amount) != 0L }
         }

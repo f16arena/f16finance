@@ -208,8 +208,8 @@ private fun MonthCard(data: OwnerAnalytics?, onClick: () -> Unit) {
 @Composable
 private fun QuickActions(env: BusinessEnv) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.Top) {
-        if (env.can("expenses.create")) RoundAction(Icons.Filled.Remove, "Расход", Modifier.weight(1f)) { env.open("expenses") }
-        if (env.can("income.create")) RoundAction(Icons.Filled.Add, "Доход", Modifier.weight(1f)) { env.open("income") }
+        if (env.can("expenses.create")) RoundAction(Icons.Filled.Remove, "Расход", Modifier.weight(1f)) { kz.ordaops.android.feature.business.finance.FinanceQuickAdd.pending.value = "expenses"; env.open("expenses") }
+        if (env.can("income.create")) RoundAction(Icons.Filled.Add, "Доход", Modifier.weight(1f)) { kz.ordaops.android.feature.business.finance.FinanceQuickAdd.pending.value = "income"; env.open("income") }
         if (env.can("tasks.create")) RoundAction(Icons.Filled.Checklist, "Задача", Modifier.weight(1f)) { env.open("tasks") }
         RoundAction(Icons.Filled.PieChart, "Аналитика", Modifier.weight(1f)) { env.goTab(BusinessTab.Analytics) }
         RoundAction(Icons.Filled.GridView, "Сервисы", Modifier.weight(1f)) { env.goTab(BusinessTab.Services) }

@@ -271,6 +271,18 @@ fun PointDebtsScreen() {
                         }
                     }
                 }
+                if (data.legacyAggregates.isNotEmpty()) {
+                    OwnerSection("Прежний учёт", trailing = { Text(money(data.legacyAggregates.sumOf { it.amount }), color = Orda.colors.textDim, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }) {
+                        data.legacyAggregates.forEachIndexed { i, d ->
+                            if (i > 0) RowDivider(52)
+                            Row(Modifier.fillMaxWidth().padding(vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                LetterBadge(d.debtorName ?: "Должник", Orda.colors.textMuted)
+                                Text(d.debtorName ?: "Должник", color = Orda.colors.text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(money(d.amount), color = Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
                 error?.let { ErrorBanner(it) }
             }
         }
@@ -280,7 +292,7 @@ fun PointDebtsScreen() {
         AlertDialog(
             onDismissRequest = { settling = null },
             title = { Text("Долг погашен?") },
-            text = { Text("${debt.clientName} — ${money(debt.amount)}. Отмечайте, только когда деньги вернули: запись видна в журнале.") },
+            text = { Text("${debt.title} — ${money(debt.amount)}. Отмечайте, только когда деньги вернули: запись видна в журнале.") },
             confirmButton = {
                 TextButton(onClick = {
                     settling = null
@@ -302,10 +314,10 @@ private fun DebtRow(debt: PointDebt, onClick: (() -> Unit)?) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        LetterBadge(debt.clientName, if (debt.isPaid) Orda.colors.textDim else Orda.colors.brand)
+        LetterBadge(debt.title, if (debt.isPaid) Orda.colors.textDim else Orda.colors.brand)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(debt.clientName, color = if (debt.isPaid) Orda.colors.textDim else Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            debt.comment?.takeIf { it.isNotEmpty() }?.let { Text(it, color = Orda.colors.textDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            Text(debt.title, color = if (debt.isPaid) Orda.colors.textDim else Orda.colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            debt.subtitle?.let { Text(it, color = Orda.colors.textDim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(

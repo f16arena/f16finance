@@ -88,10 +88,23 @@ class LedgerViewModel(
         }
     }
 
-    /** Операторы нужны для правки дохода и формы нового; грузим один раз, тихо. */
+    private val _openCompanies = MutableStateFlow<List<FinCompany>>(emptyList())
+
+    /** Точки для форм новой работы: закрытые не предлагаем (`open=1`), как на сайте. */
+    val openCompanies: StateFlow<List<FinCompany>> = _openCompanies.asStateFlow()
+
+    /**
+     * Операторы и открытые точки для форм; грузим один раз, тихо. Для дохода — активные
+     * операторы, для расхода — те, кого сервер разрешает сотруднику (`/expenses/operators`).
+     */
     fun loadOperators() {
-        if (_operators.value.isNotEmpty()) return
-        viewModelScope.launch { runCatching { api.operators() }.onSuccess { _operators.value = it } }
+        viewModelScope.launch {
+            if (_openCompanies.value.isEmpty()) runCatching { api.openCompanies() }.onSuccess { _openCompanies.value = it }
+            if (_operators.value.isEmpty()) {
+                runCatching { if (kind == LedgerKind.Income) api.operators() else api.expenseOperators() }
+                    .onSuccess { _operators.value = it }
+            }
+        }
     }
 
     /** Категории и доверенные поставщики — для формы расхода. */
@@ -108,6 +121,17 @@ class LedgerViewModel(
         SaveOutcome.Saved
     } catch (e: ApiError.Conflict) {
         if (e.code == "duplicate") SaveOutcome.Duplicate else SaveOutcome.Failed(e.userMessage())
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        SaveOutcome.Failed(e.userMessage())
+    }
+
+    /** Приход точки с зонами — пачкой, по записи на зону. */
+    suspend fun createZoneIncome(body: kotlinx.serialization.json.JsonObject): SaveOutcome = try {
+        api.createZoneIncome(body)
+        load()
+        SaveOutcome.Saved
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
