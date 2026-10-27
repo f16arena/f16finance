@@ -18,8 +18,8 @@ import kz.ordaops.android.feature.business.LocalBusiness
 data class OpsPerson(val id: String, val name: String)
 
 /** Оператор из `/api/admin/operators`: полное имя профиля, если есть, иначе служебное. */
-fun parseOperators(root: JsonObject): List<OpsPerson> =
-    root.items("data").filter { it.bool("is_active") != false }.map { o ->
+fun parseOperators(root: JsonObject, key: String = "data"): List<OpsPerson> =
+    root.items(key).filter { it.bool("is_active") != false }.map { o ->
         val profile = (o["operator_profiles"] as? JsonArray)?.firstOrNull() as? JsonObject ?: o.obj("operator_profiles")
         val full = profile?.str("full_name")?.trim().orEmpty()
         OpsPerson(o.str("id") ?: "", full.ifEmpty { o.str("short_name", "name") ?: "Оператор" })
@@ -37,7 +37,7 @@ fun rememberOperators(enabled: Boolean = true): List<OpsPerson> {
     val env = LocalBusiness.current
     var people by remember { mutableStateOf<List<OpsPerson>>(emptyList()) }
     LaunchedEffect(enabled) {
-        if (enabled) runCatching { parseOperators(env.api.send<JsonObject>(ApiRequest("/api/admin/operators"))) }.onSuccess { people = it }
+        if (enabled) runCatching { parseOperators(env.api.send<JsonObject>(ApiRequest("/api/admin/tasks", query = mapOf("page_size" to "1"))), "operators") }.onSuccess { people = it }
     }
     return people
 }

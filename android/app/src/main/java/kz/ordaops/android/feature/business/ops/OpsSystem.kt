@@ -46,7 +46,11 @@ import java.time.Instant
 
 // ── Модели ───────────────────────────────────────────────────────────────────
 
-data class SettingsCompany(val id: String, val name: String, val code: String?, val showInStructure: Boolean)
+/** Точка. Закрытая (`archived_at`) остаётся в истории, но вне лимита; «вне общих итогов» — настройка точки. */
+data class SettingsCompany(
+    val id: String, val name: String, val code: String?, val showInStructure: Boolean,
+    val isClosed: Boolean = false, val excludedFromTotals: Boolean = false,
+)
 
 data class SettingsStaff(val id: String, val fullName: String, val email: String?, val role: String, val isActive: Boolean) {
     val roleLabel: String
@@ -72,8 +76,10 @@ data class SystemSettings(
     val categories: List<SettingsCategory>,
     val companyLimit: Int?,
 ) {
-    val freeCompanySlots: Int? get() = companyLimit?.let { maxOf(0, it - companies.size) }
-    val isCompanyLimitReached: Boolean get() = companyLimit?.let { companies.size >= it } ?: false
+    /** Точки в лимите: закрытые не считаются (веб: «Закрыть точку» освобождает слот). */
+    val openCompanies: List<SettingsCompany> get() = companies.filter { !it.isClosed }
+    val freeCompanySlots: Int? get() = companyLimit?.let { maxOf(0, it - openCompanies.size) }
+    val isCompanyLimitReached: Boolean get() = companyLimit?.let { openCompanies.size >= it } ?: false
     val monthlyBudgetTotal: Double get() = categories.sumOf { it.monthlyBudget ?: 0.0 }
 
     /** Команда: административные первыми, дальше по имени. */
@@ -83,7 +89,10 @@ data class SystemSettings(
     companion object {
         fun parse(o: JsonObject) = SystemSettings(
             companies = o.arr("companies").map {
-                SettingsCompany(it.str("id") ?: "", it.str("name") ?: "Точка", it.str("code"), it.bool("show_in_structure") ?: true)
+                SettingsCompany(
+                    it.str("id") ?: "", it.str("name") ?: "Точка", it.str("code"), it.bool("show_in_structure") ?: true,
+                    isClosed = !it.str("archived_at").isNullOrEmpty(), excludedFromTotals = it.bool("exclude_from_totals") ?: false,
+                )
             },
             staff = o.arr("staff").map {
                 SettingsStaff(it.str("id") ?: "", it.str("full_name") ?: "Без имени", it.str("email"), it.str("role") ?: "other", it.bool("is_active") ?: true)
@@ -235,7 +244,7 @@ fun SettingsScreen() {
                 // Главное — сколько точек из лимита; упёрлись в лимит — ниже предупреждение.
                 HeroCard {
                     Text("Точки", color = Color.White.copy(alpha = 0.85f), fontSize = 15.sp)
-                    Text(data.companyLimit?.let { "${data.companies.size} из $it" } ?: "${data.companies.size}", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                    Text(data.companyLimit?.let { "${data.openCompanies.size} из $it" } ?: "${data.openCompanies.size}", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
                     data.freeCompanySlots?.let { Text("свободно слотов: $it", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp) }
                     Row(Modifier.padding(top = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
                         HeroFact("Команда", "${data.staff.size}")
@@ -253,7 +262,12 @@ fun SettingsScreen() {
                 OpsSection("Точки", count = data.freeCompanySlots?.let { "свободно: $it" } ?: "${data.companies.size}") {
                     if (data.companies.isEmpty()) Text("Точек пока нет", color = Orda.colors.textDim)
                     data.companies.forEach { c ->
-                        OpsRow(Icons.Filled.Apartment, Orda.colors.brand, c.name, subtitle = c.code, trailing = if (!c.showInStructure) "вне структуры" else null, trailingColor = Orda.colors.textDim)
+                        OpsRow(
+                            Icons.Filled.Apartment, if (c.isClosed) Orda.colors.textDim else Orda.colors.brand, c.name,
+                            subtitle = listOfNotNull(c.code?.takeIf { it.isNotEmpty() }, "не в общих итогах".takeIf { c.excludedFromTotals }).joinToString(" · ").ifEmpty { null },
+                            trailing = if (c.isClosed) "закрыта" else if (!c.showInStructure) "вне структуры" else null,
+                            trailingColor = Orda.colors.textDim,
+                        )
                     }
                 }
             }
