@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Файлы выгрузки финансов (PDF отчётов): лежат в кэше, отдаются другим приложениям через FinanceFileProvider. -->
+<paths>
+    <cache-path name="finance_exports" path="exports/" />
+</paths>

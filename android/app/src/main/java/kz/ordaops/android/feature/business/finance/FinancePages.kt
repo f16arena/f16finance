@@ -14,4 +14,5 @@ internal val financePages: Map<String, @Composable () -> Unit> = mapOf(
     "expense-whitelist" to { WhitelistScreen() },
     "categories" to { CategoriesScreen() },
     "point-debts" to { PointDebtsScreen() },
+    "profitability" to { PnlScreen() },
 )
