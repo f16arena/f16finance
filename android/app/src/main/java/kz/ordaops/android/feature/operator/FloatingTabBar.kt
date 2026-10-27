@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +62,24 @@ fun FloatingTabBar(
     badges: Map<OperatorSection, Int>,
     onSelect: (OperatorSection) -> Unit,
 ) {
+    FloatingTabBar(
+        items = tabs.map { TabBarItem(it.name, it.tabTitle, it.icon) },
+        selectedKey = selected?.name,
+        badges = badges.mapKeys { it.key.name },
+        onSelect = { key -> tabs.firstOrNull { it.name == key }?.let(onSelect) },
+    )
+}
+
+/** Пункт панели: ключ, подпись, значок. Одна панель на оператора и на кабинет владельца. */
+data class TabBarItem(val key: String, val title: String, val icon: ImageVector)
+
+@Composable
+fun FloatingTabBar(
+    items: List<TabBarItem>,
+    selectedKey: String?,
+    badges: Map<String, Int>,
+    onSelect: (String) -> Unit,
+) {
     val colors = Orda.colors
     val haptics = rememberHaptics()
     Box(
@@ -80,9 +99,9 @@ fun FloatingTabBar(
                 .background(colors.surface, shape)
                 .padding(6.dp),
         ) {
-            val count = tabs.size.coerceAtLeast(1)
+            val count = items.size.coerceAtLeast(1)
             val itemWidth = maxWidth / count
-            val index = tabs.indexOf(selected)
+            val index = items.indexOfFirst { it.key == selectedKey }
             // Плашка выбора: одна на панель, едет под выбранный пункт.
             val indicatorX by animateDpAsState(
                 targetValue = itemWidth * index.coerceAtLeast(0),
@@ -99,8 +118,8 @@ fun FloatingTabBar(
                     .background(colors.brand.copy(alpha = 0.12f), RoundedCornerShape(26.dp)),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                tabs.forEach { tab ->
-                    val isSelected = tab == selected
+                items.forEach { tab ->
+                    val isSelected = tab.key == selectedKey
                     val tint by animateColorAsState(if (isSelected) colors.brand else colors.textMuted, label = "tabTint")
                     val bounce by animateFloatAsState(
                         if (isSelected) 1.12f else 1f,
@@ -117,14 +136,14 @@ fun FloatingTabBar(
                                 role = Role.Tab,
                             ) {
                                 if (!isSelected) haptics.tick()
-                                onSelect(tab)
+                                onSelect(tab.key)
                             }
                             .padding(vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Box(Modifier.graphicsLayer { scaleX = bounce; scaleY = bounce }) {
-                            val count = badges[tab] ?: 0
+                            val count = badges[tab.key] ?: 0
                             if (count > 0) {
                                 BadgedBox(badge = { Badge { Text(if (count > 99) "99+" else "$count") } }) {
                                     Icon(tab.icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
@@ -134,7 +153,7 @@ fun FloatingTabBar(
                             }
                         }
                         Text(
-                            tab.tabTitle,
+                            tab.title,
                             color = tint,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,

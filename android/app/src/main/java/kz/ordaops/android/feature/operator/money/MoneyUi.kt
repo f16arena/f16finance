@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kz.ordaops.android.ui.components.pressScale
@@ -179,9 +180,9 @@ internal fun PeriodStepper(
 
 /** Цветной квадрат с иконкой — для строк меню профиля. */
 @Composable
-internal fun TintedIcon(icon: ImageVector, tint: Color, size: Int = 38) {
+internal fun TintedIcon(icon: ImageVector, tint: Color, size: Int = 38, corner: Dp = 11.dp) {
     Box(
-        Modifier.size(size.dp).background(tint.copy(alpha = 0.15f), RoundedCornerShape(11.dp)),
+        Modifier.size(size.dp).background(tint.copy(alpha = 0.15f), RoundedCornerShape(corner)),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size((size * 0.55f).dp))
