@@ -63,7 +63,7 @@ fun StaffScreen() {
     val selected = state.data?.staff?.firstOrNull { it.id == selectedId }
     if (selected != null) {
         BackHandler { selectedId = null }
-        StaffDetail(selected, state.data!!)
+        StaffDetail(selected, state.data!!, onChanged = { vm.refreshNow() })
     } else {
         StateContainer(
             state = state, onRetry = vm::reload,
@@ -116,7 +116,7 @@ private fun StaffRow(member: StaffMember, paid: Double, onClick: () -> Unit) {
 }
 
 @Composable
-private fun StaffDetail(member: StaffMember, list: StaffList) {
+private fun StaffDetail(member: StaffMember, list: StaffList, onChanged: suspend () -> Unit) {
     val env = LocalBusiness.current
     val scope = rememberCoroutineScope()
     val action = rememberActionState()
@@ -147,6 +147,7 @@ private fun StaffDetail(member: StaffMember, list: StaffList) {
                 }
             }
         }
+        StaffScopeSection(member.id, member.role, member.companyIds, onChanged)
         HeroNumberCard(
             title = "Осталось выплатить", value = maxOf(member.monthlySalary - paid, 0.0), change = null, changeCaption = "",
             footer = listOf("Начислено" to money(member.monthlySalary), "Выплачено" to money(paid)),

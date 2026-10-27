@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -238,7 +239,9 @@ private fun StatusRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
 fun SettingsScreen() {
     val loader = rememberOpsLoader("settings", ApiRequest("/api/admin/settings"), SystemSettings::parse)
     val state by loader.state.collectAsStateWithLifecycle()
+    var actionFor by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     StateContainer(state = state, onRetry = loader::refresh, emptyIcon = Icons.Filled.Settings) { data ->
+        data.companies.firstOrNull { it.id == actionFor }?.let { PointActionsSheet(it, onDismiss = { actionFor = null }, onChanged = loader::refresh) }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
             item {
                 // Главное — сколько точек из лимита; упёрлись в лимит — ниже предупреждение.
@@ -267,10 +270,12 @@ fun SettingsScreen() {
                             subtitle = listOfNotNull(c.code?.takeIf { it.isNotEmpty() }, "не в общих итогах".takeIf { c.excludedFromTotals }).joinToString(" · ").ifEmpty { null },
                             trailing = if (c.isClosed) "закрыта" else if (!c.showInStructure) "вне структуры" else null,
                             trailingColor = Orda.colors.textDim,
+                            onClick = { actionFor = c.id },
                         )
                     }
                 }
             }
+            item { SettingsExtras(canAddPoint = !data.isCompanyLimitReached) }
             item {
                 OpsSection("Категории расходов", count = if (data.monthlyBudgetTotal > 0) "бюджет ${money(data.monthlyBudgetTotal)}" else null) {
                     if (data.categories.isEmpty()) Text("Категорий пока нет", color = Orda.colors.textDim)

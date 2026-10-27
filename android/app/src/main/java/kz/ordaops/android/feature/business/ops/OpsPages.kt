@@ -16,4 +16,8 @@ internal val opsPages: Map<String, @Composable () -> Unit> = mapOf(
     "discounts" to { DiscountsScreen() },
     "team-chat" to { TeamChatPage() },
     "messages" to { MessagesPage() },
+    "knowledge-admin" to { KnowledgeAdminScreen() },
+    "news" to { NewsScreen() },
+    "moderation" to { ModerationScreen() },
+    "stations" to { StationsScreen() },
 )

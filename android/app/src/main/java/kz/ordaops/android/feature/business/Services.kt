@@ -39,13 +39,17 @@ object Services {
      * с этим правом получил бы отказ. Пункт, который гарантированно не откроется,
      * не показываем (`NativeSection.requiresSuperAdmin`).
      */
-    private val superAdminOnly = setOf("logs", "access")
+    private val superAdminOnly = setOf("logs")
+
+    /** «Должности и доступ»: все маршруты страницы требуют владельца (или суперадмина), а не просто право. */
+    private val ownerOnly = setOf("access")
 
     fun groups(access: PageAccess): List<ServiceGroup> {
         val isSuper = access.resolver.session.isSuperAdmin
+        val isOwner = isSuper || access.resolver.session.staffRole == "owner"
         return access.visibleGroups().mapNotNull { (group, pages) ->
             val items = pages
-                .filter { it.id !in hiddenPages && (isSuper || it.id !in superAdminOnly) }
+                .filter { it.id !in hiddenPages && (isSuper || it.id !in superAdminOnly) && (isOwner || it.id !in ownerOnly) }
                 .map { ServiceItem(it.id, shortTitle(it.label), group.id, it.path) }
             if (items.isEmpty()) null else ServiceGroup(group.id, group.label, items)
         }

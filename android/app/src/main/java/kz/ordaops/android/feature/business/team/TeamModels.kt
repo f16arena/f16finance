@@ -682,6 +682,8 @@ data class StaffMember(
     val isActive: Boolean,
     val phone: String?,
     val email: String?,
+    /** Охват по точкам (`staff.company_ids`); `null` — все точки организации. */
+    val companyIds: List<String>? = null,
 ) {
     val roleLabel: String
         get() = when (role) {
@@ -714,6 +716,7 @@ data class StaffList(val staff: List<StaffMember>, val payments: List<StaffPayme
                         isActive = it.bool("is_active", true),
                         phone = it.str("phone"),
                         email = it.str("email"),
+                        companyIds = (it["company_ids"] as? JsonArray)?.mapNotNull { e -> (e as? JsonPrimitive)?.content }?.takeIf { ids -> ids.isNotEmpty() },
                     )
                 },
                 payments = d?.get("payments").asObjects().map {
