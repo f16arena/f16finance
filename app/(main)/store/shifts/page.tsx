@@ -1,14 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { PageSkeleton, StatGridSkeleton, TableSkeleton } from '@/components/skeleton'
 import { useStoreScope } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
-import { Clock, Loader2, RefreshCw, Settings, User, Wallet, CreditCard, X, ChevronRight, TrendingUp, RotateCcw } from 'lucide-react'
+import { formatMoney } from '@/lib/core/format'
+import { AppModal } from '@/components/ui/app-modal'
+import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
+import { StoreChip, StoreEmpty, StoreSection, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
+import { Clock, Loader2, Printer, RefreshCw, Settings, User, Wallet, CreditCard, ChevronRight, TrendingUp, RotateCcw } from 'lucide-react'
 
 type LiveTotals = { sales: number; cash: number; kaspi: number; count: number }
 type Shift = {
@@ -163,8 +167,8 @@ async function printZFor(shiftId: string) {
     const res = await fetch(`/api/admin/shifts/z-report?shift_id=${shiftId}`, { cache: 'no-store' })
     const j = await res.json().catch(() => null)
     if (res.ok && j?.report) printZReport(j.report)
-    else alert(j?.error === 'forbidden' ? 'Нет доступа к этой смене' : 'Не удалось сформировать Z-отчёт')
-  } catch { alert('Не удалось сформировать Z-отчёт') }
+    else toast({ title: j?.error === 'forbidden' ? 'Нет доступа к этой смене' : 'Не удалось сформировать Z-отчёт', variant: 'destructive' })
+  } catch { toast({ title: 'Не удалось сформировать Z-отчёт', variant: 'destructive' }) }
 }
 const tm = (s: string | null) => (s ? new Date(s).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—')
 const STATUS: { key: string; label: string }[] = [
@@ -173,12 +177,8 @@ const STATUS: { key: string; label: string }[] = [
   { key: 'all', label: 'Все' },
 ]
 const PAY_LABEL: Record<string, string> = { cash: 'Нал', kaspi: 'Безнал', card: 'Карта', online: 'Онлайн', mixed: 'Смеш.' }
-const PAY_CHIP: Record<string, string> = {
-  cash: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300',
-  kaspi: 'border-amber-400/30 bg-amber-500/10 text-amber-300',
-  card: 'border-sky-400/30 bg-sky-500/10 text-sky-300',
-  online: 'border-violet-400/30 bg-violet-500/10 text-violet-300',
-  mixed: 'border-slate-400/30 bg-slate-500/10 text-slate-300',
+const PAY_TONE: Record<string, 'emerald' | 'amber' | 'sky' | 'violet' | 'neutral'> = {
+  cash: 'emerald', kaspi: 'amber', card: 'sky', online: 'violet', mixed: 'neutral',
 }
 
 function salesOf(s: Shift): number | null {
@@ -190,6 +190,18 @@ function salesOf(s: Shift): number | null {
   }
   return null
 }
+
+/** Расхождение кассы, если смена его посчитала при закрытии (иначе null). */
+function diffOf(s: Shift): number | null {
+  const t = s.totals_json
+  if (t && typeof t === 'object') {
+    const v = t.cash_difference ?? t.cash_diff ?? t.difference ?? t.discrepancy ?? t.diff
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+  }
+  return null
+}
+
+const fmtMoney = (n: number) => formatMoney(n)
 
 export default function StoreShiftsPage() {
   const { can } = useCapabilities()
@@ -238,6 +250,18 @@ export default function StoreShiftsPage() {
 
   useEffect(() => { if (storeCompanyId) load() }, [storeCompanyId, load])
 
+  const summary = useMemo(() => {
+    let revenue = 0; let counted = 0; let opened = 0; let diffCount = 0; let diffSum = 0
+    for (const s of shifts) {
+      const v = salesOf(s)
+      if (v != null) { revenue += v; counted += 1 }
+      if (s.status === 'open') opened += 1
+      const d = diffOf(s)
+      if (d != null && Math.abs(d) >= 1) { diffCount += 1; diffSum += d }
+    }
+    return { revenue, avg: counted > 0 ? revenue / counted : 0, opened, diffCount, diffSum }
+  }, [shifts])
+
   if (storeCompanyId === undefined) {
     return <div className="app-page-wide"><PageSkeleton stats={0} rows={8} cols={4} /></div>
   }
@@ -246,11 +270,13 @@ export default function StoreShiftsPage() {
     return (
       <div className="app-page-wide space-y-5">
         <AdminPageHeader title="Смены" description="Смены по точке-магазину" icon={<Clock className="h-5 w-5" />} accent="emerald" backHref="/store" />
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-6 text-center">
-          <p className="text-sm text-amber-700 dark:text-amber-100">Точка магазина не выбрана.</p>
-          <Link href="/store/settings" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-            <Settings className="h-4 w-4" /> Выбрать точку
-          </Link>
+        <div className={storeCard}>
+          <StoreEmpty
+            icon={<Settings className="h-5 w-5" />}
+            title="Точка магазина не выбрана"
+            hint="Смены показываются по точке-магазину. Выберите её в настройках магазина."
+            action={<Button asChild size="sm"><Link href="/store/settings">Выбрать точку</Link></Button>}
+          />
         </div>
       </div>
     )
@@ -260,14 +286,14 @@ export default function StoreShiftsPage() {
     <div className="app-page-wide space-y-5">
       <AdminPageHeader
         title="Смены"
-        description="Смены по точке-магазину"
+        description="Кто работал, сколько выручил и сошлась ли касса"
         icon={<Clock className="h-5 w-5" />}
         accent="emerald"
         backHref="/store"
         actions={
-          <button onClick={load} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white dark:bg-white/5 px-3 py-2 text-xs font-medium text-body transition-colors hover:bg-slate-50 dark:hover:bg-white/10">
+          <Button variant="outline" size="sm" onClick={load}>
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Обновить
-          </button>
+          </Button>
         }
         toolbar={
           <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-border bg-slate-50 dark:bg-slate-950/50 p-1">
@@ -280,53 +306,87 @@ export default function StoreShiftsPage() {
 
       {err && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{err}</div>}
 
-      <div className="rounded-2xl border border-border bg-white dark:bg-slate-900/60 shadow-lg shadow-black/20 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold text-foreground">Смены</span>
-          <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">{shifts.length}</span>
-        </div>
+      <StoreStatGrid cols={4}>
+        <StoreStat label="Смен" value={shifts.length} hint={summary.opened > 0 ? `${summary.opened} открыто сейчас` : 'в списке'} loading={loading && shifts.length === 0} />
+        <StoreStat label="Выручка" value={fmtMoney(summary.revenue)} tone={summary.revenue > 0 ? 'emerald' : 'neutral'} hint="по смене из списка" loading={loading && shifts.length === 0} />
+        <StoreStat label="Средняя смена" value={fmtMoney(Math.round(summary.avg))} loading={loading && shifts.length === 0} />
+        <StoreStat
+          label="Расхождения"
+          value={summary.diffCount > 0 ? fmtMoney(summary.diffSum) : 'нет'}
+          tone={summary.diffCount > 0 ? 'rose' : 'neutral'}
+          hint={summary.diffCount > 0 ? `${summary.diffCount} ${plural(summary.diffCount, ['смена', 'смены', 'смен'])} с расхождением` : 'касса сошлась'}
+          loading={loading && shifts.length === 0}
+        />
+      </StoreStatGrid>
+
+      <StoreSection title="Смены" subtitle="Нажмите на смену — откроются чеки и позиции" flush action={<StoreChip>{shifts.length}</StoreChip>}>
         {loading && shifts.length === 0 ? (
           <div className="p-4"><TableSkeleton rows={8} cols={4} /></div>
         ) : shifts.length === 0 ? (
-          <div className="px-4 py-16 text-center text-sm text-slate-400">Смен нет</div>
+          <StoreEmpty
+            icon={<Clock className="h-5 w-5" />}
+            title={status === 'open' ? 'Открытых смен сейчас нет' : 'Смен пока нет'}
+            hint="Смена появляется, когда кассир открывает её в кассе. После закрытия здесь будут выручка и расхождение."
+          />
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-white/5">
+          <div className="divide-y divide-border">
             {shifts.map((s) => {
               const sales = salesOf(s)
               const open = s.status === 'open'
               const cash = open ? (s.live_totals?.cash ?? 0) : Number(s.closing_cash || 0)
               const kaspi = open ? (s.live_totals?.kaspi ?? 0) : Number(s.closing_kaspi || 0)
+              const diff = diffOf(s)
+              const hasDiff = diff != null && Math.abs(diff) >= 1
               return (
-                <div key={s.id} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.03] sm:gap-x-6 sm:px-4">
+                <div key={s.id} className="flex items-center gap-2 px-3 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.03] sm:px-4">
                   <button onClick={() => setDetailId(s.id)} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 text-left">
-                    <div className="flex min-w-[180px] items-center gap-2">
-                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 dark:bg-white/5 text-muted-foreground"><User className="h-4 w-4" /></span>
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{s.operator?.full_name || s.operator?.short_name || '—'}</div>
-                        <div className="text-[11px] text-slate-500">{dt(s.opened_at)} → {dt(s.closed_at)}</div>
+                    <div className="flex min-w-[170px] flex-1 items-center gap-2.5">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-muted-foreground dark:bg-white/5"><User className="h-4 w-4" /></span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                          <span className="truncate">{s.operator?.full_name || s.operator?.short_name || '—'}</span>
+                          <StoreChip tone={open ? 'emerald' : 'neutral'}>{open ? 'Открыта' : 'Закрыта'}</StoreChip>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">{dt(s.opened_at)} → {dt(s.closed_at)}</div>
                       </div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${open ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-surface-muted text-muted-foreground'}`}>
-                      {open ? 'Открыта' : 'Закрыта'}
-                    </span>
-                    <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                      {sales != null && (
-                        <div className="text-right"><div className="text-[11px] text-slate-500">Продажи</div><div className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{fmt(sales)} ₸</div></div>
-                      )}
-                      <div className="text-right"><div className="flex items-center justify-end gap-1 text-[11px] text-slate-500"><Wallet className="h-3 w-3" /> Касса</div><div className="font-medium tabular-nums text-foreground">{fmt(cash)} ₸</div></div>
-                      <div className="text-right"><div className="flex items-center justify-end gap-1 text-[11px] text-slate-500"><CreditCard className="h-3 w-3" /> Безнал</div><div className="font-medium tabular-nums text-sky-700 dark:text-sky-300">{fmt(kaspi)} ₸</div></div>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm sm:ml-auto">
+                      <Metric label="Выручка" value={sales != null ? fmtMoney(sales) : '—'} tone={sales ? 'emerald' : 'neutral'} bold />
+                      <Metric label="Наличные" icon={<Wallet className="h-3 w-3" />} value={fmtMoney(cash)} tone={cash > 0 ? 'neutral' : 'muted'} />
+                      <Metric label="Безнал" icon={<CreditCard className="h-3 w-3" />} value={fmtMoney(kaspi)} tone={kaspi > 0 ? 'sky' : 'muted'} />
+                      {hasDiff && <Metric label="Расхождение" value={`${diff! > 0 ? '+' : ''}${fmtMoney(diff!)}`} tone="rose" bold />}
                     </div>
                   </button>
-                  {can('store-shifts.export') && <button onClick={() => printZFor(s.id)} title="Распечатать Z-отчёт" className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20">🖨 <span className="hidden sm:inline">Z-отчёт</span></button>}
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
+                  {can('store-shifts.export') && (
+                    <Button variant="outline" size="xs" onClick={() => printZFor(s.id)} title="Распечатать Z-отчёт">
+                      <Printer className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Z-отчёт</span>
+                    </Button>
+                  )}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                 </div>
               )
             })}
           </div>
         )}
-      </div>
+      </StoreSection>
 
       {detailId && <ShiftDetail id={detailId} onClose={() => setDetailId(null)} onChanged={load} />}
+    </div>
+  )
+}
+
+function Metric({ label, value, tone, icon, bold }: { label: string; value: string; tone: 'emerald' | 'sky' | 'rose' | 'neutral' | 'muted'; icon?: React.ReactNode; bold?: boolean }) {
+  const cls = {
+    emerald: 'text-emerald-600 dark:text-emerald-300',
+    sky: 'text-sky-600 dark:text-sky-300',
+    rose: 'text-rose-600 dark:text-rose-300',
+    neutral: 'text-foreground',
+    muted: 'text-slate-400',
+  }[tone]
+  return (
+    <div className="text-right">
+      <div className="flex items-center justify-end gap-1 text-[11px] text-muted-foreground">{icon}{label}</div>
+      <div className={`tabular-nums ${bold ? 'font-semibold' : 'font-medium'} ${cls}`}>{value}</div>
     </div>
   )
 }
@@ -336,7 +396,6 @@ function ShiftDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
   const [closeErr, setCloseErr] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState(false)
@@ -356,6 +415,7 @@ function ShiftDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
         if (res.status === 403) throw new Error('Нет прав на принудительное закрытие смены')
         throw new Error(j.detail || j.error || 'Не удалось закрыть смену')
       }
+      toast({ title: 'Смена закрыта', description: 'Выручка попала в «Доходы»' })
       onChanged()
       onClose()
     } catch (e: any) {
@@ -364,15 +424,6 @@ function ShiftDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
       setClosing(false)
     }
   }
-
-  useEffect(() => { setMounted(true) }, [])
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
-  }, [onClose])
 
   useEffect(() => {
     let active = true
@@ -385,8 +436,6 @@ function ShiftDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
     return () => { active = false }
   }, [id])
 
-  if (!mounted) return null
-
   const shift = data?.shift
   const sales = (data?.sales || []) as any[]
   const returns = (data?.returns || []) as any[]
@@ -395,200 +444,169 @@ function ShiftDetail({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const cashTotal = sales.reduce((s, x) => s + Number(x.cash_amount || 0), 0)
   const kaspiTotal = sales.reduce((s, x) => s + Number(x.kaspi_amount || 0), 0)
   const returnsTotal = returns.reduce((s, x) => s + Number(x.total_amount || 0), 0)
+  const who = shift?.operator?.full_name || shift?.operator?.short_name || 'Смена'
 
-  return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-stretch justify-end">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden />
-      <div className="relative z-10 flex h-full w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl">
-        {/* Шапка */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-400/30 bg-emerald-500/15"><Clock className="h-5 w-5 text-emerald-700 dark:text-emerald-300" /></span>
-            <div>
-              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-                {shift?.operator?.full_name || shift?.operator?.short_name || 'Смена'}
-                <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${open ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-surface-muted text-muted-foreground'}`}>{open ? 'Открыта' : 'Закрыта'}</span>
-              </div>
-              <div className="text-xs text-slate-500">{dt(shift?.opened_at)} → {dt(shift?.closed_at)}</div>
-              {/* Ссылка в разбор эффективности: здесь видно, что продали,
-                  а там — спрос это был или работа продавца. */}
-              {shift?.opened_at ? (
-                <Link
-                  href={`/sales-kpi?from=${String(shift.opened_at).slice(0, 10)}&to=${String(shift.opened_at).slice(0, 10)}`}
-                  className="mt-0.5 inline-flex items-center gap-1 text-xs text-sky-600 hover:underline dark:text-sky-400"
-                >
-                  <TrendingUp className="h-3 w-3" /> Разбор эффективности
-                </Link>
-              ) : null}
-            </div>
+  const footer = open && !loading && !err ? (
+    !confirmClose ? (
+      <Button type="button" className="w-full" onClick={() => { setConfirmClose(true); setCloseErr(null) }}>
+        <Clock className="h-4 w-4" /> Закрыть смену и отправить отчёт
+      </Button>
+    ) : (
+      <div className="w-full space-y-2">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-100">
+          Смена закроется, а выручка попадёт в <b>Доходы</b>:
+          <div className="mt-1 tabular-nums">
+            Нал {fmtMoney(cashTotal)} · Безнал {fmtMoney(kaspiTotal)} · <b>Итого {fmtMoney(salesTotal)}</b>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"><X className="h-4 w-4" /></button>
         </div>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Причина / комментарий (необязательно)"
+          className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500 dark:bg-white/5"
+        />
+        {closeErr && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200">{closeErr}</div>}
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" disabled={closing} onClick={() => setConfirmClose(false)}>Отмена</Button>
+          {can('shifts-reports.close_force') && (
+            <Button type="button" className="flex-1" disabled={closing} onClick={handleForceClose}>
+              {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Закрыть смену
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  ) : undefined
 
+  return (
+    <>
+      <AppModal
+        open
+        onClose={onClose}
+        maxWidth="max-w-2xl"
+        icon={<Clock className="h-5 w-5" />}
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {who}
+            <StoreChip tone={open ? 'emerald' : 'neutral'}>{open ? 'Открыта' : 'Закрыта'}</StoreChip>
+          </span>
+        }
+        description={
+          <>
+            {dt(shift?.opened_at)} → {dt(shift?.closed_at)}
+            {/* Ссылка в разбор эффективности: здесь видно, что продали,
+                а там — спрос это был или работа продавца. */}
+            {shift?.opened_at ? (
+              <Link
+                href={`/sales-kpi?from=${String(shift.opened_at).slice(0, 10)}&to=${String(shift.opened_at).slice(0, 10)}`}
+                className="ml-2 inline-flex items-center gap-1 text-sky-600 hover:underline dark:text-sky-400"
+              >
+                <TrendingUp className="h-3 w-3" /> Разбор эффективности
+              </Link>
+            ) : null}
+          </>
+        }
+        footer={footer}
+      >
         {loading ? (
-          <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+          <div className="space-y-3">
             <StatGridSkeleton count={4} />
             <TableSkeleton rows={6} cols={3} />
           </div>
         ) : err ? (
-          <div className="m-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{err}</div>
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{err}</div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-            {/* KPI */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Kpi label="Продажи" value={`${fmt(salesTotal)} ₸`} accent="text-emerald-700 dark:text-emerald-300" icon={<TrendingUp className="h-4 w-4" />} />
-              <Kpi label="Касса" value={`${fmt(open ? cashTotal : (shift?.closing_cash ?? cashTotal))} ₸`} accent="text-foreground" icon={<Wallet className="h-4 w-4" />} />
-              <Kpi label="Безнал" value={`${fmt(open ? kaspiTotal : (shift?.closing_kaspi ?? kaspiTotal))} ₸`} accent="text-sky-700 dark:text-sky-300" icon={<CreditCard className="h-4 w-4" />} />
-              <Kpi label="Возвраты" value={`${fmt(returnsTotal)} ₸`} accent={returnsTotal > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-muted-foreground'} icon={<RotateCcw className="h-4 w-4" />} />
-            </div>
+          <div className="space-y-5">
+            <StoreStatGrid cols={4}>
+              <StoreStat label="Продажи" value={fmtMoney(salesTotal)} tone={salesTotal > 0 ? 'emerald' : 'neutral'} icon={<TrendingUp className="h-4 w-4" />} />
+              <StoreStat label="Наличные" value={fmtMoney(open ? cashTotal : (shift?.closing_cash ?? cashTotal))} icon={<Wallet className="h-4 w-4" />} />
+              <StoreStat label="Безнал" value={fmtMoney(open ? kaspiTotal : (shift?.closing_kaspi ?? kaspiTotal))} tone="sky" icon={<CreditCard className="h-4 w-4" />} />
+              <StoreStat label="Возвраты" value={fmtMoney(returnsTotal)} tone={returnsTotal > 0 ? 'rose' : 'neutral'} icon={<RotateCcw className="h-4 w-4" />} />
+            </StoreStatGrid>
             {open && (
-              <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-700 dark:text-emerald-200">
-                Смена открыта — суммы по продажам в реальном времени. Касса/Безнал зафиксируются при закрытии.
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-700 dark:text-emerald-200">
+                Смена открыта — суммы по продажам в реальном времени. Наличные и безнал зафиксируются при закрытии.
               </div>
             )}
 
-            {/* Продажи */}
-            <div className="mt-5 mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground">Продажи</span>
-              <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">{sales.length}</span>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">Продажи</span>
+                <StoreChip>{sales.length}</StoreChip>
+              </div>
+              {sales.length === 0 ? (
+                <div className="rounded-xl border border-border bg-slate-50 px-4 py-8 text-center text-sm text-muted-foreground dark:bg-white/[0.02]">За смену продаж не было</div>
+              ) : (
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                  {sales.map((s) => {
+                    const items = (s.items || []) as any[]
+                    const names = items.map((it) => (it.item?.name || it.universal_name)).filter(Boolean)
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setReceiptSaleId(String(s.id))}
+                        title="Открыть чек продажи"
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
+                      >
+                        <div className="w-10 shrink-0 text-xs tabular-nums text-muted-foreground">{tm(s.sold_at)}</div>
+                        <StoreChip tone={PAY_TONE[s.payment_method] || 'neutral'}>{PAY_LABEL[s.payment_method] || s.payment_method}</StoreChip>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm text-foreground">{names.length > 0 ? names.join(', ') : `${items.length} позиц.`}</div>
+                          {s.operator?.full_name || s.operator?.short_name ? <div className="text-[11px] text-muted-foreground">{s.operator?.full_name || s.operator?.short_name}</div> : null}
+                        </div>
+                        <div className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{fmtMoney(Number(s.total_amount || 0))}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-            {sales.length === 0 ? (
-              <div className="rounded-xl border border-border bg-slate-50 dark:bg-white/[0.02] px-4 py-8 text-center text-sm text-muted-foreground">Продаж нет</div>
-            ) : (
-              <div className="divide-y divide-slate-100 dark:divide-white/5 overflow-hidden rounded-xl border border-border">
-                {sales.map((s) => {
-                  const chip = PAY_CHIP[s.payment_method] || PAY_CHIP.mixed
-                  const items = (s.items || []) as any[]
-                  const names = items.map((it) => (it.item?.name || it.universal_name)).filter(Boolean)
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setReceiptSaleId(String(s.id))}
-                      title="Открыть чек продажи"
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
-                    >
-                      <div className="w-10 shrink-0 text-xs tabular-nums text-muted-foreground">{tm(s.sold_at)}</div>
-                      <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${chip}`}>{PAY_LABEL[s.payment_method] || s.payment_method}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm text-foreground">{names.length > 0 ? names.join(', ') : `${items.length} позиц.`}</div>
-                        {s.operator?.full_name || s.operator?.short_name ? <div className="text-[11px] text-slate-500">{s.operator?.full_name || s.operator?.short_name}</div> : null}
-                      </div>
-                      <div className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{fmt(s.total_amount)} ₸</div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
 
-            {/* Возвраты */}
             {returns.length > 0 && (
-              <>
-                <div className="mt-5 mb-2 text-sm font-semibold text-foreground">Возвраты</div>
-                <div className="divide-y divide-slate-100 dark:divide-white/5 overflow-hidden rounded-xl border border-rose-500/20">
+              <div>
+                <div className="mb-2 text-sm font-semibold text-foreground">Возвраты</div>
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-rose-500/20">
                   {returns.map((r) => (
                     <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
                       <div className="text-xs text-muted-foreground">{tm(r.returned_at)} · {PAY_LABEL[r.payment_method] || r.payment_method}{r.comment ? ` · ${r.comment}` : ''}</div>
-                      <div className="shrink-0 text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-300">−{fmt(r.total_amount)} ₸</div>
+                      <div className="shrink-0 text-sm font-semibold tabular-nums text-rose-600 dark:text-rose-300">−{fmtMoney(Number(r.total_amount || 0))}</div>
                     </div>
                   ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {open && !loading && !err && (
-          <div className="shrink-0 space-y-2 border-t border-border bg-card p-4">
-            {!confirmClose ? (
-              <button
-                type="button"
-                onClick={() => { setConfirmClose(true); setCloseErr(null) }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
-              >
-                <Clock className="h-4 w-4" /> Закрыть смену и отправить отчёт
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-100">
-                  Смена закроется, а выручка попадёт в <b>Доходы</b>:
-                  <div className="mt-1 tabular-nums">
-                    Нал {fmt(cashTotal)} ₸ · Безнал {fmt(kaspiTotal)} ₸ · <b>Итого {fmt(salesTotal)} ₸</b>
-                  </div>
-                </div>
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Причина / комментарий (необязательно)"
-                  className="w-full rounded-xl border border-border bg-white dark:bg-white/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                {closeErr && (
-                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200">{closeErr}</div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={closing}
-                    onClick={() => setConfirmClose(false)}
-                    className="flex-1 rounded-xl border border-border bg-white dark:bg-white/5 px-4 py-2.5 text-sm font-medium text-body transition-colors hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Отмена
-                  </button>
-                  {can('shifts-reports.close_force') && (
-                  <button
-                    type="button"
-                    disabled={closing}
-                    onClick={handleForceClose}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Закрыть смену
-                  </button>
-                  )}
                 </div>
               </div>
             )}
           </div>
         )}
-      </div>
+      </AppModal>
 
       {/* Чек продажи по клику — как в операторской (публичная страница /r/<saleId>) */}
-      {receiptSaleId && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-black/70 p-4" onClick={() => setReceiptSaleId(null)}>
-          <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold text-foreground">Чек продажи</span>
-              <button type="button" onClick={() => setReceiptSaleId(null)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5 hover:text-foreground"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="flex-1 overflow-auto bg-white">
-              <iframe
-                id="shift-sale-receipt-iframe"
-                src={`/r/${receiptSaleId}`}
-                title="Чек продажи"
-                className="h-[70vh] w-full border-0"
-              />
-            </div>
-            <div className="flex justify-end gap-2 border-t border-border p-3">
-              <button type="button" onClick={() => setReceiptSaleId(null)} className="rounded-xl border border-border bg-white dark:bg-white/5 px-4 py-2 text-sm text-body hover:bg-slate-50 dark:hover:bg-white/10">Закрыть</button>
-              <button
-                type="button"
-                onClick={() => { try { (document.getElementById('shift-sale-receipt-iframe') as HTMLIFrameElement | null)?.contentWindow?.print() } catch { /* noop */ } }}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-              >🖨 Печать</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>,
-    document.body,
-  )
-}
-
-function Kpi({ label, value, accent, icon }: { label: string; value: string; accent: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface-muted p-3">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-500"><span>{label}</span><span className="text-muted-foreground">{icon}</span></div>
-      <div className={`mt-1 text-base font-bold tabular-nums ${accent}`}>{value}</div>
-    </div>
+      <AppModal
+        open={!!receiptSaleId}
+        onClose={() => setReceiptSaleId(null)}
+        title="Чек продажи"
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setReceiptSaleId(null)}>Закрыть</Button>
+            <Button
+              type="button"
+              onClick={() => { try { (document.getElementById('shift-sale-receipt-iframe') as HTMLIFrameElement | null)?.contentWindow?.print() } catch { /* noop */ } }}
+            >
+              <Printer className="h-4 w-4" /> Печать
+            </Button>
+          </>
+        }
+      >
+        {receiptSaleId && (
+          <iframe
+            id="shift-sale-receipt-iframe"
+            src={`/r/${receiptSaleId}`}
+            title="Чек продажи"
+            className="h-[60vh] w-full rounded-lg border-0 bg-white"
+          />
+        )}
+      </AppModal>
+    </>
   )
 }

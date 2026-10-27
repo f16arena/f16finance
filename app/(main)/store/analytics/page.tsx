@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Boxes, MoreHorizontal, RefreshCw, Store } from 'lucide-react'
+import { AlertTriangle, Boxes, CheckCircle2, MoreHorizontal, Package, PackageX, RefreshCw, Store } from 'lucide-react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StoreEmpty, StoreRow, StoreSection, StoreStat, StoreStatGrid, plural } from '@/components/store/store-ui'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -263,241 +263,212 @@ export default function StoreAnalyticsPage({ embedded = false }: { embedded?: bo
       .slice(0, 12)
   }, [data?.balances])
 
+  const periodLabel = days === 1 ? 'сегодня' : days === 7 ? 'за неделю' : 'за месяц'
+  const totalSales = pointAnalytics.reduce((sum, p) => sum + p.saleAmount, 0)
+  const totalDebt = pointAnalytics.reduce((sum, p) => sum + p.debtAmount, 0)
+  const totalStock = pointAnalytics.reduce((sum, p) => sum + p.stockQty, 0)
+  const maxSale = Math.max(1, ...pointAnalytics.map((p) => p.saleAmount))
+  const firstLoad = loading && !data
+
+  const hdrActions = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm">
+          <MoreHorizontal className="h-3.5 w-3.5" />
+          Действия
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Управление аналитикой</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void load(undefined, { fresh: true })} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Обновить данные
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+  const pill = (active: boolean) => `rounded-xl px-3 py-2 text-sm font-medium transition-all ${active ? 'bg-white text-foreground shadow-sm ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10' : 'text-muted-foreground hover:text-foreground'}`
+  const hdrToolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="inline-flex gap-1 rounded-2xl border border-border bg-slate-50 p-1 dark:bg-slate-950/50">
+        <button type="button" onClick={() => setTab('showcase')} className={pill(tab === 'showcase')}>Витрина (продажи)</button>
+        <button type="button" onClick={() => setTab('warehouse')} className={pill(tab === 'warehouse')}>Склад (запасы)</button>
+      </div>
+      {tab === 'showcase' && (
+        <div className="inline-flex gap-1 rounded-2xl border border-border bg-slate-50 p-1 dark:bg-slate-950/50">
+          {[{ d: 1, l: 'Сегодня' }, { d: 7, l: 'Неделя' }, { d: 30, l: 'Месяц' }].map((p) => (
+            <button key={p.d} type="button" onClick={() => setDays(p.d)} className={pill(days === p.d)}>{p.l}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   return (
-    <div className={embedded ? 'space-y-6' : 'app-page-wide space-y-6'}>
-      {(() => {
-        const hdrActions = (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-                Действия
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Управление аналитикой</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => void load(undefined, { fresh: true })} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Обновить данные
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-        const hdrToolbar = (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-surface-muted p-1">
-              <button
-                type="button"
-                onClick={() => setTab('showcase')}
-                className={`rounded-lg px-3 py-2 text-sm ${tab === 'showcase' ? 'bg-slate-200 dark:bg-white/10 text-foreground' : 'text-muted-foreground'}`}
-              >
-                Витрина (продажи)
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('warehouse')}
-                className={`rounded-lg px-3 py-2 text-sm ${tab === 'warehouse' ? 'bg-slate-200 dark:bg-white/10 text-foreground' : 'text-muted-foreground'}`}
-              >
-                Склад (запасы)
-              </button>
-            </div>
-            {/* Период движения */}
-            <div className="flex gap-1 rounded-xl border border-border bg-surface-muted p-1">
-              {[{ d: 1, l: 'Сегодня' }, { d: 7, l: 'Неделя' }, { d: 30, l: 'Месяц' }].map((p) => (
-                <button
-                  key={p.d}
-                  type="button"
-                  onClick={() => setDays(p.d)}
-                  className={`rounded-lg px-3 py-2 text-sm ${days === p.d ? 'bg-slate-200 dark:bg-white/10 text-foreground' : 'text-muted-foreground'}`}
-                >
-                  {p.l}
-                </button>
-              ))}
-            </div>
-          </div>
-        )
-        return embedded ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {hdrToolbar}
-            <div className="flex flex-wrap items-center gap-2">{hdrActions}</div>
-          </div>
-        ) : (
-          <AdminPageHeader
-            title="Аналитика точек"
-            description="Приход на витрины, продажи, долги, возвраты и риски по остаткам."
-            icon={<Store className="h-5 w-5" />}
-            accent="emerald"
-            backHref="/"
-            actions={hdrActions}
-            toolbar={hdrToolbar}
-          />
-        )
-      })()}
+    <div className={embedded ? 'space-y-5' : 'app-page-wide space-y-5'}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {hdrToolbar}
+          <div className="flex flex-wrap items-center gap-2">{hdrActions}</div>
+        </div>
+      ) : (
+        <AdminPageHeader
+          title="Аналитика точек"
+          description="Приход на витрины, продажи, долги, возвраты и риски по остаткам"
+          icon={<Store className="h-5 w-5" />}
+          accent="emerald"
+          backHref="/store"
+          actions={hdrActions}
+          toolbar={hdrToolbar}
+        />
+      )}
 
       {error ? (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{error}</div>
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{error}</div>
       ) : null}
 
       {tab === 'showcase' ? (
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_400px]">
-        <Card className="border-border bg-card/70 p-5">
-          <div className="flex items-center gap-2">
-            <Boxes className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-            <h2 className="text-lg font-semibold text-foreground">Сводка по витринам</h2>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">«Сейчас на витрине» — текущий остаток. Остальное — движение за выбранный период (сверху справа).</p>
+        <>
+          <StoreStatGrid cols={4}>
+            <StoreStat label={`Продано ${periodLabel}`} value={formatMoney(totalSales)} tone={totalSales > 0 ? 'emerald' : 'neutral'} loading={firstLoad} hint={`${pointAnalytics.length} ${plural(pointAnalytics.length, ['витрина', 'витрины', 'витрин'])}`} />
+            <StoreStat label="Сейчас на витринах" value={`${formatQty(totalStock)} ед`} loading={firstLoad} hint="текущий остаток" />
+            <StoreStat label="Отдано в долг" value={formatMoney(totalDebt)} tone={totalDebt > 0 ? 'amber' : 'neutral'} loading={firstLoad} hint={periodLabel} />
+            <StoreStat label="Подходят к порогу" value={riskyBalances.length} tone={riskyBalances.length > 0 ? 'amber' : 'neutral'} loading={firstLoad} hint={riskyBalances.length > 0 ? 'товаров требуют внимания' : 'всё выше порога'} />
+          </StoreStatGrid>
 
-          <div className="mt-4 space-y-3">
-            {loading && pointAnalytics.length === 0 ? (
-              Array.from({ length: 3 }).map((_, idx) => (
-                <div key={idx} className="rounded-2xl border border-border bg-surface-muted p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-28" />
-                    </div>
-                    <Skeleton className="h-6 w-14 rounded-full" />
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-                    {Array.from({ length: 4 }).map((__, i) => (
-                      <div key={i} className="rounded-xl border border-border bg-slate-100 dark:bg-black/20 px-3 py-2">
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="mt-2 h-4 w-16" />
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_400px]">
+            <StoreSection
+              title="Сводка по витринам"
+              subtitle={`Остаток — на сейчас, остальное — движение ${periodLabel}`}
+              icon={<Boxes className="h-4 w-4" />}
+              flush
+            >
+              {firstLoad ? (
+                <div className="space-y-3 p-4">
+                  {Array.from({ length: 3 }).map((_, idx) => <Skeleton key={idx} className="h-32 w-full rounded-xl" />)}
+                </div>
+              ) : pointAnalytics.length === 0 ? (
+                <StoreEmpty
+                  icon={<Store className="h-5 w-5" />}
+                  title="Витрин пока нет"
+                  hint="Аналитика появится, когда на точке заведена витрина и по ней пошло движение товара."
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {pointAnalytics.map((point) => (
+                    <div key={point.location.id} className="space-y-3 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{point.location.company?.name || point.location.name}</p>
+                          <p className="text-[11px] text-muted-foreground">Последнее движение: {formatDateTime(point.lastMovementAt)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] text-muted-foreground">Сейчас на витрине</p>
+                          <p className="text-sm font-semibold tabular-nums text-foreground">{formatQty(point.stockQty)} ед · {point.stockItems} SKU</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : pointAnalytics.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">Витрины пока пустые, поэтому аналитика ещё не собралась.</div>
-            ) : (
-              pointAnalytics.map((point) => (
-                <div key={point.location.id} className="rounded-2xl border border-border bg-surface-muted p-4">
-                  {/* Состояние сейчас */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-foreground">{point.location.company?.name || point.location.name}</p>
-                      <p className="text-xs text-muted-foreground">Последнее движение: {formatDateTime(point.lastMovementAt)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Сейчас на витрине</p>
-                      <p className="font-semibold text-foreground">{formatQty(point.stockQty)} ед · {point.stockItems} SKU</p>
-                    </div>
-                  </div>
 
-                  {/* Продано за период — главный акцент */}
-                  <div className="mt-3 flex items-end justify-between gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Продано за период</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{formatQty(point.saleQty)} ед</p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{formatMoney(point.saleAmount)}</p>
-                  </div>
-
-                  {/* Прочее движение за период */}
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {[
-                      { label: 'Пришло', qty: point.incomingQty, money: point.incomingAmount },
-                      { label: 'В долг', qty: point.debtQty, money: point.debtAmount },
-                      { label: 'Возвраты', qty: point.returnQty, money: null as number | null },
-                      { label: 'Списания', qty: point.writeoffQty, money: null as number | null },
-                    ].map((s) => (
-                      <div key={s.label} className="rounded-xl border border-border bg-slate-100 dark:bg-black/20 px-3 py-2">
-                        <p className="text-[11px] text-muted-foreground">{s.label}</p>
-                        <p className="mt-0.5 font-semibold text-foreground">{formatQty(s.qty)}</p>
-                        {s.money != null ? <p className="text-[11px] text-muted-foreground">{formatMoney(s.money)}</p> : null}
+                      <div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">Продано {periodLabel} · {formatQty(point.saleQty)} ед</span>
+                          <span className={`text-xl font-bold tabular-nums ${point.saleAmount > 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-400'}`}>{formatMoney(point.saleAmount)}</span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(point.saleAmount / maxSale) * 100}%` }} />
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  {point.adjustmentQty !== 0 && (
-                    <p className="mt-2 text-[11px] text-muted-foreground" title="Ручные правки остатка: ревизия/корректировка (не продажа и не приход)">
-                      Корректировка остатка за период: {formatQty(point.adjustmentQty)}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
 
-        <Card className="border-border bg-card/70 p-5">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-            <h2 className="text-lg font-semibold text-foreground">Риск по витринам</h2>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">Товары на точках, которые уже подошли к порогу остатка.</p>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {[
+                          { label: 'Пришло', qty: point.incomingQty, money: point.incomingAmount, tone: 'text-sky-600 dark:text-sky-300' },
+                          { label: 'В долг', qty: point.debtQty, money: point.debtAmount, tone: 'text-amber-600 dark:text-amber-300' },
+                          { label: 'Возвраты', qty: point.returnQty, money: null as number | null, tone: 'text-foreground' },
+                          { label: 'Списания', qty: point.writeoffQty, money: null as number | null, tone: 'text-rose-600 dark:text-rose-300' },
+                        ].map((s) => (
+                          <div key={s.label} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.04]">
+                            <p className="text-[11px] text-muted-foreground">{s.label}</p>
+                            <p className={`mt-0.5 text-sm font-semibold tabular-nums ${s.qty > 0 ? s.tone : 'text-slate-400'}`}>{formatQty(s.qty)}</p>
+                            {s.money != null && s.money > 0 ? <p className="text-[11px] tabular-nums text-muted-foreground">{formatMoney(s.money)}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                      {point.adjustmentQty !== 0 && (
+                        <p className="text-[11px] text-muted-foreground" title="Ручные правки остатка: ревизия/корректировка (не продажа и не приход)">
+                          Корректировка остатка за период: {formatQty(point.adjustmentQty)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </StoreSection>
 
-          <div className="mt-4 space-y-3">
-            {loading && riskyBalances.length === 0 ? (
-              Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
-                    <div className="space-y-2 text-right">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-3 w-12" />
-                    </div>
-                  </div>
+            <StoreSection
+              title="Риск по витринам"
+              subtitle="Товары, которые подошли к порогу остатка"
+              icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
+              flush
+            >
+              {firstLoad ? (
+                <div className="space-y-2 p-4">{Array.from({ length: 4 }).map((_, idx) => <Skeleton key={idx} className="h-12 w-full rounded-xl" />)}</div>
+              ) : riskyBalances.length === 0 ? (
+                <StoreEmpty
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                  title="Критичных остатков нет"
+                  hint="Порог задаётся в карточке товара — «Минимальный остаток»."
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {riskyBalances.map((balance) => {
+                    const out = Number(balance.quantity || 0) <= 0
+                    return (
+                      <StoreRow
+                        key={`${balance.location_id}:${balance.item_id}`}
+                        icon={out ? PackageX : Package}
+                        tone={out ? 'rose' : 'amber'}
+                        title={balance.item?.name || 'Товар'}
+                        subtitle={balance.location?.company?.name || balance.location?.name || 'Точка'}
+                        right={
+                          <>
+                            <p className={`text-sm font-semibold tabular-nums ${out ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`}>{out ? 'нет' : `${formatQty(Number(balance.quantity || 0))} ${balance.item?.unit || 'шт'}`}</p>
+                            <p className="text-[11px] text-muted-foreground">порог {Number(balance.item?.low_stock_threshold || 0)}</p>
+                          </>
+                        }
+                      />
+                    )
+                  })}
                 </div>
-              ))
-            ) : riskyBalances.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">Критичных остатков на витринах сейчас нет.</div>
-            ) : (
-              riskyBalances.map((balance) => (
-                <div key={`${balance.location_id}:${balance.item_id}`} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{balance.item?.name || 'Товар'}</p>
-                      <p className="text-xs text-muted-foreground">{balance.location?.company?.name || balance.location?.name || 'Точка'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">{formatQty(Number(balance.quantity || 0))} {balance.item?.unit || 'шт'}</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-200">Порог: {Number(balance.item?.low_stock_threshold || 0)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      </section>
+              )}
+            </StoreSection>
+          </section>
+        </>
       ) : (
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_400px]">
-          <Card className="border-border bg-card/70 p-5">
-            <div className="flex items-center gap-2">
-              <Boxes className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-              <h2 className="text-lg font-semibold text-foreground">Складские запасы</h2>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">Общая картина по подсобке.</p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-border bg-slate-100 dark:bg-black/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Ед. товара</p>
-                <p className="mt-1 font-semibold text-foreground">{formatQty(warehouseAnalytics.totalStockQty)}</p>
+        <>
+          <StoreStatGrid cols={3}>
+            <StoreStat label="Единиц товара" value={formatQty(warehouseAnalytics.totalStockQty)} icon={<Boxes className="h-4 w-4" />} loading={firstLoad} hint="в подсобке" />
+            <StoreStat label="Стоимость запасов" value={formatMoney(warehouseAnalytics.totalStockValue)} tone="sky" loading={firstLoad} hint="по закупочной цене" />
+            <StoreStat label="Позиций в топе" value={warehouseAnalytics.topByValue.length} loading={firstLoad} hint="самые дорогие остатки" />
+          </StoreStatGrid>
+          <StoreSection title="Топ по стоимости (склад)" subtitle="Где лежит больше всего денег" icon={<Boxes className="h-4 w-4" />} flush>
+            {firstLoad ? (
+              <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, idx) => <Skeleton key={idx} className="h-10 w-full rounded-xl" />)}</div>
+            ) : warehouseAnalytics.topByValue.length === 0 ? (
+              <StoreEmpty title="На складе пусто" hint="Оформите приёмку — и здесь появятся самые дорогие остатки." />
+            ) : (
+              <div className="divide-y divide-border">
+                {warehouseAnalytics.topByValue.map((row: any, i: number) => (
+                  <StoreRow
+                    key={`${row.location_id}:${row.item_id}`}
+                    title={<><span className="mr-2 text-xs text-muted-foreground">{i + 1}</span>{row.item?.name || 'Товар'}</>}
+                    subtitle={`${formatQty(Number(row.quantity || 0))} ${row.item?.unit || 'шт'}`}
+                    right={<span className={`text-sm font-semibold tabular-nums ${row.stockValue > 0 ? 'text-foreground' : 'text-slate-400'}`}>{formatMoney(row.stockValue)}</span>}
+                  />
+                ))}
               </div>
-              <div className="rounded-xl border border-border bg-slate-100 dark:bg-black/20 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Стоимость запасов</p>
-                <p className="mt-1 font-semibold text-foreground">{formatMoney(warehouseAnalytics.totalStockValue)}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="border-border bg-card/70 p-5">
-            <h2 className="text-lg font-semibold text-foreground">Топ по стоимости (склад)</h2>
-            <div className="mt-4 space-y-2">
-              {warehouseAnalytics.topByValue.map((row: any) => (
-                <div key={`${row.location_id}:${row.item_id}`} className="rounded-xl border border-border bg-surface-muted px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">{row.item?.name || 'Товар'}</p>
-                    <p className="text-xs">{formatMoney(row.stockValue)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </section>
+            )}
+          </StoreSection>
+        </>
       )}
     </div>
   )
