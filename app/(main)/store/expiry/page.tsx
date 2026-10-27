@@ -1,13 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Clock, PackageCheck } from 'lucide-react'
 import { TableSkeleton } from '@/components/skeleton'
 
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useStoreApiUrl } from '@/components/store/store-scope'
+import { StoreAttention, StoreChip, StoreEmpty, StoreSection, StoreStat, StoreStatGrid, plural, type StoreTodo } from '@/components/store/store-ui'
 import { useApiCache } from '@/lib/client/use-api-cache'
 
 type Row = {
@@ -35,9 +34,11 @@ function daysLabel(d: number) {
   return `через ${d} дн.`
 }
 
+type Filter = 'all' | 'expired' | 'soon'
+
 export default function StoreExpiryPage({ embedded = false }: { embedded?: boolean } = {}) {
   const storeUrl = useStoreApiUrl()
-  const [filter, setFilter] = useState<'all' | 'expired' | 'soon'>('all')
+  const [filter, setFilter] = useState<Filter>('all')
   const [showDepleted, setShowDepleted] = useState(false)
 
   // Вкладка «Срок годности» живёт в «Документах» и размонтируется при
@@ -54,101 +55,141 @@ export default function StoreExpiryPage({ embedded = false }: { embedded?: boole
     return all.filter((r) => r.status === filter)
   }, [data?.rows, filter, showDepleted])
 
+  const expired = data?.summary.expired ?? 0
+  const soon = data?.summary.soon ?? 0
+
+  const todos: StoreTodo[] = []
+  if (expired > 0) {
+    todos.push({
+      key: 'expired', icon: AlertTriangle, tone: 'rose',
+      text: <>{expired} {plural(expired, ['партия просрочена', 'партии просрочены', 'партий просрочено'])} — спишите, пока не продали</>,
+      onClick: () => setFilter('expired'), cta: 'Показать',
+    })
+  }
+  if (soon > 0) {
+    todos.push({
+      key: 'soon', icon: Clock, tone: 'amber',
+      text: <>{soon} {plural(soon, ['партия истекает', 'партии истекают', 'партий истекает'])} в ближайшие 14 дней — продайте или сделайте скидку</>,
+      onClick: () => setFilter('soon'), cta: 'Показать',
+    })
+  }
+
+  const statusChip = (r: Row) => {
+    if (r.status === 'expired') return <StoreChip tone="rose"><AlertTriangle className="h-3 w-3" />{daysLabel(r.days_left)}</StoreChip>
+    if (r.status === 'soon') return <StoreChip tone="amber">{daysLabel(r.days_left)}</StoreChip>
+    return <span className="text-xs text-muted-foreground">{daysLabel(r.days_left)}</span>
+  }
+
   const body = (
     <div className="space-y-4">
-      {/* Сводка */}
-      <div className="grid grid-cols-3 gap-2">
-        {([
-          { key: 'all', label: 'Всего партий', value: data?.summary.total ?? 0, cls: 'text-foreground' },
-          { key: 'soon', label: 'Истекают (≤14 дн.)', value: data?.summary.soon ?? 0, cls: 'text-amber-700 dark:text-amber-300' },
-          { key: 'expired', label: 'Просрочено', value: data?.summary.expired ?? 0, cls: 'text-rose-600 dark:text-rose-300' },
-        ] as const).map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => setFilter(c.key as any)}
-            className={`rounded-xl border p-3 text-left transition ${filter === c.key ? 'border-emerald-400/40 bg-emerald-500/[0.06]' : 'border-border bg-white dark:bg-white/[0.02] hover:border-slate-300 dark:hover:border-white/20'}`}
-          >
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
-            <div className={`mt-1 font-mono text-xl font-semibold tabular-nums sm:text-2xl ${c.cls}`}>{c.value}</div>
-          </button>
-        ))}
-      </div>
+      <StoreAttention items={todos} loading={loading && !data} calm="Всё спокойно: просроченных партий нет и в ближайшие 14 дней ничего не истекает." />
 
-      {error ? <Card className="border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-600 dark:text-rose-300">{error}</Card> : null}
+      <StoreStatGrid cols={3}>
+        <button type="button" onClick={() => setFilter('all')} className="text-left">
+          <StoreStat label="Партий со сроком" value={data?.summary.total ?? 0} loading={loading && !data} />
+        </button>
+        <button type="button" onClick={() => setFilter('soon')} className="text-left">
+          <StoreStat label="Истекают (≤14 дн.)" value={soon} tone={soon > 0 ? 'amber' : 'neutral'} loading={loading && !data} />
+        </button>
+        <button type="button" onClick={() => setFilter('expired')} className="text-left">
+          <StoreStat label="Просрочено" value={expired} tone={expired > 0 ? 'rose' : 'neutral'} loading={loading && !data} />
+        </button>
+      </StoreStatGrid>
 
-      {depletedCount > 0 && (
-        <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            className="h-3.5 w-3.5 accent-emerald-600"
-            checked={showDepleted}
-            onChange={(e) => setShowDepleted(e.target.checked)}
-          />
-          Показать израсходованные партии ({depletedCount}) — по FIFO их остаток уже продан или списан
-        </label>
-      )}
+      {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-600 dark:text-rose-300">{error}</div> : null}
 
-      <Card className="border-border bg-card/70 p-0">
-        <CardContent className="p-4 sm:p-5">
-          {loading ? (
-            <div className="py-2"><TableSkeleton rows={6} cols={6} /></div>
-          ) : rows.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              {filter === 'all' ? 'Партий со сроком годности пока нет. Срок указывается при приёмке/оприходовании.' : 'Ничего не найдено по фильтру.'}
-            </div>
+      <StoreSection
+        title={filter === 'all' ? 'Все партии' : filter === 'soon' ? 'Скоро истекают' : 'Просроченные'}
+        subtitle={filter === 'all' ? 'Отсортированы по сроку годности' : undefined}
+        action={filter !== 'all' ? (
+          <button type="button" onClick={() => setFilter('all')} className="text-xs font-medium text-slate-500 hover:text-foreground">Показать все</button>
+        ) : undefined}
+        flush
+      >
+        {depletedCount > 0 && (
+          <label className="flex cursor-pointer items-start gap-2 border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
+            <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600" checked={showDepleted} onChange={(e) => setShowDepleted(e.target.checked)} />
+            <span>Показать израсходованные партии ({depletedCount}) — по FIFO их остаток уже продан или списан</span>
+          </label>
+        )}
+        {loading && !data ? (
+          <div className="p-4"><TableSkeleton rows={6} cols={6} /></div>
+        ) : rows.length === 0 ? (
+          filter === 'all' ? (
+            <StoreEmpty icon={<PackageCheck className="h-5 w-5" />} title="Партий со сроком годности пока нет" hint="Срок указывается при приёмке или оприходовании товара — после этого партии появятся здесь." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+            <StoreEmpty icon={<PackageCheck className="h-5 w-5" />} title="По этому фильтру ничего нет" hint="Это хорошо: нет партий, требующих действий." />
+          )
+        ) : (
+          <>
+            {/* Телефон: карточки */}
+            <div className="divide-y divide-border md:hidden">
+              {rows.map((r) => {
+                const depleted = (r.remaining ?? 0) <= 0.0005
+                return (
+                  <div key={r.id} className={`space-y-1.5 px-4 py-3 ${depleted ? 'opacity-50' : r.status === 'expired' ? 'bg-rose-500/[0.04]' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-foreground">{r.item_name}</div>
+                        <div className="text-[11px] text-muted-foreground">{r.location_name}</div>
+                      </div>
+                      {depleted ? <span className="text-xs text-muted-foreground">{daysLabel(r.days_left)}</span> : statusChip(r)}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-muted-foreground tabular-nums">
+                      <span>
+                        {depleted ? `израсходована · было ${r.quantity}` : <b className="font-semibold text-foreground">{r.remaining} из {r.quantity}</b>}{r.unit ? ` ${r.unit}` : ''}
+                      </span>
+                      <span>годен до {fmtDate(r.expiry_date)}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Компьютер: таблица */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <th className="py-2 pl-2 pr-2 font-normal">Товар</th>
-                    <th className="py-2 px-2 font-normal">Где</th>
-                    <th className="py-2 px-2 text-right font-normal">Остаток партии</th>
-                    <th className="py-2 px-2 font-normal">Изготовлен</th>
-                    <th className="py-2 px-2 font-normal">Годен до</th>
-                    <th className="py-2 px-2 font-normal">Осталось</th>
+                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2 pl-4 pr-2 font-normal">Товар</th>
+                    <th className="px-2 py-2 font-normal">Где</th>
+                    <th className="px-2 py-2 text-right font-normal">Остаток партии</th>
+                    <th className="px-2 py-2 font-normal">Изготовлен</th>
+                    <th className="px-2 py-2 font-normal">Годен до</th>
+                    <th className="py-2 pl-2 pr-4 font-normal">Осталось</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
+                <tbody className="divide-y divide-border">
                   {rows.map((r) => {
                     const depleted = (r.remaining ?? 0) <= 0.0005
                     return (
-                    <tr key={r.id} className={depleted ? 'opacity-50' : r.status === 'expired' ? 'bg-rose-500/[0.04]' : ''}>
-                      <td className="py-2 pl-2 pr-2">
-                        <div className="font-medium text-foreground">{r.item_name}</div>
-                        {r.barcode ? <div className="font-mono text-[10px] text-muted-foreground tabular-nums">{r.barcode}</div> : null}
-                      </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{r.location_name}</td>
-                      <td className="py-2 px-2 text-right text-xs tabular-nums">
-                        {depleted ? (
-                          <span className="text-muted-foreground">израсходована · было {r.quantity}{r.unit ? ` ${r.unit}` : ''}</span>
-                        ) : (
-                          <span className="font-medium text-foreground">{r.remaining} из {r.quantity}{r.unit ? ` ${r.unit}` : ''}</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground tabular-nums">{fmtDate(r.production_date)}</td>
-                      <td className="py-2 px-2 text-xs tabular-nums">{fmtDate(r.expiry_date)}</td>
-                      <td className="py-2 px-2">
-                        {depleted ? (
-                          <span className="text-xs text-muted-foreground">{daysLabel(r.days_left)}</span>
-                        ) : r.status === 'expired' ? (
-                          <Badge variant="outline" className="border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-200"><AlertTriangle className="mr-1 h-3 w-3" />{daysLabel(r.days_left)}</Badge>
-                        ) : r.status === 'soon' ? (
-                          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-200">{daysLabel(r.days_left)}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">{daysLabel(r.days_left)}</span>
-                        )}
-                      </td>
-                    </tr>
+                      <tr key={r.id} className={depleted ? 'opacity-50' : r.status === 'expired' ? 'bg-rose-500/[0.04]' : ''}>
+                        <td className="py-2.5 pl-4 pr-2">
+                          <div className="font-medium text-foreground">{r.item_name}</div>
+                          {r.barcode ? <div className="font-mono text-[10px] tabular-nums text-muted-foreground">{r.barcode}</div> : null}
+                        </td>
+                        <td className="px-2 py-2.5 text-xs text-muted-foreground">{r.location_name}</td>
+                        <td className="px-2 py-2.5 text-right text-xs tabular-nums">
+                          {depleted ? (
+                            <span className="text-muted-foreground">израсходована · было {r.quantity}{r.unit ? ` ${r.unit}` : ''}</span>
+                          ) : (
+                            <span className="font-medium text-foreground">{r.remaining} из {r.quantity}{r.unit ? ` ${r.unit}` : ''}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2.5 text-xs tabular-nums text-muted-foreground">{fmtDate(r.production_date)}</td>
+                        <td className="px-2 py-2.5 text-xs tabular-nums">{fmtDate(r.expiry_date)}</td>
+                        <td className="py-2.5 pl-2 pr-4">
+                          {depleted ? <span className="text-xs text-muted-foreground">{daysLabel(r.days_left)}</span> : statusChip(r)}
+                        </td>
+                      </tr>
                     )
                   })}
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        )}
+      </StoreSection>
     </div>
   )
 

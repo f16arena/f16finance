@@ -9,12 +9,12 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronDown,
   ClipboardList,
   Loader2,
   MoreHorizontal,
   Minus,
   Package,
+  PackageX,
   Pencil,
   Plus,
   Printer,
@@ -47,7 +47,10 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useStoreScope } from '@/components/store/store-scope'
 import { usePersistentState } from '@/lib/client/use-persistent-state'
 import { CopyText } from '@/components/ui/copy-text'
+import { StoreAttention, StoreEmpty, StoreStat, StoreStatGrid, plural, type StoreTodo } from '@/components/store/store-ui'
+import { formatMoney } from '@/lib/core/format'
 import { toast } from '@/hooks/use-toast'
+import { NativeSelect } from '@/components/ui/native-select'
 import { LabelPrintDialog } from '@/components/store/label-print-dialog'
 import type { LabelItem } from '@/components/store/label-print-dialog'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
@@ -419,17 +422,63 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
   const totalShowcaseQty = balances.reduce((s, b) => s + Number(b.quantity || 0), 0)
   const totalPurchase = balances.reduce((s, b) => s + Number(b.quantity || 0) * Number(b.item?.default_purchase_price || 0), 0)
   const totalSale = balances.reduce((s, b) => s + Number(b.quantity || 0) * Number(b.item?.sale_price || 0), 0)
-  const fmtMoney = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+
+  // Быстрый фильтр из блока «Требует внимания» (только отображение)
+  const [attnFilter, setAttnFilter] = useState<null | 'empty' | 'low' | 'noPrice'>(null)
+  const isEmptyShelf = (b: BalanceItem) => Number(b.quantity || 0) <= 0 && Number(b.warehouse_quantity || 0) > 0
+  const isLow = (b: BalanceItem) => {
+    const th = Number(b.item?.low_stock_threshold || 0)
+    return Number(b.quantity || 0) > 0 && th > 0 && Number(b.quantity || 0) <= th
+  }
+  const isNoPrice = (b: BalanceItem) => !(Number(b.item?.sale_price || 0) > 0)
+  const emptyCount = balances.filter(isEmptyShelf).length
+  const lowCount = balances.filter(isLow).length
+  const noPriceCount = balances.filter(isNoPrice).length
+  const toggleAttn = (k: 'empty' | 'low' | 'noPrice') => setAttnFilter(attnFilter === k ? null : k)
+  const attnItems: StoreTodo[] = []
+  if (emptyCount > 0) {
+    attnItems.push({
+      key: 'empty', icon: PackageX, tone: 'rose',
+      text: <>{emptyCount} {plural(emptyCount, ['товар', 'товара', 'товаров'])} закончились на витрине, а в подсобке есть — запросите со склада</>,
+      onClick: () => toggleAttn('empty'), cta: attnFilter === 'empty' ? 'Сбросить' : 'Показать',
+    })
+  }
+  if (lowCount > 0) {
+    attnItems.push({
+      key: 'low', icon: AlertCircle, tone: 'amber',
+      text: <>{lowCount} {plural(lowCount, ['товар', 'товара', 'товаров'])} на витрине ниже порога — скоро закончатся</>,
+      onClick: () => toggleAttn('low'), cta: attnFilter === 'low' ? 'Сбросить' : 'Показать',
+    })
+  }
+  if (noPriceCount > 0) {
+    attnItems.push({
+      key: 'noPrice', icon: AlertCircle, tone: 'rose',
+      text: <>У {noPriceCount} {plural(noPriceCount, ['товара', 'товаров', 'товаров'])} нет цены продажи — кассир не сможет их пробить</>,
+      onClick: () => toggleAttn('noPrice'), cta: attnFilter === 'noPrice' ? 'Сбросить' : 'Показать',
+    })
+  }
+  if (newRequestsCount > 0) {
+    attnItems.push({
+      key: 'requests', icon: ClipboardList, tone: 'amber',
+      text: <>{newRequestsCount} {plural(newRequestsCount, ['заявка ждёт', 'заявки ждут', 'заявок ждут'])} решения менеджера</>,
+      onClick: () => document.getElementById('showcase-requests')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), cta: 'К заявкам',
+    })
+  }
 
   const filteredBalances = useMemo(() => {
     const q = stockSearch.trim().toLowerCase()
-    if (!q) return balances
-    return balances.filter(
+    let list = balances
+    if (attnFilter === 'empty') list = list.filter(isEmptyShelf)
+    if (attnFilter === 'low') list = list.filter(isLow)
+    if (attnFilter === 'noPrice') list = list.filter(isNoPrice)
+    if (!q) return list
+    return list.filter(
       (b) => b.item?.name?.toLowerCase().includes(q) || b.item?.barcode?.toLowerCase().includes(q),
     )
-  }, [balances, stockSearch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, stockSearch, attnFilter])
 
-  const shownBalances = useVisibleSlice(filteredBalances, `${selectedCompanyId}|${stockSearch}`)
+  const shownBalances = useVisibleSlice(filteredBalances, `${selectedCompanyId}|${stockSearch}|${attnFilter}`)
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -440,16 +489,15 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
           <>
             {companies.length > 1 && !storeCompanyId && (
               <div className="relative">
-                <select
+                <NativeSelect
                   value={selectedCompanyId || ''}
                   onChange={(e) => setChosenCompanyId(e.target.value)}
-                  className="h-9 appearance-none rounded-lg border border-border bg-white dark:bg-white/[0.04] pl-3 pr-8 text-sm text-foreground outline-none focus:border-amber-400/50"
+                  className="h-9 w-auto"
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                </NativeSelect>
               </div>
             )}
             <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="h-9 gap-1.5">
@@ -496,27 +544,14 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
         )
       })()}
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Позиций</p>
-          <p className="mt-1 text-xl font-semibold">{balances.length}</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Ед. товара на витрине</p>
-          <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{totalShowcaseQty}</p>
-        </Card>
-        <Card className={`p-3 ${newRequestsCount > 0 ? 'border-amber-500/20 bg-amber-500/[0.05]' : 'border-border bg-white dark:bg-white/[0.03]'}`}>
-          <p className={`text-[10px] uppercase tracking-widest ${newRequestsCount > 0 ? 'text-amber-700 dark:text-amber-300/70' : 'text-muted-foreground'}`}>Заявок в работе</p>
-          <p className={`mt-1 text-xl font-semibold ${newRequestsCount > 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>{newRequestsCount}</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Стоимость (закуп / продажа)</p>
-          <p className="mt-1 truncate text-sm font-semibold text-amber-700 dark:text-amber-200" title={`${fmtMoney(totalPurchase)} / ${fmtMoney(totalSale)} ₸`}>
-            {fmtMoney(totalPurchase)} / {fmtMoney(totalSale)} ₸
-          </p>
-        </Card>
-      </div>
+      <StoreAttention items={attnItems} loading={loading && balances.length === 0} calm="Всё спокойно: товар на витрине есть, цены указаны, заявок нет." />
+
+      <StoreStatGrid cols={4}>
+        <StoreStat label="Позиций" value={balances.length} />
+        <StoreStat label="Штук на витрине" value={totalShowcaseQty} tone={totalShowcaseQty > 0 ? 'emerald' : 'neutral'} />
+        <StoreStat label="Заявок в работе" value={newRequestsCount} tone={newRequestsCount > 0 ? 'amber' : 'neutral'} />
+        <StoreStat label="Товар в деньгах" value={formatMoney(totalPurchase)} hint={`по продаже ${formatMoney(totalSale)}`} />
+      </StoreStatGrid>
 
       {sendSuccess && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
@@ -598,10 +633,11 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
             <span className="text-sm">{error}</span>
           </div>
         ) : filteredBalances.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <ShoppingBag className="h-8 w-8 opacity-50" />
-            {stockSearch ? 'Ничего не найдено' : 'Витрина пустая — запросите товар со склада'}
-          </div>
+          <StoreEmpty
+            icon={<ShoppingBag className="h-5 w-5" />}
+            title={stockSearch || attnFilter ? 'Ничего не найдено' : 'Витрина пока пустая'}
+            hint={stockSearch || attnFilter ? 'Сбросьте поиск или фильтр.' : 'Откройте «Действия» → «Запросить со склада», чтобы выставить товар из подсобки.'}
+          />
         ) : (
           <>
             {/* Мобильная версия: карточки товаров вместо широкой таблицы */}
@@ -842,7 +878,7 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
       )}
 
       {/* Request history */}
-      <Card className="border-border bg-card/70">
+      <Card id="showcase-requests" className="scroll-mt-24 border-border bg-card/70">
         <CardHeader className="border-b border-border pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-sm">

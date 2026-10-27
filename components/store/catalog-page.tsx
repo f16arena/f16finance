@@ -7,6 +7,9 @@ import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useStoreScope } from '@/components/store/store-scope'
 import { Package, PackageX, Pencil, Plus, Printer, Search, Trash2, Upload, Download, Check, X, ChevronLeft, ChevronRight, Coins, ShoppingCart, TrendingUp, Warehouse, Store, Tag, Loader2, AlertTriangle, MoreHorizontal, RotateCcw } from 'lucide-react'
 
+import { StoreAttention, StoreStat, StoreStatGrid, plural } from '@/components/store/store-ui'
+import { formatMoney } from '@/lib/core/format'
+import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1121,10 +1124,14 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
           .map((v: any) => `${v.barcode}: каталог=${v.new_catalog}, подсобка=${v.warehouse}`)
           .join('\n')
         const more = (json.violations?.length || 0) > 5 ? `\n…ещё ${(json.violations.length - 5)}` : ''
-        const ok = window.confirm(
-          (json.message || 'Новый каталог меньше подсобки.') +
-            `\n\n${lines}${more}\n\nПродолжить и затереть остаток на витрине?`,
-        )
+        const ok = await confirmDialog({
+          title: json.message || 'Новый каталог меньше подсобки.',
+          description: `${lines}${more}
+
+Продолжить и затереть остаток на витрине?`,
+          confirmLabel: 'Продолжить',
+          destructive: true,
+        })
         if (!ok) {
           setImportStatus('idle')
           return
@@ -1271,155 +1278,40 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
         )
       })()}
 
-      {/* ── Summary cards ──────────────────────────────────────────────────── */}
+      {/* ── Что требует действия + сводка ──────────────────────────────────── */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {/* Позиций */}
-          <div className="rounded-2xl border border-border bg-white dark:bg-white/[0.04] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-              Позиций
-            </div>
-            <div className="text-xl font-bold text-foreground">{items.length.toLocaleString('ru-RU')}</div>
-            {filtered.length !== items.length && (
-              <div className="text-[11px] text-muted-foreground mt-0.5">в фильтре: {filtered.length}</div>
-            )}
-          </div>
+        <>
+          <StoreAttention
+            items={[
+              ...(totals.needsAttention > 0 ? [{
+                key: 'attention', icon: AlertTriangle, tone: 'rose' as const,
+                text: <>{totals.needsAttention} {plural(totals.needsAttention, ['позиция', 'позиции', 'позиций'])} без цены или штрихкода (без цены {totals.noPrice}, без штрихкода {totals.noBarcode})</>,
+                onClick: () => { setFlagFilter((f) => (f === 'attention' ? 'none' : 'attention')); setTab('catalog') },
+                cta: flagFilter === 'attention' ? 'Сбросить' : 'Показать',
+              }] : []),
+              ...(totals.zeroStock > 0 ? [{
+                key: 'zero', icon: PackageX, tone: 'amber' as const,
+                text: <>{totals.zeroStock} {plural(totals.zeroStock, ['товар', 'товара', 'товаров'])} с нулевым остатком{totals.stockable > 0 ? ` (${zeroStockPct}% каталога)` : ''}</>,
+                onClick: () => { setFlagFilter((f) => (f === 'zero' ? 'none' : 'zero')); setTab('catalog') },
+                cta: flagFilter === 'zero' ? 'Сбросить' : 'Показать',
+              }] : []),
+            ]}
+            calm="Всё спокойно: у всех товаров есть цена и штрихкод, нулевых остатков нет."
+          />
 
-          {/* Склад — закуп */}
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-blue-700/70 dark:text-blue-300/70 mb-1">
-              <Warehouse className="w-3.5 h-3.5" />
-              Склад по закупу
-            </div>
-            <div className="text-xl font-bold text-blue-700 dark:text-blue-300">
-              {Math.round(totals.warehousePurchase).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">{totals.warehouseQty.toLocaleString('ru-RU')} ед.</div>
-          </div>
-
-          {/* Склад — продажа */}
-          <div className="rounded-2xl border border-blue-400/20 bg-blue-400/[0.04] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-blue-700/70 dark:text-blue-200/70 mb-1">
-              <TrendingUp className="w-3.5 h-3.5" />
-              Склад по продаже
-            </div>
-            <div className="text-xl font-bold text-blue-700 dark:text-blue-200">
-              {Math.round(totals.warehouseSale).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-emerald-400/80 mt-0.5">
-              +{Math.round(totals.warehouseSale - totals.warehousePurchase).toLocaleString('ru-RU')} ₸ наценка
-            </div>
-          </div>
-
-          {/* Витрина — закуп */}
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-amber-700/70 dark:text-amber-300/70 mb-1">
-              <Store className="w-3.5 h-3.5" />
-              Витрина по закупу
-            </div>
-            <div className="text-xl font-bold text-amber-700 dark:text-amber-300">
-              {Math.round(totals.showcasePurchase).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">{totals.showcaseQty.toLocaleString('ru-RU')} ед.</div>
-          </div>
-
-          {/* Витрина — продажа */}
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-amber-700/70 dark:text-amber-200/70 mb-1">
-              <Store className="w-3.5 h-3.5" />
-              Витрина по продаже
-            </div>
-            <div className="text-xl font-bold text-amber-700 dark:text-amber-200">
-              {Math.round(totals.showcaseSale).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-emerald-400/80 mt-0.5">
-              +{Math.round(totals.showcaseSale - totals.showcasePurchase).toLocaleString('ru-RU')} ₸ наценка
-            </div>
-          </div>
-
-          {/* Всего — продажа */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-emerald-700/70 dark:text-emerald-300/70 mb-1">
-              <ShoppingCart className="w-3.5 h-3.5" />
-              Итого по продаже
-            </div>
-            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
-              {Math.round(totals.totalSale).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              зак: {Math.round(totals.totalPurchase).toLocaleString('ru-RU')} ₸
-            </div>
-          </div>
-
-          {/* Потенциальная прибыль */}
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.04] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-emerald-700/70 dark:text-emerald-200/70 mb-1">
-              <Coins className="w-3.5 h-3.5" />
-              Потенц. прибыль
-            </div>
-            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-200">
-              {Math.round(totalMargin).toLocaleString('ru-RU')} ₸
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              {totals.totalPurchase > 0 ? `наценка ${marginPct.toFixed(1)}%` : 'нет цен закупа'}
-            </div>
-          </div>
-
-          {/* Требуют внимания — клик показывает эти позиции в списке */}
-          <button
-            type="button"
-            disabled={totals.needsAttention === 0}
-            aria-pressed={flagFilter === 'attention'}
-            onClick={() => { setFlagFilter((f) => (f === 'attention' ? 'none' : 'attention')); setTab('catalog') }}
-            title={totals.needsAttention === 0 ? undefined : 'Показать эти позиции в списке'}
-            className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-              totals.needsAttention > 0
-                ? 'border-red-500/20 bg-red-500/[0.06] cursor-pointer hover:border-red-500/40'
-                : 'border-border bg-white dark:bg-white/[0.04] cursor-default'
-            } ${flagFilter === 'attention' ? 'ring-2 ring-red-500/50' : ''}`}
-          >
-            <div className={`flex items-center gap-2 text-xs mb-1 ${totals.needsAttention > 0 ? 'text-red-700/70 dark:text-red-300/70' : 'text-muted-foreground'}`}>
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Требуют внимания
-            </div>
-            <div className={`text-xl font-bold ${totals.needsAttention > 0 ? 'text-red-700 dark:text-red-300' : 'text-foreground'}`}>
-              {totals.needsAttention.toLocaleString('ru-RU')}
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              {flagFilter === 'attention'
-                ? 'показаны только они — нажми, чтобы снять'
-                : totals.needsAttention > 0
-                  ? `без цены ${totals.noPrice} · без ШК ${totals.noBarcode}`
-                  : 'цены и штрихкоды на месте'}
-            </div>
-          </button>
-
-          {/* Нулевые остатки — клик показывает эти позиции в списке */}
-          <button
-            type="button"
-            disabled={totals.zeroStock === 0}
-            aria-pressed={flagFilter === 'zero'}
-            onClick={() => { setFlagFilter((f) => (f === 'zero' ? 'none' : 'zero')); setTab('catalog') }}
-            title={totals.zeroStock === 0 ? undefined : 'Показать эти позиции в списке'}
-            className={`w-full rounded-2xl border border-border bg-white dark:bg-white/[0.04] px-4 py-3 text-left transition ${
-              totals.zeroStock > 0 ? 'cursor-pointer hover:border-slate-400/50' : 'cursor-default'
-            } ${flagFilter === 'zero' ? 'ring-2 ring-slate-400/60' : ''}`}
-          >
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <PackageX className="w-3.5 h-3.5 text-muted-foreground" />
-              Нулевой остаток
-            </div>
-            <div className="text-xl font-bold text-foreground">{totals.zeroStock.toLocaleString('ru-RU')}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              {flagFilter === 'zero'
-                ? 'показаны только они — нажми, чтобы снять'
-                : totals.stockable > 0
-                  ? `${zeroStockPct}% товаров`
-                  : 'товаров нет'}
-            </div>
-          </button>
-        </div>
+          <StoreStatGrid cols={4}>
+            <StoreStat label="Позиций" value={items.length.toLocaleString('ru-RU')} hint={filtered.length !== items.length ? `в фильтре: ${filtered.length}` : undefined} icon={<Tag className="h-3.5 w-3.5" />} />
+            <StoreStat label="Подсобка" tone="sky" icon={<Warehouse className="h-3.5 w-3.5" />}
+              value={formatMoney(totals.warehousePurchase)}
+              hint={`${totals.warehouseQty.toLocaleString('ru-RU')} ед. · по продаже ${formatMoney(totals.warehouseSale)}`} />
+            <StoreStat label="Витрина" tone="emerald" icon={<Store className="h-3.5 w-3.5" />}
+              value={formatMoney(totals.showcasePurchase)}
+              hint={`${totals.showcaseQty.toLocaleString('ru-RU')} ед. · по продаже ${formatMoney(totals.showcaseSale)}`} />
+            <StoreStat label="Потенциальная прибыль" tone={totalMargin > 0 ? 'emerald' : 'neutral'} icon={<Coins className="h-3.5 w-3.5" />}
+              value={formatMoney(totalMargin)}
+              hint={totals.totalPurchase > 0 ? `наценка ${marginPct.toFixed(1)}% · товар на ${formatMoney(totals.totalSale)}` : 'нет цен закупа'} />
+          </StoreStatGrid>
+        </>
       )}
 
       {/* Tabs — вкладка «Импорт» скрыта если нет права store-catalog.import */}

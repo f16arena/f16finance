@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { ArchiveX, ArrowRight, History, Loader2, Package, RefreshCw, Search } from 'lucide-react'
 import Link from 'next/link'
 
+import { StoreEmpty, StoreStat, StoreStatGrid } from '@/components/store/store-ui'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -12,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatMoney } from '@/lib/core/format'
 import { StoreDataTableSkeleton } from '@/components/store/store-data-table-skeleton'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDebouncedValue, useUrlState } from '@/lib/hooks/use-url-state'
 import { isAbortError } from '@/lib/is-abort-error'
 import { useStoreApiUrl } from '@/components/store/store-scope'
@@ -261,29 +261,15 @@ function StoreMovementsPageContent({ embedded = false }: { embedded?: boolean } 
       })()}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Всего движений</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold">{stats.count}</p>}
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700/70 dark:text-emerald-300/70">Приёмок</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-200">{stats.receipts}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700/70 dark:text-amber-300/70">Выдач на точку</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.transfers}</p>}
-        </Card>
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Сумма</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-24" /> : (
-            <p className="mt-1 truncate text-xl font-semibold" title={formatMoney(stats.total)}>{formatMoney(stats.total)}</p>
-          )}
-        </Card>
-      </div>
+      <StoreStatGrid cols={4}>
+        <StoreStat label="Всего движений" value={stats.count} loading={loading} />
+        <StoreStat label="Приёмок" value={stats.receipts} tone={stats.receipts > 0 ? 'emerald' : 'neutral'} loading={loading} />
+        <StoreStat label="Выдач на точку" value={stats.transfers} tone={stats.transfers > 0 ? 'sky' : 'neutral'} loading={loading} />
+        <StoreStat label="Сумма" value={formatMoney(stats.total)} loading={loading} />
+      </StoreStatGrid>
 
       {error ? (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{error}</div>
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-600 dark:text-rose-300">{error}</div>
       ) : null}
 
       {/* Toolbar */}
@@ -321,10 +307,11 @@ function StoreMovementsPageContent({ embedded = false }: { embedded?: boolean } 
         {loading && filteredMovements.length === 0 ? (
           <StoreDataTableSkeleton columns={6} />
         ) : filteredMovements.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 opacity-50" />
-            По этим фильтрам движений не найдено
-          </div>
+          <StoreEmpty
+            icon={<Package className="h-5 w-5" />}
+            title="Движений не найдено"
+            hint="Здесь появятся приёмки, выдачи на точку, продажи и списания. Попробуйте сбросить поиск или фильтры."
+          />
         ) : (
           <div className="relative max-h-[calc(100vh-340px)] overflow-auto">
             {refreshing ? (

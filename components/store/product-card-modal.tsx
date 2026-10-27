@@ -17,12 +17,7 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { CopyText } from '@/components/ui/copy-text'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { AppModal } from '@/components/ui/app-modal'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -287,15 +282,14 @@ export default function ProductCardModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 pr-6">
-            <Package className="h-5 w-5 text-emerald-500" />
-            <span className="truncate">{data?.name || 'Карточка товара'}</span>
-          </DialogTitle>
-        </DialogHeader>
-
+    <AppModal
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={data?.name || 'Карточка товара'}
+      icon={<Package className="h-4 w-4" />}
+      tone="success"
+      maxWidth="max-w-3xl"
+    >
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Загрузка…
@@ -531,8 +525,8 @@ export default function ProductCardModal({
                         <div className="min-w-0">
                           <span className="font-medium text-foreground">{s.location}</span>
                           {s.company && <span className="ml-1 text-xs text-muted-foreground">· {s.company}</span>}
-                          {s.location_type === 'warehouse' && <span className="ml-1 text-[10px] text-blue-500">склад</span>}
-                          {s.location_type === 'point_display' && <span className="ml-1 text-[10px] text-amber-500">витрина</span>}
+                          {s.location_type === 'warehouse' && <span className="ml-1 text-[10px] text-sky-600 dark:text-sky-300">подсобка</span>}
+                          {s.location_type === 'point_display' && <span className="ml-1 text-[10px] text-emerald-600 dark:text-emerald-300">витрина</span>}
                         </div>
                         <div className={`shrink-0 font-semibold ${low ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>
                           {fmt(s.quantity)} {data.unit}
@@ -677,7 +671,6 @@ export default function ProductCardModal({
             </div>
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+    </AppModal>
   )
 }
