@@ -5,6 +5,10 @@ import androidx.compose.runtime.Composable
 /** Нативные экраны раздела: `pageID` → экран. Подключены в [kz.ordaops.android.feature.business.NativePage]. */
 internal val opsPages: Map<String, @Composable () -> Unit> = mapOf(
     "tasks" to { TasksScreen() },
+    // Старый адрес задач оператора — на сайте он ведёт в те же задачи.
+    "operator-tasks" to { TasksScreen() },
+    // Монитор сервера на сайте — то же, что вкладка «Сервер» платформы.
+    "server-monitor" to { kz.ordaops.android.feature.business.platform.ServerTab() },
     "incidents" to { IncidentsScreen() },
     "customers" to { CustomersScreen() },
     "pos-receipts" to { ReceiptsListScreen() },

@@ -30,8 +30,8 @@ import kz.ordaops.android.ui.theme.Spacing
 
 /**
  * Все сервисы плиткой по группам — вместо списка на восемьдесят строк. Порт
- * `OwnerServicesScreen.swift`. Раздел без нативного экрана помечен «сайт» и
- * открывается сайтом во вкладке Chrome.
+ * `OwnerServicesScreen.swift`. Раздел без нативного экрана открывается сайтом
+ * во вкладке Chrome.
  */
 @Composable
 fun OwnerServicesScreen(env: BusinessEnv) {
@@ -77,9 +77,6 @@ fun OwnerServicesScreen(env: BusinessEnv) {
                     ) { env.open(item.pageId) }
                 }
             }
-        }
-        if (groups.any { g -> g.items.any { it.isWeb } }) {
-            OwnerFootnote("Разделы с пометкой «сайт» открываются в браузере — в приложении они появятся позже.")
         }
     }
 }

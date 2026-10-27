@@ -197,8 +197,7 @@ fun RoundAction(icon: ImageVector, title: String, modifier: Modifier = Modifier,
 }
 
 /**
- * Плитка сервиса: иконка в скруглённом квадрате и название под ней. У раздела без
- * нативного экрана под названием стоит «сайт» — человек знает, что откроется браузер.
+ * Плитка сервиса: иконка в скруглённом квадрате и название под ней.
  */
 @Composable
 fun ServiceTile(item: ServiceItem, tint: Color, badge: Int, size: Int = 54, onClick: () -> Unit) {
@@ -243,9 +242,6 @@ fun ServiceTile(item: ServiceItem, tint: Color, badge: Int, size: Int = 54, onCl
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.height(if (size > 60) 36.dp else 30.dp),
         )
-        if (item.isWeb) {
-            Text("сайт", color = Orda.colors.textDim, fontSize = 10.sp, modifier = Modifier.offset(y = (-4).dp))
-        }
     }
 }
 

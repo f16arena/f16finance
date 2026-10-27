@@ -32,7 +32,7 @@ object Services {
     )
 
     /** Служебные страницы каталога: вкладка «Главная» уже есть, остальные — не для телефона. */
-    private val hiddenPages = setOf("dashboard", "welcome", "workspace")
+    private val hiddenPages = setOf("dashboard", "welcome", "workspace", "operator-lead")
 
     /**
      * Право в каталоге есть, но роут проверяет суперадмина раньше права: владелец
