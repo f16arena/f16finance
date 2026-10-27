@@ -109,6 +109,29 @@ class OpsLoader<T>(
     }
 }
 
+/** Загрузчик из нескольких запросов сразу (без кэша на диске): [fetch] собирает экран целиком. */
+class OpsFetcher<T>(private val api: ApiClient, private val fetch: suspend (ApiClient) -> T) : ViewModel() {
+    private val _state = MutableStateFlow(Loadable<T>())
+    val state: StateFlow<Loadable<T>> = _state.asStateFlow()
+    private var job: Job? = null
+
+    fun refresh() {
+        job?.cancel()
+        job = viewModelScope.launch { _state.load { fetch(api) } }
+    }
+}
+
+@Composable
+fun <T> rememberOpsFetcher(key: String, fetch: suspend (ApiClient) -> T): OpsFetcher<T> {
+    val env = LocalBusiness.current
+    val loader: OpsFetcher<T> = viewModel(
+        key = "ops-f:$key:${env.api.organizationId}",
+        factory = viewModelFactory { initializer { OpsFetcher(env.api, fetch) } },
+    )
+    androidx.compose.runtime.LaunchedEffect(loader) { loader.refresh() }
+    return loader
+}
+
 /** Загрузчик экрана с первой загрузкой при входе; [key] отделяет разные запросы одного класса. */
 @Composable
 fun <T> rememberOpsLoader(key: String, request: ApiRequest, parse: (JsonObject) -> T): OpsLoader<T> {

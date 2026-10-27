@@ -10,4 +10,7 @@ internal val opsPages: Map<String, @Composable () -> Unit> = mapOf(
     "pos-receipts" to { ReceiptsListScreen() },
     "pos-returns" to { ReturnsScreen() },
     "point-devices" to { PointDevicesScreen() },
+    "settings" to { SettingsScreen() },
+    "telegram" to { TelegramScreen() },
+    "debug" to { DiagnosticsScreen() },
 )
