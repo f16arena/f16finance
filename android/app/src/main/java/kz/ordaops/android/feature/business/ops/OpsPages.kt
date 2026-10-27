@@ -13,4 +13,6 @@ internal val opsPages: Map<String, @Composable () -> Unit> = mapOf(
     "settings" to { SettingsScreen() },
     "telegram" to { TelegramScreen() },
     "debug" to { DiagnosticsScreen() },
+    "team-chat" to { TeamChatPage() },
+    "messages" to { MessagesPage() },
 )
