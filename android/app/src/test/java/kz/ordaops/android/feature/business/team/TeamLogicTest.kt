@@ -360,4 +360,52 @@ class TeamLogicTest {
     fun `цвет аватара закреплён за именем`() {
         assertEquals(avatarColor("Алия"), avatarColor("Алия"))
     }
+
+    // ── Сверка с сайтом ──────────────────────────────────────────────────────
+
+    @Test
+    fun `месяц с одной выплатой закрыт - открытой половины нет`() {
+        val row = StaffSalaryRow.from(json("""{"id":"s","paid_slots":["first"],"month_closed":true}""").asObject()!!)
+        assertNull(row.openSlot)
+    }
+
+    @Test
+    fun `период выплаты подписывается по границам сервера`() {
+        val s = StaffSalarySummary.from(json("""{"rows":[],"slot":"second","period":{"from":"2026-10-16","to":"2026-10-31"}}"""))
+        assertEquals("16–31 октября", s.periodLabel)
+        assertEquals("первая половина месяца", StaffSalarySummary.from(json("""{"rows":[]}""")).periodLabel)
+    }
+
+    @Test
+    fun `повышенный оператор в кадрах - старший`() {
+        val p = HrPerson.from(json("""{"id":"1","kind":"operator","full_name":"А","point_role":"senior_cashier"}""").asObject()!!)
+        assertEquals("Старший кассир", p.roleLabel)
+    }
+
+    @Test
+    fun `состав команды - стаж и документы`() {
+        val today = LocalDate.of(2026, 10, 27)
+        val p = RosterPerson("1", "А", true, null, null, "2025-10-27", "2026-11-10")
+        assertEquals("1 г.", p.tenureLabel(today))
+        assertEquals(14, p.daysToExpiry(today))
+        assertTrue(p.documentNeedsAttention(today))
+        assertEquals("документ кончается через 14 дней", p.expiryLabel(today))
+        assertEquals("документ просрочен 2 дня назад", p.copy(nearestExpiry = "2026-10-25").expiryLabel(today))
+        assertEquals("2026-10-01" to "2026-10-31", monthBounds(YearMonth.of(2026, 10)))
+    }
+
+    @Test
+    fun `экзамен - операторы только выбранных точек и проверка назначения`() {
+        val overview = ExamsOverview.from(
+            json("""{"data":{"exams":[],"companies":[{"id":"c1","name":"A"},{"id":"c2","name":"B"}],
+              "operators":[{"id":"o1","name":"X","company_ids":["c1"]},{"id":"o2","name":"Y","company_ids":["c2"]}]}}"""),
+        )
+        assertEquals(listOf("o1"), overview.operatorsFor(listOf("c1")).map { it.id })
+        assertTrue(overview.operatorsFor(emptyList()).isEmpty())
+        assertEquals("Укажите название экзамена", ExamAssignment().validationIssue)
+        assertEquals("Выберите хотя бы одну точку", ExamAssignment(title = "T").validationIssue)
+        assertNull(ExamAssignment("T", listOf("c1"), listOf("o1")).validationIssue)
+        assertEquals("Идёт", AdminExam.from(json("""{"id":"e","status":"active"}""").asObject()!!).statusLabel)
+        assertEquals("", AdminExam.from(json("""{"id":"e","status":"weird"}""").asObject()!!).statusLabel)
+    }
 }

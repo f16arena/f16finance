@@ -42,7 +42,7 @@ fun MySalaryCard() {
     val c = Orda.colors
 
     OwnerSection("Моя зарплата", trailing = {
-        if (summary != null) Text(if (summary.isFirstHalf) "выплата до 15-го" else "выплата после 15-го", color = c.textDim, fontSize = 13.sp)
+        if (summary != null) Text("период ${summary.periodLabel}", color = c.textDim, fontSize = 13.sp)
     }) {
         when {
             row != null -> {

@@ -135,7 +135,7 @@ fun SalaryScreen() {
             staffState.data?.takeIf { it.rows.isNotEmpty() }?.let { summary ->
                 OwnerSection(
                     if (summary.selfOnly) "Моя зарплата" else "Административный состав",
-                    trailing = { Text(if (summary.isFirstHalf) "выплата до 15-го" else "выплата после 15-го", color = Orda.colors.textDim, fontSize = 13.sp) },
+                    trailing = { Text("период ${summary.periodLabel}", color = Orda.colors.textDim, fontSize = 13.sp) },
                 ) {
                     summary.rows.forEachIndexed { i, row ->
                         if (i > 0) TeamDivider()
@@ -538,7 +538,7 @@ private fun StaffSalarySheet(row: StaffSalaryRow, onDismiss: () -> Unit, onChang
                 }
             }
             SalaryBalanceCard(
-                if (slot == null) "Месяц закрыт" else "К выплате за ${if (slot == "second") "вторую" else "первую"} половину",
+                if (slot == null) "Месяц закрыт" else "К выплате за период",
                 if (slot == null) 0.0 else maxOf(row.toPay, 0.0),
                 if (slot == null) row.paidThisMonth else row.paidThisMonth + maxOf(row.toPay, 0.0),
                 row.paidThisMonth,
@@ -582,7 +582,13 @@ private fun SalaryActionForm(
     val env = LocalBusiness.current
     val scope = rememberCoroutineScope()
     val state = rememberActionState()
-    val companies by env.vm.companies.collectAsStateWithLifecycle()
+    // Закрытые точки в выборе не показываем: деньги из их кассы уже не уходят.
+    val companiesVm = rememberResource(
+        "companies-open", Unit,
+        { kz.ordaops.android.core.net.ApiRequest("/api/admin/companies", query = mapOf("open" to "1")) },
+        { root -> root.unwrapData().asObjects().map { ScheduleCompany(it.str("id") ?: "", it.str("name") ?: "Точка") } },
+    )
+    val companies = companiesVm.state.collectAsStateWithLifecycle().value.data.orEmpty()
     var cashText by remember { mutableStateOf(if (action.prefill > 0 && action.money == MoneyMode.Split) formatInput(action.prefill) else "") }
     var kaspiText by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }

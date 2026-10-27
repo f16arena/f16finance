@@ -548,6 +548,8 @@ data class StaffSalaryRow(
     /** Половина месяца, за которую ещё не платили; null — обе закрыты. */
     val openSlot: String?
         get() = when {
+            // График выплат задаёт организация: в месяце может быть и одна выплата.
+            monthClosed -> null
             "first" !in paidSlots -> "first"
             "second" !in paidSlots -> "second"
             else -> null
@@ -587,12 +589,25 @@ data class StaffSalarySummary(
     val paidThisMonthTotal: Double,
     /** `first` — выплата до 15-го, `second` — после. */
     val slot: String,
+    /** Границы текущего периода выплаты (`ГГГГ-ММ-ДД`): график выплат — настройка организации. */
+    val periodFrom: String? = null,
+    val periodTo: String? = null,
     /** Ответ урезан до своей строки: права смотреть чужие зарплаты нет. */
     val selfOnly: Boolean,
     /** null — сервер старой версии и про связь аккаунта не знает. */
     val meLinked: Boolean?,
 ) {
     val isFirstHalf: Boolean get() = slot == "first"
+
+    /** «1–15 октября» по границам периода сервера; без них — по номеру половины. */
+    val periodLabel: String
+        get() {
+            val from = WeekMath.parse(periodFrom)
+            val to = WeekMath.parse(periodTo)
+            if (from == null || to == null) return if (isFirstHalf) "первая половина месяца" else "вторая половина месяца"
+            val month = WeekMath.dayMonth(to).substringAfter(' ')
+            return "${from.dayOfMonth}–${to.dayOfMonth} $month"
+        }
 
     /** Своя строка: помеченная `is_me` либо единственная при `self_only`. */
     val myRow: StaffSalaryRow? get() = rows.firstOrNull { it.isMe } ?: if (selfOnly) rows.firstOrNull() else null
@@ -606,6 +621,8 @@ data class StaffSalarySummary(
                 toPayTotal = totals?.dbl("toPay") ?: 0.0,
                 paidThisMonthTotal = totals?.dbl("paidThisMonth") ?: 0.0,
                 slot = d?.str("slot") ?: "first",
+                periodFrom = d?.get("period").asObject()?.str("from"),
+                periodTo = d?.get("period").asObject()?.str("to"),
                 selfOnly = d?.bool("self_only", false) ?: false,
                 meLinked = (d?.get("me_linked") as? JsonPrimitive)?.takeUnless { it is JsonNull }?.let {
                     it.content.lowercase() == "true"

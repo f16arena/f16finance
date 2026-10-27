@@ -201,6 +201,8 @@ data class HrPerson(
     val dismissalReason: String?,
     val dismissedByName: String?,
     val monthlySalary: Double?,
+    /** Старшая роль на точке: повышенный оператор показывается старшим, а не просто оператором. */
+    val pointRole: String? = null,
 ) {
     val isOperator: Boolean get() = kind == "operator"
     val isDismissed: Boolean get() = !isActive
@@ -209,7 +211,7 @@ data class HrPerson(
     val leftOn: String? get() = dismissalDate ?: dismissedAt
 
     val roleLabel: String
-        get() = when (val r = role.orEmpty()) {
+        get() = when (val r = pointRole ?: role.orEmpty()) {
             "" -> if (isOperator) "Оператор" else "Сотрудник"
             // Должности заводит владелец сам — незнакомое значение показываем как есть.
             else -> if (r in knownRoles) roleTitle(r) else r
@@ -266,6 +268,7 @@ data class HrPerson(
                 dismissalReason = o.str("dismissal_reason"),
                 dismissedByName = o.str("dismissed_by_name"),
                 monthlySalary = o.dblOrNull("monthly_salary"),
+                pointRole = o.str("point_role"),
             )
         }
 
