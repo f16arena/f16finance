@@ -93,6 +93,71 @@ private fun barAt(x: Float, width: Float, count: Int): Int? {
     return (x / (width / count)).toInt().coerceIn(0, count - 1)
 }
 
+/**
+ * Линия с заливкой — остаток по дням, накопленный поток. Умеет уходить в минус:
+ * нулевая линия рисуется пунктиром. Касание показывает день и значение.
+ */
+@Composable
+fun TrendLine(points: List<Bar>, color: Color, modifier: Modifier = Modifier, height: Int = 170) {
+    var selected by remember(points) { mutableStateOf<Int?>(null) }
+    val sel = selected?.let { points.getOrNull(it) }
+    val zeroColor = Orda.colors.border
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(Modifier.height(18.dp), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            if (sel != null) {
+                Text(sel.label, color = Orda.colors.textMuted, fontSize = 13.sp, maxLines = 1)
+                Text(money(sel.value), color = Orda.colors.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            } else {
+                Text("Проведите пальцем по графику", color = Orda.colors.textDim, fontSize = 12.sp)
+            }
+        }
+        val max = (points.maxOfOrNull { it.value } ?: 0.0).coerceAtLeast(0.0)
+        val min = (points.minOfOrNull { it.value } ?: 0.0).coerceAtMost(0.0)
+        val span = (max - min).coerceAtLeast(1.0)
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(height.dp)
+                .pointerInput(points) {
+                    detectTapGestures { o -> selected = lineIndexAt(o.x, size.width.toFloat(), points.size) }
+                }
+                .pointerInput(points) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { o -> selected = lineIndexAt(o.x, size.width.toFloat(), points.size) },
+                        onHorizontalDrag = { change, _ -> selected = lineIndexAt(change.position.x, size.width.toFloat(), points.size) },
+                    )
+                },
+        ) {
+            if (points.size < 2) return@Canvas
+            fun x(i: Int) = i * size.width / (points.size - 1)
+            fun y(v: Double) = ((max - v) / span).toFloat() * size.height
+            // Нулевая линия.
+            drawLine(zeroColor, Offset(0f, y(0.0)), Offset(size.width, y(0.0)), strokeWidth = 1.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+            val line = androidx.compose.ui.graphics.Path()
+            points.forEachIndexed { i, p -> if (i == 0) line.moveTo(x(i), y(p.value)) else line.lineTo(x(i), y(p.value)) }
+            val fill = androidx.compose.ui.graphics.Path().apply {
+                addPath(line)
+                lineTo(x(points.size - 1), y(0.0))
+                lineTo(0f, y(0.0))
+                close()
+            }
+            drawPath(fill, color.copy(alpha = 0.14f))
+            drawPath(line, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            selected?.let { i ->
+                points.getOrNull(i)?.let {
+                    drawLine(color.copy(alpha = 0.4f), Offset(x(i), 0f), Offset(x(i), size.height), strokeWidth = 1.dp.toPx())
+                    drawCircle(color, 5.dp.toPx(), Offset(x(i), y(it.value)))
+                }
+            }
+        }
+    }
+}
+
+private fun lineIndexAt(x: Float, width: Float, count: Int): Int? {
+    if (count < 2 || width <= 0f) return null
+    return Math.round(x / (width / (count - 1))).coerceIn(0, count - 1)
+}
+
 /** Доля кольца. */
 data class Slice(val label: String, val value: Double, val color: Color)
 

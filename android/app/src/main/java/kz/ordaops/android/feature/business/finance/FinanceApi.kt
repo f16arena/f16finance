@@ -70,6 +70,32 @@ class FinanceApi(val api: ApiClient) {
         )
     }
 
+    // ── Движение денег ──────────────────────────────────────────────────────
+
+    suspend fun cashflow(from: String, to: String, includeExtra: Boolean, companyId: String?): CashflowReport {
+        val query = buildMap {
+            put("from", from); put("to", to)
+            if (includeExtra) put("include_extra", "1")
+            if (!companyId.isNullOrEmpty()) put("company_id", companyId)
+        }
+        return api.send<kz.ordaops.android.feature.business.BizData<CashflowReport>>(ApiRequest("/api/admin/cashflow/summary", query = query)).data
+    }
+
+    /** Регулярные платежи на месяц вперёд и деньги до конца месяца. */
+    suspend fun cashflowOutlook(companyId: String?): CashflowOutlook {
+        val query = if (companyId.isNullOrEmpty()) emptyMap() else mapOf("company_id" to companyId)
+        return api.send<kz.ordaops.android.feature.business.BizData<CashflowOutlook>>(ApiRequest("/api/admin/cashflow/outlook", query = query)).data
+    }
+
+    suspend fun balanceAnchors(): CashflowAnchorList =
+        api.send<kz.ordaops.android.feature.business.BizData<CashflowAnchorList>>(ApiRequest("/api/admin/cashflow/balance")).data
+
+    suspend fun saveBalanceAnchor(draft: CashflowAnchorDraft) =
+        api.sendUnit(ApiRequest.json("/api/admin/cashflow/balance", draft.body()))
+
+    suspend fun deleteBalanceAnchor(id: String) =
+        api.sendUnit(ApiRequest("/api/admin/cashflow/balance", HttpMethod.DELETE, query = mapOf("id" to id)))
+
     // ── Долги с точки ───────────────────────────────────────────────────────
 
     suspend fun pointDebts(weekStart: String): PointDebtWeek =
