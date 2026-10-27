@@ -63,6 +63,13 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Каталог прав — тот же файл, что читает айфон (apple/Contracts): страницы, группы, модули.
+    // Копии нет, поэтому каталог приложения не может разойтись с контрактом.
+    sourceSets {
+        getByName("main").assets.srcDir("../../apple/Contracts")
+        getByName("test").resources.srcDir("../../apple/Contracts")
+    }
 }
 
 kotlin {
@@ -111,6 +118,8 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0")
     // Вход по отпечатку/лицу — как Face ID на айфоне.
     implementation("androidx.biometric:biometric:1.1.0")
+    // Разделы кабинета, у которых ещё нет нативного экрана, открываются сайтом во вкладке Chrome.
+    implementation("androidx.browser:browser:1.8.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -123,4 +132,6 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.5.0")
     implementation("androidx.camera:camera-view:1.5.0")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

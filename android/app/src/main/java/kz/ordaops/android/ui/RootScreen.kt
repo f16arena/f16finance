@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import kz.ordaops.android.OrdaApplication
 import kz.ordaops.android.core.access.Workspace
 import kz.ordaops.android.core.auth.AuthStore
+import kz.ordaops.android.feature.business.BusinessRoot
 import kz.ordaops.android.feature.operator.OperatorRoot
 import kz.ordaops.android.ui.components.EmptyState
 import kz.ordaops.android.ui.components.ErrorBanner
@@ -78,6 +79,9 @@ private fun WorkspaceView(app: OrdaApplication, state: AuthStore.State) {
         }
         when (resolver.workspace) {
             Workspace.Operator -> OperatorRoot(resolver, app.api, onSignOut = app.auth::signOut)
+            // Платформа пока показывает вкладки владельца; её экраны — отдельной волной.
+            Workspace.Owner, Workspace.Staff, Workspace.Platform ->
+                BusinessRoot(resolver, app.api, onSignOut = app.auth::signOut)
             else -> NotYetOnAndroid(
                 name = resolver.session.displayName,
                 onSignOut = app.auth::signOut,
@@ -86,7 +90,7 @@ private fun WorkspaceView(app: OrdaApplication, state: AuthStore.State) {
     }
 }
 
-/** Владелец, сотрудник, платформа — переносятся после оператора. */
+/** Гость клуба и человек без прав: кабинета для них в приложении нет. */
 @Composable
 private fun NotYetOnAndroid(name: String?, onSignOut: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {

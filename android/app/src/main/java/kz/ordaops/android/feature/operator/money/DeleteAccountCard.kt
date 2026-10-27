@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kz.ordaops.android.OrdaApplication
+import kz.ordaops.android.core.net.ApiClient
 import kz.ordaops.android.core.net.ApiRequest
 import kz.ordaops.android.core.net.HttpMethod
 import kz.ordaops.android.core.net.userMessage
@@ -27,13 +28,16 @@ import kz.ordaops.android.ui.theme.Orda
 /**
  * Удаление аккаунта — как AccountSheet.swift: требование магазинов «вошёл в
  * приложении — можешь из него и уйти». Тот же `DELETE /api/me/account`.
+ * Зависимости по умолчанию — из окружения оператора; кабинет владельца передаёт свои.
  *
  * Пишем прямо, что произойдёт: рабочие записи (смены, выручка, ведомости)
  * остаются у точки — на них стоит бухгалтерия и деньги других людей.
  */
 @Composable
-internal fun DeleteAccountCard() {
-    val env = LocalOperatorEnv.current
+internal fun DeleteAccountCard(
+    api: ApiClient = LocalOperatorEnv.current.api,
+    signOut: () -> Unit = LocalOperatorEnv.current.signOut,
+) {
     val app = LocalContext.current.applicationContext as OrdaApplication
     val scope = rememberCoroutineScope()
     val c = Orda.colors
@@ -70,11 +74,11 @@ internal fun DeleteAccountCard() {
                     error = null
                     scope.launch {
                         try {
-                            env.api.sendUnit(ApiRequest("/api/me/account", HttpMethod.DELETE))
+                            api.sendUnit(ApiRequest("/api/me/account", HttpMethod.DELETE))
                             // Сессия мертва: токен указывает на удалённого пользователя.
                             // И быстрый вход забываем — возвращаться больше некуда.
                             withContext(Dispatchers.IO) { app.quickVault.clear() }
-                            env.signOut()
+                            signOut()
                         } catch (e: Exception) {
                             error = e.userMessage()
                         } finally {
