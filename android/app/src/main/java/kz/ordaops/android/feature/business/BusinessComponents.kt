@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -226,7 +227,7 @@ fun ServiceTile(item: ServiceItem, tint: Color, badge: Int, size: Int = 54, onCl
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(end = (-6).dp, top = (-6).dp)
+                        .offset(x = 6.dp, y = (-6).dp)
                         .background(Orda.colors.negative, CircleShape)
                         .padding(horizontal = 6.dp, vertical = 1.dp),
                 )
@@ -243,7 +244,7 @@ fun ServiceTile(item: ServiceItem, tint: Color, badge: Int, size: Int = 54, onCl
             modifier = Modifier.height(if (size > 60) 36.dp else 30.dp),
         )
         if (item.isWeb) {
-            Text("сайт", color = Orda.colors.textDim, fontSize = 10.sp, modifier = Modifier.padding(top = (-4).dp))
+            Text("сайт", color = Orda.colors.textDim, fontSize = 10.sp, modifier = Modifier.offset(y = (-4).dp))
         }
     }
 }
