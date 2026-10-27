@@ -70,6 +70,22 @@ class FinanceApi(val api: ApiClient) {
         )
     }
 
+    // ── Долги с точки ───────────────────────────────────────────────────────
+
+    suspend fun pointDebts(weekStart: String): PointDebtWeek =
+        api.send(ApiRequest("/api/admin/point-debts", query = mapOf("weekStart" to weekStart)))
+
+    /** Отметить долги погашенными. Право `point-debts.mark_paid`; запись видна в журнале. */
+    suspend fun markDebtsPaid(itemIds: List<String>) = api.sendUnit(
+        ApiRequest.json(
+            "/api/admin/point-debts",
+            buildJsonObject {
+                put("action", "markPaid")
+                put("itemIds", kotlinx.serialization.json.JsonArray(itemIds.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+            },
+        ),
+    )
+
     // ── Справочники ─────────────────────────────────────────────────────────
 
     suspend fun operators(): List<FinOperator> = api.send<BizList<FinOperator>>(ApiRequest("/api/admin/operators")).data

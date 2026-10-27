@@ -129,6 +129,7 @@ data class ExpenseVendor(
     @SerialName("vendor_name") val name: String = "Без названия",
     @SerialName("default_category_id") val defaultCategoryId: String? = null,
     @SerialName("company_id") val companyId: String? = null,
+    val notes: String? = null,
 )
 
 // ── Доход: черновик и исправление ───────────────────────────────────────────
