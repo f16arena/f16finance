@@ -87,15 +87,14 @@ import kz.ordaops.android.ui.theme.Navy
 import kz.ordaops.android.ui.theme.Orda
 import kz.ordaops.android.ui.theme.Spacing
 
-private enum class ProfileRoute { Notifications }
+private enum class ProfileRoute { Notifications, MyData }
 
 /**
  * Профиль владельца и сотрудника — как профиль в банковском приложении: кто я,
  * доступ тремя цифрами, настройки строками с иконками, выход. Порт
  * `BusinessProfileScreen` (`ProfileScreen.swift`).
  *
- * Пропущено: «Мои данные» (контакты и фото), карточки «Моя зарплата» и «Мои
- * задачи», оформление и крупный шрифт (Android берёт тему и масштаб из системы),
+ * Пропущено: фото в «Моих данных», карточка «Мои задачи», оформление и крупный шрифт (Android берёт тему и масштаб из системы),
  * запрос биометрии при возврате в приложение.
  */
 @Composable
@@ -109,6 +108,10 @@ fun BusinessProfileScreen(env: BusinessEnv) {
 
     if (route == ProfileRoute.Notifications) {
         SubScreen("Уведомления", onBack = { route = null }) { NotificationPrefsContent(env.api) }
+        return
+    }
+    if (route == ProfileRoute.MyData) {
+        SubScreen("Мои данные", onBack = { route = null }) { kz.ordaops.android.feature.business.team.MyContactsContent() }
         return
     }
 
@@ -148,8 +151,11 @@ fun BusinessProfileScreen(env: BusinessEnv) {
         }
 
         kz.ordaops.android.feature.business.ops.MyTasksCard()
+        kz.ordaops.android.feature.business.team.MySalaryCard()
 
         OwnerSection("Аккаунт") {
+            LinkRow(Icons.Filled.AccountCircle, c.info, "Мои данные", "телефон, почта, Telegram") { route = ProfileRoute.MyData }
+            SoftDivider()
             LinkRow(Icons.Filled.Key, Color(0xFFD97706), "Сменить пароль") { changingPassword = true }
             SoftDivider()
             LinkRow(Icons.Filled.Notifications, c.negative, "Уведомления", "что присылать") { route = ProfileRoute.Notifications }
