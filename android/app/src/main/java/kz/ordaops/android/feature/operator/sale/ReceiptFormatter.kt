@@ -20,6 +20,8 @@ data class ReceiptData(
     /** Сколько дал покупатель; null — без сдачи. */
     val cashReceived: Double?,
     val change: Double,
+    /** Скидка на чек (касса сотрудника на сайте умеет её давать); 0 — строки нет. */
+    val discount: Double = 0.0,
 )
 
 internal enum class RowAlign { Left, Center }
@@ -97,6 +99,7 @@ internal object ReceiptFormatter {
             twoColumns("${qty(l.quantity)} x ${amount(l.unitPrice)}", amount(l.total), width).forEach { rows += ReceiptRow(it) }
         }
         rows += ReceiptRow(line)
+        if (data.discount > 0) twoColumns("Скидка", "-" + amount(data.discount), width).forEach { rows += ReceiptRow(it) }
         twoColumns("ИТОГО", amount(data.total), width).forEach { rows += ReceiptRow(it, bold = true, big = true) }
         val label = when (data.method) {
             PaymentMethod.Cash -> "Наличные"

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import kz.ordaops.android.BuildConfig
 import kz.ordaops.android.feature.business.finance.financePages
 import kz.ordaops.android.feature.business.ops.opsPages
+import kz.ordaops.android.feature.business.pos.posPages
 import kz.ordaops.android.feature.business.store.storePages
 import kz.ordaops.android.feature.business.team.teamPages
 
@@ -21,7 +22,7 @@ import kz.ordaops.android.feature.business.team.teamPages
 object NativePage {
     /** Нативные экраны: у каждого раздела свой файл `<раздел>/<Раздел>Pages.kt`. */
     private val screens: Map<String, @Composable () -> Unit> by lazy {
-        financePages + storePages + teamPages + opsPages
+        financePages + storePages + teamPages + opsPages + posPages
     }
 
     fun isNative(pageId: String): Boolean = pageId in screens
