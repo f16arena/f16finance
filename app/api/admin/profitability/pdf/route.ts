@@ -5,7 +5,7 @@ import { requireCapability } from '@/lib/server/capabilities'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { renderReportHTML, PDF_OPTIONS } from '@/lib/reports/orda-report-template'
 import { buildProfitabilityContract, type BranchData } from '@/lib/reports/build-profitability-contract'
-import { forwardAuthHeaders } from '@/lib/server/forward-auth'
+import { forwardAuthHeaders, internalApiUrl } from '@/lib/server/forward-auth'
 import { pdfChromiumArgs } from '@/lib/server/pdf-chromium'
 
 // Vercel: PDF-генерация может занять 10-20 секунд (cold start chromium).
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     }
 
     // Данные точки строго из журнала (branch-report). Тянем server-side, пробрасывая авторизацию (cookies сайта или Bearer приложения).
-    const brUrl = new URL('/api/admin/profitability/branch-report', url.origin)
+    const brUrl = internalApiUrl('/api/admin/profitability/branch-report')
     brUrl.searchParams.set('company_id', companyId)
     brUrl.searchParams.set('from', monthFrom)
     brUrl.searchParams.set('to', monthTo)
