@@ -79,9 +79,8 @@ private fun WorkspaceView(app: OrdaApplication, state: AuthStore.State) {
         }
         when (resolver.workspace) {
             Workspace.Operator -> OperatorRoot(resolver, app.api, onSignOut = app.auth::signOut)
-            // Платформа пока показывает вкладки владельца; её экраны — отдельной волной.
             Workspace.Owner, Workspace.Staff, Workspace.Platform ->
-                BusinessRoot(resolver, app.api, onSignOut = app.auth::signOut)
+                BusinessRoot(resolver, app.api, onSignOut = app.auth::signOut, onSelectOrganization = app.auth::setOrganization)
             else -> NotYetOnAndroid(
                 name = resolver.session.displayName,
                 onSignOut = app.auth::signOut,
