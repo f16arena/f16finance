@@ -101,6 +101,23 @@ class ApiClient(
         sendRaw(request)
     }
 
+    /** Запрос, ответ которого — файл (PDF отчёта): байты как есть, без разбора и без кэша. */
+    suspend fun download(request: ApiRequest, isRetry: Boolean = false): ByteArray {
+        val response = try {
+            http.newCall(build(request)).await()
+        } catch (e: IOException) {
+            throw ApiError.Transport(e.message ?: "")
+        }
+        val code = response.code
+        val bytes = withContext(Dispatchers.IO) { response.use { it.body?.bytes() ?: ByteArray(0) } }
+        if (code in 200..299) return bytes
+        if (code == 401 && !isRetry) {
+            val token = runCatching { tokenProvider.refreshAccessToken() }.getOrNull()
+            if (!token.isNullOrEmpty()) return download(request, isRetry = true)
+        }
+        throw makeError(code, bytes.decodeToString(), request.path)
+    }
+
     suspend inline fun <reified T> cached(request: ApiRequest): T? = cached(request, serializer<T>())
 
     /**

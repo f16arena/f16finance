@@ -1,0 +1,179 @@
+package kz.ordaops.android.feature.business.finance
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kz.ordaops.android.core.net.ApiClient
+import kz.ordaops.android.core.net.ApiRequest
+import kz.ordaops.android.core.net.HttpMethod
+import kz.ordaops.android.feature.business.BizList
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+
+/**
+ * Запросы раздела «Финансы» — то, что на айфоне живёт в `BusinessService` и
+ * `ExpenseWizardService`. Только пути, которые уже зовёт айфон.
+ */
+class FinanceApi(val api: ApiClient) {
+
+    /** Потолок страницы у роутов доходов/расходов: признака «есть ещё» они не отдают. */
+    private val pageSize = "5000"
+
+    suspend fun incomes(from: String, to: String): List<IncomeRow> =
+        api.send<BizList<IncomeRow>>(incomesRequest(from, to)).data
+
+    suspend fun cachedIncomes(from: String, to: String): List<IncomeRow>? =
+        api.cached<BizList<IncomeRow>>(incomesRequest(from, to))?.data
+
+    suspend fun expenses(from: String, to: String): List<ExpenseRow> =
+        api.send<BizList<ExpenseRow>>(expensesRequest(from, to)).data
+
+    suspend fun cachedExpenses(from: String, to: String): List<ExpenseRow>? =
+        api.cached<BizList<ExpenseRow>>(expensesRequest(from, to))?.data
+
+    private fun incomesRequest(from: String, to: String) =
+        ApiRequest("/api/admin/incomes", query = mapOf("from" to from, "to" to to, "page_size" to pageSize))
+
+    private fun expensesRequest(from: String, to: String) =
+        ApiRequest("/api/admin/expenses", query = mapOf("from" to from, "to" to to, "page_size" to pageSize))
+
+    /** Дубль (409 `duplicate`) приходит как `ApiError.Conflict`; `force` — «сохранить всё равно». */
+    suspend fun createIncome(draft: IncomeDraft, force: Boolean) =
+        api.sendUnit(ApiRequest.json("/api/admin/incomes", draft.body(force)))
+
+    /** Приход по зонам точки — одна запись на зону с суммой. */
+    suspend fun createZoneIncome(body: JsonObject) = api.sendUnit(ApiRequest.json("/api/admin/incomes", body))
+
+    suspend fun updateIncome(edit: IncomeEdit) = api.sendUnit(ApiRequest.json("/api/admin/incomes", edit.body()))
+
+    suspend fun updateExpense(edit: ExpenseEdit) = api.sendUnit(ApiRequest.json("/api/admin/expenses", edit.body()))
+
+    suspend fun deleteIncome(id: String) = api.sendUnit(
+        ApiRequest.json("/api/admin/incomes", buildJsonObject { put("action", "deleteIncome"); put("incomeId", id) }),
+    )
+
+    suspend fun deleteExpense(id: String) = api.sendUnit(
+        ApiRequest.json("/api/admin/expenses", buildJsonObject { put("action", "deleteExpense"); put("expenseId", id) }),
+    )
+
+    // ── Одобрение расходов ──────────────────────────────────────────────────
+
+    suspend fun pending(): List<PendingItem> = api.send<BizList<PendingItem>>(ApiRequest("/api/admin/expenses/pending")).data
+
+    suspend fun approve(id: String) = api.sendUnit(ApiRequest("/api/admin/expenses/$id/approve", HttpMethod.POST))
+
+    suspend fun decline(id: String, reason: String?) {
+        val body = if (reason.isNullOrBlank()) null else buildJsonObject { put("reason", reason) }
+        api.sendUnit(
+            if (body == null) ApiRequest("/api/admin/expenses/$id/decline", HttpMethod.POST)
+            else ApiRequest.json("/api/admin/expenses/$id/decline", body),
+        )
+    }
+
+    // ── Движение денег ──────────────────────────────────────────────────────
+
+    suspend fun cashflow(from: String, to: String, includeExtra: Boolean, companyId: String?): CashflowReport {
+        val query = buildMap {
+            put("from", from); put("to", to)
+            if (includeExtra) put("include_extra", "1")
+            if (!companyId.isNullOrEmpty()) put("company_id", companyId)
+        }
+        return api.send<kz.ordaops.android.feature.business.BizData<CashflowReport>>(ApiRequest("/api/admin/cashflow/summary", query = query)).data
+    }
+
+    /** Регулярные платежи на месяц вперёд и деньги до конца месяца. */
+    suspend fun cashflowOutlook(companyId: String?): CashflowOutlook {
+        val query = if (companyId.isNullOrEmpty()) emptyMap() else mapOf("company_id" to companyId)
+        return api.send<kz.ordaops.android.feature.business.BizData<CashflowOutlook>>(ApiRequest("/api/admin/cashflow/outlook", query = query)).data
+    }
+
+    suspend fun balanceAnchors(): CashflowAnchorList =
+        api.send<kz.ordaops.android.feature.business.BizData<CashflowAnchorList>>(ApiRequest("/api/admin/cashflow/balance")).data
+
+    suspend fun saveBalanceAnchor(draft: CashflowAnchorDraft) =
+        api.sendUnit(ApiRequest.json("/api/admin/cashflow/balance", draft.body()))
+
+    suspend fun deleteBalanceAnchor(id: String) =
+        api.sendUnit(ApiRequest("/api/admin/cashflow/balance", HttpMethod.DELETE, query = mapOf("id" to id)))
+
+    // ── Долги с точки ───────────────────────────────────────────────────────
+
+    suspend fun pointDebts(weekStart: String): PointDebtWeek =
+        api.send<kz.ordaops.android.feature.business.BizData<PointDebtWeek>>(ApiRequest("/api/admin/point-debts", query = mapOf("weekStart" to weekStart))).data
+
+    /** Отметить долги погашенными. Право `point-debts.mark_paid`; запись видна в журнале. */
+    suspend fun markDebtsPaid(itemIds: List<String>) = api.sendUnit(
+        ApiRequest.json(
+            "/api/admin/point-debts",
+            buildJsonObject {
+                put("action", "markPaid")
+                put("itemIds", kotlinx.serialization.json.JsonArray(itemIds.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+            },
+        ),
+    )
+
+    // ── Справочники ─────────────────────────────────────────────────────────
+
+    /** Операторы для выбора в форме прихода — только активные. */
+    suspend fun operators(): List<FinOperator> =
+        api.send<BizList<FinOperator>>(ApiRequest("/api/admin/operators", query = mapOf("active_only" to "true"))).data
+
+    /** Кто мог потратить — для формы расхода (роут учитывает охват сотрудника). */
+    suspend fun expenseOperators(): List<FinOperator> =
+        api.send<BizList<FinOperator>>(ApiRequest("/api/admin/expenses/operators")).data
+
+    /** Точки для форм новой работы. `open=1` — закрытые (archived_at) не предлагаем. */
+    suspend fun openCompanies(): List<FinCompany> =
+        api.send<BizList<FinCompany>>(ApiRequest("/api/admin/companies", query = mapOf("open" to "1"))).data
+
+    suspend fun categories(): List<ExpenseCategory> =
+        api.send<BizList<ExpenseCategory>>(ApiRequest("/api/admin/expense-categories")).data
+
+    suspend fun vendors(): List<ExpenseVendor> =
+        api.send<BizList<ExpenseVendor>>(ApiRequest("/api/admin/expenses/whitelist")).data
+
+    // ── Мастер расхода ──────────────────────────────────────────────────────
+    //
+    // Расход одним запросом не создать (сервер отвечает 410 на createExpense):
+    // открыть сессию → приложить документ → сохранить поля → отправить.
+
+    @Serializable
+    private data class SessionData(val id: String = "")
+
+    @Serializable
+    private data class SessionEnvelope(val data: SessionData = SessionData())
+
+    @Serializable
+    private data class UploadResult(@SerialName("document_urls") val documentUrls: List<String> = emptyList())
+
+    suspend fun startExpenseSession(): String =
+        api.send<SessionEnvelope>(ApiRequest.json("/api/admin/expenses/wizard", JsonObject(emptyMap()))).data.id
+
+    /** Приложить документ. Возвращает все ссылки сессии, включая прежние. */
+    suspend fun uploadExpenseDocument(sessionId: String, bytes: ByteArray, fileName: String, mimeType: String): List<String> {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("session_id", sessionId)
+            .addFormDataPart("file", fileName, bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        return api.send<UploadResult>(ApiRequest("/api/admin/expenses/wizard/upload", HttpMethod.POST, body = body)).documentUrls
+    }
+
+    /** Шаг и отправка идут подряд: форма на телефоне одна. */
+    suspend fun submitExpense(sessionId: String, draft: ExpenseDraft) {
+        api.sendUnit(
+            ApiRequest.json(
+                "/api/admin/expenses/wizard",
+                buildJsonObject {
+                    put("session_id", sessionId)
+                    put("step", 3)
+                    put("payload", draft.payload())
+                },
+                HttpMethod.PATCH,
+            ),
+        )
+        api.sendUnit(ApiRequest.json("/api/admin/expenses/wizard/submit", buildJsonObject { put("session_id", sessionId) }))
+    }
+}
