@@ -92,10 +92,12 @@ class ServicesAccessTest {
     }
 
     @Test
-    fun `журнал и доступы скрыты у владельца и видны суперадмину`() {
+    fun `журнал скрыт у владельца, доступы видны только владельцу и суперадмину`() {
         val owner = access(setOf("logs.view", "access.view", "income.view"))
         assertFalse("logs" in ids(owner))
-        assertFalse("access" in ids(owner))
+        assertTrue("access" in ids(owner))
+        val manager = access(setOf("access.view", "income.view"), staffRole = "manager")
+        assertFalse("access" in ids(manager))
         assertTrue("income" in ids(owner))
         val root = access(emptySet(), superAdmin = true)
         assertTrue("logs" in ids(root))
