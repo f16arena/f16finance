@@ -17,13 +17,12 @@ import {
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { Card } from '@/components/ui/card'
+import { NativeSelect } from '@/components/ui/native-select'
+import { StoreEmpty, StoreStat, StoreStatGrid, storeCard } from '@/components/store/store-ui'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { StoreDataTableSkeleton } from '@/components/store/store-data-table-skeleton'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDebouncedValue, useUrlState } from '@/lib/hooks/use-url-state'
 import { isAbortError } from '@/lib/is-abort-error'
 import { useStoreApiUrl } from '@/components/store/store-scope'
@@ -417,19 +416,16 @@ function StoreRequestsJournalPageContent({ embedded = false }: { embedded?: bool
                 className="h-9 pl-9"
               />
             </div>
-            <Select value={filters.status} onValueChange={(value) => setFilters({ status: value })}>
-              <SelectTrigger className="h-9 w-full sm:w-[200px]"><SelectValue placeholder="Все статусы" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="new">Новая</SelectItem>
-                <SelectItem value="approved_full">Одобрена полностью</SelectItem>
-                <SelectItem value="approved_partial">Одобрена частично</SelectItem>
-                <SelectItem value="issued">Выдана</SelectItem>
-                <SelectItem value="received">Получена</SelectItem>
-                <SelectItem value="rejected">Отклонена</SelectItem>
-                <SelectItem value="disputed">Спор</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect value={filters.status} onChange={(event) => setFilters({ status: event.target.value })} className="h-9 w-full sm:w-[200px]">
+              <option value="all">Все статусы</option>
+              <option value="new">Новая</option>
+              <option value="approved_full">Одобрена полностью</option>
+              <option value="approved_partial">Одобрена частично</option>
+              <option value="issued">Выдана</option>
+              <option value="received">Получена</option>
+              <option value="rejected">Отклонена</option>
+              <option value="disputed">Спор</option>
+            </NativeSelect>
             <Input
               value={filters.actor}
               onChange={(event) => setFilters({ actor: event.target.value })}
@@ -472,32 +468,14 @@ function StoreRequestsJournalPageContent({ embedded = false }: { embedded?: bool
       })()}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-6">
-        <Card className="border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Всего</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold">{stats.total}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-300/70">Новые</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-8" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.newCount}</p>}
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-300/70">Одобрены</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-8" /> : <p className="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-200">{stats.approved}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-300/70">Выданы</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-8" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.issued}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-300/70">Получены</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-8" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.received}</p>}
-        </Card>
-        <Card className="border-red-500/20 bg-red-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-red-300/70">Отклонены</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-8" /> : <p className="mt-1 text-xl font-semibold text-red-700 dark:text-red-200">{stats.rejected}</p>}
-        </Card>
-      </div>
+      <StoreStatGrid cols={6}>
+        <StoreStat label="Всего" value={stats.total} loading={loading} />
+        <StoreStat label="Новые" value={stats.newCount} tone={stats.newCount > 0 ? 'amber' : 'neutral'} hint="ждут решения" loading={loading} />
+        <StoreStat label="Одобрены" value={stats.approved} tone={stats.approved > 0 ? 'emerald' : 'neutral'} loading={loading} />
+        <StoreStat label="Выданы" value={stats.issued} tone={stats.issued > 0 ? 'sky' : 'neutral'} loading={loading} />
+        <StoreStat label="Получены" value={stats.received} tone={stats.received > 0 ? 'emerald' : 'neutral'} loading={loading} />
+        <StoreStat label="Отклонены" value={stats.rejected} tone={stats.rejected > 0 ? 'rose' : 'neutral'} loading={loading} />
+      </StoreStatGrid>
 
       {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-200">{error}</div> : null}
       {refreshing ? (
@@ -508,14 +486,15 @@ function StoreRequestsJournalPageContent({ embedded = false }: { embedded?: bool
       ) : null}
 
       {/* Main table */}
-      <Card className="overflow-hidden border-slate-200 bg-card/70 dark:border-white/10 p-0">
+      <div className={`${storeCard} overflow-hidden`}>
         {loading && filtered.length === 0 ? (
           <StoreDataTableSkeleton columns={8} />
         ) : filtered.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 opacity-50" />
-            По этим фильтрам ничего не найдено
-          </div>
+          <StoreEmpty
+            icon={<Package className="h-5 w-5" />}
+            title="По этим фильтрам ничего не найдено"
+            hint="Сбросьте фильтры или расширьте период — журнал показывает все заявки точек."
+          />
         ) : (
           <div className="relative max-h-[calc(100vh-340px)] overflow-auto">
             {refreshing ? (
@@ -639,7 +618,7 @@ function StoreRequestsJournalPageContent({ embedded = false }: { embedded?: bool
             </div>
           </div>
         )}
-      </Card>
+      </div>
 
       <Dialog
         open={requestDetailsOpen}

@@ -6,9 +6,9 @@ import { ShoppingCart, Loader2, Sparkles, Save, TrendingUp, TrendingDown, Calcul
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { Card } from '@/components/ui/card'
+import { StoreChip, StoreEmpty, StoreSection, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
 import { useStoreScope } from '@/components/store/store-scope'
 import { formatMoney as money } from '@/lib/core/format'
 
@@ -245,18 +245,16 @@ export default function PurchasePlanPage() {
       />
 
       {/* Панель управления */}
-      <Card className="p-4 bg-white dark:bg-slate-900/40 border-border">
+      <div className={`${storeCard} p-4`}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-full sm:w-auto sm:min-w-[220px] flex-1 space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Точка</label>
-            <Select value={companyId || undefined} onValueChange={(v) => setCompanyId(v)}>
-              <SelectTrigger><SelectValue placeholder="Выберите точку" /></SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+              <option value="" disabled>Выберите точку</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </NativeSelect>
           </div>
           <Button onClick={calculate} disabled={loading || !companyId} className="bg-emerald-600 hover:bg-emerald-500">
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Calculator className="h-4 w-4 mr-1.5" />}
@@ -282,22 +280,22 @@ export default function PurchasePlanPage() {
         <p className="mt-3 text-xs text-muted-foreground">
           Спрос — средние продажи за 4 недели. Цель — запас на 2 недели. К закупу = цель − остаток (округление вверх). Цена — из последней приёмки товара.
         </p>
-      </Card>
+      </div>
 
       {error ? (
-        <Card className="p-3 border-rose-500/30 bg-rose-500/10 text-sm text-rose-700 dark:text-rose-200">{error}</Card>
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-200">{error}</div>
       ) : null}
       {success ? (
-        <Card className="p-3 border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-700 dark:text-emerald-200">{success}</Card>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-200">{success}</div>
       ) : null}
 
       {aiText ? (
-        <Card className="p-4 bg-emerald-500/[0.06] border-emerald-500/30">
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
           <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
             <Sparkles className="h-4 w-4" /> AI-совет по закупу
           </div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-body">{aiText}</p>
-        </Card>
+        </div>
       ) : null}
 
       {/* Состояния */}
@@ -309,36 +307,36 @@ export default function PurchasePlanPage() {
 
       {plan && computed ? (
         plan.bySupplier.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            На следующую неделю докупать нечего — остатков хватает либо нет продаж за последние 4 недели.
-          </Card>
+          <div className={storeCard}>
+            <StoreEmpty
+              title="Докупать нечего"
+              hint="Остатков хватает на следующую неделю, либо за последние 4 недели не было продаж — по ним план не строится."
+            />
+          </div>
         ) : (
           <div className="space-y-5">
-            {/* Итоговая плашка */}
-            <Card className="p-4 bg-white dark:bg-slate-900/60 border-border">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Неделя с {fmtDate(plan.weekStart)} · поставщиков {computed.groups.length} · позиций {computed.positions}
-                  </div>
-                  <div className="mt-1 text-3xl font-bold tabular-nums text-foreground">{money(computed.total)}</div>
-                </div>
-                {plan.revenue4wPerWeek > 0 ? (
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Выручка точки за 7 дней</div>
-                    <div className="text-sm font-semibold tabular-nums text-body">{money(plan.revenue4wPerWeek)}</div>
-                  </div>
-                ) : null}
+            {/* Итог */}
+            <div className={`${storeCard} p-4`}>
+              <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Закупить на неделю с {fmtDate(plan.weekStart)}</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-foreground">{money(computed.total)}</div>
+              <div className="mt-3">
+                <StoreStatGrid cols={3}>
+                  <StoreStat label="Поставщиков" value={computed.groups.length} />
+                  <StoreStat label="Позиций" value={computed.positions} />
+                  <StoreStat label="Выручка за 7 дней" value={plan.revenue4wPerWeek > 0 ? money(plan.revenue4wPerWeek) : '—'} hint="для сравнения" />
+                </StoreStatGrid>
               </div>
-            </Card>
+            </div>
 
             {/* По поставщикам */}
             {computed.groups.map((g) => (
-              <Card key={g.supplier} className="overflow-hidden bg-white dark:bg-slate-900/40 border-border">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-                  <div className="text-sm font-semibold text-foreground">{g.supplier}</div>
-                  <div className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{money(g.total)}</div>
-                </div>
+              <StoreSection
+                key={g.supplier}
+                flush
+                title={g.supplier === '—' ? 'Поставщик не указан' : g.supplier}
+                subtitle={`${g.items.length} ${plural(g.items.length, ['позиция', 'позиции', 'позиций'])}`}
+                action={<span className="text-base font-bold tabular-nums text-foreground">{money(g.total)}</span>}
+              >
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead>
@@ -358,7 +356,7 @@ export default function PurchasePlanPage() {
                           <td className="px-4 py-2">
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium text-foreground">{it.name}</span>
-                              {it.wasOutOfStock ? <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300" title="Сейчас в нуле — реальный спрос мог быть выше">был в нуле</span> : null}
+                              {it.wasOutOfStock ? <span title="Сейчас в нуле — реальный спрос мог быть выше"><StoreChip tone="amber">был в нуле</StoreChip></span> : null}
                             </div>
                             {it.barcode ? <div className="text-[11px] text-slate-400 tabular-nums">{it.barcode}</div> : null}
                           </td>
@@ -409,17 +407,17 @@ export default function PurchasePlanPage() {
                     </tbody>
                   </table>
                 </div>
-              </Card>
+              </StoreSection>
             ))}
 
             {/* Не бери — затоваренные позиции (остатка хватит надолго) */}
             {plan.doNotBuy && plan.doNotBuy.length > 0 ? (
-              <Card className="overflow-hidden bg-white dark:bg-slate-900/40 border-border">
-                <div className="border-b border-border px-4 py-3">
-                  <div className="text-sm font-semibold text-foreground">🧊 Не бери — затоварено ({plan.doNotBuy.length})</div>
-                  <div className="text-[11px] text-muted-foreground">Остатка хватит надолго — деньги заморожены, лучше распродать.</div>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-white/5">
+              <StoreSection
+                flush
+                title={`Не бери — затоварено (${plan.doNotBuy.length})`}
+                subtitle="Остатка хватит надолго — деньги заморожены, лучше распродать."
+              >
+                <div className="divide-y divide-border">
                   {plan.doNotBuy.map((s) => (
                     <div key={s.item_id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
                       <span className="min-w-0 truncate text-body">{s.name}</span>
@@ -430,7 +428,7 @@ export default function PurchasePlanPage() {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </StoreSection>
             ) : null}
           </div>
         )
