@@ -15,7 +15,8 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useStoreScope } from '@/components/store/store-scope'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { Card } from '@/components/ui/card'
+import { NativeSelect } from '@/components/ui/native-select'
+import { StoreEmpty, StoreStat, StoreStatGrid, storeCard } from '@/components/store/store-ui'
 import { uploadFile } from '@/lib/client/upload-file'
 import { toast } from '@/hooks/use-toast'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
@@ -218,22 +219,22 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
   const activeCount = ads.filter((a) => a.is_active).length
 
   return (
-    <div className={embedded ? 'space-y-6' : 'space-y-6 p-4 md:p-6'}>
+    <div className={embedded ? 'space-y-5' : 'app-page-wide space-y-5'}>
       {(() => {
         const hdrActions = (
           <div className="flex flex-wrap items-center gap-2">
             {!storeCompanyId && (
-              <select
+              <NativeSelect
                 value={companyId}
                 onChange={(e) => setCompanyId(e.target.value)}
-                className="h-9 w-full sm:w-auto rounded-md border border-border bg-white dark:bg-white/[0.03] px-3 text-sm text-body outline-none focus:border-amber-500/40"
+                className="w-full rounded-xl sm:w-auto sm:min-w-[160px]"
               >
                 {companies.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             )}
             <input
               ref={fileRef}
@@ -261,52 +262,52 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
         ) : (
           <AdminPageHeader
             title="Реклама на экране клиента"
-            description="Видео и картинки крутятся на втором мониторе, когда касса простаивает между клиентами"
+            description="Видео и картинки на втором мониторе, пока касса свободна между клиентами"
             icon={<Clapperboard className="h-5 w-5" />}
-            accent="amber"
+            accent="emerald"
+            backHref="/store"
             actions={hdrActions}
           />
         )
       })()}
 
       {error && (
-        <Card className="border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-200">{error}</Card>
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{error}</div>
       )}
 
-      <Card className="border-border p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-body">
-            Плейлист • {ads.length}{' '}
-            <span className="text-slate-500">({activeCount} активных)</span>
-          </span>
-          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-        </div>
-      </Card>
+      <StoreStatGrid cols={3}>
+        <StoreStat label="В плейлисте" value={ads.length} loading={loading && ads.length === 0} hint={ads.length === 0 ? 'пока пусто' : 'роликов и картинок'} />
+        <StoreStat label="Показываются" value={activeCount} tone={activeCount > 0 ? 'emerald' : 'neutral'} loading={loading && ads.length === 0} hint="на экране клиента" />
+        <StoreStat label="Выключены" value={ads.length - activeCount} tone={ads.length - activeCount > 0 ? 'amber' : 'neutral'} loading={loading && ads.length === 0} hint="не крутятся, но сохранены" />
+      </StoreStatGrid>
 
       {ads.length === 0 && !loading ? (
-        <Card className="border-dashed border-slate-200 dark:border-white/15 p-10 text-center">
-          <Clapperboard className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-          <p className="text-sm text-muted-foreground">
-            Пусто. Загрузи видео (MP4, WEBM, MOV) или картинки (JPG, PNG, WEBP, GIF) — до 200 МБ.
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Контент покажется на экране клиента в порядке этого списка, пока касса свободна.
-          </p>
-        </Card>
+        <div className={`${storeCard} border-dashed`}>
+          <StoreEmpty
+            icon={<Clapperboard className="h-5 w-5" />}
+            title="Рекламы пока нет"
+            hint="Загрузите видео (MP4, WEBM, MOV) или картинки (JPG, PNG, WEBP, GIF) — до 200 МБ. Они покажутся на экране клиента в порядке этого списка, пока касса свободна."
+            action={can('store-advertising.create') ? (
+              <Button onClick={onPickFile} disabled={uploading || !companyId} size="sm">
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Загрузить
+              </Button>
+            ) : undefined}
+          />
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {ads.map((ad, index) => (
-            <Card
+            <div
               key={ad.id}
               draggable
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(index)}
-              className={`overflow-hidden border-border transition ${
+              className={`${storeCard} overflow-hidden transition ${
                 dragIndex === index ? 'opacity-50' : ''
               } ${ad.is_active ? '' : 'opacity-60'}`}
             >
-              <div className="relative aspect-video bg-card">
+              <div className="relative aspect-video bg-slate-100 dark:bg-slate-950/60">
                 {ad.media_type === 'video' ? (
                   <video
                     src={ad.url}
@@ -366,10 +367,11 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
                     {can('store-advertising.edit') && (
                     <button
                       onClick={() => toggleActive(ad)}
-                      className={`rounded-md px-2 py-1 text-[11px] ${
+                      title={ad.is_active ? 'Нажмите, чтобы выключить показ' : 'Нажмите, чтобы включить показ'}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         ad.is_active
-                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                          : 'bg-slate-500/15 text-muted-foreground'
+                          ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+                          : 'bg-slate-100 text-muted-foreground hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10'
                       }`}
                     >
                       {ad.is_active ? 'Активно' : 'Выключено'}
@@ -378,7 +380,9 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
                     {can('store-advertising.delete') && (
                     <button
                       onClick={() => removeAd(ad)}
-                      className="rounded-md bg-rose-500/10 p-1.5 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
+                      title="Удалить"
+                      aria-label="Удалить"
+                      className="rounded-lg bg-rose-500/10 p-1.5 text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -386,7 +390,7 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

@@ -9,6 +9,10 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { PageSkeleton } from '@/components/skeleton'
 import { useStoreScope } from '@/components/store/store-scope'
 import { DatePicker } from '@/components/ui/date-picker'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Button } from '@/components/ui/button'
+import { formatMoney } from '@/lib/core/format'
+import { StoreChip, StoreEmpty, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
 import {
   Activity, RefreshCw, Loader2, TrendingUp, Receipt,
   Clock, Trophy, Pause, Play, Users, Tags, Coins, Package, Search, AlertTriangle,
@@ -63,15 +67,11 @@ type Company = { id: string; name: string }
 type Tab = 'monitor' | 'best' | 'profit' | 'category' | 'stock' | 'abc' | 'forecast'
 type Preset = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'
 
-const card = 'rounded-2xl border border-border bg-white dark:bg-slate-900/60 shadow-lg shadow-black/20'
-const inputCls = 'rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 py-2 text-sm text-foreground placeholder-slate-500 [color-scheme:dark] focus:border-emerald-400/50 focus:outline-none'
+const card = storeCard
+const inputCls = 'h-9 rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 py-2 text-sm text-foreground placeholder-slate-500 focus:border-emerald-400/50 focus:outline-none'
 const PAY_LABEL: Record<string, string> = { cash: 'Нал', kaspi: 'Безнал', card: 'Карта', online: 'Онлайн', mixed: 'Смеш.' }
-const PAY_CHIP: Record<string, string> = {
-  cash: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-400/30',
-  kaspi: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-400/30',
-  card: 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-400/30',
-  online: 'bg-violet-500/15 text-violet-600 dark:text-violet-300 border-violet-400/30',
-  mixed: 'bg-slate-500/15 text-body border-slate-400/30',
+const PAY_TONE: Record<string, 'emerald' | 'amber' | 'sky' | 'violet' | 'neutral'> = {
+  cash: 'emerald', kaspi: 'amber', card: 'sky', online: 'violet', mixed: 'neutral',
 }
 const fmt = (n: number) => Number(n || 0).toLocaleString('ru-RU')
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -224,32 +224,29 @@ export default function SalesMonitorPage() {
   return (
     <div className="app-page-wide space-y-5">
       <AdminPageHeader
-        title="Монитор продаж"
-        description="Продажи и аналитика в реальном времени"
+        title="Аналитика магазина"
+        description="Сколько продали, что продаётся, что лежит без движения"
         icon={<Activity className="h-5 w-5" />}
-        accent="blue"
-        backHref="/"
+        accent="emerald"
+        backHref="/store"
         actions={
           <>
             {tab === 'monitor' && isToday && (
-              <button
-                onClick={() => setLive((v) => !v)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${live ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200' : 'border-border bg-surface-muted text-body hover:bg-surface-hover'}`}
-              >
+              <Button variant="outline" size="sm" onClick={() => setLive((v) => !v)}>
                 {live ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {live ? 'Авто' : 'Пауза'}
-              </button>
+              </Button>
             )}
-            <button onClick={() => (tab === 'monitor' ? loadMonitor() : loadProducts())} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-muted px-3 py-2 text-xs font-medium text-body transition-colors hover:bg-surface-hover">
+            <Button variant="outline" size="sm" onClick={() => (tab === 'monitor' ? loadMonitor() : loadProducts())}>
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Обновить
-            </button>
+            </Button>
           </>
         }
         toolbar={
           <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-border bg-slate-50 dark:bg-slate-950/50 p-1">
             {TABS.map(({ key, label }) => (
-              <button key={key} onClick={() => setTab(key)} className={`rounded-xl px-3 py-2 text-sm font-medium transition-all sm:px-4 ${tab === key ? 'bg-white/10 text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}>
+              <button key={key} onClick={() => setTab(key)} className={`rounded-xl px-3 py-2 text-sm font-medium transition-all sm:px-4 ${tab === key ? 'bg-white dark:bg-white/10 text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}>
                 {label}
               </button>
             ))}
@@ -264,7 +261,7 @@ export default function SalesMonitorPage() {
           <button
             key={k}
             onClick={() => applyPreset(k)}
-            className={`rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${preset === k ? 'border-sky-400/40 bg-sky-500/15 text-sky-700 dark:text-sky-200' : 'border-border bg-surface-muted text-body hover:bg-surface-hover'}`}
+            className={`rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${preset === k ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200' : 'border-border bg-white dark:bg-white/5 text-body hover:bg-slate-50 dark:hover:bg-white/10'}`}
           >
             {lbl}
           </button>
@@ -275,10 +272,10 @@ export default function SalesMonitorPage() {
           <DatePicker value={to} max={today} onChange={(v) => { setTo(v); setPreset('custom'); setSavedRange({ from, to: v }) }} className={inputCls} />
         </div>
         {!storeCompanyId && (
-          <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={`${inputCls} w-full sm:w-auto`}>
+          <NativeSelect value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="w-full sm:w-auto sm:min-w-[160px]">
             <option value="">Все точки</option>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </NativeSelect>
         )}
         {isProduct && (
           <div className="relative w-full flex-1 sm:w-auto sm:min-w-[200px]">
@@ -291,10 +288,10 @@ export default function SalesMonitorPage() {
 
       {/* Статус (только монитор) */}
       {tab === 'monitor' && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {isToday ? (
             <>
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${live ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-surface-muted'}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${live ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-slate-50 dark:bg-white/5'}`}>
                 <span className={`h-2 w-2 rounded-full ${live ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
                 {live ? 'В реальном времени' : 'На паузе'}
               </span>
@@ -331,17 +328,29 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
 
   return (
     <>
-      {/* 3 верхние карточки: Продажи / Возврат / Приёмка */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard label="Продажи" icon={<TrendingUp className="h-4 w-4" />} color="text-emerald-600 dark:text-emerald-300" amount={t!.amount} count={t!.count} delta={data.prev.delta_pct} />
-        <StatCard label="Возврат" icon={<RotateCcw className="h-4 w-4" />} color="text-rose-600 dark:text-rose-300" amount={data.returns.amount} count={data.returns.count} />
-        <StatCard label="Приёмка" icon={<Truck className="h-4 w-4" />} color="text-sky-600 dark:text-sky-300" amount={data.receipts.amount} count={data.receipts.count} />
-      </div>
+      {/* Главное: сколько продали и как это относится к прошлому периоду */}
+      <StoreStatGrid cols={4}>
+        <StoreStat
+          label="Продажи"
+          value={`${fmt(t!.amount)} ₸`}
+          tone={t!.amount > 0 ? 'emerald' : 'neutral'}
+          icon={<TrendingUp className="h-4 w-4" />}
+          hint={<PrevHint prevAmount={data.prev.amount} delta={data.prev.delta_pct} count={t!.count} />}
+        />
+        <StoreStat label="Чистая прибыль" value={`${fmt(t!.net_profit)} ₸`} tone={t!.net_profit > 0 ? 'emerald' : t!.net_profit < 0 ? 'rose' : 'neutral'} icon={<Coins className="h-4 w-4" />} hint="после себестоимости" />
+        <StoreStat label="Средний чек" value={`${fmt(t!.avg_check)} ₸`} icon={<Activity className="h-4 w-4" />} hint={`${fmt(t!.count)} ${plural(t!.count, ['продажа', 'продажи', 'продаж'])}`} />
+        <StoreStat label="За последний час" value={`${fmt(data.last_hour.amount)} ₸`} tone={data.last_hour.amount > 0 ? 'amber' : 'neutral'} icon={<Clock className="h-4 w-4" />} hint={`${data.last_hour.count} ${plural(data.last_hour.count, ['продажа', 'продажи', 'продаж'])}`} />
+      </StoreStatGrid>
+      <StoreStatGrid cols={3}>
+        <StoreStat label="Возвраты" value={`${fmt(data.returns.amount)} ₸`} tone={data.returns.amount > 0 ? 'rose' : 'neutral'} icon={<RotateCcw className="h-4 w-4" />} hint={`${fmt(data.returns.count)} шт`} />
+        <StoreStat label="Приёмка товара" value={`${fmt(data.receipts.amount)} ₸`} tone={data.receipts.amount > 0 ? 'sky' : 'neutral'} icon={<Truck className="h-4 w-4" />} hint={`${fmt(data.receipts.count)} ${plural(data.receipts.count, ['документ', 'документа', 'документов'])}`} />
+        <StoreStat label="Оплата безналом" value={t!.amount > 0 ? `${Math.round(((data.payment.kaspi + data.payment.card + data.payment.online) / t!.amount) * 100)}%` : '—'} hint="доля от продаж" />
+      </StoreStatGrid>
 
       {/* График по часам + сетка KPI */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className={`${card} p-4 lg:col-span-2`}>
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Clock className="h-4 w-4 text-sky-600 dark:text-sky-300" /> Продажи {useDaily ? 'по дням' : 'по часам'}</div>
+      <div className="grid grid-cols-1 gap-5">
+        <div className={`${card} p-4`}>
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Clock className="h-4 w-4 text-muted-foreground" /> Продажи {useDaily ? 'по дням' : 'по часам'}<span className="ml-auto text-xs font-normal text-muted-foreground">{useDaily ? 'пик дня' : 'пик часа'} — {fmt(useDaily ? maxDay : maxHour)} ₸</span></div>
           {(t!.amount === 0) ? (
             <div className="flex h-44 items-center justify-center text-sm text-slate-500">Нет данных для отображения</div>
           ) : useDaily ? (
@@ -351,7 +360,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
               const label = `${d.date.slice(8, 10)}.${d.date.slice(5, 7)}`
               return (
                 <div key={d.date} className="flex min-w-0 flex-1 flex-col justify-end gap-1" title={`${label} — ${fmt(d.amount)} ₸ · ${d.count} продаж`}>
-                  <div className="flex flex-1 items-end"><div className={`w-full rounded-t transition-all ${peak ? 'bg-sky-400' : 'bg-sky-400/50'}`} style={{ height: `${pct}%` }} /></div>
+                  <div className="flex flex-1 items-end"><div className={`w-full rounded-t transition-all ${peak ? 'bg-emerald-500' : 'bg-emerald-500/40'}`} style={{ height: `${pct}%` }} /></div>
                   <div className="truncate text-center text-[9px] text-slate-500">{label}</div>
                 </div>
               )
@@ -362,18 +371,12 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
               const peak = h.amount === maxHour && h.amount > 0
               return (
                 <div key={h.hour} className="flex min-w-0 flex-1 flex-col justify-end gap-1" title={`${pad2(h.hour)}:00 — ${fmt(h.amount)} ₸ · ${h.count} продаж`}>
-                  <div className="flex flex-1 items-end"><div className={`w-full rounded-t transition-all ${peak ? 'bg-sky-400' : 'bg-sky-400/40'}`} style={{ height: `${pct}%` }} /></div>
-                  <div className="text-center text-[9px] text-slate-500">{pad2(h.hour)}</div>
+                  <div className="flex flex-1 items-end"><div className={`w-full rounded-t transition-all ${peak ? 'bg-emerald-500' : 'bg-emerald-500/40'}`} style={{ height: `${pct}%` }} /></div>
+                  <div className="text-center text-[9px] text-slate-500"><span className={h.hour % 3 === 0 ? '' : 'invisible sm:visible'}>{pad2(h.hour)}</span></div>
                 </div>
               )
             })}</div>
           )}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Kpi label="Выручка" value={`${fmt(t!.amount)} ₸`} icon={<TrendingUp className="h-4 w-4" />} accent="text-emerald-600 dark:text-emerald-300" />
-          <Kpi label="Чистая прибыль" value={`${fmt(t!.net_profit)} ₸`} icon={<Coins className="h-4 w-4" />} accent={t!.net_profit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'} />
-          <Kpi label="Средний чек" value={`${fmt(t!.avg_check)} ₸`} icon={<Activity className="h-4 w-4" />} accent="text-foreground" />
-          <Kpi label="За последний час" value={`${fmt(data.last_hour.amount)} ₸`} sub={`${data.last_hour.count} продаж`} icon={<Clock className="h-4 w-4" />} accent="text-amber-600 dark:text-amber-300" />
         </div>
       </div>
 
@@ -381,7 +384,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className={`${card} overflow-hidden`}>
           <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold text-foreground"><Users className="h-4 w-4 text-violet-600 dark:text-violet-300" /> Информация о сотрудниках</div>
-          {data.by_operator.length === 0 ? <div className="px-4 py-10 text-center text-sm text-slate-400">Нет данных</div> : (
+          {data.by_operator.length === 0 ? <StoreEmpty title="Пока нет данных" hint="Появятся после первых продаж за выбранный период." /> : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[480px] text-sm">
                 <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-slate-500">
@@ -390,7 +393,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
                   <th className="px-4 py-2 text-right font-medium">Ср. чек</th>
                   <th className="px-4 py-2 text-right font-medium">Сумма</th>
                 </tr></thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5">{data.by_operator.map((o) => (
+                <tbody className="divide-y divide-border">{data.by_operator.map((o) => (
                   <tr key={o.name} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                     <td className="px-4 py-2.5 text-foreground">{o.name}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-body">{o.count}</td>
@@ -404,7 +407,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
         </div>
         <div className={`${card} overflow-hidden`}>
           <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold text-foreground"><Tags className="h-4 w-4 text-amber-600 dark:text-amber-300" /> Товары по категориям</div>
-          {data.by_category.length === 0 ? <div className="px-4 py-10 text-center text-sm text-slate-400">Нет данных</div> : (
+          {data.by_category.length === 0 ? <StoreEmpty title="Пока нет данных" hint="Появятся после первых продаж за выбранный период." /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-slate-500">
@@ -412,7 +415,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
                   <th className="px-4 py-2 text-right font-medium">Количество</th>
                   <th className="px-4 py-2 text-right font-medium">Сумма</th>
                 </tr></thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5">{data.by_category.map((c) => (
+                <tbody className="divide-y divide-border">{data.by_category.map((c) => (
                   <tr key={c.name} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                     <td className="px-4 py-2.5 text-foreground">{c.name}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-body">{fmt(c.qty)}</td>
@@ -435,7 +438,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
               <th className="px-4 py-2 text-right font-medium">Сумма продаж</th>
               <th className="px-4 py-2 text-right font-medium">Доля</th>
             </tr></thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+            <tbody className="divide-y divide-border">
               {[
                 { label: 'Наличные', amount: data.payment.cash },
                 { label: 'Безнал (Kaspi)', amount: data.payment.kaspi },
@@ -444,7 +447,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
               ].map((p) => (
                 <tr key={p.label} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                   <td className="px-4 py-2.5 text-body">{p.label}</td>
-                  <td className="px-4 py-2.5 text-right font-medium tabular-nums text-foreground">{fmt(p.amount)} ₸</td>
+                  <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${p.amount > 0 ? 'text-foreground' : 'text-slate-400'}`}>{fmt(p.amount)} ₸</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">{t!.amount > 0 ? Math.round((p.amount / t!.amount) * 100) : 0}%</td>
                 </tr>
               ))}
@@ -461,13 +464,13 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
             <span className="text-xs text-slate-500">последние {data.recent.length}</span>
           </div>
           <div className="max-h-[420px] overflow-y-auto">
-            {data.recent.length === 0 ? <div className="px-4 py-12 text-center text-sm text-slate-400">Продаж нет</div> : (
+            {data.recent.length === 0 ? <StoreEmpty title="Продаж нет" hint="Чеки из кассы появятся здесь сразу после продажи." /> : (
               <>
                 {/* Мобильная версия: карточки продаж вместо компактных строк */}
-                <div className="divide-y divide-slate-100 dark:divide-white/5 sm:hidden">
+                <div className="divide-y divide-border sm:hidden">
                   {data.recent.map((s) => {
                     const time = new Date(s.sold_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                    const chip = PAY_CHIP[s.payment_method] || PAY_CHIP.mixed
+                    const tone = PAY_TONE[s.payment_method] || 'neutral'
                     const isNew = flashIds.has(s.id)
                     return (
                       <div key={s.id} className={`px-4 py-3 transition-colors ${isNew ? 'bg-emerald-500/10' : ''}`}>
@@ -476,7 +479,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
                             <div className="text-sm font-medium tabular-nums text-foreground">{time}</div>
                             {s.company_name ? <div className="truncate text-[11px] text-slate-500">{s.company_name}</div> : null}
                           </div>
-                          <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${chip}`}>{PAY_LABEL[s.payment_method] || s.payment_method}</span>
+                          <StoreChip tone={tone}>{PAY_LABEL[s.payment_method] || s.payment_method}</StoreChip>
                         </div>
                         <div className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">{fmt(s.total_amount)} ₸</div>
                         <div className="mt-1.5 space-y-0.5">
@@ -490,15 +493,15 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
                   })}
                 </div>
                 {/* Десктоп: прежние компактные строки */}
-                <div className="hidden divide-y divide-slate-100 dark:divide-white/5 sm:block">
+                <div className="hidden divide-y divide-border sm:block">
                   {data.recent.map((s) => {
                     const time = new Date(s.sold_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                    const chip = PAY_CHIP[s.payment_method] || PAY_CHIP.mixed
+                    const tone = PAY_TONE[s.payment_method] || 'neutral'
                     const isNew = flashIds.has(s.id)
                     return (
                       <div key={s.id} className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${isNew ? 'bg-emerald-500/10' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}>
                         <div className="w-11 shrink-0 text-xs tabular-nums text-muted-foreground">{time}</div>
-                        <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${chip}`}>{PAY_LABEL[s.payment_method] || s.payment_method}</span>
+                        <StoreChip tone={tone}>{PAY_LABEL[s.payment_method] || s.payment_method}</StoreChip>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm text-foreground">{s.items.length > 0 ? s.items.join(', ') : `${s.items_count} позиц.`}</div>
                           {s.operator_name !== '—' && <div className="text-[11px] text-slate-500">{s.operator_name}</div>}
@@ -514,7 +517,7 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
         </div>
         <div className={`${card} p-4`}>
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Trophy className="h-4 w-4 text-amber-600 dark:text-amber-300" /> Топ товары</div>
-          {data.top_items.length === 0 ? <div className="py-6 text-center text-sm text-slate-400">Нет данных</div> : (
+          {data.top_items.length === 0 ? <StoreEmpty title="Пока нет данных" /> : (
             <div className="space-y-1.5">{data.top_items.map((it, i) => (
               <div key={it.name} className="flex items-center gap-3 text-sm">
                 <span className="w-5 shrink-0 text-center text-xs text-slate-500">{i + 1}</span>
@@ -527,31 +530,6 @@ function MonitorView({ data, loading, flashIds }: { data: MonData | null; loadin
         </div>
       </div>
     </>
-  )
-}
-
-function StatCard({ label, icon, color, amount, count, delta }: { label: string; icon: React.ReactNode; color: string; amount: number; count: number; delta?: number | null }) {
-  return (
-    <div className={`${card} p-3 sm:p-4`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><span className={color}>{icon}</span> {label}</div>
-        {delta != null && (
-          <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-medium ${delta >= 0 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-            {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)}% <span className="font-normal opacity-80">к прошлому периоду</span>
-          </span>
-        )}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Сумма</div>
-          <div className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{fmt(amount)} ₸</div>
-        </div>
-        <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Количество</div>
-          <div className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{fmt(count)}</div>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -607,10 +585,10 @@ function ProductView({ data, loading, tab, category, setCategory, q }: { data: P
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className={`${inputCls} w-full sm:w-auto`}>
+        <NativeSelect value={category} onChange={(e) => setCategory(e.target.value)} className="w-full sm:w-auto sm:min-w-[200px]">
           <option value="">Все категории</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        </NativeSelect>
       </div>
 
       <div className={`${card} overflow-hidden`}>
@@ -618,7 +596,7 @@ function ProductView({ data, loading, tab, category, setCategory, q }: { data: P
           <span className="text-sm font-semibold text-foreground">{TABS.find((x) => x.key === tab)?.label} товары</span>
           <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">{rows.length}</span>
         </div>
-        {rows.length === 0 ? <div className="px-4 py-16 text-center text-sm text-slate-400">Нет данных за период</div> : (
+        {rows.length === 0 ? <StoreEmpty title="За период ничего нет" hint="Выберите другой период или точку." /> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
@@ -630,7 +608,7 @@ function ProductView({ data, loading, tab, category, setCategory, q }: { data: P
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+              <tbody className="divide-y divide-border">
                 {rows.map((it) => (
                   <tr key={it.item_id} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                     {tab === 'stock' ? (
@@ -816,7 +794,7 @@ function CategoryView({ data, loading, q }: { data: ProdData | null; loading: bo
           <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-muted-foreground">{rows.length}</span>
         </div>
         {rows.length === 0 ? (
-          <div className="px-4 py-16 text-center text-sm text-slate-400">Нет данных за период</div>
+          <StoreEmpty title="За период ничего нет" hint="Выберите другой период или точку." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
@@ -832,7 +810,7 @@ function CategoryView({ data, loading, q }: { data: ProdData | null; loading: bo
                   <th className="px-4 py-2.5 text-right font-medium">Залежалось</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+              <tbody className="divide-y divide-border">
                 {rows.map((row) => {
                   const open = openCategory === row.name
                   return (
@@ -892,12 +870,25 @@ function Loading() {
   return <PageSkeleton stats={3} rows={8} cols={5} />
 }
 
-function Kpi({ label, value, sub, icon, accent, big }: { label: string; value: string; sub?: string; icon: React.ReactNode; accent: string; big?: boolean }) {
+function Kpi({ label, value, sub, icon, accent }: { label: string; value: string; sub?: string; icon: React.ReactNode; accent: string; big?: boolean }) {
+  const tone = accent.includes('emerald') ? 'emerald' : accent.includes('amber') ? 'amber' : accent.includes('sky') ? 'sky' : accent.includes('rose') ? 'rose' : 'neutral'
+  return <StoreStat label={label} value={value} hint={sub} tone={tone} icon={icon} />
+}
+
+/** «было X · ±разница» к прошлому периоду такой же длины. */
+function PrevHint({ prevAmount, delta, count }: { prevAmount: number; delta: number | null; count: number }) {
   return (
-    <div className={`${card} p-3 sm:p-4`}>
-      <div className="flex items-center justify-between text-xs uppercase tracking-wider text-slate-500"><span>{label}</span><span className="text-muted-foreground">{icon}</span></div>
-      <div className={`mt-1.5 font-bold tabular-nums ${accent} ${big ? 'text-xl sm:text-2xl' : 'text-xl'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
-    </div>
+    <span>
+      {fmt(count)} {plural(count, ['продажа', 'продажи', 'продаж'])}
+      {delta != null ? (
+        <>
+          {' · '}
+          <span className={delta > 0 ? 'font-medium text-emerald-600 dark:text-emerald-300' : delta < 0 ? 'font-medium text-rose-600 dark:text-rose-300' : ''}>
+            {delta > 0 ? '+' : delta < 0 ? '−' : ''}{Math.abs(delta)}%
+          </span>
+          {' '}(было {formatMoney(prevAmount)})
+        </>
+      ) : null}
+    </span>
   )
 }
