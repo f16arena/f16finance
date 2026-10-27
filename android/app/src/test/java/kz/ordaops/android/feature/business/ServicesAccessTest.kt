@@ -154,10 +154,11 @@ class ServicesAccessTest {
     }
 
     @Test
-    fun `в волне 1 нативных разделов нет — всё идёт на сайт по пути из каталога`() {
+    fun `раздел без нативного экрана идёт на сайт по пути из каталога`() {
         val a = access(setOf("income.view"))
         val item = Services.groups(a).flatMap { it.items }.single()
-        assertTrue(item.isWeb)
+        // «Доходы» стали нативными (раздел «Финансы»): признак веба следует за реестром.
+        assertEquals(!NativePage.isNative("income"), item.isWeb)
         assertEquals("/income", item.path)
         assertEquals("https://www.ordaops.kz/income", NativePage.webUrl(item.path, "https://www.ordaops.kz"))
         assertEquals("https://www.ordaops.kz/income", NativePage.webUrl("income", "https://www.ordaops.kz/"))

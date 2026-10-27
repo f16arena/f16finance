@@ -176,7 +176,9 @@ class FinanceLogicTest {
         )
         assertEquals(400.0, CashflowLogic.netChange(report)!!, 0.0001)
         assertNull(CashflowLogic.netChange(report.copy(previous = CashflowChannels())))
-        assertEquals("−1 500 ₸", CashflowLogic.signedText(-1500.0) { String.format("%,d ₸", it.toLong()).replace(',', ' ') })
+        assertEquals("−1500", CashflowLogic.signedText(-1500.0) { it.toLong().toString() })
+        assertEquals("+7", CashflowLogic.signedText(7.0) { it.toLong().toString() })
+        assertEquals("0", CashflowLogic.signedText(0.2) { it.toLong().toString() })
     }
 
     @Test
