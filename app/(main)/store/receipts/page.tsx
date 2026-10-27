@@ -1,14 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Loader2, MoreHorizontal, Package, PackagePlus, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-react'
+import { ChevronDown, Loader2, MoreHorizontal, PackagePlus, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-react'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useStoreApiUrl, useStoreScope } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,13 +22,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { AppModal } from '@/components/ui/app-modal'
 import { toast } from '@/components/ui/use-toast'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { formatMoney } from '@/lib/core/format'
 import { StoreDataTableSkeleton } from '@/components/store/store-data-table-skeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isAbortError } from '@/lib/is-abort-error'
 import { ReceiptLineRow } from '@/components/store/receipts/receipt-line-row'
+import { ReceiptsList, type ReceiptSortKey } from '@/components/store/receipts/receipts-list'
+import { ReceiptDetailsModal } from '@/components/store/receipts/receipt-details-modal'
+import { StoreSection, StoreStat, StoreStatGrid } from '@/components/store/store-ui'
 import type {
   AiParseResult,
   DebtSummary,
@@ -45,9 +46,6 @@ import {
   asArray,
   calcMarkupPercent,
   emptyLine,
-  formatDate,
-  formatQty,
-  formatUnitCost,
   nextLineUid,
   normalizeReceipt,
   parseMoney,
@@ -55,12 +53,9 @@ import {
   parseUnitCost,
 } from '@/lib/store/receipts/format'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
-import { SortableTh } from '@/components/ui/sortable-th'
 import { useTableSort } from '@/lib/client/use-table-sort'
 import type { SortColumns, SortState } from '@/lib/core/table-sort'
 import { usePersistentState } from '@/lib/client/use-persistent-state'
-
-type ReceiptSortKey = 'date' | 'supplier' | 'location' | 'invoice' | 'positions' | 'amount' | 'payment'
 
 const RECEIPT_SORT_INITIAL: SortState<ReceiptSortKey> = { key: 'date', dir: 'desc' }
 
@@ -139,7 +134,6 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
   const [cancelReason, setCancelReason] = useState('')
   const [cancelBusy, setCancelBusy] = useState(false)
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false)
-  const [mobileExpandedReceipts, setMobileExpandedReceipts] = useState<Record<string, boolean>>({})
 
   const receiptsUrl = `/api/admin/store/receipts?scope=${scope}${storeCompanyId ? `&company_id=${encodeURIComponent(storeCompanyId)}` : ''}`
   // Суффикс ключа: тот же адрес читает страница оприходования, но раскладывает
@@ -1073,6 +1067,10 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
     rows: filteredReceipts,
   })
 
+  const missingInvoiceCount = useMemo(
+    () => (data?.receipts || []).filter((r) => r.status !== 'cancelled' && r.kind !== 'posting' && !r.invoice_file_url).length,
+    [data],
+  )
   const totalReceiptsAmount = useMemo(() => {
     return (data?.receipts || []).reduce((s, r) => s + Number(r.total_amount || 0), 0)
   }, [data?.receipts])
@@ -1134,27 +1132,18 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
         )
       })()}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Документов</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-14" /> : (
-            <p className="mt-1 text-xl font-semibold">{(data?.receipts || []).length}</p>
-          )}
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-600 dark:text-emerald-300/70">Сумма всех приёмок</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-28" /> : (
-            <p className="mt-1 truncate text-xl font-semibold text-emerald-700 dark:text-emerald-200" title={formatMoney(totalReceiptsAmount)}>{formatMoney(totalReceiptsAmount)}</p>
-          )}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-600 dark:text-amber-300/70">Поставщиков</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : (
-            <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{(data?.suppliers || []).length}</p>
-          )}
-        </Card>
-      </div>
+      {/* Сводка: только то, что меняет решения */}
+      <StoreStatGrid cols={3}>
+        <StoreStat label="Документов" value={(data?.receipts || []).length} loading={loading} />
+        <StoreStat label="Сумма приёмок" value={formatMoney(totalReceiptsAmount)} loading={loading} tone={totalReceiptsAmount > 0 ? 'emerald' : 'neutral'} />
+        <StoreStat
+          label="Без файла накладной"
+          value={missingInvoiceCount}
+          loading={loading}
+          tone={missingInvoiceCount > 0 ? 'amber' : 'neutral'}
+          hint={missingInvoiceCount > 0 ? 'Прикрепите скан — пригодится при споре' : 'Все накладные на месте'}
+        />
+      </StoreStatGrid>
 
       {error ? (
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div>
@@ -1204,43 +1193,32 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
       </div>
 
       {(data?.drafts || []).length > 0 ? (
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-300/80 mb-2">Черновики приемки</p>
+        <StoreSection title="Черновики приёмки" subtitle="Нажмите, чтобы продолжить заполнение" icon={<PackagePlus className="h-4 w-4 text-amber-500" />}>
           <div className="flex flex-wrap gap-2">
             {(data?.drafts || []).map((draft) => (
-              <div key={draft.id} className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-slate-100 dark:bg-black/20 px-3 py-1 text-xs">
-                <button type="button" onClick={() => applyDraft(draft)} className="text-amber-700 dark:text-amber-200 hover:text-slate-900 dark:hover:text-white">
+              <div key={draft.id} className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/[0.06] px-3 py-1 text-xs">
+                <button type="button" onClick={() => applyDraft(draft)} className="font-medium text-amber-700 hover:text-foreground dark:text-amber-200">
                   {draft.title || 'Черновик'}
                 </button>
                 {canDelete && (
-                  <button type="button" onClick={() => void deleteDraft(draft.id)} className="text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100">×</button>
+                  <button type="button" aria-label="Удалить черновик" onClick={() => void deleteDraft(draft.id)} className="text-rose-700 hover:text-rose-900 dark:text-rose-300 dark:hover:text-rose-100">×</button>
                 )}
               </div>
             ))}
           </div>
-        </Card>
+        </StoreSection>
       ) : null}
 
-      {/* Main table */}
-      <Card className="overflow-hidden border-border bg-card/70 p-0">
+      {/* Документы */}
+      <StoreSection title="Документы приёмки" subtitle={`${filteredReceipts.length} шт`} flush>
         {loading && filteredReceipts.length === 0 ? (
           <>
-            {/* Мобильный скелетон загрузки */}
             <div className="space-y-3 p-3 sm:hidden">
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="rounded-2xl border border-border bg-white dark:bg-white/[0.03] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-36" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                  </div>
-                  <Skeleton className="mt-3 h-8 w-32" />
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
-                  </div>
-                  <Skeleton className="mt-3 h-9 w-full rounded-xl" />
+                <div key={idx} className="space-y-2 p-2">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-8 w-full" />
                 </div>
               ))}
             </div>
@@ -1248,269 +1226,35 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
               <StoreDataTableSkeleton columns={7} />
             </div>
           </>
-        ) : filteredReceipts.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 opacity-50" />
-            {receiptSearch ? 'Ничего не найдено' : 'Документов приёмки пока нет — нажмите «Новый документ»'}
-          </div>
         ) : (
-          <>
-            {/* Мобильная версия: карточки приёмок вместо широкой таблицы */}
-            <div className="relative p-3 sm:hidden">
-              {refreshing ? (
-                <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/35 pt-10 backdrop-blur-[0.5px]">
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Обновление…
-                  </div>
-                </div>
-              ) : null}
-              <div className={`space-y-3 ${refreshing ? 'pointer-events-none opacity-50' : ''}`}>
-                {sortedReceipts.map((receipt) => {
-                  const debt = debtByReceiptId.get(String(receipt.id))
-                  const itemsCount = (receipt.items || []).length
-                  const open = Boolean(mobileExpandedReceipts[receipt.id])
-                  return (
-                    <div
-                      key={receipt.id}
-                      className={`rounded-2xl border border-border bg-white dark:bg-white/[0.03] p-4 ${receipt.status === 'cancelled' ? 'opacity-60' : ''}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className={`truncate text-sm font-medium text-foreground ${receipt.status === 'cancelled' ? 'line-through' : ''}`}>
-                            {receipt.kind === 'posting' ? 'Оприходование' : receipt.supplier?.name || 'Без поставщика'}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(receipt.received_at)}</p>
-                          {receipt.comment ? (
-                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{receipt.comment}</p>
-                          ) : null}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          {receipt.status === 'cancelled' ? (
-                            <span className="inline-flex items-center rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] text-rose-700 dark:text-rose-200">
-                              Отменена
-                            </span>
-                          ) : null}
-                          {(() => {
-                            if (!debt) return null
-                            if (debt.status === 'paid') {
-                              return <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-200">Оплачен</span>
-                            }
-                            if (debt.status === 'written_off') {
-                              return <span className="inline-flex items-center rounded-full border border-slate-500/30 bg-slate-500/15 px-2 py-0.5 text-[10px] text-body">Списан</span>
-                            }
-                            const overdue = debt.due_date ? new Date(debt.due_date).getTime() < Date.now() : false
-                            return (
-                              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] ${overdue ? 'border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-200' : 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200'}`}>
-                                {overdue ? 'Просрочен' : debt.is_consignment ? 'Реализация' : 'Долг'}
-                              </span>
-                            )
-                          })()}
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Сумма приёмки</div>
-                        <div className="text-2xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{formatMoney(receipt.total_amount || 0)}</div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-xl border border-border bg-slate-50 dark:bg-white/[0.02] px-1 py-2">
-                          <div className="text-[10px] text-slate-500">Позиций</div>
-                          <div className="mt-0.5 text-xs font-medium tabular-nums text-foreground">{itemsCount}</div>
-                        </div>
-                        <div className="rounded-xl border border-border bg-slate-50 dark:bg-white/[0.02] px-1 py-2">
-                          <div className="text-[10px] text-slate-500">Локация</div>
-                          <div className="mt-0.5 truncate text-xs font-medium text-foreground">{receipt.location?.name || '—'}</div>
-                        </div>
-                        <div className="rounded-xl border border-border bg-slate-50 dark:bg-white/[0.02] px-1 py-2">
-                          <div className="text-[10px] text-slate-500">Накладная</div>
-                          {receipt.invoice_file_url ? (
-                            <a href={receipt.invoice_file_url} target="_blank" rel="noreferrer" className="mt-0.5 block truncate font-mono text-xs text-emerald-700 dark:text-emerald-300 underline">
-                              {receipt.invoice_number || 'Открыть'}
-                            </a>
-                          ) : (
-                            <div className="mt-0.5 truncate font-mono text-xs text-rose-700 dark:text-rose-300">Нет файла</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 h-9 w-full rounded-xl"
-                        onClick={() => {
-                          setSelectedReceipt(receipt)
-                          setReceiptDetailsOpen(true)
-                        }}
-                      >
-                        Открыть
-                      </Button>
-
-                      {itemsCount > 0 ? (
-                        <>
-                          <button
-                            type="button"
-                            className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-1.5 text-[11px] text-slate-500"
-                            onClick={() => setMobileExpandedReceipts((p) => ({ ...p, [receipt.id]: !p[receipt.id] }))}
-                          >
-                            <ChevronDown className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`} />
-                            {open ? 'Скрыть состав' : `Состав (${itemsCount})`}
-                          </button>
-                          {open ? (
-                            <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-                              {(receipt.items || []).map((item) => (
-                                <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
-                                  <div className="flex min-w-0 items-center gap-1.5">
-                                    <span className="truncate text-body">{item.item?.name || 'Товар'}</span>
-                                    {item.is_bonus ? (
-                                      <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 dark:text-emerald-300">Бонус</span>
-                                    ) : null}
-                                  </div>
-                                  <span className="shrink-0 tabular-nums text-slate-500">{formatQty(Number(item.quantity || 0))} × {item.is_bonus ? '—' : formatUnitCost(Number(item.unit_cost || 0))}</span>
-                                  <span className="shrink-0 font-medium tabular-nums text-foreground">{item.is_bonus ? '0' : formatMoney(Number(item.total_cost || 0))}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </>
-                      ) : null}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Десктоп: прежняя таблица */}
-            <div className="relative hidden max-h-[calc(100vh-380px)] overflow-auto sm:block">
-            {refreshing ? (
-              <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/35 pt-10 backdrop-blur-[0.5px]">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Обновление…
-                </div>
-              </div>
-            ) : null}
-            <div className={refreshing ? 'pointer-events-none opacity-50' : undefined}>
-            <table className="w-full min-w-[840px] text-sm">
-              <thead className="sticky top-0 z-10 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur">
-                <tr className="border-b border-slate-200 dark:border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <SortableTh label="Дата" sortKey="date" sort={receiptSort} onSort={toggleReceiptSort} className="w-24 py-2.5 pl-4 pr-2 font-normal" />
-                  <SortableTh label="Поставщик" sortKey="supplier" sort={receiptSort} onSort={toggleReceiptSort} className="py-2.5 px-2 font-normal" />
-                  <SortableTh label="Локация" sortKey="location" sort={receiptSort} onSort={toggleReceiptSort} className="w-40 py-2.5 px-2 font-normal" />
-                  <SortableTh label="Накладная" sortKey="invoice" sort={receiptSort} onSort={toggleReceiptSort} className="w-32 py-2.5 px-2 font-normal" />
-                  <SortableTh label="Позиций" sortKey="positions" sort={receiptSort} onSort={toggleReceiptSort} align="right" className="w-20 py-2.5 px-2 font-normal" />
-                  <SortableTh label="Сумма" sortKey="amount" sort={receiptSort} onSort={toggleReceiptSort} align="right" className="w-32 py-2.5 px-2 pr-4 font-normal text-emerald-700/70 dark:text-emerald-300/70" />
-                  <SortableTh label="Оплата" sortKey="payment" sort={receiptSort} onSort={toggleReceiptSort} className="w-28 py-2.5 px-2 font-normal" />
-                  <th className="w-28 py-2.5 px-2 pr-4 text-right font-normal">Акт</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
-                {sortedReceipts.map((receipt) => (
-                  <tr
-                    key={receipt.id}
-                    className={`transition hover:bg-slate-50 dark:hover:bg-white/[0.02] ${receipt.status === 'cancelled' ? 'opacity-50 line-through' : ''}`}
-                  >
-                    <td className="w-24 py-2.5 pl-4 pr-2 align-middle">
-                      <span className="text-xs text-muted-foreground">{formatDate(receipt.received_at)}</span>
-                    </td>
-                    <td className="min-w-0 max-w-0 py-2.5 px-2 align-middle">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <p className="truncate text-sm font-medium">
-                            {receipt.kind === 'posting'
-                              ? 'Оприходование'
-                              : receipt.supplier?.name || 'Без поставщика'}
-                            {receipt.status === 'cancelled' ? (
-                              <span className="ml-2 inline-flex items-center rounded-full border border-rose-500/40 bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-normal text-rose-700 dark:text-rose-200 no-underline">
-                                Отменена
-                              </span>
-                            ) : null}
-                          </p>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" align="start" className="max-w-md">
-                          {receipt.kind === 'posting' ? 'Оприходование (без поставщика)' : receipt.supplier?.name || 'Без поставщика'}
-                          {receipt.comment ? <div className="mt-1 text-xs text-muted-foreground">{receipt.comment}</div> : null}
-                          {receipt.cancel_reason ? <div className="mt-1 text-xs text-rose-700 dark:text-rose-300">Причина отмены: {receipt.cancel_reason}</div> : null}
-                        </TooltipContent>
-                      </Tooltip>
-                      {receipt.comment ? (
-                      <p className="truncate text-[11px] text-muted-foreground">{receipt.comment}</p>
-                      ) : null}
-                    </td>
-                    <td className="w-40 py-2.5 px-2 align-middle">
-                      <span className="line-clamp-1 text-xs text-muted-foreground">{receipt.location?.name || '—'}</span>
-                    </td>
-                    <td className="w-32 py-2.5 px-2 align-middle">
-                      {receipt.invoice_file_url ? (
-                        <a href={receipt.invoice_file_url} target="_blank" rel="noreferrer" className="truncate font-mono text-xs text-emerald-700 dark:text-emerald-300 underline">
-                          {receipt.invoice_number || 'Открыть'}
-                        </a>
-                      ) : (
-                        <span className="truncate font-mono text-xs text-rose-700 dark:text-rose-300">Нет файла</span>
-                      )}
-                    </td>
-                    <td className="w-20 py-2.5 px-2 text-right align-middle">
-                      <span className="text-sm font-semibold">{(receipt.items || []).length}</span>
-                    </td>
-                    <td className="w-32 py-2.5 px-2 pr-4 text-right align-middle">
-                      <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatMoney(receipt.total_amount || 0)}</span>
-                    </td>
-                    <td className="w-28 py-2.5 px-2 align-middle">
-                      {(() => {
-                        const debt = debtByReceiptId.get(String(receipt.id))
-                        if (!debt) return <span className="text-xs text-muted-foreground">—</span>
-                        if (debt.status === 'paid') {
-                          return <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-200">Оплачен</span>
-                        }
-                        if (debt.status === 'written_off') {
-                          return <span className="inline-flex items-center rounded-full border border-slate-500/30 bg-slate-500/15 px-2 py-0.5 text-[10px] text-body">Списан</span>
-                        }
-                        const overdue = debt.due_date ? new Date(debt.due_date).getTime() < Date.now() : false
-                        return (
-                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] ${overdue ? 'border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-200' : 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-200'}`}>
-                            {overdue ? 'Просрочен' : debt.is_consignment ? 'Реализация' : 'Долг'}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="w-28 py-2.5 px-2 pr-4 text-right align-middle">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReceipt(receipt)
-                          setReceiptDetailsOpen(true)
-                        }}
-                      >
-                        Открыть
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-            </div>
-          </>
+          <ReceiptsList
+            receipts={sortedReceipts}
+            debtByReceiptId={debtByReceiptId}
+            sort={receiptSort}
+            onSort={toggleReceiptSort}
+            refreshing={refreshing}
+            searching={Boolean(receiptSearch)}
+            canCreate={canCreate}
+            onCreate={() => setFormSheetOpen(true)}
+            onOpen={(receipt) => {
+              setSelectedReceipt(receipt)
+              setReceiptDetailsOpen(true)
+            }}
+          />
         )}
-      </Card>
+      </StoreSection>
 
       {/* Create receipt dialog */}
-      <Dialog open={formSheetOpen} onOpenChange={setFormSheetOpen}>
-        <DialogContent className="flex h-[90vh] !w-[96vw] !max-w-[96vw] sm:!max-w-[1400px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border p-5 text-left">
-            <DialogTitle className="flex items-center gap-2">
-              <PackagePlus className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-              Новый документ приёмки
-            </DialogTitle>
-            <DialogDescription>
-              Каталог, поставщик, дата и товарные строки. Приход увеличивает общий остаток и обновляет цены.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createReceipt} className="flex-1 space-y-5 overflow-y-auto p-5">
+      <AppModal
+        open={formSheetOpen}
+        onClose={() => setFormSheetOpen(false)}
+        disableBackdropClose
+        maxWidth="max-w-6xl"
+        icon={<PackagePlus className="h-4.5 w-4.5" />}
+        title="Новый документ приёмки"
+        description="Каталог, поставщик, дата и товарные строки. Приход увеличивает общий остаток и обновляет цены."
+      >
+          <form onSubmit={createReceipt} className="space-y-5">
             <div data-tour="receipt-quickadd" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -1983,7 +1727,7 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
             </Button>
 
             {/* Итог и «Провести» всегда на виду: форма длинная, сумму не надо искать внизу. */}
-            <div className="sticky -bottom-5 z-10 -mx-5 -mb-5 space-y-2 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
+            <div className="sticky -bottom-4 z-10 -mx-5 -mb-4 space-y-2 border-t border-border bg-card/95 px-5 py-3 backdrop-blur sm:-mx-6 sm:px-6">
               {error ? (
                 <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>
               ) : null}
@@ -2014,8 +1758,7 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
               </div>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AppModal>
 
       <AppModal
         open={!!cancelTarget}
@@ -2041,101 +1784,13 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
         </div>
       </AppModal>
 
-      <Dialog open={receiptDetailsOpen} onOpenChange={setReceiptDetailsOpen}>
-        <DialogContent className="flex h-[85vh] !w-[92vw] !max-w-[92vw] sm:!max-w-[1200px] flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border p-5 text-left">
-            <DialogTitle>Детали приёмки</DialogTitle>
-            <DialogDescription>
-              {selectedReceipt
-                ? `${formatDate(selectedReceipt.received_at)} · ${selectedReceipt.supplier?.name || 'Без поставщика'}`
-                : 'Проведенный акт приёмки'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto p-5">
-            {!selectedReceipt ? (
-              <p className="text-sm text-muted-foreground">Документ не выбран.</p>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-sm text-muted-foreground">
-                    Локация: <span className="text-foreground">{selectedReceipt.location?.name || '—'}</span>
-                    {selectedReceipt.invoice_number ? (
-                      <span> · Накладная: <span className="text-foreground">{selectedReceipt.invoice_number}</span></span>
-                    ) : null}
-                    {selectedReceipt.invoice_file_url ? (
-                      <span> · <a href={selectedReceipt.invoice_file_url} target="_blank" rel="noreferrer" className="underline text-emerald-700 dark:text-emerald-300">Файл накладной</a></span>
-                    ) : null}
-                    <span> · Сумма: <span className="text-foreground">{formatMoney(Number(selectedReceipt.total_amount || 0))}</span></span>
-                    {selectedReceipt.kind === 'posting' ? (
-                      <span> · <span className="text-blue-700 dark:text-blue-300">Оприходование</span></span>
-                    ) : null}
-                  </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {selectedReceipt.kind === 'posting' ? (
-                      <Button asChild type="button" variant="outline" size="sm">
-                        <a href={`/store/postings?edit=${selectedReceipt.id}`}>Редактировать в оприходовании</a>
-                      </Button>
-                    ) : null}
-                    {selectedReceipt.status === 'cancelled' ? (
-                      <span className="inline-flex items-center rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-xs text-rose-700 dark:text-rose-200">
-                        Отменена{selectedReceipt.cancelled_at ? ` · ${formatDate(selectedReceipt.cancelled_at)}` : ''}
-                      </span>
-                    ) : canCancel ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
-                        onClick={() => void cancelReceipt(selectedReceipt)}
-                      >
-                        Отменить приёмку
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-                {selectedReceipt.cancel_reason ? (
-                  <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
-                    Причина отмены: {selectedReceipt.cancel_reason}
-                  </div>
-                ) : null}
-                <div className="overflow-auto rounded-xl border border-border">
-                  <table className="w-full min-w-[560px] table-fixed text-sm">
-                    <thead className="bg-surface-muted">
-                      <tr className="text-left text-xs text-muted-foreground">
-                        <th className="px-3 py-2 font-normal">Товар</th>
-                        <th className="px-3 py-2 font-normal">Штрихкод</th>
-                        <th className="px-3 py-2 text-right font-normal">Кол-во</th>
-                        <th className="px-3 py-2 text-right font-normal">Цена закупа</th>
-                        <th className="px-3 py-2 text-right font-normal">Сумма</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(selectedReceipt.items || []).map((item) => (
-                        <tr key={item.id} className="border-t border-slate-100 dark:border-white/[0.06]">
-                          <td className="px-3 py-2" title={item.item?.name || 'Товар'}>
-                            <span className="flex items-center gap-2 min-w-0">
-                              <span className="block truncate">{item.item?.name || 'Товар'}</span>
-                              {item.is_bonus ? (
-                                <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-                                  Бонус
-                                </span>
-                              ) : null}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{item.item?.barcode || '—'}</td>
-                          <td className="px-3 py-2 text-right">{formatQty(Number(item.quantity || 0))}</td>
-                          <td className="px-3 py-2 text-right">{item.is_bonus ? '—' : formatUnitCost(Number(item.unit_cost || 0))}</td>
-                          <td className="px-3 py-2 text-right">{item.is_bonus ? '0' : formatMoney(Number(item.total_cost || 0))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReceiptDetailsModal
+        open={receiptDetailsOpen}
+        receipt={selectedReceipt}
+        canCancel={canCancel}
+        onClose={() => setReceiptDetailsOpen(false)}
+        onCancel={cancelReceipt}
+      />
     </div>
     </TooltipProvider>
   )
