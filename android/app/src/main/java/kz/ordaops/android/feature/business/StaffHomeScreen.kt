@@ -51,7 +51,7 @@ import java.util.Locale
  * Главная сотрудника — своя у каждой должности: карточка должности, кнопки того,
  * что она делает каждый день, что ждёт решения, сервисы в её порядке. Порядок и
  * подача — из [StaffRolePlaybook], а что показать — только из выданного на
- * `/access`. Порт `StaffHomeScreen.swift` (без карточек «Мои задачи» и «Моя зарплата»).
+ * `/access`. Порт `StaffHomeScreen.swift` (без карточки «Мои задачи»).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +94,9 @@ fun StaffHomeScreen(env: BusinessEnv) {
                 quick.forEach { item -> RoundAction(item.icon, item.title, Modifier.weight(1f), item.run) }
                 RoundAction(Icons.Filled.GridView, "Сервисы", Modifier.weight(1f)) { env.goTab(BusinessTab.Services) }
             }
+
+            // Своя зарплата за текущую половину месяца.
+            kz.ordaops.android.feature.business.team.MySalaryCard()
 
             // Что требует внимания
             val shownPending = if (env.can("expenses-pending.view")) pending else emptyList()
