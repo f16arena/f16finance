@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Clock, Loader2, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
 
+import { formatMoney } from '@/lib/core/format'
+import { storeCard, StoreChip, StoreEmpty, StoreSection } from '@/components/store/store-ui'
 import { AppModal } from '@/components/ui/app-modal'
 import { MoneyInput } from '@/components/ui/money-input'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
@@ -27,9 +29,7 @@ function newKey() {
   return Math.random().toString(36).slice(2)
 }
 
-function money(v: number) {
-  return `${Math.round(v).toLocaleString('ru-RU')} ₸`
-}
+const money = (v: number) => formatMoney(v)
 
 export function durationLabel(minutes: number | null) {
   if (!minutes) return null
@@ -155,17 +155,19 @@ export function ServicesTab() {
       {loading && !data ? (
         <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Загружаем…</div>
       ) : error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-700 dark:text-rose-300">{String(error)}</div>
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-600 dark:text-rose-300">{String(error)}</div>
       ) : services.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-          <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
-          <div className="mt-3 font-semibold">Услуг пока нет</div>
-          <div className="mt-1 text-sm text-muted-foreground">Например: «Теннис» — 30 мин за 1 000 ₸ и 1 час за 2 000 ₸.</div>
-        </div>
+        <StoreSection title="Услуги" flush>
+          <StoreEmpty
+            icon={<Sparkles className="h-5 w-5" />}
+            title="Услуг пока нет"
+            hint="Нажмите «Добавить услугу». Например: «Теннис» — 30 мин за 1 000 ₸ и 1 час за 2 000 ₸. Они появятся плитками на кассе."
+          />
+        </StoreSection>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
-            <div key={service.id} className={`rounded-2xl border border-border bg-card p-4 ${service.is_active ? '' : 'opacity-60'}`}>
+            <div key={service.id} className={`${storeCard} p-4 ${service.is_active ? '' : 'opacity-60'}`}>
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-base font-semibold">{service.name}</div>
@@ -186,10 +188,10 @@ export function ServicesTab() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {service.variants.map((v) => (
-                  <span key={v.id || v.name} className="inline-flex items-center gap-1.5 rounded-full bg-surface-hover px-3 py-1 text-sm">
-                    {v.duration_minutes ? <Clock className="h-3.5 w-3.5 text-violet-500" /> : null}
+                  <StoreChip key={v.id || v.name} tone={v.duration_minutes ? 'violet' : 'neutral'}>
+                    {v.duration_minutes ? <Clock className="h-3 w-3" /> : null}
                     {v.name} · <b className="font-semibold">{money(v.price)}</b>
-                  </span>
+                  </StoreChip>
                 ))}
               </div>
             </div>

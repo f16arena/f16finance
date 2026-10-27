@@ -20,6 +20,7 @@ import {
   Printer,
   RefreshCw,
   Search,
+  Store,
   Trash2,
   Warehouse,
   X,
@@ -60,6 +61,8 @@ import { useVisibleSlice } from '@/lib/client/use-visible-slice'
 import { CopyText } from '@/components/ui/copy-text'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from '@/hooks/use-toast'
+import { StoreAttention, StoreEmpty, StoreStat, StoreStatGrid, plural, type StoreTodo } from '@/components/store/store-ui'
+import { formatMoney } from '@/lib/core/format'
 import { NativeSelect } from '@/components/ui/native-select'
 import type { LabelItem } from '@/components/store/label-print-dialog'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
@@ -724,13 +727,19 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
     }
   }
 
+  // Быстрый фильтр из блока «Требует внимания» (только отображение, данные не меняются)
+  const [attnFilter, setAttnFilter] = useState<null | 'emptyShowcase' | 'noPrice'>(null)
+
   const filteredBalances = useMemo(() => {
     const q = stockSearch.trim().toLowerCase()
-    if (!q) return balances
-    return balances.filter(
+    let list = balances
+    if (attnFilter === 'emptyShowcase') list = list.filter((b) => Number(b.warehouse_quantity || 0) > 0 && Number(b.showcase_quantity || 0) <= 0)
+    if (attnFilter === 'noPrice') list = list.filter((b) => !(Number(b.item?.sale_price || 0) > 0))
+    if (!q) return list
+    return list.filter(
       (b) => b.item?.name?.toLowerCase().includes(q) || b.item?.barcode?.toLowerCase().includes(q),
     )
-  }, [balances, stockSearch])
+  }, [balances, stockSearch, attnFilter])
 
   // Сортировка по заголовку — после поиска и ДО порционного показа,
   // иначе сортировались бы только отрисованные 100 строк
@@ -764,7 +773,23 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
   const totalShowcaseQty = balances.reduce((s, b) => s + Number(b.showcase_quantity || 0), 0)
   const totalPurchase = balances.reduce((s, b) => s + Number(b.catalog_quantity || 0) * Number(b.item?.default_purchase_price || 0), 0)
   const totalSale = balances.reduce((s, b) => s + Number(b.catalog_quantity || 0) * Number(b.item?.sale_price || 0), 0)
-  const fmtMoney = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+  const emptyShowcaseCount = balances.filter((b) => Number(b.warehouse_quantity || 0) > 0 && Number(b.showcase_quantity || 0) <= 0).length
+  const noPriceCount = balances.filter((b) => !(Number(b.item?.sale_price || 0) > 0)).length
+  const attnItems: StoreTodo[] = []
+  if (emptyShowcaseCount > 0) {
+    attnItems.push({
+      key: 'emptyShowcase', icon: Store, tone: 'amber',
+      text: <>{emptyShowcaseCount} {plural(emptyShowcaseCount, ['товар лежит', 'товара лежат', 'товаров лежат'])} в подсобке, а на витрине пусто — выставьте</>,
+      onClick: () => setAttnFilter(attnFilter === 'emptyShowcase' ? null : 'emptyShowcase'), cta: attnFilter === 'emptyShowcase' ? 'Сбросить' : 'Показать',
+    })
+  }
+  if (noPriceCount > 0) {
+    attnItems.push({
+      key: 'noPrice', icon: AlertCircle, tone: 'rose',
+      text: <>У {noPriceCount} {plural(noPriceCount, ['товара', 'товаров', 'товаров'])} не указана цена продажи — кассир не сможет их пробить</>,
+      onClick: () => setAttnFilter(attnFilter === 'noPrice' ? null : 'noPrice'), cta: attnFilter === 'noPrice' ? 'Сбросить' : 'Показать',
+    })
+  }
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -818,31 +843,15 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
         )
       })()}
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-5">
-        <Card className="border-border bg-white dark:bg-white/[0.03] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Позиций</p>
-          <p className="mt-1 text-xl font-semibold">{balances.length}</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Итого</p>
-          <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{totalCatalogQty}</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Подсобка</p>
-          <p className="mt-1 text-xl font-semibold text-amber-600 dark:text-amber-300">{totalWarehouseQty}</p>
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300/70">Витрина</p>
-          <p className="mt-1 text-xl font-semibold text-emerald-600 dark:text-emerald-300">{totalShowcaseQty}</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Стоимость (закуп / продажа)</p>
-          <p className="mt-1 truncate text-sm font-semibold text-amber-700 dark:text-amber-200" title={`${fmtMoney(totalPurchase)} / ${fmtMoney(totalSale)} ₸`}>
-            {fmtMoney(totalPurchase)} / {fmtMoney(totalSale)} ₸
-          </p>
-        </Card>
-      </div>
+      <StoreAttention items={attnItems} loading={loading && balances.length === 0} calm="Всё спокойно: у всех товаров есть цена, а то, что лежит в подсобке, выставлено на витрину." />
+
+      <StoreStatGrid cols={5}>
+        <StoreStat label="Позиций" value={balances.length} />
+        <StoreStat label="Всего штук" value={totalCatalogQty} hint="подсобка + витрина" />
+        <StoreStat label="Подсобка" value={totalWarehouseQty} tone={totalWarehouseQty > 0 ? 'sky' : 'neutral'} />
+        <StoreStat label="Витрина" value={totalShowcaseQty} tone={totalShowcaseQty > 0 ? 'emerald' : 'neutral'} />
+        <StoreStat label="Товар в деньгах" value={formatMoney(totalPurchase)} hint={`по продаже ${formatMoney(totalSale)}`} />
+      </StoreStatGrid>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
@@ -934,10 +943,11 @@ export default function WarehousePage({ embedded = false }: { embedded?: boolean
             <span className="text-sm">{error}</span>
           </div>
         ) : filteredBalances.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-            <Package className="h-8 w-8 text-muted-foreground/50" />
-            {stockSearch ? 'Ничего не найдено' : 'Каталог пустой — нажмите «Добавить товары»'}
-          </div>
+          <StoreEmpty
+            icon={<Package className="h-5 w-5" />}
+            title={stockSearch || attnFilter ? 'Ничего не найдено' : 'На складе пока пусто'}
+            hint={stockSearch || attnFilter ? 'Сбросьте поиск или фильтр.' : 'Нажмите «Добавить товары» — по штрихкоду, из каталога или файлом Excel.'}
+          />
         ) : (
           <>
             {/* Мобильная версия: карточки товаров вместо широкой таблицы */}
