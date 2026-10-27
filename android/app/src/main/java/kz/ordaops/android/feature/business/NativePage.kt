@@ -5,18 +5,24 @@ import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
 import kz.ordaops.android.BuildConfig
+import kz.ordaops.android.feature.business.finance.financePages
+import kz.ordaops.android.feature.business.ops.opsPages
+import kz.ordaops.android.feature.business.store.storePages
+import kz.ordaops.android.feature.business.team.teamPages
 
 /**
  * Реестр нативных экранов кабинета: `pageID` из каталога прав → экран.
  *
  * Как `NativePage.swift`, но с запасным путём: раздел без нативного экрана
  * открывается сайтом во вкладке Chrome (`openWeb`), а не заглушкой. Следующие
- * волны переноса добавляют экраны сюда — строкой в [screens]; плитки сервисов,
+ * волны переноса добавляют экраны в файл своего раздела; плитки сервисов,
  * главная, уведомления и ссылки подхватывают их сами.
  */
 object NativePage {
-    /** Нативные экраны. Волна 1 — только оболочка, экранов разделов ещё нет. */
-    private val screens: Map<String, @Composable () -> Unit> = emptyMap()
+    /** Нативные экраны: у каждого раздела свой файл `<раздел>/<Раздел>Pages.kt`. */
+    private val screens: Map<String, @Composable () -> Unit> by lazy {
+        financePages + storePages + teamPages + opsPages
+    }
 
     fun isNative(pageId: String): Boolean = pageId in screens
 
