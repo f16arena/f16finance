@@ -52,6 +52,8 @@ import kz.ordaops.android.core.access.PageAccess
 import kz.ordaops.android.core.access.Workspace
 import kz.ordaops.android.core.access.playbook
 import kz.ordaops.android.core.net.ApiClient
+import kz.ordaops.android.feature.business.platform.OrganizationContextBanner
+import kz.ordaops.android.feature.business.platform.PlatformRoot
 import kz.ordaops.android.feature.operator.FloatingTabBar
 import kz.ordaops.android.feature.operator.TabBarItem
 import kz.ordaops.android.feature.operator.chat.ChatTab
@@ -74,11 +76,11 @@ private fun workKey(pageId: String) = "work:$pageId"
  * остальным должностям — свой (главная по должности, до двух рабочих вкладок,
  * сервисы, профиль). Порт `BusinessRootView` + `OwnerTabs` + `StaffTabs`.
  *
- * Суперадмину первой вкладкой идёт «Платформа» — пока заглушка с переходом на
- * сайт: экраны платформы переносятся отдельной волной.
+ * Суперадмину первой вкладкой идёт «Платформа» (`feature/business/platform`):
+ * организации, сервер, ошибки; опасное остаётся на сайте.
  */
 @Composable
-fun BusinessRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit) {
+fun BusinessRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit, onSelectOrganization: (String?) -> Unit = {}) {
     val context = LocalContext.current
     val catalog by produceState<CapabilityCatalog?>(null) {
         value = withContext(Dispatchers.IO) { CapabilityCatalog.load(context) }
@@ -135,7 +137,7 @@ fun BusinessRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
     }
 
     val env = remember(access, vm) {
-        BusinessEnv(api = api, access = access, vm = vm, open = openPage, goTab = goTab, signOut = onSignOut)
+        BusinessEnv(api = api, access = access, vm = vm, open = openPage, goTab = goTab, signOut = onSignOut, selectOrganization = onSelectOrganization)
     }
 
     // Нажали на уведомление или ссылку — открываем тот раздел, о котором она. Если права нет — ничего не делаем.
@@ -179,13 +181,17 @@ fun BusinessRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
     }
     val content: @Composable () -> Unit = {
         CompositionLocalProvider(LocalBusiness provides env) {
+          Column(Modifier.fillMaxSize()) {
+            // Суперадмин смотрит организацию глазами владельца — об этом напоминает полоса сверху.
+            if (hasPlatform) OrganizationContextBanner()
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             val top = stack.lastOrNull()
             if (top != null) {
                 SubScreen(access.catalog.page(top)?.label ?: top, onBack = { stack = stack.dropLast(1) }) { NativePage.Screen(top) }
             } else {
                 saveable.SaveableStateProvider(selected) {
                     when {
-                        selected == BusinessTab.Platform.name -> WebPlaceholder("Платформа", "Управление организациями пока доступно на сайте.", "/platform")
+                        selected == BusinessTab.Platform.name -> PlatformRoot()
                         selected == BusinessTab.Home.name -> if (ownerLayout) OwnerHomeScreen(env) else StaffHomeScreen(env)
                         selected == BusinessTab.Analytics.name -> OwnerAnalyticsScreen(env)
                         selected == BusinessTab.Services.name -> OwnerServicesScreen(env)
@@ -199,6 +205,8 @@ fun BusinessRoot(resolver: AccessResolver, api: ApiClient, onSignOut: () -> Unit
                     }
                 }
             }
+            }
+          }
         }
     }
 

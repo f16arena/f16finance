@@ -20,6 +20,8 @@ class BusinessEnv(
     /** Перейти на вкладку (с главной — в аналитику и сервисы). */
     val goTab: (BusinessTab) -> Unit,
     val signOut: () -> Unit,
+    /** Суперадмин: смотреть данные организации как её владелец (`null` — вернуться ко всей платформе). */
+    val selectOrganization: (String?) -> Unit = {},
 ) {
     val resolver get() = access.resolver
 
