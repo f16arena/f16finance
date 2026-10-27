@@ -191,8 +191,14 @@ function salesOf(s: Shift): number | null {
   return null
 }
 
-/** Расхождение кассы, если смена его посчитала при закрытии (иначе null). */
+/**
+ * Расхождение кассы — итог, который посчитала касса при закрытии:
+ * (нал + монеты + Kaspi + тех. компенс. − старт) − продажи по системе.
+ * «+» излишек, «−» недостача. Иначе null.
+ */
 function diffOf(s: Shift): number | null {
+  const reported = (s as any).cash_report_diff
+  if (typeof reported === 'number' && Number.isFinite(reported)) return reported
   const t = s.totals_json
   if (t && typeof t === 'object') {
     const v = t.cash_difference ?? t.cash_diff ?? t.difference ?? t.discrepancy ?? t.diff
@@ -252,14 +258,18 @@ export default function StoreShiftsPage() {
 
   const summary = useMemo(() => {
     let revenue = 0; let counted = 0; let opened = 0; let diffCount = 0; let diffSum = 0
+    let shortCount = 0; let shortSum = 0; let overCount = 0; let overSum = 0
     for (const s of shifts) {
       const v = salesOf(s)
       if (v != null) { revenue += v; counted += 1 }
       if (s.status === 'open') opened += 1
       const d = diffOf(s)
-      if (d != null && Math.abs(d) >= 1) { diffCount += 1; diffSum += d }
+      if (d != null && Math.abs(d) >= 1) {
+        diffCount += 1; diffSum += d
+        if (d < 0) { shortCount += 1; shortSum += d } else { overCount += 1; overSum += d }
+      }
     }
-    return { revenue, avg: counted > 0 ? revenue / counted : 0, opened, diffCount, diffSum }
+    return { revenue, avg: counted > 0 ? revenue / counted : 0, opened, diffCount, diffSum, shortCount, shortSum, overCount, overSum }
   }, [shifts])
 
   if (storeCompanyId === undefined) {
@@ -311,10 +321,15 @@ export default function StoreShiftsPage() {
         <StoreStat label="Выручка" value={fmtMoney(summary.revenue)} tone={summary.revenue > 0 ? 'emerald' : 'neutral'} hint="по смене из списка" loading={loading && shifts.length === 0} />
         <StoreStat label="Средняя смена" value={fmtMoney(Math.round(summary.avg))} loading={loading && shifts.length === 0} />
         <StoreStat
-          label="Расхождения"
-          value={summary.diffCount > 0 ? fmtMoney(summary.diffSum) : 'нет'}
-          tone={summary.diffCount > 0 ? 'rose' : 'neutral'}
-          hint={summary.diffCount > 0 ? `${summary.diffCount} ${plural(summary.diffCount, ['смена', 'смены', 'смен'])} с расхождением` : 'касса сошлась'}
+          label="Касса не сошлась"
+          value={summary.shortCount > 0 ? `−${fmtMoney(Math.abs(summary.shortSum))}` : summary.overCount > 0 ? `+${fmtMoney(summary.overSum)}` : 'сошлась'}
+          tone={summary.shortCount > 0 ? 'rose' : summary.overCount > 0 ? 'amber' : 'neutral'}
+          hint={summary.diffCount === 0
+            ? 'по всем сменам из списка'
+            : [
+                summary.shortCount > 0 ? `недостача в ${summary.shortCount} ${plural(summary.shortCount, ['смене', 'сменах', 'сменах'])}` : null,
+                summary.overCount > 0 ? `излишек +${fmtMoney(summary.overSum)} в ${summary.overCount}` : null,
+              ].filter(Boolean).join(' · ')}
           loading={loading && shifts.length === 0}
         />
       </StoreStatGrid>
@@ -354,7 +369,7 @@ export default function StoreShiftsPage() {
                       <Metric label="Выручка" value={sales != null ? fmtMoney(sales) : '—'} tone={sales ? 'emerald' : 'neutral'} bold />
                       <Metric label="Наличные" icon={<Wallet className="h-3 w-3" />} value={fmtMoney(cash)} tone={cash > 0 ? 'neutral' : 'muted'} />
                       <Metric label="Безнал" icon={<CreditCard className="h-3 w-3" />} value={fmtMoney(kaspi)} tone={kaspi > 0 ? 'sky' : 'muted'} />
-                      {hasDiff && <Metric label="Расхождение" value={`${diff! > 0 ? '+' : ''}${fmtMoney(diff!)}`} tone="rose" bold />}
+                      {hasDiff && <Metric label={diff! < 0 ? 'Недостача' : 'Излишек'} value={`${diff! > 0 ? '+' : '−'}${fmtMoney(Math.abs(diff!))}`} tone={diff! < 0 ? 'rose' : 'amber'} bold />}
                     </div>
                   </button>
                   {can('store-shifts.export') && (
@@ -375,9 +390,10 @@ export default function StoreShiftsPage() {
   )
 }
 
-function Metric({ label, value, tone, icon, bold }: { label: string; value: string; tone: 'emerald' | 'sky' | 'rose' | 'neutral' | 'muted'; icon?: React.ReactNode; bold?: boolean }) {
+function Metric({ label, value, tone, icon, bold }: { label: string; value: string; tone: 'emerald' | 'sky' | 'rose' | 'amber' | 'neutral' | 'muted'; icon?: React.ReactNode; bold?: boolean }) {
   const cls = {
     emerald: 'text-emerald-600 dark:text-emerald-300',
+    amber: 'text-amber-600 dark:text-amber-300',
     sky: 'text-sky-600 dark:text-sky-300',
     rose: 'text-rose-600 dark:text-rose-300',
     neutral: 'text-foreground',

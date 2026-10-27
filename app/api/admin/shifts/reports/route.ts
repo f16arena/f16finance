@@ -204,6 +204,37 @@ export async function GET(request: Request) {
       }
     }
 
+    // Итог кассы из отчёта смены (доход с shift_id, meta.diff): «+» излишек, «−» недостача.
+    // Новое поле, старые клиенты его не читают.
+    const closedShiftIds = shifts.filter((s) => s.status !== 'open').map((s) => String(s.id))
+    if (closedShiftIds.length > 0) {
+      // Пачками: до 500 uuid в .in() — это уже длина URL, на которой шлюз обрывает запрос.
+      const reportRows: any[] = []
+      for (let i = 0; i < closedShiftIds.length; i += 150) {
+        const slice = closedShiftIds.slice(i, i + 150)
+        reportRows.push(...await fetchAllRows<any>((from, to) =>
+          supabase
+            .from('incomes')
+            .select('shift_id, meta')
+            .in('shift_id', slice)
+            .not('meta', 'is', null)
+            .order('id')
+            .range(from, to),
+        ))
+      }
+      const diffByShift = new Map<string, number>()
+      for (const r of reportRows) {
+        const diff = r?.meta?.diff
+        if (diff == null || !Number.isFinite(Number(diff))) continue
+        const k = String(r.shift_id)
+        diffByShift.set(k, (diffByShift.get(k) || 0) + Number(diff))
+      }
+      for (const s of shifts) {
+        const d = diffByShift.get(String(s.id))
+        s.cash_report_diff = d == null ? null : d
+      }
+    }
+
     return json({ ok: true, data: { shifts } })
   } catch (error) {
     return json(

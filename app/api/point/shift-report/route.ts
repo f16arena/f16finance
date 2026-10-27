@@ -226,6 +226,17 @@ export async function POST(request: Request) {
       card_amount: payload.card_amount ?? 0,
       comment: payload.comment?.trim() || null,
       is_virtual: false,
+      // Итог смены, посчитанный кассой: (нал + монеты + Kaspi + тех. компенс. − старт) − продажи
+      // по системе. «+» — излишек, «−» — недостача. Раньше жил только в журнале и Telegram.
+      meta: payload.meta
+        ? {
+            coins: payload.meta.coins ?? null,
+            debts: payload.meta.debts ?? null,
+            start_cash: payload.meta.start_cash ?? null,
+            system_total: payload.meta.wipon ?? null,
+            diff: payload.meta.diff ?? null,
+          }
+        : null,
     }
 
     const meta = payload.meta || null
