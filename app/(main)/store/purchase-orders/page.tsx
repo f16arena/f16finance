@@ -1,18 +1,19 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardList, Loader2, MessageCircle, Plus, Trash2, X } from 'lucide-react'
+import { ChevronRight, ClipboardList, Loader2, MessageCircle, Plus, Trash2, Truck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { AppModal } from '@/components/ui/app-modal'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Skeleton } from '@/components/skeleton'
+import { StoreChip, StoreEmpty, StoreRow, plural, storeCard } from '@/components/store/store-ui'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { useStoreApiUrl } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
@@ -69,11 +70,11 @@ type CatalogItem = { id: string; name: string; barcode: string; unit?: string | 
 
 type DraftLine = { item_id: string; qty: string }
 
-const STATUS_META: Record<OrderStatus, { label: string; cls: string }> = {
-  draft: { label: 'Черновик', cls: 'bg-slate-500/15 text-body border-slate-500/30' },
-  sent: { label: 'Отправлена', cls: 'bg-sky-500/15 text-sky-700 dark:text-sky-200 border-sky-500/30' },
-  received: { label: 'Получена', cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border-emerald-500/30' },
-  cancelled: { label: 'Отменена', cls: 'bg-rose-500/15 text-rose-700 dark:text-rose-200 border-rose-500/30' },
+const STATUS_META: Record<OrderStatus, { label: string; tone: 'neutral' | 'sky' | 'emerald' | 'rose' }> = {
+  draft: { label: 'Черновик', tone: 'neutral' },
+  sent: { label: 'Отправлена', tone: 'sky' },
+  received: { label: 'Получена', tone: 'emerald' },
+  cancelled: { label: 'Отменена', tone: 'rose' },
 }
 
 const fmtDate = (value: string | null | undefined) => {
@@ -103,18 +104,15 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
   const [formComment, setFormComment] = useState('')
   const [formLines, setFormLines] = useState<DraftLine[]>([{ item_id: '', qty: '' }])
   const [saving, setSaving] = useState(false)
-  useModalEscape(createOpen, () => { if (!saving) setCreateOpen(false) })
 
   // detail dialog
   const [detail, setDetail] = useState<OrderDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [statusBusy, setStatusBusy] = useState(false)
-  useModalEscape(!!detail, () => { if (!statusBusy) setDetail(null) })
 
   // Причина отмены — своим окном: в prompt() текст пропадал при любой осечке
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
-  useModalEscape(cancelOpen, () => { if (!statusBusy) setCancelOpen(false) })
 
   const ordersUrl = storeUrl(
     statusFilter === 'all'
@@ -280,24 +278,24 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
   }, [orders])
 
   return (
-    <div className={embedded ? 'space-y-5' : 'app-page max-w-[1600px] space-y-5'}>
+    <div className={embedded ? 'space-y-4' : 'app-page max-w-[1600px] space-y-4'}>
       {(() => {
         const hdrActions = (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Создать заявку
+          <Button onClick={() => setCreateOpen(true)} className="bg-emerald-600 text-white hover:bg-emerald-700">
+            <Plus className="mr-1 h-4 w-4" /> Создать заявку
           </Button>
         )
         const hdrToolbar = (
-          <div className="flex flex-wrap gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-xl w-fit border border-border">
+          <div className="flex max-w-full flex-wrap gap-1 rounded-2xl border border-border bg-white p-1 dark:bg-slate-950/50">
             {(['all', 'draft', 'sent', 'received', 'cancelled'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  statusFilter === s ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
+                className={`rounded-xl px-3 py-1.5 text-sm font-medium transition ${
+                  statusFilter === s ? 'bg-surface-hover text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {s === 'all' ? 'Все' : STATUS_META[s].label} ({counts[s] || 0})
+                {s === 'all' ? 'Все' : STATUS_META[s].label} <span className="tabular-nums text-muted-foreground">{counts[s] || 0}</span>
               </button>
             ))}
           </div>
@@ -310,7 +308,7 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
         ) : (
           <AdminPageHeader
             title="Заявки поставщикам"
-            description="Заказы на закуп товара. Создавайте вручную, скоро — авто по остаткам."
+            description="Заказы на закуп товара: черновик, отправка поставщику, получение"
             icon={<ClipboardList className="h-5 w-5" />}
             accent="emerald"
             backHref="/"
@@ -320,272 +318,231 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
         )
       })()}
 
-      {error ? <Card className="p-3 border-red-500/30 bg-red-500/10 text-sm text-red-700 dark:text-red-200">{error}</Card> : null}
+      {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{error}</div> : null}
 
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : orders.length === 0 ? (
-        <Card className="p-8 text-sm text-muted-foreground text-center">Заявок нет. Создайте первую кнопкой выше.</Card>
-      ) : (
-        <div className="space-y-2">
-          {orders.map((o) => (
-            <Card
-              key={o.id}
-              className="p-3 bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 cursor-pointer hover:border-emerald-500/40 transition"
-              onClick={() => void openDetail(o.id)}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium truncate">
-                      {o.supplier?.organization_name || o.supplier?.name || 'Поставщик'}
-                    </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META[o.status].cls}`}>
-                      {STATUS_META[o.status].label}
-                    </span>
-                    {o.is_auto ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/15 text-amber-700 dark:text-amber-200 border-amber-500/30">авто</span>
-                    ) : null}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {o.item_count} позиций · создана {fmtDate(o.created_at)}
-                    {o.sent_at ? ` · отправлена ${fmtDate(o.sent_at)}` : ''}
-                  </div>
-                </div>
-                <span className="text-emerald-600 dark:text-emerald-300 text-sm shrink-0">Открыть →</span>
+      <div className={`${storeCard} overflow-hidden`}>
+        {loading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-9 w-9 rounded-lg" />
+                <div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-44" /><Skeleton className="h-3 w-60" /></div>
               </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <StoreEmpty
+            icon={<Truck className="h-5 w-5" />}
+            title="Заявок поставщикам нет"
+            hint="Создайте заявку: выберите поставщика, добавьте товары и количество — потом отправьте в WhatsApp."
+            action={<Button size="sm" onClick={() => setCreateOpen(true)} className="bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="mr-1 h-4 w-4" /> Создать заявку</Button>}
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {orders.map((o) => (
+              <StoreRow
+                key={o.id}
+                icon={Truck}
+                tone={STATUS_META[o.status].tone}
+                onClick={() => void openDetail(o.id)}
+                title={
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate">{o.supplier?.organization_name || o.supplier?.name || 'Поставщик'}</span>
+                    <StoreChip tone={STATUS_META[o.status].tone}>{STATUS_META[o.status].label}</StoreChip>
+                    {o.is_auto ? <StoreChip tone="violet">авто</StoreChip> : null}
+                  </span>
+                }
+                subtitle={`${o.item_count} ${plural(o.item_count, ['позиция', 'позиции', 'позиций'])} · создана ${fmtDate(o.created_at)}${o.sent_at ? ` · отправлена ${fmtDate(o.sent_at)}` : ''}`}
+                right={<ChevronRight className="h-4 w-4 text-slate-400" />}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Создание заявки */}
-      {createOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { if (!saving) setCreateOpen(false) }}>
-          <div
-            className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-4 sm:p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold">Новая заявка поставщику</h2>
-              <button onClick={() => { if (!saving) setCreateOpen(false) }} className="text-muted-foreground hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
+      <AppModal
+        open={createOpen}
+        onClose={() => { if (!saving) setCreateOpen(false) }}
+        title="Новая заявка поставщику"
+        description="Что и сколько заказать"
+        icon={<Truck className="h-4 w-4" />}
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Отмена</Button>
+            {can('store-purchase-orders.create') && (
+              <Button onClick={submitCreate} disabled={saving} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                {saving ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Создаю...</> : 'Создать заявку'}
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Поставщик</Label>
+            <NativeSelect value={formSupplier} onChange={(e) => setFormSupplier(e.target.value)}>
+              <option value="">Выберите поставщика</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.organization_name || s.name}</option>
+              ))}
+            </NativeSelect>
+          </div>
 
-            <div className="space-y-3 mt-4">
-              <div className="space-y-1.5">
-                <Label>Поставщик</Label>
-                <Select value={formSupplier || '__none__'} onValueChange={(v) => setFormSupplier(v === '__none__' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="Выберите поставщика" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Выберите поставщика</SelectItem>
-                    {suppliers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.organization_name || s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Позиции</Label>
-                {formLines.map((line, index) => (
-                  <div key={index} className="grid grid-cols-[minmax(0,1fr)_80px_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
-                    <Select
-                      value={line.item_id || `__none__${index}`}
-                      onValueChange={(v) =>
-                        setFormLines((cur) => cur.map((l, i) => i === index ? { ...l, item_id: v.startsWith('__none__') ? '' : v } : l))
-                      }
-                    >
-                      <SelectTrigger className="min-w-0 [&>span]:block [&>span]:truncate"><SelectValue placeholder="Товар" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={`__none__${index}`}>Выберите товар</SelectItem>
-                        {catalog.map((it) => (
-                          <SelectItem key={it.id} value={it.id} title={`${it.name} · ${it.barcode}`}>
-                            <span className="block max-w-[360px] truncate">{it.name} · {it.barcode}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      inputMode="decimal"
-                      placeholder="Кол-во"
-                      value={line.qty}
-                      onChange={(e) => setFormLines((cur) => cur.map((l, i) => i === index ? { ...l, qty: e.target.value } : l))}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setFormLines((cur) => cur.length === 1 ? cur : cur.filter((_, i) => i !== index))}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => setFormLines((cur) => [...cur, { item_id: '', qty: '' }])}>
-                  <Plus className="w-4 h-4 mr-1" /> Добавить позицию
+          <div className="space-y-2">
+            <Label>Позиции</Label>
+            {formLines.map((line, index) => (
+              <div key={index} className="grid grid-cols-[minmax(0,1fr)_80px_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
+                <NativeSelect
+                  value={line.item_id}
+                  onChange={(e) => setFormLines((cur) => cur.map((l, i) => i === index ? { ...l, item_id: e.target.value } : l))}
+                >
+                  <option value="">Выберите товар</option>
+                  {catalog.map((it) => (
+                    <option key={it.id} value={it.id}>{it.name} · {it.barcode}</option>
+                  ))}
+                </NativeSelect>
+                <Input
+                  inputMode="decimal"
+                  placeholder="Кол-во"
+                  value={line.qty}
+                  onChange={(e) => setFormLines((cur) => cur.map((l, i) => i === index ? { ...l, qty: e.target.value } : l))}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Убрать позицию"
+                  onClick={() => setFormLines((cur) => cur.length === 1 ? cur : cur.filter((_, i) => i !== index))}
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setFormLines((cur) => [...cur, { item_id: '', qty: '' }])}>
+              <Plus className="mr-1 h-4 w-4" /> Добавить позицию
+            </Button>
+          </div>
 
-              <div className="space-y-1.5">
-                <Label>Комментарий (опц.)</Label>
-                <Input value={formComment} onChange={(e) => setFormComment(e.target.value)} placeholder="Например: срочно, до пятницы" />
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Отмена</Button>
-              {can('store-purchase-orders.create') && (
-              <Button onClick={submitCreate} disabled={saving}>
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Создаю...</> : 'Создать заявку'}
-              </Button>
-              )}
-            </div>
+          <div className="space-y-1.5">
+            <Label>Комментарий (опц.)</Label>
+            <Input value={formComment} onChange={(e) => setFormComment(e.target.value)} placeholder="Например: срочно, до пятницы" />
           </div>
         </div>
-      ) : null}
+      </AppModal>
 
       {/* Детали заявки */}
-      {detail ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { if (!statusBusy) setDetail(null) }}>
-          <div
-            className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-4 sm:p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">{detail.supplier?.organization_name || detail.supplier?.name || 'Заявка'}</h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${STATUS_META[detail.status].cls}`}>
-                    {STATUS_META[detail.status].label}
-                  </span>
-                  {detail.is_auto ? (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/15 text-amber-700 dark:text-amber-200 border-amber-500/30">авто</span>
-                  ) : null}
-                  <span className="text-xs text-muted-foreground">создана {fmtDate(detail.created_at)}</span>
-                </div>
-              </div>
-              <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
+      <AppModal
+        open={!!detail}
+        onClose={() => { if (!statusBusy) setDetail(null) }}
+        title={detail ? (detail.supplier?.organization_name || detail.supplier?.name || 'Заявка') : ''}
+        description={detail ? `создана ${fmtDate(detail.created_at)}` : undefined}
+        icon={<Truck className="h-4 w-4" />}
+        maxWidth="max-w-2xl"
+        footer={detail ? (
+          <>
+            {(detail.status === 'draft' || detail.status === 'sent') && can('store-purchase-orders.cancel') ? (
+              <Button
+                variant="outline"
+                className="border-rose-500/40 text-rose-700 hover:bg-rose-500/10 dark:text-rose-200"
+                disabled={statusBusy}
+                onClick={() => { setCancelReason(''); setCancelOpen(true) }}
+              >
+                Отменить
+              </Button>
+            ) : null}
+            {detail.status === 'draft' && can('store-purchase-orders.send') ? (
+              <>
+                <Button variant="outline" onClick={() => void changeStatus('sent')} disabled={statusBusy}>
+                  Просто отметить «Отправлена»
+                </Button>
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => void sendWhatsApp()} disabled={statusBusy}>
+                  {statusBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-1 h-4 w-4" />}
+                  Отправить в WhatsApp
+                </Button>
+              </>
+            ) : null}
+            {detail.status === 'sent' && can('store-purchase-orders.edit') ? (
+              <Button onClick={() => void changeStatus('received')} disabled={statusBusy} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                {statusBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+                Отметить «Получена»
+              </Button>
+            ) : null}
+          </>
+        ) : undefined}
+      >
+        {detail ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <StoreChip tone={STATUS_META[detail.status].tone}>{STATUS_META[detail.status].label}</StoreChip>
+              {detail.is_auto ? <StoreChip tone="violet">авто</StoreChip> : null}
             </div>
 
             {detail.supplier ? (
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {detail.supplier.sales_rep_name ? <span>Торгпред: {detail.supplier.sales_rep_name}</span> : null}
                 {detail.supplier.sales_rep_phone ? <span>WhatsApp: {detail.supplier.sales_rep_phone}</span> : null}
                 {detail.supplier.lead_time_days != null ? <span>Срок поставки: {detail.supplier.lead_time_days} дн</span> : null}
               </div>
             ) : null}
 
-            {detail.comment ? (
-              <p className="mt-2 text-sm text-muted-foreground">Комментарий: {detail.comment}</p>
-            ) : null}
-            {detail.cancel_reason ? (
-              <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">Причина отмены: {detail.cancel_reason}</p>
-            ) : null}
+            {detail.comment ? <p className="text-sm text-muted-foreground">Комментарий: {detail.comment}</p> : null}
+            {detail.cancel_reason ? <p className="text-sm text-rose-600 dark:text-rose-300">Причина отмены: {detail.cancel_reason}</p> : null}
 
-            <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[420px] text-sm">
-                <thead className="bg-surface-muted text-xs text-muted-foreground">
-                  <tr className="text-left">
-                    <th className="px-3 py-2 font-normal">Товар</th>
-                    <th className="px-3 py-2 text-right font-normal">Остаток был</th>
-                    <th className="px-3 py-2 text-right font-normal">Заказать</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(detail.items || []).map((it) => (
-                    <tr key={it.id} className="border-t border-slate-200 dark:border-white/[0.06]">
-                      <td className="px-3 py-2">
-                        <span className="block truncate">{it.item?.name || 'Товар'}</span>
-                        <span className="block font-mono text-[10px] text-muted-foreground">{it.item?.barcode || '—'}</span>
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {it.current_qty} {it.item?.unit || 'шт'}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-emerald-700 dark:text-emerald-200">
-                        {it.suggested_qty} {it.item?.unit || 'шт'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              {detail.status === 'draft' && can('store-purchase-orders.send') ? (
-                <>
-                  <Button
-                    className="bg-amber-600 hover:bg-amber-700"
-                    onClick={() => void sendWhatsApp()}
-                    disabled={statusBusy}
-                  >
-                    {statusBusy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <MessageCircle className="w-4 h-4 mr-1" />}
-                    Отправить в WhatsApp
-                  </Button>
-                  <Button variant="outline" onClick={() => void changeStatus('sent')} disabled={statusBusy}>
-                    Просто отметить «Отправлена»
-                  </Button>
-                </>
-              ) : null}
-              {detail.status === 'sent' && can('store-purchase-orders.edit') ? (
-                <Button onClick={() => void changeStatus('received')} disabled={statusBusy}>
-                  {statusBusy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  Отметить «Получена»
-                </Button>
-              ) : null}
-              {(detail.status === 'draft' || detail.status === 'sent') && can('store-purchase-orders.cancel') ? (
-                <Button
-                  variant="outline"
-                  className="border-rose-500/40 text-rose-700 dark:text-rose-200 hover:bg-rose-500/10"
-                  disabled={statusBusy}
-                  onClick={() => { setCancelReason(''); setCancelOpen(true) }}
-                >
-                  Отменить
-                </Button>
-              ) : null}
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+              {(detail.items || []).map((it) => (
+                <div key={it.id} className="flex items-center gap-3 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm text-foreground">{it.item?.name || 'Товар'}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">{it.item?.barcode || '—'}</p>
+                  </div>
+                  <div className="shrink-0 text-right text-xs tabular-nums">
+                    <p className="text-muted-foreground">был {it.current_qty} {it.item?.unit || 'шт'}</p>
+                    <p className="text-sm font-semibold text-foreground">заказать {it.suggested_qty} {it.item?.unit || 'шт'}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </AppModal>
 
       {/* Отмена заявки: причина в поле, а не в prompt() */}
-      {cancelOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => { if (!statusBusy) setCancelOpen(false) }}>
-          <div
-            className="w-full max-w-md rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-4 sm:p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold">Отменить заявку</h2>
-              <button onClick={() => { if (!statusBusy) setCancelOpen(false) }} className="text-muted-foreground hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="mt-4 space-y-1.5">
-              <Label>Причина отмены (опц.)</Label>
-              <Textarea
-                rows={3}
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Например: поставщик поднял цену"
-              />
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setCancelOpen(false)} disabled={statusBusy}>Назад</Button>
-              <Button
-                className="bg-rose-600 hover:bg-rose-700"
-                disabled={statusBusy}
-                onClick={() => void changeStatus('cancelled', cancelReason.trim() || undefined)}
-              >
-                {statusBusy ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Отменяю...</> : 'Отменить заявку'}
-              </Button>
-            </div>
-          </div>
+      <AppModal
+        open={cancelOpen}
+        onClose={() => { if (!statusBusy) setCancelOpen(false) }}
+        title="Отменить заявку?"
+        description="Поставщику она не уйдёт, статус станет «Отменена»."
+        tone="danger"
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCancelOpen(false)} disabled={statusBusy}>Назад</Button>
+            <Button
+              variant="destructive"
+              disabled={statusBusy}
+              onClick={() => void changeStatus('cancelled', cancelReason.trim() || undefined)}
+            >
+              {statusBusy ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Отменяю...</> : 'Отменить заявку'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label>Причина отмены (опц.)</Label>
+          <Textarea
+            rows={3}
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Например: поставщик поднял цену"
+          />
         </div>
-      ) : null}
+      </AppModal>
 
       {detailLoading ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <Loader2 className="w-6 h-6 animate-spin text-emerald-300" />
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30">
+          <Loader2 className="h-6 w-6 animate-spin text-emerald-300" />
         </div>
       ) : null}
     </div>

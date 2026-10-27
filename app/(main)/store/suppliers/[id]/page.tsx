@@ -12,9 +12,9 @@ import { useCapabilities } from '@/lib/client/use-capabilities'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
+import { AppModal } from '@/components/ui/app-modal'
 import { formatMoney } from '@/lib/core/format'
-import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { useStoreApiUrl } from '@/components/store/store-scope'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
@@ -149,7 +149,6 @@ export default function SupplierCardPage() {
   const [aliasSale, setAliasSale] = useState('')
   const [savingAlias, setSavingAlias] = useState(false)
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
-  useModalEscape(addAliasOpen, () => { if (!savingAlias) setAddAliasOpen(false) })
 
   // Перенос к другому поставщику (товары / накладная)
   const [transferOpen, setTransferOpen] = useState(false)
@@ -159,7 +158,6 @@ export default function SupplierCardPage() {
   const [transferTarget, setTransferTarget] = useState('')
   const [supplierOptions, setSupplierOptions] = useState<{ id: string; name: string }[]>([])
   const [transferring, setTransferring] = useState(false)
-  useModalEscape(transferOpen, () => { if (!transferring) setTransferOpen(false) })
 
   useEffect(() => {
     if (!transferOpen || supplierOptions.length > 0) return
@@ -742,89 +740,78 @@ export default function SupplierCardPage() {
         </div>
       ) : null}
 
-      {addAliasOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => !savingAlias && setAddAliasOpen(false)}>
-          <div
-            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-white dark:bg-slate-950/95 p-6 text-foreground shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold">Добавить алиас вручную</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              При следующей приёмке AI узнает указанное имя и автоматически подставит товар.
-            </p>
-            <div className="space-y-3 mt-4">
-              <div className="space-y-1.5">
-                <Label>Имя из накладной</Label>
-                <Input value={aliasName} onChange={(e) => setAliasName(e.target.value)} placeholder='Например: "Coca-Cola 0.5 ст"' />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Товар каталога</Label>
-                <Select value={aliasItemId || '__none__'} onValueChange={(v) => setAliasItemId(v === '__none__' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="Выберите товар" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Выберите товар</SelectItem>
-                    {catalog.map((it) => (
-                      <SelectItem key={it.id} value={it.id} title={`${it.name} · ${it.barcode}`}>
-                        <span className="block max-w-[360px] truncate">{it.name} · {it.barcode}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label>Закупка ₸ (опц.)</Label>
-                  <Input inputMode="decimal" value={aliasUnit} onChange={(e) => setAliasUnit(e.target.value)} placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Розница ₸ (опц.)</Label>
-                  <Input inputMode="decimal" value={aliasSale} onChange={(e) => setAliasSale(e.target.value)} placeholder="0" />
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAddAliasOpen(false)} disabled={savingAlias}>Отмена</Button>
-              {can('store-suppliers.add_alias') && (
-              <Button onClick={submitAlias} disabled={savingAlias}>
-                {savingAlias ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Сохраняю...</> : 'Добавить'}
+      <AppModal
+        open={addAliasOpen}
+        onClose={() => { if (!savingAlias) setAddAliasOpen(false) }}
+        title="Добавить алиас вручную"
+        description="При следующей приёмке AI узнает указанное имя и автоматически подставит товар."
+        icon={<Tag className="h-4 w-4" />}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setAddAliasOpen(false)} disabled={savingAlias}>Отмена</Button>
+            {can('store-suppliers.add_alias') && (
+              <Button onClick={submitAlias} disabled={savingAlias} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                {savingAlias ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Сохраняю...</> : 'Добавить'}
               </Button>
-              )}
+            )}
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Имя из накладной</Label>
+            <Input value={aliasName} onChange={(e) => setAliasName(e.target.value)} placeholder='Например: "Coca-Cola 0.5 ст"' />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Товар каталога</Label>
+            <NativeSelect value={aliasItemId} onChange={(e) => setAliasItemId(e.target.value)}>
+              <option value="">Выберите товар</option>
+              {catalog.map((it) => (
+                <option key={it.id} value={it.id}>{it.name} · {it.barcode}</option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Закупка (опц.)</Label>
+              <Input inputMode="decimal" value={aliasUnit} onChange={(e) => setAliasUnit(e.target.value)} placeholder="0" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Розница (опц.)</Label>
+              <Input inputMode="decimal" value={aliasSale} onChange={(e) => setAliasSale(e.target.value)} placeholder="0" />
             </div>
           </div>
         </div>
-      ) : null}
+      </AppModal>
 
-      {transferOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onClick={(e) => { if (e.target === e.currentTarget && !transferring) setTransferOpen(false) }}>
-          <Card className="w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto border-border bg-white dark:bg-gray-900 p-5">
-            <div className="mb-1 text-base font-semibold text-foreground">Перенести к другому поставщику</div>
-            <p className="mb-4 text-xs text-muted-foreground">
-              {transferMode === 'receipt'
-                ? <>Накладная <span className="text-foreground">{transferReceiptLabel}</span> и её товары перейдут выбранному поставщику.</>
-                : <>Все товары поставщика <span className="text-foreground">{supplier?.name}</span> ({products.length}) перейдут выбранному поставщику.</>}
-            </p>
-            <Label className="mb-1.5 block text-xs">Поставщик-получатель</Label>
-            <Select value={transferTarget} onValueChange={setTransferTarget}>
-              <SelectTrigger><SelectValue placeholder="Выберите поставщика" /></SelectTrigger>
-              <SelectContent>
-                {supplierOptions.length === 0 ? (
-                  <div className="px-2 py-2 text-xs text-muted-foreground">Загрузка…</div>
-                ) : supplierOptions.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTransferOpen(false)} disabled={transferring}>Отмена</Button>
-              {can('store-suppliers.edit') && (
-              <Button onClick={() => void doTransfer()} disabled={transferring || !transferTarget}>
+      <AppModal
+        open={transferOpen}
+        onClose={() => { if (!transferring) setTransferOpen(false) }}
+        title="Перенести к другому поставщику"
+        description={transferMode === 'receipt'
+          ? <>Накладная <span className="text-foreground">{transferReceiptLabel}</span> и её товары перейдут выбранному поставщику.</>
+          : <>Все товары поставщика <span className="text-foreground">{supplier?.name}</span> ({products.length}) перейдут выбранному поставщику.</>}
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setTransferOpen(false)} disabled={transferring}>Отмена</Button>
+            {can('store-suppliers.edit') && (
+              <Button onClick={() => void doTransfer()} disabled={transferring || !transferTarget} className="bg-emerald-600 text-white hover:bg-emerald-700">
                 {transferring ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Переношу…</> : 'Перенести'}
               </Button>
-              )}
-            </div>
-          </Card>
-        </div>
-      ) : null}
+            )}
+          </>
+        }
+      >
+        <Label className="mb-1.5 block text-xs">Поставщик-получатель</Label>
+        <NativeSelect value={transferTarget} onChange={(e) => setTransferTarget(e.target.value)}>
+          <option value="" disabled>{supplierOptions.length === 0 ? 'Загрузка…' : 'Выберите поставщика'}</option>
+          {supplierOptions.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </NativeSelect>
+      </AppModal>
     </div>
   )
 }

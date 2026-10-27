@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AlertCircle, ArrowRight, Wallet } from 'lucide-react'
 
-import { Card } from '@/components/ui/card'
+import { StoreSection } from '@/components/store/store-ui'
 import { formatMoney } from '@/lib/core/format'
 
 type Debt = {
@@ -60,48 +60,31 @@ export function SupplierDebtsWidget() {
   }, [])
 
   return (
-    <Card className="border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/60 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
-            <Wallet className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">Долги поставщикам</div>
-            <div className="text-xs text-muted-foreground">Открытые обязательства</div>
-          </div>
-        </div>
-        <Link
-          href="/store/billing"
-          className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200 inline-flex items-center gap-1"
-        >
+    <StoreSection
+      icon={<Wallet className="h-4 w-4" />}
+      title="Долги поставщикам"
+      subtitle="Открытые обязательства"
+      action={
+        <Link href="/store/billing" className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-foreground">
           Перейти <ArrowRight className="h-3 w-3" />
         </Link>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03] p-3">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Открыто</div>
-          <div className="mt-1 text-lg font-semibold text-amber-600 dark:text-amber-300">
-            {loading ? '—' : openCount}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {loading ? '—' : formatMoney(openSum)}
-          </div>
+      }
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border p-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Открыто</div>
+          <div className={`mt-1 text-lg font-bold tabular-nums ${openCount > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500'}`}>{loading ? '—' : openCount}</div>
+          <div className="text-xs tabular-nums text-muted-foreground">{loading ? '—' : formatMoney(openSum)}</div>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03] p-3">
-          <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-            {overdueCount > 0 ? <AlertCircle className="h-3 w-3 text-red-400" /> : null}
+        <div className={`rounded-xl border p-3 ${overdueCount > 0 ? 'border-rose-500/30 bg-rose-500/[0.05]' : 'border-border'}`}>
+          <div className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+            {overdueCount > 0 ? <AlertCircle className="h-3 w-3 text-rose-500" /> : null}
             Просрочено
           </div>
-          <div className={`mt-1 text-lg font-semibold ${overdueCount > 0 ? 'text-red-500 dark:text-red-300' : 'text-slate-500 dark:text-slate-300'}`}>
-            {loading ? '—' : overdueCount}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {loading ? '—' : formatMoney(overdueSum)}
-          </div>
+          <div className={`mt-1 text-lg font-bold tabular-nums ${overdueCount > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500'}`}>{loading ? '—' : overdueCount}</div>
+          <div className="text-xs tabular-nums text-muted-foreground">{loading ? '—' : formatMoney(overdueSum)}</div>
         </div>
       </div>
-    </Card>
+    </StoreSection>
   )
 }

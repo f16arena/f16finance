@@ -7,11 +7,11 @@ import { Loader2, Package2, RefreshCw } from 'lucide-react'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { Card } from '@/components/ui/card'
+import { storeCard } from '@/components/store/store-ui'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NativeSelect } from '@/components/ui/native-select'
 import { isAbortError } from '@/lib/is-abort-error'
 
 type ConsumableItem = { id: string; name: string; barcode: string; unit: string; category?: { id: string; name: string } | null }
@@ -323,10 +323,10 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
         )
       })()}
 
-      {error && <div className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</div>}
-      {success && <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">{success}</div>}
+      {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{error}</div>}
+      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-700 dark:text-emerald-200">{success}</div>}
 
-      <Card className="border-border/70 bg-background/60 p-4">
+      <div className={`${storeCard} overflow-hidden p-4`}>
         <div className="mb-3 text-sm font-medium">Добавить расходник для контроля</div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <Field label="Название">
@@ -360,7 +360,7 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
         <p className="mt-2 text-xs text-muted-foreground">
           После добавления задайте норму потребления по точке во вкладке «Нормы».
         </p>
-      </Card>
+      </div>
 
       <div className="flex gap-2 overflow-x-auto border-b border-border/50">
         {(['balances', 'issues', 'norms'] as Tab[]).map((t) => (
@@ -377,7 +377,7 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
 
       {tab === 'balances' && (
         <div className="space-y-6">
-          <Card className="border-border/70 bg-background/60 p-4">
+          <div className={`${storeCard} overflow-hidden p-4`}>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
               <Field label="Поиск расходника">
                 <Input
@@ -388,11 +388,11 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
               </Field>
               <div className="text-xs text-muted-foreground">🟢 запас есть · 🟡 скоро закончится · 🔴 критично</div>
             </div>
-          </Card>
+          </div>
           {pointLocations.length === 0 && (
-            <Card className="border-border/70 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+            <div className={`${storeCard} overflow-hidden p-6 text-center text-sm text-muted-foreground`}>
               Нет активных точек продаж
-            </Card>
+            </div>
           )}
           {pointLocations.map((location) => {
             const items = (data?.items || []).filter((item) => {
@@ -401,7 +401,7 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
               return item.name.toLowerCase().includes(q) || String(item.barcode || '').toLowerCase().includes(q)
             })
             return (
-              <Card key={location.id} className="border-border/70 bg-background/60">
+              <div key={location.id} className={`${storeCard} overflow-hidden`}>
                 <div className="border-b border-border/50 px-4 py-3">
                   <div className="text-sm font-medium">{location.name}</div>
                   {location.company && <div className="text-xs text-muted-foreground">{location.company.name}</div>}
@@ -463,7 +463,7 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
                     <Button variant="outline" size="sm">Создать заявку</Button>
                   </Link>
                 </div>
-              </Card>
+              </div>
             )
           })}
         </div>
@@ -471,31 +471,27 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
 
       {tab === 'issues' && (
         <div className="space-y-6">
-          <Card className="border-border/70 bg-background/60 p-4">
+          <div className={`${storeCard} overflow-hidden p-4`}>
             <div className="mb-3 text-sm font-medium">Новая выдача расходников</div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
               <Field label="Дата">
                 <DatePicker value={issueDate} onChange={setIssueDate} />
               </Field>
               <Field label="Точка">
-                <Select value={issueLocationId} onValueChange={setIssueLocationId}>
-                  <SelectTrigger><SelectValue placeholder="Выберите точку" /></SelectTrigger>
-                  <SelectContent>
-                    {pointLocations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect value={issueLocationId} onChange={(e) => setIssueLocationId(e.target.value)}>
+                  <option value="">Выберите точку</option>
+                  {pointLocations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </NativeSelect>
               </Field>
               <Field label="Расходник">
-                <Select value={issueItemId} onValueChange={setIssueItemId}>
-                  <SelectTrigger><SelectValue placeholder="Выберите расходник" /></SelectTrigger>
-                  <SelectContent>
-                    {(data?.items || []).map((item) => (
-                      <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect value={issueItemId} onChange={(e) => setIssueItemId(e.target.value)}>
+                  <option value="">Выберите расходник</option>
+                  {(data?.items || []).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </NativeSelect>
               </Field>
               <Field label="Кол-во упаковок">
                 <Input type="number" min="0" step="0.001" value={issuePackQty} onChange={(e) => setIssuePackQty(e.target.value)} />
@@ -521,10 +517,10 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
               </Button>
               )}
             </div>
-          </Card>
+          </div>
 
-          <Card className="border-border/70 bg-background/60">
-            <div className="border-b border-border/50 px-4 py-3 text-sm font-medium">Журнал выдач</div>
+          <div className={`${storeCard} overflow-hidden`}>
+            <div className="border-b border-border px-4 py-3 text-sm font-semibold">Журнал выдач</div>
             {(data?.issues || []).length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">Выдач пока нет</div>
             ) : (
@@ -564,34 +560,30 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
                 </table>
               </div>
             )}
-          </Card>
+          </div>
         </div>
       )}
 
       {tab === 'norms' && (
         <div className="space-y-6">
-          <Card className="border-border/70 bg-background/60 p-4">
+          <div className={`${storeCard} overflow-hidden p-4`}>
             <div className="mb-3 text-sm font-medium">{editingNormId ? 'Редактировать норму' : 'Новая норма'}</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Расходник">
-                <Select value={normItemId} onValueChange={setNormItemId}>
-                  <SelectTrigger><SelectValue placeholder="Выберите товар" /></SelectTrigger>
-                  <SelectContent>
-                    {(data?.items || []).map((item) => (
-                      <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect value={normItemId} onChange={(e) => setNormItemId(e.target.value)}>
+                  <option value="">Выберите товар</option>
+                  {(data?.items || []).map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </NativeSelect>
               </Field>
               <Field label="Точка">
-                <Select value={normLocationId} onValueChange={setNormLocationId}>
-                  <SelectTrigger><SelectValue placeholder="Выберите точку" /></SelectTrigger>
-                  <SelectContent>
-                    {pointLocations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect value={normLocationId} onChange={(e) => setNormLocationId(e.target.value)}>
+                  <option value="">Выберите точку</option>
+                  {pointLocations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </NativeSelect>
               </Field>
               <Field label="Норма в месяц">
                 <Input value={normMonthlyQty} onChange={(e) => setNormMonthlyQty(e.target.value)} placeholder="0" type="number" min="0" step="0.001" />
@@ -611,10 +603,10 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
                 <Button size="sm" variant="outline" onClick={cancelEditNorm} disabled={saving}>Отмена</Button>
               )}
             </div>
-          </Card>
+          </div>
 
-          <Card className="border-border/70 bg-background/60">
-            <div className="border-b border-border/50 px-4 py-3 text-sm font-medium">Существующие нормы</div>
+          <div className={`${storeCard} overflow-hidden`}>
+            <div className="border-b border-border px-4 py-3 text-sm font-semibold">Существующие нормы</div>
             {(data?.norms || []).length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">Нормы не заданы</div>
             ) : (
@@ -655,7 +647,7 @@ export function ConsumablesPageContent({ embedded = false }: { embedded?: boolea
                 </table>
               </div>
             )}
-          </Card>
+          </div>
         </div>
       )}
     </div>

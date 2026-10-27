@@ -1,13 +1,15 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { AlertCircle, CheckCircle2, ClipboardList, History, Loader2, MoreHorizontal, PackageCheck, RefreshCw, Search, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ClipboardList, History, Loader2, MoreHorizontal, PackageCheck, Pencil, RefreshCw, Search, XCircle } from 'lucide-react'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { AppModal } from '@/components/ui/app-modal'
+import { NativeSelect } from '@/components/ui/native-select'
+import { StoreChip, StoreEmpty, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,11 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { StorePanelSkeleton } from '@/components/store/store-panel-skeleton'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDebouncedValue, useUrlState } from '@/lib/hooks/use-url-state'
 import { isAbortError } from '@/lib/is-abort-error'
 import { useStoreApiUrl } from '@/components/store/store-scope'
@@ -30,7 +29,6 @@ import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
 import { toast } from '@/hooks/use-toast'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
-import { useModalEscape } from '@/lib/client/use-modal-escape'
 import { Label } from '@/components/ui/label'
 
 type InventoryLocation = {
@@ -215,6 +213,181 @@ function requestItemsCount(request: InventoryRequest) {
   return asArray(request.items).reduce((sum, item) => sum + Number(item.requested_qty || 0), 0)
 }
 
+function pointNameOf(request: InventoryRequest) {
+  return request.company?.name || request.target_location?.company?.name || request.target_location?.name || 'Точка'
+}
+
+/** Карточка заявки, ждущей решения: кто просит, что и сколько, быстрые действия. */
+function PendingRequestCard(props: {
+  request: InventoryRequest
+  draft: DecisionDraft
+  editing: boolean
+  saving: boolean
+  selected: boolean
+  canApprove: boolean
+  canReject: boolean
+  onSelect: (checked: boolean) => void
+  onToggleEdit: () => void
+  onQty: (itemId: string, value: string) => void
+  onComment: (value: string) => void
+  onDecide: (approved: boolean, full: boolean) => void
+}) {
+  const { request, draft, editing, saving, selected } = props
+  const items = asArray(request.items)
+  const disputed = request.status === 'disputed'
+  const totalQty = requestItemsCount(request)
+  const short = items.filter((i) => i.enough_for_requested === false).length
+  return (
+    <div className={`${storeCard} overflow-hidden ${disputed ? 'border-rose-500/40 bg-rose-500/[0.03]' : 'border-amber-500/30'}`}>
+      <div className="flex flex-wrap items-start gap-3 px-4 py-3">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 shrink-0 accent-amber-500"
+          checked={selected}
+          onChange={(event) => props.onSelect(event.target.checked)}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-semibold text-foreground">{pointNameOf(request)}</span>
+            {disputed ? <StoreChip tone="rose"><AlertCircle className="h-3 w-3" /> Спор</StoreChip> : <StoreChip tone="amber">Ждёт решения</StoreChip>}
+            {short > 0 ? <StoreChip tone="rose">Не хватает на складе: {short}</StoreChip> : null}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {actorLabel(request.created_by_staff, request.created_by)} · {formatDateTime(request.created_at)} · из «{request.source_location?.name || 'Склад'}»
+          </p>
+          <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+            {items.length} {plural(items.length, ['позиция', 'позиции', 'позиций'])} · {formatQty(totalQty)} ед. запрошено
+          </p>
+        </div>
+      </div>
+      {request.comment ? <p className="border-t border-border px-4 py-2 text-sm text-muted-foreground">{request.comment}</p> : null}
+
+      <div className="max-h-[45vh] divide-y divide-border overflow-auto border-t border-border">
+        {items.map((item) => {
+          const lacks = item.enough_for_requested === false
+          return (
+            <div key={item.id} className="flex items-center gap-3 px-4 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-medium text-foreground">{item.item?.name || 'Товар'}</p>
+                <p className="break-words text-[11px] text-muted-foreground">
+                  {item.item?.barcode ? <span className="font-mono">{item.item.barcode}</span> : null}
+                  {item.comment ? <span>{item.item?.barcode ? ' · ' : ''}{item.comment}</span> : null}
+                </p>
+              </div>
+              <div className="shrink-0 text-right text-xs tabular-nums">
+                <p className="font-semibold text-foreground">× {formatQty(Number(item.requested_qty || 0))}</p>
+                <p className={lacks ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300'}>
+                  на складе {formatQty(Number(item.available_qty || 0))}
+                </p>
+              </div>
+              {editing ? (
+                <div className="w-20 shrink-0">
+                  <Input
+                    value={draft.quantities[item.id] ?? formatQty(Number(item.requested_qty || 0))}
+                    onChange={(event) => props.onQty(item.id, event.target.value)}
+                    className="h-8 text-right"
+                    inputMode="decimal"
+                    aria-label="Сколько одобрить"
+                  />
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+
+      {editing ? (
+        <div className="border-t border-border px-4 py-3">
+          <Textarea
+            value={draft.decisionComment}
+            onChange={(event) => props.onComment(event.target.value)}
+            placeholder="Комментарий к решению (необязательно)"
+            rows={2}
+            className="text-sm"
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">Впишите, сколько одобрить по каждой позиции, и сохраните.</p>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-slate-50/60 px-4 py-3 dark:bg-white/[0.02]">
+        {props.canReject && (
+          <Button size="sm" variant="outline" disabled={saving} onClick={() => props.onDecide(false, false)}
+            className="gap-1.5 border-rose-500/40 text-rose-700 hover:bg-rose-500/10 dark:text-rose-300">
+            <XCircle className="h-3.5 w-3.5" /> Отклонить
+          </Button>
+        )}
+        {props.canApprove && (
+          <Button size="sm" variant="outline" disabled={saving} onClick={props.onToggleEdit} className="gap-1.5">
+            <Pencil className="h-3.5 w-3.5" /> {editing ? 'Скрыть правку' : 'Изменить'}
+          </Button>
+        )}
+        {props.canApprove && editing && (
+          <Button size="sm" disabled={saving} onClick={() => props.onDecide(true, false)} className="gap-1.5">
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageCheck className="h-3.5 w-3.5" />}
+            Сохранить по количествам
+          </Button>
+        )}
+        {props.canApprove && (
+          <Button size="sm" disabled={saving} onClick={() => props.onDecide(true, true)}
+            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700">
+            {saving && !editing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Одобрить всё
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Заголовок очереди: общий чекбокс, название, счётчик. */
+function QueueHeading(props: { icon: ReactNode; title: string; count: number; hint?: string; checkbox?: ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        {props.checkbox}
+        {props.icon}
+        {props.title}
+        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-600 dark:bg-white/5 dark:text-slate-300">{props.count}</span>
+      </div>
+      {props.hint ? <p className="text-xs text-muted-foreground">{props.hint}</p> : null}
+    </div>
+  )
+}
+
+/** Строка заявки на этапе «выдать» / «получить». */
+function StageRequestRow(props: {
+  request: InventoryRequest
+  tone: 'amber' | 'sky'
+  selectable: boolean
+  selected: boolean
+  onSelect: (checked: boolean) => void
+  detail: ReactNode
+  actions: ReactNode
+}) {
+  const { request } = props
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      {props.selectable && (
+        <input
+          type="checkbox"
+          className={`h-4 w-4 shrink-0 ${props.tone === 'amber' ? 'accent-amber-500' : 'accent-sky-500'}`}
+          checked={props.selected}
+          onChange={(event) => props.onSelect(event.target.checked)}
+        />
+      )}
+      <div className="min-w-0 flex-1 basis-48">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-foreground">{pointNameOf(request)}</span>
+          <RequestStatusBadge status={request.status} />
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{props.detail}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{props.actions}</div>
+    </div>
+  )
+}
+
+
 function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) {
   const { can } = useCapabilities()
   const storeUrl = useStoreApiUrl()
@@ -248,7 +421,7 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
   // Откат одобрения: причина в окне, а не в prompt() — текст не теряется
   const [undecideId, setUndecideId] = useState<string | null>(null)
   const [undecideReason, setUndecideReason] = useState('')
-  useModalEscape(!!undecideId, () => { if (!savingId) setUndecideId(null) })
+  const [editingIds, setEditingIds] = useState<string[]>([])
 
   const requestsUrl = storeUrl('/api/admin/inventory/requests')
   // Суффикс: кладём разобранные заявки, а не сырой ответ.
@@ -355,6 +528,8 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
   }, [requests, filters])
 
   const pendingRequests = filteredRequests.filter((request) => request.status === 'new' || request.status === 'disputed')
+  const disputedRequests = pendingRequests.filter((request) => request.status === 'disputed')
+  const newRequests = pendingRequests.filter((request) => request.status !== 'disputed')
   const readyToIssueRequests = filteredRequests.filter((request) =>
     ['approved_full', 'approved_partial'].includes(request.status),
   )
@@ -590,8 +765,26 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
     URL.revokeObjectURL(url)
   }
 
+  const renderPending = (request: InventoryRequest) => (
+    <PendingRequestCard
+      key={request.id}
+      request={request}
+      draft={decisionDrafts[request.id] || createDecisionDraft(request)}
+      editing={editingIds.includes(request.id)}
+      saving={savingId === request.id}
+      selected={selectedIds.includes(request.id)}
+      canApprove={canApprove}
+      canReject={canReject}
+      onSelect={(checked) => toggleSelected(request.id, checked)}
+      onToggleEdit={() => setEditingIds((prev) => (prev.includes(request.id) ? prev.filter((id) => id !== request.id) : [...prev, request.id]))}
+      onQty={(itemId, value) => updateDraftQty(request.id, itemId, value)}
+      onComment={(value) => updateDraft(request.id, { decisionComment: value })}
+      onDecide={(approved, full) => void submitDecision(request, approved, full)}
+    />
+  )
+
   return (
-    <TooltipProvider delayDuration={200}>
+    <>
     <div className={embedded ? 'space-y-6' : 'app-page-wide space-y-6'}>
       {/* Header */}
       {(() => {
@@ -647,19 +840,16 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
                 className="h-9 pl-9"
               />
             </div>
-            <Select value={filters.status} onValueChange={(value) => setFilters({ status: value })}>
-              <SelectTrigger className="h-9 w-full sm:w-[200px]"><SelectValue placeholder="Все статусы" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="new">Новая</SelectItem>
-                <SelectItem value="approved_full">Одобрена полностью</SelectItem>
-                <SelectItem value="approved_partial">Одобрена частично</SelectItem>
-                <SelectItem value="issued">Выдана</SelectItem>
-                <SelectItem value="received">Получена</SelectItem>
-                <SelectItem value="rejected">Отклонена</SelectItem>
-                <SelectItem value="disputed">Спор</SelectItem>
-              </SelectContent>
-            </Select>
+            <NativeSelect value={filters.status} onChange={(event) => setFilters({ status: event.target.value })} className="h-9 w-full sm:w-[200px]">
+              <option value="all">Все статусы</option>
+              <option value="new">Новая</option>
+              <option value="approved_full">Одобрена полностью</option>
+              <option value="approved_partial">Одобрена частично</option>
+              <option value="issued">Выдана</option>
+              <option value="received">Получена</option>
+              <option value="rejected">Отклонена</option>
+              <option value="disputed">Спор</option>
+            </NativeSelect>
             <Input
               value={filters.actor}
               onChange={(event) => setFilters({ actor: event.target.value })}
@@ -689,224 +879,76 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
       })()}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Новые заявки</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.pending}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Ждёт выдачи</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.toIssue}</p>}
-          <p className="mt-1 text-[10px] text-amber-700/60 dark:text-amber-200/60">Одобрено, не отмечено «выдано»</p>
-        </Card>
-        <Card className="border-teal-500/20 bg-teal-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-teal-700 dark:text-teal-300/70">В пути</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-teal-700 dark:text-teal-200">{stats.issued}</p>}
-          <p className="mt-1 text-[10px] text-teal-700/60 dark:text-teal-200/60">Выдано со склада</p>
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">История</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-10" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.history}</p>}
-        </Card>
-        <Card className="border-amber-500/20 bg-amber-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-300/70">Запрошено</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-200">{stats.totalRequested}</p>}
-        </Card>
-        <Card className="border-emerald-500/20 bg-emerald-500/[0.05] p-3">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-300/70">Одобрено</p>
-          {loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-200">{stats.totalApproved}</p>}
-          <p className="mt-1 text-[10px] text-emerald-700/60 dark:text-emerald-200/60">Ед. по одобренным количествам</p>
-        </Card>
-      </div>
+      <StoreStatGrid cols={6}>
+        <StoreStat label="Ждут решения" value={stats.pending} tone={stats.pending > 0 ? 'amber' : 'neutral'} loading={loading} icon={<AlertCircle className="h-3.5 w-3.5" />} />
+        <StoreStat label="Ждут выдачи" value={stats.toIssue} tone={stats.toIssue > 0 ? 'amber' : 'neutral'} hint="Одобрено, не выдано" loading={loading} />
+        <StoreStat label="В пути" value={stats.issued} tone={stats.issued > 0 ? 'sky' : 'neutral'} hint="Выдано со склада" loading={loading} />
+        <StoreStat label="История" value={stats.history} hint="Получены и отклонены" loading={loading} />
+        <StoreStat label="Запрошено" value={formatQty(stats.totalRequested)} hint="ед. в очереди" loading={loading} />
+        <StoreStat label="Одобрено" value={formatQty(stats.totalApproved)} tone={stats.totalApproved > 0 ? 'emerald' : 'neutral'} hint="ед. по решениям" loading={loading} />
+      </StoreStatGrid>
 
-      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-200">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-200">{error}</div> : null}
       {refreshing ? (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Обновление списка…
         </div>
       ) : null}
 
-      {stats.pending > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
-          <span className="text-sm font-semibold text-amber-700 dark:text-amber-200">{stats.pending} {stats.pending === 1 ? 'новая заявка ждёт' : 'новых заявки ждут'} решения</span>
+      {/* Спорные — отдельно и заметно */}
+      {disputedRequests.length > 0 && (
+        <div className="space-y-3">
+          <QueueHeading
+            icon={<AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-300" />}
+            title="Спорные заявки"
+            count={disputedRequests.length}
+            hint="Точка и склад не сошлись по количеству — нужно ваше решение."
+          />
+          {disputedRequests.map((request) => renderPending(request))}
         </div>
       )}
 
-      {/* Pending queue */}
+      {/* Очередь решений */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-amber-500"
-            checked={pendingRequests.length > 0 && pendingRequests.every((request) => selectedIds.includes(request.id))}
-            onChange={(event) => toggleSelectAllPending(event.target.checked)}
-          />
-          <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-          Очередь на решение
-          <span className="text-xs text-muted-foreground">({pendingRequests.length})</span>
-        </div>
-
+        <QueueHeading
+          icon={<ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-300" />}
+          title="Ждут решения"
+          count={newRequests.length}
+          hint={newRequests.length > 0 ? 'Одобрить всё — как просили. «Изменить» — когда отдаёте не всё.' : undefined}
+          checkbox={
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-amber-500"
+              checked={pendingRequests.length > 0 && pendingRequests.every((request) => selectedIds.includes(request.id))}
+              onChange={(event) => toggleSelectAllPending(event.target.checked)}
+              title="Выбрать все ждущие решения"
+            />
+          }
+        />
         {loading && pendingRequests.length === 0 ? (
           <StorePanelSkeleton cards={3} />
-        ) : pendingRequests.length === 0 ? (
-          <Card className="border-border bg-card/70 p-6 text-sm text-muted-foreground">
-            В очереди нет новых заявок. Здесь будут появляться запросы кассиров на пополнение витрин.
-          </Card>
+        ) : newRequests.length === 0 ? (
+          <div className={storeCard}>
+            <StoreEmpty
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              title="Новых заявок нет"
+              hint="Здесь появятся запросы кассиров на пополнение витрин со склада."
+            />
+          </div>
         ) : (
-          pendingRequests.map((request) => {
-            const draft = decisionDrafts[request.id] || createDecisionDraft(request)
-            const requestTotal = (request.items || []).reduce((sum, item) => sum + Number(item.requested_qty || 0), 0)
-
-            return (
-              <Card key={request.id} className="overflow-hidden border-border bg-card/70">
-                <div className="border-b border-slate-200 dark:border-white/5 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-amber-500"
-                      checked={selectedIds.includes(request.id)}
-                      onChange={(event) => toggleSelected(request.id, event.target.checked)}
-                    />
-                    <span className="text-base font-semibold text-foreground">
-                      {request.company?.name || request.target_location?.company?.name || request.target_location?.name || 'Точка'}
-                    </span>
-                    <RequestStatusBadge status={request.status} />
-                    <div className="ml-auto flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                      <span>{formatDateTime(request.created_at)}</span>
-                      <span>Создал: {actorLabel(request.created_by_staff, request.created_by)}</span>
-                      <span>Источник: {request.source_location?.name || 'Склад'}</span>
-                      <span>Позиций: {requestTotal}</span>
-                    </div>
-                  </div>
-                  {request.comment ? <p className="mt-2 text-sm text-muted-foreground">{request.comment}</p> : null}
-                </div>
-
-                <div className="space-y-3 max-h-[55vh] overflow-auto px-4 py-3">
-                  <table className="w-full min-w-[560px] text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-white/[0.06] text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                        <th className="py-2 pr-2 font-normal">Товар</th>
-                        <th className="w-28 py-2 px-2 font-normal">Штрихкод</th>
-                        <th className="w-20 py-2 px-2 text-right font-normal">Запрос</th>
-                        <th className="w-28 py-2 px-2 text-right font-normal">На складе</th>
-                        <th className="w-28 py-2 px-2 text-right font-normal">Одобрить</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-white/[0.04]">
-                      {asArray(request.items).map((item) => (
-                        <tr key={item.id}>
-                          <td className="min-w-0 max-w-0 py-2 pr-2 align-middle">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="truncate text-sm font-medium">{item.item?.name || 'Товар'}</p>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" align="start" className="max-w-md">
-                                {item.item?.name || 'Товар'}
-                                {item.comment ? <div className="mt-1 text-xs text-muted-foreground">{item.comment}</div> : null}
-                              </TooltipContent>
-                            </Tooltip>
-                            {item.comment ? <p className="truncate text-[11px] text-muted-foreground">{item.comment}</p> : null}
-                          </td>
-                          <td className="w-28 py-2 px-2 align-middle">
-                            <span className="font-mono text-[11px] text-muted-foreground">{item.item?.barcode || '—'}</span>
-                          </td>
-                          <td className="w-20 py-2 px-2 text-right align-middle">
-                            <span className="text-sm font-semibold">{formatQty(Number(item.requested_qty || 0))}</span>
-                          </td>
-                          <td className="w-28 py-2 px-2 text-right align-middle">
-                            <div className="flex flex-col items-end">
-                              <span
-                                className={`text-sm font-semibold ${
-                                  item.enough_for_requested === false ? 'text-red-600 dark:text-red-300' : 'text-emerald-600 dark:text-emerald-300'
-                                }`}
-                              >
-                                {formatQty(Number(item.available_qty || 0))}
-                              </span>
-                              <span
-                                className={`text-[10px] ${
-                                  item.enough_for_requested === false ? 'text-red-500/80 dark:text-red-400/80' : 'text-emerald-500/80 dark:text-emerald-400/80'
-                                }`}
-                              >
-                                {item.enough_for_requested === false ? 'Не хватает' : 'Хватает'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="w-28 py-2 px-2 text-right align-middle">
-                            <Input
-                              value={draft.quantities[item.id] ?? formatQty(Number(item.requested_qty || 0))}
-                              onChange={(event) => updateDraftQty(request.id, item.id, event.target.value)}
-                              className="h-8 text-right"
-                              inputMode="decimal"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                    <Textarea
-                      value={draft.decisionComment}
-                      onChange={(event) => updateDraft(request.id, { decisionComment: event.target.value })}
-                      placeholder="Комментарий к решению (необязательно)"
-                      rows={2}
-                      className="text-sm"
-                    />
-                    <div className="flex items-start gap-2">
-                      {can('store-requests.approve') && (
-                      <Button
-                        onClick={() => submitDecision(request, true, false)}
-                        disabled={savingId === request.id}
-                        className="gap-2"
-                      >
-                        {savingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
-                        Сохранить
-                      </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" disabled={savingId === request.id}>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuLabel>Доп. действия</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {can('store-requests.approve') && (
-                          <DropdownMenuItem onClick={() => submitDecision(request, true, true)}>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Одобрить полностью
-                          </DropdownMenuItem>
-                          )}
-                          {can('store-requests.approve') && (
-                          <DropdownMenuItem onClick={() => submitDecision(request, true, false)}>
-                            <PackageCheck className="h-4 w-4" />
-                            Одобрить по количествам
-                          </DropdownMenuItem>
-                          )}
-                          {can('store-requests.reject') && (
-                          <DropdownMenuItem variant="destructive" onClick={() => submitDecision(request, false, false)}>
-                            <XCircle className="h-4 w-4" />
-                            Отклонить заявку
-                          </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )
-          })
+          newRequests.map((request) => renderPending(request))
         )}
       </div>
 
       {/* Одобрено — отметить выдачу со склада (статус «Выдана») */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          {canIssue && (
+        <QueueHeading
+          icon={<PackageCheck className="h-4 w-4 text-amber-600 dark:text-amber-300" />}
+          title="Одобрено — отметьте выдачу"
+          count={readyToIssueRequests.length}
+          hint="Когда товар реально отдали с подсобки на точку, нажмите «Отметить выданной»."
+          checkbox={canIssue ? (
             <input
               type="checkbox"
               className="h-4 w-4 accent-amber-500"
@@ -914,153 +956,110 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
               onChange={(event) => toggleSelectAllIn(readyToIssueRequests, event.target.checked)}
               title="Выбрать все для выдачи"
             />
-          )}
-          <PackageCheck className="h-4 w-4 text-amber-700 dark:text-amber-300" />
-          Одобрено — отметьте выдачу со склада
-          <span className="text-xs text-muted-foreground">({readyToIssueRequests.length})</span>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Когда товар реально отдали с подсобки на точку, нажмите «Отметить выданной» — заявка перейдёт в статус «Выдана».
-        </p>
+          ) : undefined}
+        />
         {readyToIssueRequests.length === 0 ? (
-          <Card className="border-border bg-card/70 p-4 text-sm text-muted-foreground">
-            Нет заявок в ожидании выдачи. После одобрения они появятся здесь.
-          </Card>
+          <div className={`${storeCard} px-4 py-3 text-sm text-muted-foreground`}>Нет заявок в ожидании выдачи. После одобрения они появятся здесь.</div>
         ) : (
-          readyToIssueRequests.map((request) => {
-            const items = asArray(request.items)
-            const requested = items.reduce((sum, i) => sum + Number(i.requested_qty || 0), 0)
-            const approved = items.reduce((sum, i) => sum + Number(i.approved_qty || 0), 0)
-            const pointName = request.company?.name || request.target_location?.company?.name || request.target_location?.name || 'Точка'
-            return (
-              <Card key={request.id} className="overflow-hidden border-amber-500/20 bg-card/70">
-                <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 dark:border-white/5 px-4 py-3">
-                  {canIssue && (
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-amber-500"
-                      checked={selectedIds.includes(request.id)}
-                      onChange={(event) => toggleSelected(request.id, event.target.checked)}
-                    />
-                  )}
-                  <RequestStatusBadge status={request.status} />
-                  <span className="text-base font-semibold text-foreground">{pointName}</span>
-                  <div className="ml-auto flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {formatQty(approved)} ед. к выдаче · {items.length} поз.
-                    </span>
-                    {canUndecide && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 border-rose-500/40 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
-                        disabled={savingId === request.id}
-                        onClick={() => { setUndecideReason(''); setUndecideId(request.id) }}
-                      >
-                        Откатить
-                      </Button>
-                    )}
-                    {canIssue && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="gap-1.5 bg-amber-600/90 text-foreground hover:bg-amber-600"
-                        disabled={savingId === request.id}
-                        onClick={() => void transitionStatus(request.id, 'issued')}
-                      >
-                        {savingId === request.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageCheck className="h-3.5 w-3.5" />}
-                        Отметить выданной
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="px-4 py-2 text-xs text-muted-foreground">
-                  {request.source_location?.name || 'Склад'} → {request.target_location?.name || 'Витрина'}
-                  {' · '}
-                  запрошено {formatQty(requested)}
-                </div>
-              </Card>
-            )
-          })
+          <div className={`${storeCard} divide-y divide-border overflow-hidden`}>
+            {readyToIssueRequests.map((request) => {
+              const items = asArray(request.items)
+              const requested = items.reduce((sum, i) => sum + Number(i.requested_qty || 0), 0)
+              const approved = items.reduce((sum, i) => sum + Number(i.approved_qty || 0), 0)
+              return (
+                <StageRequestRow
+                  key={request.id}
+                  request={request}
+                  tone="amber"
+                  selectable={canIssue}
+                  selected={selectedIds.includes(request.id)}
+                  onSelect={(checked) => toggleSelected(request.id, checked)}
+                  detail={<>{request.source_location?.name || 'Склад'} → {request.target_location?.name || 'Витрина'} · к выдаче {formatQty(approved)} из {formatQty(requested)} ед. · {items.length} {plural(items.length, ['позиция', 'позиции', 'позиций'])}</>}
+                  actions={
+                    <>
+                      {canUndecide && (
+                        <Button type="button" size="sm" variant="outline"
+                          className="gap-1.5 border-rose-500/40 text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
+                          disabled={savingId === request.id}
+                          onClick={() => { setUndecideReason(''); setUndecideId(request.id) }}>
+                          Откатить
+                        </Button>
+                      )}
+                      {canIssue && (
+                        <Button type="button" size="sm" className="gap-1.5 bg-amber-600 text-white hover:bg-amber-700"
+                          disabled={savingId === request.id}
+                          onClick={() => void transitionStatus(request.id, 'issued')}>
+                          {savingId === request.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageCheck className="h-3.5 w-3.5" />}
+                          Отметить выданной
+                        </Button>
+                      )}
+                    </>
+                  }
+                />
+              )
+            })}
+          </div>
         )}
       </div>
 
       {/* Выдано — подтвердить получение на точке */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          {canReceive && (
+        <QueueHeading
+          icon={<PackageCheck className="h-4 w-4 text-sky-600 dark:text-sky-300" />}
+          title="В пути — отметьте получение"
+          count={issuedAwaitingReceiveRequests.length}
+          hint="Когда витрина приняла товар, нажмите «Отметить полученной»."
+          checkbox={canReceive ? (
             <input
               type="checkbox"
-              className="h-4 w-4 accent-teal-500"
+              className="h-4 w-4 accent-sky-500"
               checked={issuedAwaitingReceiveRequests.length > 0 && issuedAwaitingReceiveRequests.every((request) => selectedIds.includes(request.id))}
               onChange={(event) => toggleSelectAllIn(issuedAwaitingReceiveRequests, event.target.checked)}
               title="Выбрать все для получения"
             />
-          )}
-          <PackageCheck className="h-4 w-4 text-teal-700 dark:text-teal-300" />
-          Выдано — отметьте получение на точке
-          <span className="text-xs text-muted-foreground">({issuedAwaitingReceiveRequests.length})</span>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Когда витрина приняла товар, нажмите «Отметить полученной» — статус станет «Получена».
-        </p>
+          ) : undefined}
+        />
         {issuedAwaitingReceiveRequests.length === 0 ? (
-          <Card className="border-border bg-card/70 p-4 text-sm text-muted-foreground">
-            Нет заявок в статусе «Выдана».
-          </Card>
+          <div className={`${storeCard} px-4 py-3 text-sm text-muted-foreground`}>Нет заявок в статусе «Выдана».</div>
         ) : (
-          issuedAwaitingReceiveRequests.map((request) => {
-            const items = asArray(request.items)
-            const approved = items.reduce((sum, i) => sum + Number(i.approved_qty || 0), 0)
-            const pointName = request.company?.name || request.target_location?.company?.name || request.target_location?.name || 'Точка'
-            return (
-              <Card key={request.id} className="overflow-hidden border-teal-500/20 bg-card/70">
-                <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 dark:border-white/5 px-4 py-3">
-                  {canReceive && (
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-teal-500"
-                      checked={selectedIds.includes(request.id)}
-                      onChange={(event) => toggleSelected(request.id, event.target.checked)}
-                    />
-                  )}
-                  <RequestStatusBadge status={request.status} />
-                  <span className="text-base font-semibold text-foreground">{pointName}</span>
-                  <div className="ml-auto flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Выдано {formatDateTime(request.issued_at)} · {formatQty(approved)} ед.
-                    </span>
-                    {canReceive && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="gap-1.5 bg-teal-600/90 text-foreground hover:bg-teal-600"
+          <div className={`${storeCard} divide-y divide-border overflow-hidden`}>
+            {issuedAwaitingReceiveRequests.map((request) => {
+              const items = asArray(request.items)
+              const approved = items.reduce((sum, i) => sum + Number(i.approved_qty || 0), 0)
+              return (
+                <StageRequestRow
+                  key={request.id}
+                  request={request}
+                  tone="sky"
+                  selectable={canReceive}
+                  selected={selectedIds.includes(request.id)}
+                  onSelect={(checked) => toggleSelected(request.id, checked)}
+                  detail={<>Выдано {formatDateTime(request.issued_at)} · {formatQty(approved)} ед. · {items.length} {plural(items.length, ['позиция', 'позиции', 'позиций'])}</>}
+                  actions={
+                    canReceive ? (
+                      <Button type="button" size="sm" className="gap-1.5 bg-sky-600 text-white hover:bg-sky-700"
                         disabled={savingId === request.id}
-                        onClick={() => void transitionStatus(request.id, 'received')}
-                      >
+                        onClick={() => void transitionStatus(request.id, 'received')}>
                         {savingId === request.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         Отметить полученной
                       </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )
-          })
+                    ) : null
+                  }
+                />
+              )
+            })}
+          </div>
         )}
       </div>
 
       {selectedIds.length > 0 ? (
-        <div className="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-white/95 dark:bg-[#0f172a]/95 px-4 py-3 shadow-2xl backdrop-blur">
-          <div className="text-sm text-amber-700 dark:text-amber-100">
-            Выбрано заявок: <span className="font-semibold">{selectedIds.length}</span>
+        <div className="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur dark:bg-[#0f172a]/95">
+          <div className="text-sm text-foreground">
+            Выбрано заявок: <span className="font-semibold tabular-nums">{selectedIds.length}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {canBulkApprove && bulkIdsFor('approve-full').length > 0 && (
-              <Button size="sm" onClick={() => runBulkAction('approve-full')} disabled={bulkSaving} className="gap-2">
+              <Button size="sm" onClick={() => runBulkAction('approve-full')} disabled={bulkSaving} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
                 {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Одобрить ({bulkIdsFor('approve-full').length})
               </Button>
@@ -1072,13 +1071,13 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
               </Button>
             )}
             {canIssue && bulkIdsFor('issue').length > 0 && (
-              <Button size="sm" variant="secondary" onClick={() => runBulkAction('issue')} disabled={bulkSaving} className="gap-2 bg-amber-600/90 text-foreground hover:bg-amber-600">
+              <Button size="sm" onClick={() => runBulkAction('issue')} disabled={bulkSaving} className="gap-2 bg-amber-600 text-white hover:bg-amber-700">
                 {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
                 Выдать ({bulkIdsFor('issue').length})
               </Button>
             )}
             {canReceive && bulkIdsFor('receive').length > 0 && (
-              <Button size="sm" variant="secondary" onClick={() => runBulkAction('receive')} disabled={bulkSaving} className="gap-2 bg-teal-600/90 text-foreground hover:bg-teal-600">
+              <Button size="sm" onClick={() => runBulkAction('receive')} disabled={bulkSaving} className="gap-2 bg-sky-600 text-white hover:bg-sky-700">
                 {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Получить ({bulkIdsFor('receive').length})
               </Button>
@@ -1091,41 +1090,35 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
       ) : null}
 
       {/* Откат одобрения: причина вводится в поле */}
-      {undecideId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { if (!savingId) setUndecideId(null) }}>
-          <Card
-            className="w-full max-w-md space-y-4 p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Откатить одобрение заявки?</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Товар вернётся на склад, заявка станет «Новой».</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Причина (опционально)</Label>
-              <Textarea
-                rows={3}
-                value={undecideReason}
-                onChange={(event) => setUndecideReason(event.target.value)}
-                placeholder="Например: одобрили не ту точку"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setUndecideId(null)} disabled={!!savingId}>Назад</Button>
-              <Button
-                variant="destructive"
-                disabled={!!savingId}
-                onClick={() => void undecideRequest(undecideId)}
-              >
-                {savingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Откатить
-              </Button>
-            </div>
-          </Card>
+      <AppModal
+        open={!!undecideId}
+        onClose={() => { if (!savingId) setUndecideId(null) }}
+        title="Откатить одобрение заявки?"
+        description="Товар вернётся на склад, заявка станет «Новой»."
+        tone="danger"
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setUndecideId(null)} disabled={!!savingId}>Назад</Button>
+            <Button variant="destructive" disabled={!!savingId} onClick={() => undecideId && void undecideRequest(undecideId)}>
+              {savingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Откатить
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label>Причина (опционально)</Label>
+          <Textarea
+            rows={3}
+            value={undecideReason}
+            onChange={(event) => setUndecideReason(event.target.value)}
+            placeholder="Например: одобрили не ту точку"
+          />
         </div>
-      ) : null}
+      </AppModal>
     </div>
-    </TooltipProvider>
+    </>
   )
 }
 
