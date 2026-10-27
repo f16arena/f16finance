@@ -147,6 +147,8 @@ fun BusinessProfileScreen(env: BusinessEnv) {
             AccessStat(if (env.resolver.isAllAccess) "Полный" else "Частичный", "доступ", Modifier.weight(1f))
         }
 
+        kz.ordaops.android.feature.business.ops.MyTasksCard()
+
         OwnerSection("Аккаунт") {
             LinkRow(Icons.Filled.Key, Color(0xFFD97706), "Сменить пароль") { changingPassword = true }
             SoftDivider()

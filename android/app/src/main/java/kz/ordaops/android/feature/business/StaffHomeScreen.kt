@@ -118,6 +118,9 @@ fun StaffHomeScreen(env: BusinessEnv) {
                 }
             }
 
+            // Поручения, назначенные лично человеку (карточки нет, если ничего не висит)
+            kz.ordaops.android.feature.business.ops.MyTasksCard()
+
             // Сервисы должности
             val favorites = remember(env.access) { Services.favorites(env.access) }
             if (favorites.isNotEmpty()) {

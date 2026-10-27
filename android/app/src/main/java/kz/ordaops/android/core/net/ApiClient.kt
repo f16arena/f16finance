@@ -77,6 +77,14 @@ class ApiClient(
     @Volatile
     var organizationId: String? = null
 
+    /**
+     * Идентификатор пользователя входа (`sub` в токене доступа). Нужен там, где
+     * «моё» определяется учёткой, а не оператором: у сотрудника `operatorId` нет,
+     * и сообщения в чате команды узнаются по `sender_user_id`.
+     */
+    val currentUserId: String?
+        get() = userIdFromJwt(tokenProvider.currentAccessToken())
+
     suspend inline fun <reified T> send(request: ApiRequest): T = send(request, serializer<T>())
 
     suspend fun <T> send(request: ApiRequest, deserializer: DeserializationStrategy<T>): T {
@@ -176,6 +184,16 @@ class ApiClient(
             else -> ApiError.Server(status, message)
         }
     }
+}
+
+/** Поле `sub` из полезной части JWT; null, если токен не разобрать. */
+internal fun userIdFromJwt(token: String?): String? {
+    val payload = token?.split('.')?.getOrNull(1) ?: return null
+    return runCatching {
+        val json = String(java.util.Base64.getUrlDecoder().decode(payload))
+        (ApiJson.parseToJsonElement(json) as? kotlinx.serialization.json.JsonObject)
+            ?.get("sub")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+    }.getOrNull()
 }
 
 /** OkHttp-вызов как suspend: отмена корутины отменяет запрос. */

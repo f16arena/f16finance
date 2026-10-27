@@ -107,8 +107,18 @@ private fun startsGroup(items: List<TeamChatMessage>, index: Int): Boolean {
     return right - left > 5 * 60 * 1000
 }
 
-private fun buildTeamContent(feed: TeamChatFeed, pending: List<TeamChatMessage>, operatorId: String?): TeamChatContent {
-    fun mine(m: TeamChatMessage) = m.isPending || (operatorId != null && m.senderOperatorId == operatorId)
+/**
+ * Моё ли сообщение. Оператор узнаётся по `operatorId`; у сотрудника его нет, и тогда
+ * сообщение своё, если его `sender_user_id` совпал с учёткой входа (как `isMine` в
+ * `TeamChatScreen` на айфоне). Только что отправленное — всегда своё.
+ */
+internal fun isOwnTeamMessage(m: TeamChatMessage, operatorId: String?, userId: String?): Boolean =
+    m.isPending ||
+        (operatorId != null && m.senderOperatorId == operatorId) ||
+        (userId != null && m.senderUserId == userId)
+
+private fun buildTeamContent(feed: TeamChatFeed, pending: List<TeamChatMessage>, operatorId: String?, userId: String? = null): TeamChatContent {
+    fun mine(m: TeamChatMessage) = isOwnTeamMessage(m, operatorId, userId)
     val visible = feed.visible + pending
     var newest: ChatRow.Message? = null
     val chronological = buildList<ChatRow> {
@@ -143,14 +153,14 @@ private fun <T> Loadable<*>.withData(data: T?): Loadable<T> =
 // ── Командный чат ────────────────────────────────────────────────────────────
 
 /** Состояние командного чата. Живёт с Activity: поворот и смена вкладки его не сбрасывают. */
-internal class TeamChatViewModel(private val service: ChatService, operatorId: String?) : ViewModel() {
+internal class TeamChatViewModel(private val service: ChatService, operatorId: String?, userId: String? = null) : ViewModel() {
     private val feed = MutableStateFlow(Loadable<TeamChatFeed>())
 
     /** Отправленные, но ещё не подтверждённые сервером. */
     private val pending = MutableStateFlow(listOf<TeamChatMessage>())
 
     val content: StateFlow<Loadable<TeamChatContent>> = combine(feed, pending) { f, p -> f to p }
-        .map { (f, p) -> f.withData(f.data?.let { buildTeamContent(it, p, operatorId) }) }
+        .map { (f, p) -> f.withData(f.data?.let { buildTeamContent(it, p, operatorId, userId) }) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, Loadable(isLoading = true))
 
