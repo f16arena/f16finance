@@ -19,4 +19,5 @@ internal val teamPages: Map<String, @Composable () -> Unit> = mapOf(
     "ratings" to { RatingsScreen() },
     "operator-achievements" to { AchievementsScreen() },
     "access" to { AccessScreen() },
+    "pass" to { PassScreen() },
 )

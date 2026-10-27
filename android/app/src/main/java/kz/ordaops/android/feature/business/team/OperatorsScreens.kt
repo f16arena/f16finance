@@ -465,7 +465,7 @@ private fun EditOperatorSheet(operatorId: String, onDismiss: () -> Unit, onDone:
 
 /** Сброс пароля: придумывает приложение, показывается один раз, при Telegram уходит туда же. */
 @Composable
-private fun ResetPasswordSheet(person: TeamOperator, onDismiss: () -> Unit, onDone: () -> Unit) {
+internal fun ResetPasswordSheet(person: TeamOperator, onDismiss: () -> Unit, onDone: () -> Unit) {
     val env = LocalBusiness.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -530,7 +530,7 @@ private fun ResetPasswordSheet(person: TeamOperator, onDismiss: () -> Unit, onDo
 
 /** Смена логина оператора. */
 @Composable
-private fun ChangeLoginSheet(person: TeamOperator, onDismiss: () -> Unit, onDone: () -> Unit) {
+internal fun ChangeLoginSheet(person: TeamOperator, onDismiss: () -> Unit, onDone: () -> Unit) {
     val env = LocalBusiness.current
     val scope = rememberCoroutineScope()
     val action = rememberActionState()

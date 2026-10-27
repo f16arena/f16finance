@@ -21,6 +21,7 @@ internal val opsPages: Map<String, @Composable () -> Unit> = mapOf(
     "team-chat" to { TeamChatPage() },
     "messages" to { MessagesPage() },
     "knowledge-admin" to { KnowledgeAdminScreen() },
+    "knowledge-setup" to { KnowledgeSetupScreen() },
     "news" to { NewsScreen() },
     "moderation" to { ModerationScreen() },
     "stations" to { StationsScreen() },
