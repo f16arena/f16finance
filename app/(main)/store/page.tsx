@@ -19,6 +19,7 @@ import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
 type LowStockRow = {
   item_id: string; name: string; quantity: number; threshold: number
   location_name: string | null; location_kind?: 'warehouse' | 'showcase' | null
+  backroom_qty?: number
 }
 type StoreOverviewMetrics = {
   pendingRequests: number
@@ -30,6 +31,7 @@ type StoreOverviewMetrics = {
   lowStockTop: LowStockRow[]
   // Поля новее страницы: в кэше браузера может лежать ответ без них.
   outOfStock?: number
+  outOfStockInBackroom?: number
   stockValue?: { warehouse: number; showcase: number; positions: number }
 }
 type AuditTimelineEntry = {
@@ -113,7 +115,7 @@ export default function StoreOverviewPage() {
           const metrics: StoreOverviewMetrics = {
             pendingRequests: d.pendingRequests, disputedRequests: d.disputedRequests, showcases: d.showcases,
             receipts: d.receipts, unresolvedWriteoffs: d.unresolvedWriteoffs, lowStock: d.lowStock,
-            lowStockTop: d.lowStockTop || [], outOfStock: d.outOfStock, stockValue: d.stockValue,
+            lowStockTop: d.lowStockTop || [], outOfStock: d.outOfStock, outOfStockInBackroom: d.outOfStockInBackroom, stockValue: d.stockValue,
           }
           writeApiCache(overviewCacheKey, metrics)
           setOverview(metrics)
@@ -139,6 +141,8 @@ export default function StoreOverviewPage() {
   const outRows = lowRows.filter((r) => r.quantity <= 0)
   const fewRows = lowRows.filter((r) => r.quantity > 0)
   const outOfStock = overview?.outOfStock ?? outRows.length
+  const inBackroom = overview?.outOfStockInBackroom ?? outRows.filter((r) => (r.backroom_qty || 0) > 0).length
+  const toBuy = Math.max(0, outOfStock - inBackroom)
   const fewCount = Math.max(0, (overview?.lowStock ?? 0) - outOfStock)
 
   // Только то, что ждёт человека. Нули не показываем — они не требуют действия.
@@ -146,7 +150,8 @@ export default function StoreOverviewPage() {
   if (overview) {
     if (overview.pendingRequests > 0) todo.push({ key: 'req', icon: ClipboardList, tone: 'amber', text: `${overview.pendingRequests} ${plural(overview.pendingRequests, ['заявка ждёт', 'заявки ждут', 'заявок ждут'])} решения`, href: '/store/orders', cta: 'Решить' })
     if (overview.disputedRequests > 0) todo.push({ key: 'disp', icon: Scale, tone: 'rose', text: `${overview.disputedRequests} ${plural(overview.disputedRequests, ['спорная заявка', 'спорные заявки', 'спорных заявок'])}: пришло не столько, сколько выдали`, href: '/store/orders', cta: 'Разобрать' })
-    if (outOfStock > 0) todo.push({ key: 'out', icon: PackageX, tone: 'rose', text: `${outOfStock} ${plural(outOfStock, ['позиция закончилась', 'позиции закончились', 'позиций закончились'])}`, href: '/store/purchase-plan', cta: 'В план закупа' })
+    if (inBackroom > 0) todo.push({ key: 'shelf', icon: Store, tone: 'amber', text: `${inBackroom} ${plural(inBackroom, ['позиция пустая', 'позиции пустые', 'позиций пустые'])} на витрине, но есть в подсобке — выставить`, href: '/store/orders', cta: 'Заявка' })
+    if (toBuy > 0) todo.push({ key: 'out', icon: PackageX, tone: 'rose', text: `${toBuy} ${plural(toBuy, ['позиция закончилась', 'позиции закончились', 'позиций закончились'])} совсем — закупить`, href: '/store/purchase-plan', cta: 'В план закупа' })
     if (overview.unresolvedWriteoffs > 0) todo.push({ key: 'wo', icon: ArchiveX, tone: 'amber', text: `${overview.unresolvedWriteoffs} ${plural(overview.unresolvedWriteoffs, ['списание', 'списания', 'списаний'])} без причины за 90 дней`, href: '/store/documents', cta: 'Указать' })
   }
 
@@ -366,6 +371,7 @@ function StockRow({ row }: { row: LowStockRow }) {
         <div className="truncate text-sm font-medium text-foreground">{row.name}</div>
         <div className="truncate text-[11px] text-muted-foreground">
           {[where, row.location_name].filter(Boolean).join(' · ') || '—'}
+          {(row.backroom_qty || 0) > 0 ? <span className="ml-1.5 rounded bg-sky-500/10 px-1.5 py-px font-medium text-sky-700 dark:text-sky-300">в подсобке {row.backroom_qty}</span> : null}
         </div>
       </div>
       <div className="w-28 shrink-0 sm:w-36">

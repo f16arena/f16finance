@@ -418,6 +418,8 @@ export type StoreOverviewLowStockRow = {
   location_name: string | null
   /** Где мало: на витрине или в подсобке — у обеих локаций имя точки. */
   location_kind?: 'warehouse' | 'showcase' | null
+  /** Пусто на витрине, а в подсобке той же точки лежит — не закупать, а выставить. */
+  backroom_qty?: number
 }
 
 export type StoreOverviewMetrics = {
@@ -430,6 +432,8 @@ export type StoreOverviewMetrics = {
   lowStockTop: StoreOverviewLowStockRow[]
   /** Из lowStock — сколько позиций уже на нуле. */
   outOfStock: number
+  /** Из outOfStock — пусто на витрине, но есть в подсобке: выставить, а не закупать. */
+  outOfStockInBackroom: number
   /** Деньги в товаре по закупочной цене: подсобка и витрины. */
   stockValue: { warehouse: number; showcase: number; positions: number }
 }
@@ -443,6 +447,7 @@ const EMPTY_STORE_METRICS: StoreOverviewMetrics = {
   lowStock: 0,
   lowStockTop: [],
   outOfStock: 0,
+  outOfStockInBackroom: 0,
   stockValue: { warehouse: 0, showcase: 0, positions: 0 },
 }
 
@@ -643,6 +648,7 @@ export async function fetchStoreOverviewMetrics(
 
   let lowStock = 0
   let outOfStock = 0
+  let outOfStockInBackroom = 0
   const lowStockTop: StoreOverviewLowStockRow[] = []
   if (thresholdById.size > 0) {
     const itemIds = Array.from(thresholdById.keys())
@@ -668,6 +674,7 @@ export async function fetchStoreOverviewMetrics(
     // «низкий остаток» — про товар, а не про строку баланса. Берём минимальный
     // запас по локациям, чтобы наверх всплывало самое горячее.
     const worstByItem = new Map<string, StoreOverviewLowStockRow>()
+    const worstLocation = new Map<string, string>()
     for (const row of balances) {
       const meta = thresholdById.get(String(row.item_id))
       if (!meta) continue
@@ -685,11 +692,30 @@ export async function fetchStoreOverviewMetrics(
         })(),
       }
       const current = worstByItem.get(candidate.item_id)
-      if (!current || candidate.quantity < current.quantity) worstByItem.set(candidate.item_id, candidate)
+      if (!current || candidate.quantity < current.quantity) {
+        worstByItem.set(candidate.item_id, candidate)
+        worstLocation.set(candidate.item_id, String(row.location_id))
+      }
+    }
+
+    // Для витрины — сколько того же товара лежит в подсобке этой точки.
+    const companyByLocation = new Map<string, string>(locations.map((row: any) => [String(row.id), String(row.company_id || '')]))
+    const warehouseQty = new Map<string, number>()
+    for (const row of balances) {
+      if (locationTypeById.get(String(row.location_id)) !== 'warehouse') continue
+      const key = `${companyByLocation.get(String(row.location_id))}:${row.item_id}`
+      warehouseQty.set(key, (warehouseQty.get(key) || 0) + Number(row.quantity || 0))
+    }
+    for (const row of worstByItem.values()) {
+      if (row.location_kind !== 'showcase') continue
+      const loc = worstLocation.get(row.item_id)
+      const qty = loc ? warehouseQty.get(`${companyByLocation.get(loc)}:${row.item_id}`) || 0 : 0
+      if (qty > 0) row.backroom_qty = qty
     }
 
     lowStock = worstByItem.size
     outOfStock = Array.from(worstByItem.values()).filter((r) => r.quantity <= 0).length
+    outOfStockInBackroom = Array.from(worstByItem.values()).filter((r) => r.quantity <= 0 && (r.backroom_qty || 0) > 0).length
     lowStockTop.push(
       ...Array.from(worstByItem.values())
         .sort((a, b) => a.quantity - b.quantity || a.name.localeCompare(b.name, 'ru'))
@@ -706,6 +732,7 @@ export async function fetchStoreOverviewMetrics(
     lowStock,
     lowStockTop,
     outOfStock,
+    outOfStockInBackroom,
     stockValue,
   }
 }
