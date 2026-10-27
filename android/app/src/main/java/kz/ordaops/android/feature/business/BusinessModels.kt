@@ -62,7 +62,13 @@ data class PendingExpense(
 
 /** Точка (компания) организации: GET /api/admin/companies. */
 @Serializable
-data class Company(val id: String = "", val name: String = "Точка", val code: String? = null)
+data class Company(
+    val id: String = "",
+    val name: String = "Точка",
+    val code: String? = null,
+    /** Настройка точки «не в общих итогах»; `null` — старый сервер без флага. */
+    @kotlinx.serialization.SerialName("exclude_from_totals") val excludeFromTotals: Boolean? = null,
+)
 
 // ── Аналитика владельца: GET /api/admin/owner-analytics ──────────────────────
 

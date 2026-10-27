@@ -105,7 +105,7 @@ class BusinessViewModel(
     private val _filter = MutableStateFlow(restoreFilter())
     val filter: StateFlow<AnalyticsFilter> = _filter.asStateFlow()
 
-    /** Учитывать ли отдельную кассу («F16 Extra») в итогах. Одна настройка на все отчёты. */
+    /** Учитывать ли точки «не в общих итогах» в итогах. Одна настройка на все отчёты. */
     private val _includeExtra = MutableStateFlow(prefs?.getBoolean(KEY_EXTRA, false) ?: false)
     val includeExtra: StateFlow<Boolean> = _includeExtra.asStateFlow()
 
@@ -281,9 +281,12 @@ class BusinessViewModel(
     companion object {
         private const val KEY_EXTRA = "includeExtra"
 
-        /** Та же проверка, что на сервере (`isExtraCompany`): код `extra` или имя «F16 Extra». */
+        /**
+         * Та же проверка, что на сервере (`isExtraCompany`): решает флаг точки
+         * «не в общих итогах»; код `extra` и имя «F16 Extra» — только если флага нет.
+         */
         fun isExtra(company: Company): Boolean =
-            company.code?.lowercase() == "extra" || company.name == "F16 Extra"
+            company.excludeFromTotals ?: (company.code?.lowercase() == "extra" || company.name == "F16 Extra")
 
         /** Подпись выбранных точек: «Все точки», «F16 Arena», «3 точки». */
         fun companiesTitle(ids: Set<String>, options: List<OwnerAnalytics.CompanyOption>): String = when {
