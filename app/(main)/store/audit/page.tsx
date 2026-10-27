@@ -1,85 +1,35 @@
 'use client'
 
-import { AppModal } from '@/components/ui/app-modal'
-import { StoreAttention, StoreChip, StoreEmpty, plural, storeCard } from '@/components/store/store-ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, ClipboardList, Loader2, Lock, Plus, RefreshCw, Trash2, Undo2, Users } from 'lucide-react'
+import { ArrowLeft, ClipboardList } from 'lucide-react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
-import { CardSkeleton, Skeleton, TableSkeleton } from '@/components/skeleton'
+import { CardSkeleton, TableSkeleton } from '@/components/skeleton'
 import { Button } from '@/components/ui/button'
 import { useCapabilities } from '@/lib/client/use-capabilities'
-import { Card } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useStoreApiUrl } from '@/components/store/store-scope'
+import { StoreSection } from '@/components/store/store-ui'
 import { readApiCache, writeApiCache } from '@/lib/client/use-api-cache'
-import { formatMoney as money } from '@/lib/core/format'
 import { invalidateStoreCaches } from '@/lib/client/store-cache'
 import { toast } from '@/hooks/use-toast'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
 
-type Loc = { id: string; name: string; location_type: string; company?: { name?: string | null } | null }
-type ActListRow = {
-  id: string
-  status: string
-  comment: string | null
-  opened_at: string
-  closed_at: string | null
-  locationName: string
-  totalItems: number
-  countedItems: number
-  companyId?: string | null
-  locationType?: string | null
-  /** Итог проведения по закупу: минус = недостача */
-  resultValue?: number | null
-  /** Сколько из итога дало обнуление непосчитанного */
-  zeroedValue?: number | null
-}
-
-// Ревизия второй локации той же точки (витрина ↔ склад), закрытая в пределах 3 дней:
-// товар, лежащий не на своём месте, даёт минус в одной и плюс в другой — по точке ноль.
-function pairedAct(a: ActListRow, all: ActListRow[]): ActListRow | null {
-  if (a.status !== 'closed' || a.resultValue == null || !a.companyId || !a.closed_at) return null
-  const at = new Date(a.closed_at).getTime()
-  let best: ActListRow | null = null
-  for (const b of all) {
-    if (b.id === a.id || b.status !== 'closed' || b.resultValue == null || !b.closed_at) continue
-    if (b.companyId !== a.companyId || !b.locationType || b.locationType === a.locationType) continue
-    const diff = Math.abs(new Date(b.closed_at).getTime() - at)
-    if (diff > 3 * 86_400_000) continue
-    if (!best || diff < Math.abs(new Date(best.closed_at as string).getTime() - at)) best = b
-  }
-  return best
-}
-type FormData = { operators: Array<{ id: string; name: string }>; otherOperators?: Array<{ id: string; name: string }>; categories: Array<{ id: string; name: string }> }
-type Assignment = { operator_id: string; category_id: string | null }
-type ReportRow = { item_id: string; name: string; expected: number; counted: number; variance: number; purchase_price?: number; countedBy: string | null; conflict?: boolean; counts?: Array<{ qty: number; by: string | null }> }
-type CloseRow = { item_id: string; name: string; expected: number; counted: number; movedIn: number; movedOut: number; final: number; variance: number; shrinkage: number; surplus: number; purchase_price?: number; zeroed?: boolean }
-type CloseSummary = { movedItems: number; movedIn: number; movedOut: number; shrinkageItems: number; shrinkageQty: number; surplusItems: number; surplusQty: number; shrinkageValue?: number; surplusValue?: number; zeroedItems?: number; zeroedQty?: number; zeroedValue?: number }
-type UncountedRow = { item_id: string; name: string; expected: number; purchase_price: number; sold_recent?: number; other_location_qty?: number }
-type Detail = {
-  act: { id: string; status: string; comment: string | null; opened_at: string; closed_at: string | null }
-  location: Loc | null
-  assignments: Array<{ id: string; operatorName: string; categoryName: string | null }>
-  progress?: Array<{ operatorName: string; counted: number; total: number }>
-  totalItems: number
-  countedItems: number
-  report: ReportRow[]
-  uncounted?: UncountedRow[]
-  otherLocationType?: string | null
-}
-
-// Порог «громкого» предупреждения: обнуление такого объёма почти всегда недосчёт, а не пропажа
-const isBigZeroing = (rows: UncountedRow[], totalItems: number) => {
-  const value = rows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
-  return rows.length > Math.max(5, totalItems * 0.05) || value >= 50_000
-}
-
-const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
-const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—')
-const locLabel = (l: Loc | null) => (l ? `${l.company?.name ? l.company.name + ' · ' : ''}${l.location_type === 'point_display' ? 'Витрина' : l.location_type === 'warehouse' ? 'Склад' : l.name}` : '—')
+import { ActCreateForm } from './_parts/act-create-form'
+import { ActHeaderCard } from './_parts/act-header-card'
+import { ActsList } from './_parts/acts-list'
+import { CloseResult } from './_parts/close-result'
+import { CountProgress } from './_parts/count-progress'
+import { ZeroPreviewModal } from './_parts/zero-preview-modal'
+import type {
+  ActListRow,
+  Assignment,
+  CloseRow,
+  CloseSummary,
+  Detail,
+  FormData,
+  Loc,
+  ReportRow,
+} from './_parts/types'
 
 export default function StoreAuditPage() {
   const { can } = useCapabilities()
@@ -357,212 +307,37 @@ export default function StoreAuditPage() {
   // ── Список ───────────────────────────────────────────────────────────────
   if (view === 'list') {
     return (
-      <div className="app-page-wide space-y-4">
-        <AdminPageHeader
-          title="Аудит-ревизии"
-          description="Слепой подсчёт несколькими операторами по секциям"
-          icon={<ClipboardList className="h-5 w-5" />}
-          accent="emerald"
-          backHref="/store/revisions"
-          actions={
-            <>
-              <Button variant="outline" size="sm" onClick={() => void loadActs({ fresh: true })} className="h-9 gap-1.5">
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Обновить
-              </Button>
-              <Button size="sm" onClick={() => { setView('create'); setLocationId(''); setAssignments([]); setComment(''); setMode('single') }} className="h-9 gap-1.5 bg-amber-600 hover:bg-amber-700">
-                <Plus className="h-3.5 w-3.5" />
-                Новый акт
-              </Button>
-            </>
-          }
-        />
-
-        {error ? <Card className="border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</Card> : null}
-
-        <StoreAttention
-          loading={loading}
-          calm={<><span className="font-semibold">Открытых актов нет.</span> Все подсчёты закрыты.</>}
-          items={acts.filter((a) => a.status === 'open').length > 0 ? [{
-            key: 'open',
-            icon: ClipboardList,
-            tone: 'amber',
-            text: `${acts.filter((a) => a.status === 'open').length} ${plural(acts.filter((a) => a.status === 'open').length, ['акт', 'акта', 'актов'])} в работе: подсчёт идёт, итог ещё не закрыт`,
-            onClick: () => { const first = acts.find((a) => a.status === 'open'); if (first) void openDetail(first.id) },
-            cta: 'Открыть',
-          }] : []}
-        />
-
-        {loading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} rows={3} />)}
-          </div>
-        ) : acts.length === 0 ? (
-          <div className={storeCard}>
-            <StoreEmpty
-              icon={<ClipboardList className="h-5 w-5" />}
-              title="Аудит-актов пока нет"
-              hint="Аудит — слепой подсчёт: операторы считают товар по секциям и не видят остатков системы. После закрытия акта появятся недостачи и излишки."
-              action={<Button size="sm" onClick={() => { setView('create'); setLocationId(''); setAssignments([]); setComment(''); setMode('single') }} className="gap-1.5 bg-amber-600 hover:bg-amber-700"><Plus className="h-3.5 w-3.5" /> Создать первый акт</Button>}
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {acts.map((a) => {
-              const pct = a.totalItems ? Math.round((a.countedItems / a.totalItems) * 100) : 0
-              const barCls = a.status === 'closed' ? 'bg-emerald-500' : a.status === 'cancelled' ? 'bg-red-400/70' : 'bg-amber-500'
-              return (
-                <button key={a.id} type="button" onClick={() => void openDetail(a.id)} className="text-left">
-                  <div className={`${storeCard} flex h-full flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:border-amber-400/50 hover:shadow-md`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="min-w-0 truncate text-sm font-semibold text-foreground">{a.locationName}</span>
-                      <StoreChip tone={a.status === 'open' ? 'amber' : a.status === 'closed' ? 'neutral' : 'rose'}>
-                        {a.status === 'open' ? 'Идёт подсчёт' : a.status === 'closed' ? 'Закрыт' : 'Отменён'}
-                      </StoreChip>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDate(a.opened_at)}{a.comment ? ` · ${a.comment}` : ''}
-                    </div>
-                    <div className="mt-auto space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="tabular-nums text-muted-foreground">{a.countedItems} / {a.totalItems} поз.</span>
-                        <span className="tabular-nums font-semibold text-foreground">{pct}%</span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                        <div className={`h-full rounded-full ${barCls} transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
-                      </div>
-                      {a.resultValue != null ? (
-                        <div className="space-y-0.5 pt-1 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">Итог по закупу</span>
-                            <span className={`tabular-nums font-semibold ${a.resultValue < -0.5 ? 'text-rose-600 dark:text-rose-300' : 'text-foreground'}`}>{money(Math.round(a.resultValue))}</span>
-                          </div>
-                          {a.zeroedValue && Math.abs(a.zeroedValue) >= 1 ? (
-                            <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                              <span>из них обнулено непосчитанное</span>
-                              <span className="tabular-nums">{money(Math.round(a.zeroedValue))}</span>
-                            </div>
-                          ) : null}
-                          {(() => {
-                            const pair = pairedAct(a, acts)
-                            if (!pair || pair.resultValue == null) return null
-                            return (
-                              <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                <span>по точке с {pair.locationType === 'warehouse' ? 'складом' : 'витриной'} {fmtDate(pair.closed_at).split(',')[0]}</span>
-                                <span className="tabular-nums font-medium text-foreground">{money(Math.round(a.resultValue + pair.resultValue))}</span>
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      <ActsList
+        acts={acts}
+        loading={loading}
+        error={error}
+        onRefresh={() => void loadActs({ fresh: true })}
+        onNew={() => { setView('create'); setLocationId(''); setAssignments([]); setComment(''); setMode('single') }}
+        onOpen={(id) => void openDetail(id)}
+      />
     )
   }
 
   // ── Создание ────────────────────────────────────────────────────────────
   if (view === 'create') {
     return (
-      <div className="app-page-tight space-y-4">
-        <AdminPageHeader
-          title="Новый аудит-акт"
-          description="Зафиксируйте снимок остатков и назначьте операторов на секции"
-          icon={<ClipboardList className="h-5 w-5" />}
-          accent="emerald"
-          backHref="/store/audit"
-          actions={
-            <Button variant="ghost" size="sm" onClick={() => setView('list')} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Назад</Button>
-          }
-        />
-        {error ? <Card className="border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</Card> : null}
-
-        <Card className="space-y-4 p-4">
-          <div className="space-y-1.5">
-            <Label>Что считаем (локация)</Label>
-            <Select value={locationId} onValueChange={setLocationId}>
-              <SelectTrigger><SelectValue placeholder="Выберите витрину или склад" /></SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => <SelectItem key={l.id} value={l.id}>{locLabel(l)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Подсказка: как назначить под разные сценарии */}
-          <div className="space-y-1.5 rounded-lg border border-sky-500/30 bg-sky-500/[0.06] p-3 text-xs text-sky-800 dark:text-sky-200">
-            <div className="font-semibold">💡 Как назначить операторов</div>
-            <div>• <b>Несколько кассиров на одну витрину</b> (считают вместе, видят «кто что уже посчитал», помогают друг другу) → режим <b>«Обычный»</b>, добавь всех на <b>«Вся локация»</b>.</div>
-            <div>• <b>Поделить по секциям</b> (каждый считает свою часть, не пересекаются) → <b>«Обычный»</b>, каждому свою секцию.</div>
-            <div>• <b>Перепроверка</b> (двое считают одно и то же вслепую, система ловит расхождения) → <b>«Двойной слепой»</b>, 2 оператора на одну секцию.</div>
-            <div className="pt-0.5 text-sky-700/80 dark:text-sky-300/70">Системный остаток кассирам не виден — считают честно «с нуля». Расхождения покажутся тебе при закрытии акта.</div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Режим подсчёта</Label>
-            <div className="flex border border-border">
-              <button type="button" onClick={() => setMode('single')} className={`flex-1 px-3 py-2 text-xs transition ${mode === 'single' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'text-muted-foreground hover:text-foreground'}`}>Обычный</button>
-              <button type="button" onClick={() => setMode('double')} className={`flex-1 border-l border-border px-3 py-2 text-xs transition ${mode === 'double' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'text-muted-foreground hover:text-foreground'}`}>Двойной слепой</button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">{mode === 'double' ? 'Назначь 2 операторов на ОДНУ секцию — посчитают независимо, расхождение между ними пойдёт на пересчёт.' : 'Можно несколько операторов на одну секцию (считают вместе, видят друг друга) или каждому свою секцию.'}</p>
-          </div>
-
-          {locationId && !formData ? <div className="space-y-2"><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /></div> : null}
-
-          {formData ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Операторы и секции</Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => setAssignments((p) => [...p, { operator_id: '', category_id: null }])} className="h-8 gap-1"><Plus className="h-3.5 w-3.5" /> Добавить</Button>
-              </div>
-              {formData.operators.length === 0 ? (
-                <div className="text-xs text-muted-foreground">У этой точки нет назначенных операторов — можно добавить с других точек ниже.</div>
-              ) : null}
-              {assignments.map((a, idx) => (
-                <div key={idx} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Select value={a.operator_id} onValueChange={(v) => setAssignments((p) => p.map((x, i) => (i === idx ? { ...x, operator_id: v } : x)))}>
-                    <SelectTrigger className="flex-1"><SelectValue placeholder="Оператор" /></SelectTrigger>
-                    <SelectContent>
-                      {formData.operators.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                      {formData.otherOperators && formData.otherOperators.length > 0 ? (
-                        <>
-                          <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">С других точек (в помощь)</div>
-                          {formData.otherOperators.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                        </>
-                      ) : null}
-                    </SelectContent>
-                  </Select>
-                  <Select value={a.category_id || 'all'} onValueChange={(v) => setAssignments((p) => p.map((x, i) => (i === idx ? { ...x, category_id: v === 'all' ? null : v } : x)))}>
-                    <SelectTrigger className="flex-1"><SelectValue placeholder="Секция" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Вся локация</SelectItem>
-                      {formData.categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Button type="button" variant="ghost" size="icon" className="self-end sm:self-auto" onClick={() => setAssignments((p) => p.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="space-y-1.5">
-            <Label>Комментарий</Label>
-            <Textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Например: плановая ревизия за июнь" />
-          </div>
-
-          {can('store-revisions.create') && (
-          <Button onClick={createAct} disabled={creating || !locationId} className="w-full gap-2 bg-amber-600 hover:bg-amber-700">
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Открыть акт
-          </Button>
-          )}
-          <p className="text-xs text-muted-foreground">При открытии фиксируется снимок остатков. Операторы считают вслепую — системную цифру они не видят.</p>
-        </Card>
-      </div>
+      <ActCreateForm
+        error={error}
+        locations={locations}
+        locationId={locationId}
+        onLocation={setLocationId}
+        formData={formData}
+        assignments={assignments}
+        setAssignments={setAssignments}
+        comment={comment}
+        setComment={setComment}
+        mode={mode}
+        setMode={setMode}
+        creating={creating}
+        canCreate={can('store-revisions.create')}
+        onBack={() => setView('list')}
+        onCreate={createAct}
+      />
     )
   }
 
@@ -585,417 +360,71 @@ export default function StoreAuditPage() {
           <Button variant="ghost" size="sm" onClick={() => { setView('list'); void loadActs() }} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> К списку</Button>
         }
       />
-      {error ? <Card className="border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">{error}</Card> : null}
+      {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div> : null}
 
       {!detail ? (
         <div className="space-y-4">
           <CardSkeleton rows={3} />
-          <Card className="p-4"><TableSkeleton rows={6} cols={5} /></Card>
+          <StoreSection title="Позиции"><TableSkeleton rows={6} cols={5} /></StoreSection>
         </div>
       ) : (
         <>
-          <Card className="space-y-3 p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <div>
-                <div className="text-sm font-medium text-foreground">{locLabel(detail.location)}</div>
-                <div className="text-xs text-muted-foreground">{fmtDate(detail.act.opened_at)} · {isOpen ? 'открыт' : 'закрыт'}{detail.act.comment ? ` · ${detail.act.comment}` : ''}</div>
-              </div>
-              <div className="text-xs text-muted-foreground tabular-nums sm:text-right">посчитано {detail.countedItems} из {detail.totalItems}</div>
-            </div>
-            {/* Прогресс по операторам */}
-            {detail.progress && detail.progress.length > 0 ? (
-              <div className="space-y-2">
-                {detail.progress.map((p, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-foreground"><Users className="h-3 w-3 text-muted-foreground" /> {p.operatorName}</span>
-                      <span className="text-muted-foreground tabular-nums">{p.counted} / {p.total}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded bg-slate-200 dark:bg-white/[0.05]">
-                      <div className="h-full bg-amber-500 transition-all" style={{ width: `${p.total ? Math.min(100, (p.counted / p.total) * 100) : 0}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {detail.assignments.map((a) => (
-                  <span key={a.id} className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-muted px-2.5 py-1 text-xs text-muted-foreground">
-                    <Users className="h-3 w-3" /> {a.operatorName} · {a.categoryName || 'Вся локация'}
-                  </span>
-                ))}
-              </div>
-            )}
-            {isOpen ? (
-              <div className="space-y-2 border-t border-slate-200 dark:border-white/5 pt-3">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                  <input type="checkbox" checked={assignDebt} onChange={(e) => setAssignDebt(e.target.checked)} className="h-4 w-4 accent-amber-500" />
-                  Повесить недостачу долгом на ответственных (удержится из зарплаты)
-                </label>
-                {(() => {
-                  const uncountedRows = detail.uncounted || []
-                  const zeroSum = uncountedRows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
-                  if (uncountedRows.length === 0) {
-                    return <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">Все позиции с остатком посчитаны — обнулять нечего.</div>
-                  }
-                  return (
-                    <div className="space-y-1.5 rounded-md border border-border bg-surface-muted px-3 py-2">
-                      <label className="flex cursor-pointer items-start gap-2 text-xs text-foreground">
-                        <input type="checkbox" checked={zeroUncounted} onChange={(e) => setZeroUncounted(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-500" />
-                        <span>
-                          <span className="font-medium">Полная ревизия: обнулить непосчитанное.</span>{' '}
-                          <span className="text-muted-foreground">Не посчитано {uncountedRows.length} поз. на {money(zeroSum)} по закупу — «чего не посчитали, того нет». Перед проведением покажем список.</span>
-                        </span>
-                      </label>
-                      {isBigZeroing(uncountedRows, detail.totalItems) ? (
-                        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
-                          <b>Не посчитано {uncountedRows.length} из {detail.totalItems} поз. на {money(zeroSum)}.</b>{' '}
-                          Обнуление такого объёма почти всегда даёт ложную недостачу: товар есть, его просто не досчитали.
-                          {(() => {
-                            const sold = uncountedRows.filter((r) => (r.sold_recent || 0) > 0).length
-                            return sold > 0 ? ` ${sold} из них продавались за последнюю неделю.` : ''
-                          })()}{' '}
-                          Лучше досчитать.
-                        </div>
-                      ) : null}
-                      {zeroUncounted ? (
-                        <label className="flex cursor-pointer items-start gap-2 pl-6 text-xs text-muted-foreground">
-                          <input type="checkbox" checked={assignDebtZeroed} onChange={(e) => setAssignDebtZeroed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-500" />
-                          <span>Обнулённое тоже повесить долгом — поровну на операторов акта. <span className="text-rose-500/80">Для первой полной ревизии не рекомендуется: спишется старая грязь каталога.</span></span>
-                        </label>
-                      ) : null}
-                    </div>
-                  )
-                })()}
-                {hasConflicts ? <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">Есть расхождения между счётчиками — решите их (примите значение или на пересчёт), затем закрывайте.</div> : null}
-                {can('store-revisions.commit') && (
-                <Button
-                  onClick={() => {
-                    if (zeroUncounted && (detail.uncounted || []).length > 0) {
-                      setZeroSelected(new Set((detail.uncounted || []).filter((r) => !(r.sold_recent || 0)).map((r) => r.item_id)))
-                      setZeroPreviewOpen(true)
-                    }
-                    else void closeAct(false)
-                  }}
-                  disabled={closing || detail.countedItems === 0 || hasConflicts}
-                  className="w-full gap-2 bg-amber-600 hover:bg-amber-700"
-                >
-                  {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                  Закрыть акт и провести
-                </Button>
-                )}
-                {can('store-revisions.commit') && (
-                <button
-                  type="button"
-                  onClick={() => void closeAct(true)}
-                  disabled={closing}
-                  className="w-full rounded-md border border-rose-500/30 px-3 py-2 text-xs text-rose-700 dark:text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-50"
-                >
-                  Принудительно закрыть (обойти блокировки)
-                </button>
-                )}
-                <p className="text-[11px] text-muted-foreground">Принудительно — когда акт «завис»: есть заявки в пути, расхождения или операторы не досчитали. Проведёт что посчитано, остальное не тронет. Только для владельца.</p>
-                {can('store-revisions.cancel') && (
-                <button
-                  type="button"
-                  onClick={() => void cancelAct()}
-                  disabled={canceling}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-rose-500/40 hover:text-rose-700 dark:hover:text-rose-300 disabled:opacity-50"
-                >
-                  {canceling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-                  Отменить акт (вернуть как было)
-                </button>
-                )}
-                <p className="text-[11px] text-muted-foreground">Отмена — акт ещё не проведён: снимок и подсчёты отбрасываются, остатки не меняются. Используйте, если ревизию открыли по ошибке.</p>
-              </div>
-            ) : null}
-            {debtsCreated && debtsCreated > 0 ? (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">Создано долгов: {debtsCreated} — удержатся из зарплаты ответственных.</div>
-            ) : null}
-            {detail.act.status === 'closed' && can('store-revisions.cancel') ? (
-              <div className="space-y-2 border-t border-slate-200 dark:border-white/5 pt-3">
-                <button
-                  type="button"
-                  onClick={() => void revertAct()}
-                  disabled={reverting}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-rose-500/40 px-3 py-2.5 text-sm font-medium text-rose-700 dark:text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-50"
-                >
-                  {reverting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
-                  Откатить ревизию
-                </button>
-                <p className="text-[11px] text-muted-foreground">Вернёт остатки к состоянию до проведения (изменения ревизии развернутся, продажи после — сохранятся) и удалит созданные акты долги. Акт станет «Отменён». Только для владельца.</p>
-              </div>
-            ) : null}
-          </Card>
+          <ActHeaderCard
+            detail={detail}
+            isOpen={isOpen}
+            hasConflicts={hasConflicts}
+            assignDebt={assignDebt}
+            setAssignDebt={setAssignDebt}
+            zeroUncounted={zeroUncounted}
+            setZeroUncounted={setZeroUncounted}
+            assignDebtZeroed={assignDebtZeroed}
+            setAssignDebtZeroed={setAssignDebtZeroed}
+            debtsCreated={debtsCreated}
+            closing={closing}
+            canceling={canceling}
+            reverting={reverting}
+            onCloseClick={() => {
+              if (zeroUncounted && (detail.uncounted || []).length > 0) {
+                setZeroSelected(new Set((detail.uncounted || []).filter((r) => !(r.sold_recent || 0)).map((r) => r.item_id)))
+                setZeroPreviewOpen(true)
+              }
+              else void closeAct(false)
+            }}
+            onForceClose={() => void closeAct(true)}
+            onCancel={() => void cancelAct()}
+            onRevert={() => void revertAct()}
+          />
 
           {/* Результат ревизии (после закрытия) — расхождения по позициям */}
           {closeReport ? (
-            <Card className="p-4">
-              <div className="mb-3">
-                <div className="text-sm font-medium text-foreground">Результат ревизии</div>
-                <div className={`mt-2 grid grid-cols-2 gap-2 ${(closeSummary?.zeroedItems || 0) > 0 ? 'sm:grid-cols-3' : ''}`}>
-                  <div className="rounded-lg border border-rose-500/30 bg-rose-500/[0.05] px-3 py-2">
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Недостача</div>
-                    <div className="text-lg font-bold tabular-nums text-rose-600 dark:text-rose-300">{money(closeSummary?.shrinkageValue || 0)}</div>
-                    <div className="text-[11px] tabular-nums text-muted-foreground">{fmt(closeSummary?.shrinkageQty || 0)} шт · {closeSummary?.shrinkageItems || 0} поз.</div>
-                  </div>
-                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.05] px-3 py-2">
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Излишек</div>
-                    <div className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-300">{money(closeSummary?.surplusValue || 0)}</div>
-                    <div className="text-[11px] tabular-nums text-muted-foreground">{fmt(closeSummary?.surplusQty || 0)} шт · {closeSummary?.surplusItems || 0} поз.</div>
-                  </div>
-                  {(closeSummary?.zeroedItems || 0) > 0 ? (
-                    <div className="rounded-lg border border-slate-400/40 bg-slate-500/[0.06] px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Обнулено (не посчитано)</div>
-                      <div className="text-lg font-bold tabular-nums text-foreground">{money(closeSummary?.zeroedValue || 0)}</div>
-                      <div className="text-[11px] tabular-nums text-muted-foreground">{fmt(closeSummary?.zeroedQty || 0)} шт · {closeSummary?.zeroedItems || 0} поз.</div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Сводка: движения во время ревизии учтены в факте, не считаются пропажей */}
-              {closeSummary && closeSummary.movedItems > 0 ? (
-                <div className="mb-3 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
-                  Во время ревизии были движения по {closeSummary.movedItems} поз.
-                  {closeSummary.movedIn > 0 ? ` приход +${fmt(closeSummary.movedIn)}` : ''}
-                  {closeSummary.movedOut > 0 ? ` продажи −${fmt(closeSummary.movedOut)}` : ''}
-                  {' '}— учтены в итоге, не записаны как недостача.
-                </div>
-              ) : null}
-
-              {closeReport.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">Нет данных.</div>
-              ) : (
-                <div className="space-y-1">
-                  {closeReport
-                    .slice()
-                    .sort((a, b) => (b.shrinkage + b.surplus) - (a.shrinkage + a.surplus) || Math.abs(b.variance) - Math.abs(a.variance))
-                    .map((r) => {
-                      const moved = r.movedIn > 0 || r.movedOut > 0
-                      const diff = r.zeroed ? 'zeroed' : r.shrinkage > 0 ? 'short' : r.surplus > 0 ? 'surplus' : 'ok'
-                      return (
-                        <div
-                          key={r.item_id}
-                          className={`flex flex-col gap-1 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 ${
-                            diff === 'short' ? 'border-rose-500/30 bg-rose-500/[0.05]'
-                            : diff === 'surplus' ? 'border-emerald-500/30 bg-emerald-500/[0.05]'
-                            : diff === 'zeroed' ? 'border-slate-400/30 bg-slate-500/[0.05]'
-                            : 'border-transparent opacity-55'
-                          }`}
-                        >
-                          <span className={`min-w-0 truncate text-sm ${diff === 'ok' ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>{r.name}</span>
-                          <div className="flex shrink-0 items-center gap-3 tabular-nums">
-                            <span className="text-[11px] text-muted-foreground">{fmt(r.expected)} → <span className="text-foreground">{fmt(r.final)}</span></span>
-                            {diff === 'zeroed' ? (
-                              <span className="flex items-center gap-2">
-                                {r.purchase_price ? <span className="text-[11px] tabular-nums text-muted-foreground">{money(r.expected * r.purchase_price)}</span> : null}
-                                <span className="rounded-md bg-slate-500/15 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-300">обнулено −{fmt(r.expected)}</span>
-                              </span>
-                            ) : diff === 'short' ? (
-                              <span className="flex items-center gap-2">
-                                {r.purchase_price ? <span className="text-[11px] tabular-nums text-rose-400/80">{money(r.shrinkage * r.purchase_price)}</span> : null}
-                                <span className="rounded-md bg-rose-500/15 px-2 py-0.5 text-sm font-bold text-rose-600 dark:text-rose-300">−{fmt(r.shrinkage)}</span>
-                              </span>
-                            ) : diff === 'surplus' ? (
-                              <span className="flex items-center gap-2">
-                                {r.purchase_price ? <span className="text-[11px] tabular-nums text-emerald-400/80">{money(r.surplus * r.purchase_price)}</span> : null}
-                                <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-sm font-bold text-emerald-600 dark:text-emerald-300">+{fmt(r.surplus)}</span>
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-xs text-emerald-500/80"><Check className="h-3.5 w-3.5" /> сошлось</span>
-                            )}
-                          </div>
-                          {moved ? (
-                            <div className="text-[11px] text-sky-400/80 tabular-nums sm:basis-full sm:text-right">
-                              во время ревизии:{r.movedIn > 0 ? ` приход +${fmt(r.movedIn)}` : ''}{r.movedOut > 0 ? ` продажи −${fmt(r.movedOut)}` : ''}
-                            </div>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                </div>
-              )}
-            </Card>
+            <CloseResult report={closeReport} summary={closeSummary} />
           ) : (
             /* Подсчёт в процессе / исторический акт */
-            <Card className="p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="text-sm font-medium text-foreground">{isOpen ? 'Что уже посчитано' : 'Расхождение'}</div>
-                  {isOpen && canSeeVariance ? (
-                    <button
-                      type="button"
-                      onClick={() => setRevealVariance((v) => !v)}
-                      className={`rounded-lg border px-2 py-0.5 text-[11px] transition ${revealVariance ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'border-border text-muted-foreground hover:text-foreground'}`}
-                      title="Пока идёт счёт, расхождения скрыты: так считающий не подгоняет факт под учёт"
-                    >
-                      {revealVariance ? 'Скрыть расхождения' : 'Показать расхождения'}
-                    </button>
-                  ) : null}
-                </div>
-                {showVariance ? (
-                  <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs tabular-nums">
-                    <span className="text-rose-400">
-                      недостача {fmt(totals.short)} шт
-                      {totals.shortValue > 0 ? <span className="ml-1.5 font-semibold">−{money(totals.shortValue)}</span> : null}
-                    </span>
-                    <span className="text-emerald-400">
-                      излишек {fmt(totals.surplus)} шт
-                      {totals.surplusValue > 0 ? <span className="ml-1.5 font-semibold">+{money(totals.surplusValue)}</span> : null}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-              {isOpen ? (
-                <p className="mb-3 text-xs text-muted-foreground">
-                  {showVariance
-                    ? 'Предварительные расхождения по посчитанным позициям: учёт на момент старта минус факт. Продажи и приходы, прошедшие во время счёта, будут учтены при закрытии — итог может измениться.'
-                    : 'Зелёная галочка — позиция уже посчитана. Недостачу/излишек посчитаем при закрытии акта (учтём продажи, что прошли во время счёта).'}
-                </p>
-              ) : null}
-              {detailRows.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">Пока ничего не посчитано.</div>
-              ) : (
-                <div className="space-y-1">
-                  {detailRows
-                    .slice()
-                    .sort((a, b) => (b.conflict ? 1 : 0) - (a.conflict ? 1 : 0) || Math.abs(b.variance) - Math.abs(a.variance))
-                    .map((r) =>
-                      r.conflict && isOpen ? (
-                        <div key={r.item_id} className="border-b border-slate-100 dark:border-white/5 py-2 last:border-0">
-                          <div className="flex items-center justify-between gap-2 text-sm">
-                            <span className="min-w-0 truncate text-foreground">{r.name}</span>
-                            <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-300">расхождение</span>
-                          </div>
-                          {can('store-revisions.edit') && (
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            {(r.counts || []).map((c: any, i: number) => (
-                              <button key={i} type="button" onClick={() => void resolveItem(r.item_id, c.qty)} disabled={!!itemBusy} title="Принять это значение" className="rounded border border-border px-2 py-1 text-xs tabular-nums text-foreground transition hover:border-amber-400/40 hover:text-amber-700 dark:hover:text-amber-300 disabled:opacity-50">
-                                {c.by || 'счёт'}: {fmt(c.qty)}
-                              </button>
-                            ))}
-                            <button type="button" onClick={() => void recountItem(r.item_id)} disabled={!!itemBusy} className="rounded border border-amber-500/30 px-2 py-1 text-xs text-amber-700 dark:text-amber-300 transition hover:bg-amber-500/10 disabled:opacity-50">на пересчёт</button>
-                          </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div key={r.item_id} className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-white/5 py-1.5 text-sm last:border-0">
-                          <span className="min-w-0 truncate text-foreground">{r.name}</span>
-                          <div className="flex items-center gap-4 tabular-nums">
-                            {!isOpen || showVariance ? <span className="text-xs text-muted-foreground">сист. {fmt(r.expected)}</span> : null}
-                            <span className="text-xs text-muted-foreground">факт {fmt(r.counted)}</span>
-                            {isOpen && !showVariance ? (
-                              // Слепая ревизия: пока акт открыт — расхождение не показываем
-                              // (как и обещает заголовок). Это лишь отметка «посчитано».
-                              <span className="flex w-16 items-center justify-end text-emerald-500"><Check className="h-4 w-4" /></span>
-                            ) : (
-                              <>
-                                {r.variance !== 0 && Number(r.purchase_price || 0) > 0 ? (
-                                  <span className={`text-[11px] ${r.variance < 0 ? 'text-rose-400/80' : 'text-emerald-400/80'}`}>
-                                    {r.variance < 0 ? '−' : '+'}{money(Math.abs(r.variance) * Number(r.purchase_price || 0))}
-                                  </span>
-                                ) : null}
-                                <span className={`w-16 text-right font-medium ${r.variance < 0 ? 'text-rose-400' : r.variance > 0 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{r.variance > 0 ? '+' : ''}{fmt(r.variance)}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ),
-                    )}
-                </div>
-              )}
-            </Card>
+            <CountProgress
+              rows={detailRows}
+              isOpen={isOpen}
+              canSeeVariance={canSeeVariance}
+              showVariance={showVariance}
+              revealVariance={revealVariance}
+              onToggleReveal={() => setRevealVariance((v) => !v)}
+              totals={totals}
+              itemBusy={itemBusy}
+              onResolve={(itemId, qty) => void resolveItem(itemId, qty)}
+              onRecount={(itemId) => void recountItem(itemId)}
+            />
           )}
 
           {/* Предпросмотр жёсткого закрытия: что будет обнулено */}
-          <AppModal
-            open={zeroPreviewOpen && !!detail}
-            onClose={() => { if (!closing) setZeroPreviewOpen(false) }}
-            disableBackdropClose={closing}
-            tone="danger"
-            maxWidth="max-w-2xl"
-            title="Полная ревизия: обнуление непосчитанного"
-          >
-            {detail ? (
-                <>
-                {(() => {
-                  const uncountedRows = detail.uncounted || []
-                  const selectedRows = uncountedRows.filter((r) => zeroSelected.has(r.item_id))
-                  const zeroSum = selectedRows.reduce((s, r) => s + r.expected * (r.purchase_price || 0), 0)
-                  const keptSold = uncountedRows.filter((r) => (r.sold_recent || 0) > 0 && !zeroSelected.has(r.item_id)).length
-                  const otherLabel = detail.otherLocationType === 'warehouse' ? 'на складе' : 'на витрине'
-                  const toggle = (id: string) =>
-                    setZeroSelected((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(id)) next.delete(id)
-                      else next.add(id)
-                      return next
-                    })
-                  return (
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Эти позиции никто не посчитал. У отмеченных остаток в системе станет <b>0</b>, остальные останутся как есть.
-                          Будет обнулено <b className="text-foreground">{selectedRows.length} из {uncountedRows.length} поз.</b> на{' '}
-                          <b className="text-rose-500">{money(zeroSum)}</b> по закупу.
-                          {assignDebtZeroed ? ' Сумма ляжет долгом поровну на операторов акта.' : ' В долг операторам это не пойдёт.'}
-                        </p>
-                        {keptSold > 0 ? (
-                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                            {keptSold} поз. продавались за последние 7 дней — скорее всего они есть, поэтому отметка с них снята. Лучше досчитать их.
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex gap-3 text-xs">
-                        <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => setZeroSelected(new Set(uncountedRows.map((r) => r.item_id)))}>Отметить все</button>
-                        <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => setZeroSelected(new Set())}>Снять все</button>
-                      </div>
-                      <div className="max-h-72 overflow-auto rounded-lg border border-border">
-                        {uncountedRows.slice(0, 300).map((r) => (
-                          <label key={r.item_id} className="flex cursor-pointer items-center justify-between gap-3 border-b border-slate-100 dark:border-white/5 px-3 py-1.5 text-sm last:border-0">
-                            <span className="flex min-w-0 items-center gap-2">
-                              <input type="checkbox" checked={zeroSelected.has(r.item_id)} onChange={() => toggle(r.item_id)} className="h-4 w-4 shrink-0 accent-rose-500" />
-                              <span className="min-w-0">
-                                <span className="block truncate text-foreground">{r.name}</span>
-                                {(r.sold_recent || 0) > 0 || (r.other_location_qty || 0) > 0 ? (
-                                  <span className="block truncate text-xs text-amber-700 dark:text-amber-300">
-                                    {[
-                                      (r.sold_recent || 0) > 0 ? `продано ${fmt(r.sold_recent || 0)} шт за 7 дней` : null,
-                                      (r.other_location_qty || 0) > 0 ? `${otherLabel} ${fmt(r.other_location_qty || 0)} шт` : null,
-                                    ].filter(Boolean).join(' · ')}
-                                  </span>
-                                ) : null}
-                              </span>
-                            </span>
-                            <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
-                              {fmt(r.expected)} шт{r.purchase_price ? ` · ${money(r.expected * r.purchase_price)}` : ''}
-                            </span>
-                          </label>
-                        ))}
-                        {uncountedRows.length > 300 ? (
-                          <div className="px-3 py-2 text-center text-xs text-muted-foreground">…и ещё {uncountedRows.length - 300} поз. (обнуляются по отметке «Отметить все»)</div>
-                        ) : null}
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" onClick={() => setZeroPreviewOpen(false)} disabled={closing}>Отмена</Button>
-                        {can('store-revisions.commit') && (
-                        <Button
-                          onClick={() => void closeAct(false, true)}
-                          disabled={closing}
-                          className="gap-2 bg-rose-600 hover:bg-rose-700"
-                        >
-                          {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                          {selectedRows.length > 0 ? `Обнулить ${selectedRows.length} поз. и провести` : 'Провести без обнуления'}
-                        </Button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })()}
-                </>
-            ) : null}
-          </AppModal>
+          <ZeroPreviewModal
+            open={zeroPreviewOpen}
+            detail={detail}
+            zeroSelected={zeroSelected}
+            setZeroSelected={setZeroSelected}
+            assignDebtZeroed={assignDebtZeroed}
+            closing={closing}
+            onClose={() => setZeroPreviewOpen(false)}
+            onConfirm={() => void closeAct(false, true)}
+          />
         </>
       )}
     </div>
