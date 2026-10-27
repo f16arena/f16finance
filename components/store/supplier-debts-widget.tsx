@@ -86,7 +86,7 @@ export function SupplierDebtsWidget() {
             {loading ? '—' : openCount}
           </div>
           <div className="text-xs text-muted-foreground">
-            {loading ? '—' : `${formatMoney(openSum)} ₸`}
+            {loading ? '—' : formatMoney(openSum)}
           </div>
         </div>
         <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03] p-3">
@@ -98,7 +98,7 @@ export function SupplierDebtsWidget() {
             {loading ? '—' : overdueCount}
           </div>
           <div className="text-xs text-muted-foreground">
-            {loading ? '—' : `${formatMoney(overdueSum)} ₸`}
+            {loading ? '—' : formatMoney(overdueSum)}
           </div>
         </div>
       </div>

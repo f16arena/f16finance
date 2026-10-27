@@ -1859,10 +1859,10 @@ function OperatorAnalyticsContent() {
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-100">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  <b>Не распределено по операторам:</b> {formatMoney(analytics.unattributedTurnover, moneyFmt)} ₸
+                  <b>Не распределено по операторам:</b> {formatMoney(analytics.unattributedTurnover, moneyFmt)}
                 </span>
                 <span className="text-amber-700/80 dark:text-amber-200/80">
-                  Всего по точкам: <b>{formatMoney(analytics.totalTurnover + analytics.unattributedTurnover, moneyFmt)} ₸</b> (как в «Отчётах»)
+                  Всего по точкам: <b>{formatMoney(analytics.totalTurnover + analytics.unattributedTurnover, moneyFmt)}</b> (как в «Отчётах»)
                 </span>
               </div>
               <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-200/70">

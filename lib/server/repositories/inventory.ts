@@ -416,6 +416,8 @@ export type StoreOverviewLowStockRow = {
   quantity: number
   threshold: number
   location_name: string | null
+  /** Где мало: на витрине или в подсобке — у обеих локаций имя точки. */
+  location_kind?: 'warehouse' | 'showcase' | null
 }
 
 export type StoreOverviewMetrics = {
@@ -426,6 +428,10 @@ export type StoreOverviewMetrics = {
   unresolvedWriteoffs: number
   lowStock: number
   lowStockTop: StoreOverviewLowStockRow[]
+  /** Из lowStock — сколько позиций уже на нуле. */
+  outOfStock: number
+  /** Деньги в товаре по закупочной цене: подсобка и витрины. */
+  stockValue: { warehouse: number; showcase: number; positions: number }
 }
 
 const EMPTY_STORE_METRICS: StoreOverviewMetrics = {
@@ -436,6 +442,8 @@ const EMPTY_STORE_METRICS: StoreOverviewMetrics = {
   unresolvedWriteoffs: 0,
   lowStock: 0,
   lowStockTop: [],
+  outOfStock: 0,
+  stockValue: { warehouse: 0, showcase: 0, positions: 0 },
 }
 
 /**
@@ -555,7 +563,11 @@ export async function fetchStoreOverviewMetrics(
   // разбирать имеет смысл свежие, а запрос ложится на индекс (location_id, written_at).
   const writeoffsSince = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10)
 
-  const [pending, disputed, receipts, writeoffs, thresholdItems] = await Promise.all([
+  const locationTypeById = new Map<string, string>(
+    locations.map((row: any) => [String(row.id), String(row.location_type || '')]),
+  )
+
+  const [pending, disputed, receipts, writeoffs, thresholdItems, valueRows] = await Promise.all([
     countRequests('new'),
     countRequests('disputed'),
     supabase
@@ -582,7 +594,34 @@ export async function fetchStoreOverviewMetrics(
         scope,
       ).range(from, to),
     ),
+    // Остатки с закупочной ценой — «сколько денег лежит в товаре».
+    fetchAllPagesResult((from, to) =>
+      supabase
+        .from('inventory_balances')
+        .select('item_id, location_id, quantity, item:item_id(default_purchase_price)')
+        .in('location_id', locationIds)
+        .gt('quantity', 0)
+        .order('item_id')
+        .order('location_id')
+        .range(from, to),
+    ),
   ])
+
+  if (valueRows.error) throw valueRows.error
+  const stockValue = { warehouse: 0, showcase: 0, positions: 0 }
+  const valuedItems = new Set<string>()
+  for (const row of valueRows.data || []) {
+    const price = Number((row as any).item?.default_purchase_price || 0)
+    const value = Number((row as any).quantity || 0) * price
+    const type = locationTypeById.get(String((row as any).location_id))
+    if (type === 'warehouse') stockValue.warehouse += value
+    else if (type === 'point_display') stockValue.showcase += value
+    else continue
+    valuedItems.add(String((row as any).item_id))
+  }
+  stockValue.warehouse = Math.round(stockValue.warehouse)
+  stockValue.showcase = Math.round(stockValue.showcase)
+  stockValue.positions = valuedItems.size
 
   if (pending.error) throw pending.error
   if (disputed.error) throw disputed.error
@@ -603,6 +642,7 @@ export async function fetchStoreOverviewMetrics(
   }
 
   let lowStock = 0
+  let outOfStock = 0
   const lowStockTop: StoreOverviewLowStockRow[] = []
   if (thresholdById.size > 0) {
     const itemIds = Array.from(thresholdById.keys())
@@ -639,16 +679,21 @@ export async function fetchStoreOverviewMetrics(
         quantity,
         threshold: meta.threshold,
         location_name: locationNameById.get(String(row.location_id)) || null,
+        location_kind: (() => {
+          const t = locationTypeById.get(String(row.location_id))
+          return t === 'warehouse' ? 'warehouse' : t === 'point_display' ? 'showcase' : null
+        })(),
       }
       const current = worstByItem.get(candidate.item_id)
       if (!current || candidate.quantity < current.quantity) worstByItem.set(candidate.item_id, candidate)
     }
 
     lowStock = worstByItem.size
+    outOfStock = Array.from(worstByItem.values()).filter((r) => r.quantity <= 0).length
     lowStockTop.push(
       ...Array.from(worstByItem.values())
         .sort((a, b) => a.quantity - b.quantity || a.name.localeCompare(b.name, 'ru'))
-        .slice(0, 10),
+        .slice(0, 16),
     )
   }
 
@@ -660,6 +705,8 @@ export async function fetchStoreOverviewMetrics(
     unresolvedWriteoffs,
     lowStock,
     lowStockTop,
+    outOfStock,
+    stockValue,
   }
 }
 
