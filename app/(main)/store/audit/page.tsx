@@ -1,5 +1,6 @@
 'use client'
 
+import { AppModal } from '@/components/ui/app-modal'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Check, ClipboardList, Loader2, Lock, Plus, RefreshCw, Trash2, Undo2, Users } from 'lucide-react'
 
@@ -891,12 +892,16 @@ export default function StoreAuditPage() {
           )}
 
           {/* Предпросмотр жёсткого закрытия: что будет обнулено */}
-          {zeroPreviewOpen && detail ? (
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 p-4"
-              onClick={(e) => { if (e.target === e.currentTarget && !closing) setZeroPreviewOpen(false) }}
-            >
-              <Card className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto border-rose-500/30 p-5">
+          <AppModal
+            open={zeroPreviewOpen && !!detail}
+            onClose={() => { if (!closing) setZeroPreviewOpen(false) }}
+            disableBackdropClose={closing}
+            tone="danger"
+            maxWidth="max-w-2xl"
+            title="Полная ревизия: обнуление непосчитанного"
+          >
+            {detail ? (
+                <>
                 {(() => {
                   const uncountedRows = detail.uncounted || []
                   const selectedRows = uncountedRows.filter((r) => zeroSelected.has(r.item_id))
@@ -913,8 +918,7 @@ export default function StoreAuditPage() {
                   return (
                     <div className="space-y-3">
                       <div>
-                        <h3 className="text-sm font-semibold text-foreground">Полная ревизия: обнуление непосчитанного</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Эти позиции никто не посчитал. У отмеченных остаток в системе станет <b>0</b>, остальные останутся как есть.
                           Будет обнулено <b className="text-foreground">{selectedRows.length} из {uncountedRows.length} поз.</b> на{' '}
                           <b className="text-rose-500">{money(zeroSum)}</b> по закупу.
@@ -972,9 +976,9 @@ export default function StoreAuditPage() {
                     </div>
                   )
                 })()}
-              </Card>
-            </div>
-          ) : null}
+                </>
+            ) : null}
+          </AppModal>
         </>
       )}
     </div>

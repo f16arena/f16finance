@@ -22,6 +22,8 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { AppModal } from '@/components/ui/app-modal'
+import { toast } from '@/components/ui/use-toast'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { formatMoney } from '@/lib/core/format'
@@ -133,6 +135,9 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
   const [formSheetOpen, setFormSheetOpen] = useState(false)
   const [receiptSearch, setReceiptSearch] = useState('')
   const [selectedReceipt, setSelectedReceipt] = useState<InventoryReceipt | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<InventoryReceipt | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelBusy, setCancelBusy] = useState(false)
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false)
   const [mobileExpandedReceipts, setMobileExpandedReceipts] = useState<Record<string, boolean>>({})
 
@@ -455,12 +460,17 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
     setQuickError('Найдено несколько товаров — выбери ниже из подсказок.')
   }
 
-  const cancelReceipt = async (receipt: InventoryReceipt) => {
+  // Причина отмены спрашивается в окне приложения, а не в системном prompt().
+  const cancelReceipt = (receipt: InventoryReceipt) => {
     if (receipt.status === 'cancelled') return
-    const reason = window.prompt(
-      `Отменить приёмку от ${receipt.received_at} на сумму ${receipt.total_amount}? Укажите причину (опционально):`,
-    )
-    if (reason === null) return
+    setCancelReason('')
+    setCancelTarget(receipt)
+  }
+
+  const confirmCancelReceipt = async () => {
+    const receipt = cancelTarget
+    if (!receipt) return
+    setCancelBusy(true)
     try {
       const response = await fetch('/api/admin/store/receipts', {
         method: 'POST',
@@ -468,20 +478,24 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
         body: JSON.stringify({
           action: 'cancelReceipt',
           receipt_id: receipt.id,
-          cancel_reason: reason || null,
+          cancel_reason: cancelReason.trim() || null,
         }),
       })
       const json = await response.json()
       if (!response.ok) {
-        alert(json?.message || json?.error || 'Не удалось отменить приёмку')
+        toast({ title: json?.message || json?.error || 'Не удалось отменить приёмку', variant: 'destructive' })
         return
       }
+      setCancelTarget(null)
       setReceiptDetailsOpen(false)
       setSelectedReceipt(null)
       invalidateStoreCaches()
+      toast({ title: 'Приёмка отменена, остатки откатились' })
       await load(undefined, { soft: true })
     } catch (e: any) {
-      alert(e?.message || 'Ошибка сети')
+      toast({ title: e?.message || 'Ошибка сети', variant: 'destructive' })
+    } finally {
+      setCancelBusy(false)
     }
   }
 
@@ -1964,40 +1978,68 @@ export default function StoreReceiptsPage({ embedded = false }: { embedded?: boo
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button type="button" variant="outline" onClick={addLine} className="w-full sm:w-auto">
-                Добавить строку
-              </Button>
-              <div className="w-full rounded-2xl border border-border bg-slate-50 dark:bg-black/20 px-4 py-3 text-right sm:w-auto">
-                {returnTotal > 0 ? (
-                  <>
-                    <div className="flex justify-end gap-4 text-xs text-muted-foreground">
-                      <span>По накладной: <span className="text-foreground tabular-nums">{formatMoney(receiptTotal + returnTotal)}</span></span>
-                      <span>Возврат: <span className="text-rose-700 dark:text-rose-300 tabular-nums">−{formatMoney(returnTotal)}</span></span>
-                    </div>
-                    <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">К приёмке (на склад и долг)</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Сумма приемки</p>
-                )}
-                <p className="mt-0.5 text-2xl font-semibold text-foreground tabular-nums">{formatMoney(receiptTotal)}</p>
+            <Button type="button" variant="outline" onClick={addLine} className="w-full sm:w-auto">
+              Добавить строку
+            </Button>
+
+            {/* Итог и «Провести» всегда на виду: форма длинная, сумму не надо искать внизу. */}
+            <div className="sticky -bottom-5 z-10 -mx-5 -mb-5 space-y-2 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
+              {error ? (
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  {returnTotal > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                        <span>По накладной: <span className="text-foreground tabular-nums">{formatMoney(receiptTotal + returnTotal)}</span></span>
+                        <span>Возврат: <span className="text-rose-700 dark:text-rose-300 tabular-nums">−{formatMoney(returnTotal)}</span></span>
+                      </div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">К приёмке (на склад и долг)</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Сумма приёмки</p>
+                  )}
+                  <p className="text-2xl font-semibold leading-tight text-foreground tabular-nums">{formatMoney(receiptTotal)}</p>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button type="button" variant="outline" onClick={() => void saveDraft()}>
+                    Сохранить как черновик
+                  </Button>
+                  <Button data-tour="receipt-submit" type="submit" disabled={saving || loading}>
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
+                    Провести приёмку
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {/* Ошибка дублируется в окне: общая плашка страницы остаётся под ним и её не видно. */}
-            {error ? (
-              <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-700 dark:text-rose-300">{error}</div>
-            ) : null}
-            <Button data-tour="receipt-submit" type="submit" disabled={saving || loading} className="w-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
-              Провести приемку
-            </Button>
-            <Button type="button" variant="outline" onClick={() => void saveDraft()} className="w-full">
-              Сохранить как черновик
-            </Button>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AppModal
+        open={!!cancelTarget}
+        onClose={() => { if (!cancelBusy) setCancelTarget(null) }}
+        disableBackdropClose={cancelBusy}
+        tone="danger"
+        title="Отменить приёмку?"
+        description={cancelTarget ? `От ${cancelTarget.received_at} на сумму ${formatMoney(Number(cancelTarget.total_amount || 0))}. Остатки и долг поставщику откатятся.` : undefined}
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCancelTarget(null)} disabled={cancelBusy}>Не отменять</Button>
+            <Button variant="destructive" onClick={() => void confirmCancelReceipt()} disabled={cancelBusy}>
+              {cancelBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+              Отменить приёмку
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label>Причина (необязательно)</Label>
+          <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} placeholder="Например: ошиблись поставщиком" />
+        </div>
+      </AppModal>
 
       <Dialog open={receiptDetailsOpen} onOpenChange={setReceiptDetailsOpen}>
         <DialogContent className="flex h-[85vh] !w-[92vw] !max-w-[92vw] sm:!max-w-[1200px] flex-col gap-0 overflow-hidden p-0">

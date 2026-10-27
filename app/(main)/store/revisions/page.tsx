@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Archive, ArchiveRestore, ClipboardCheck, ClipboardList, Loader2, Package, RefreshCw, ScanLine, ScanSearch, Search, Smartphone, Trash2 } from 'lucide-react'
@@ -556,7 +557,7 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
 
     const w = window.open('', '_blank', 'width=900,height=700')
     if (!w) {
-      window.alert('Не удалось открыть окно печати — разрешите всплывающие окна для этого сайта.')
+      toast({ title: 'Не удалось открыть окно печати — разрешите всплывающие окна для этого сайта.', variant: 'destructive' })
       return
     }
     w.document.open()
