@@ -10,10 +10,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
@@ -52,8 +54,9 @@ import kz.ordaops.android.ui.theme.Spacing
 
 // «Регламенты» (`knowledge-admin`; на сайте страница переехала в `/regulations`):
 // правила и статьи, чек-листы смены, вопросы операторов и подтверждения.
-// Запросы: `/api/admin/knowledge` (+ `/questions`, `/confirmations`). Сбор
-// регламента через ИИ и импорт из Word — на сайте.
+// Запросы: `/api/admin/knowledge` (+ `/questions`, `/confirmations`). Правка и
+// создание правил — [ArticleEditSheet]; сбор через ИИ и импорт из Word —
+// страница `knowledge-setup` (OpsKnowledgeSetup.kt).
 
 private const val KNOWLEDGE = "/api/admin/knowledge"
 
@@ -240,11 +243,12 @@ fun KnowledgeAdminScreen() {
 
 @Composable
 private fun WebHint() {
+    val env = LocalBusiness.current
     val context = LocalContext.current
     OpsRow(
-        Icons.Filled.MenuBook, Orda.colors.info, "Сбор через ИИ и импорт из Word",
-        subtitle = "Настройка ниши, каркас тем и правка текстов — на сайте.",
-        onClick = { NativePage.openWeb(context, "/regulations/setup") },
+        Icons.Filled.MenuBook, Orda.colors.info, "Настройка базы знаний",
+        subtitle = "Ниша точки, сбор через ИИ, интервью и импорт из Word.",
+        onClick = { if (env.access.canSee("knowledge-setup")) env.open("knowledge-setup") else NativePage.openWeb(context, "/regulations/setup") },
     )
 }
 
@@ -254,10 +258,12 @@ private fun ArticlesTab() {
     val state by loader.state.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    val env = LocalBusiness.current
     StateContainer(
         state = state, onRetry = loader::refresh,
         isEmpty = { it.articles.isEmpty() }, emptyIcon = Icons.Filled.Article,
-        emptyTitle = "Правил пока нет", emptyMessage = "Соберите регламент через ИИ или добавьте правила на сайте.",
+        emptyTitle = "Правил пока нет", emptyMessage = "Соберите регламент через ИИ в настройке базы знаний или добавьте правило вручную.",
     ) { data ->
         val needle = query.trim().lowercase()
         val shown = data.articles.filter { needle.isEmpty() || it.title.lowercase().contains(needle) || (it.summary ?: "").lowercase().contains(needle) }
@@ -266,7 +272,10 @@ private fun ArticlesTab() {
             item(key = "search") { OpsSearchField(query, { query = it }, "Поиск по правилам") }
             val published = data.articles.count { it.isPublished }
             item(key = "stats") {
-                OpsSection("Регламент", count = "опубликовано $published из ${data.articles.size}") { WebHint() }
+                OpsSection("Регламент", count = "опубликовано $published из ${data.articles.size}") {
+                    WebHint()
+                    if (env.can("knowledge-admin.create")) OpsRow(Icons.Filled.Add, Orda.colors.brand, "Новое правило", onClick = { creating = true })
+                }
             }
             val groups = shown.groupBy { it.categoryId }
             groups.forEach { (categoryId, list) ->
@@ -288,12 +297,13 @@ private fun ArticlesTab() {
                 }
             }
         }
-        data.articles.firstOrNull { it.id == openId }?.let { ArticleSheet(it, onDismiss = { openId = null }, onChanged = loader::refresh) }
+        data.articles.firstOrNull { it.id == openId }?.let { ArticleSheet(it, data.categories, onDismiss = { openId = null }, onChanged = loader::refresh) }
+        if (creating) ArticleEditSheet(null, data.categories, onDismiss = { creating = false }, onSaved = loader::refresh)
     }
 }
 
 @Composable
-private fun ArticleSheet(article: KnowledgeArticle, onDismiss: () -> Unit, onChanged: () -> Unit) {
+private fun ArticleSheet(article: KnowledgeArticle, categories: List<KnowledgeCategory>, onDismiss: () -> Unit, onChanged: () -> Unit) {
     val env = LocalBusiness.current
     val submit = rememberOpsSubmit()
     val haptics = rememberHaptics()
@@ -301,6 +311,7 @@ private fun ArticleSheet(article: KnowledgeArticle, onDismiss: () -> Unit, onCha
     var failed by remember { mutableStateOf(false) }
     var published by remember { mutableStateOf(article.isPublished) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     LaunchedEffect(article.id) {
         runCatching { env.api.send<JsonObject>(ApiRequest(KNOWLEDGE, query = mapOf("article" to article.id))) }
             .onSuccess { content = (it.obj("data") ?: it).str("content") ?: "" }
@@ -336,8 +347,9 @@ private fun ArticleSheet(article: KnowledgeArticle, onDismiss: () -> Unit, onCha
         if (env.can("knowledge-admin.delete")) {
             PrimaryDanger("Удалить правило") { confirmDelete = true }
         }
-        Text("Править текст правила удобнее на сайте.", color = c.textDim, fontSize = 12.sp)
+        if (env.can("knowledge-admin.edit")) OpsRow(Icons.Filled.Edit, c.brand, "Править правило", onClick = { editing = true })
     }
+    if (editing) ArticleEditSheet(article.id, categories, onDismiss = { editing = false }, onSaved = { onChanged(); onDismiss() })
     if (confirmDelete) {
         OpsConfirm(
             "Удалить правило?", "Оно пропадёт у всех сотрудников. Это нельзя отменить.", "Удалить",
