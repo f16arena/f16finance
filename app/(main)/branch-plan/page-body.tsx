@@ -780,7 +780,7 @@ export default function BranchPlanPage() {
       </Card>
 
       {/* ── ОСНОВНОЙ РЕЗУЛЬТАТ (Expected) ────────────────────────────────────── */}
-      <Card className="relative overflow-hidden border-purple-500/30 bg-gradient-to-br from-purple-500/[0.08] to-pink-500/[0.03] p-6">
+      <Card className="relative overflow-hidden border-blue-500/30 bg-gradient-to-br from-blue-500/[0.08] to-blue-500/[0.03] p-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-[11px] uppercase tracking-widest text-purple-700 dark:text-purple-300/80">Стартовые вложения</p>

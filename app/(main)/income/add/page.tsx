@@ -375,7 +375,7 @@ export default function AddIncomePage() {
     const kind = pointProfile(c).kind
     if (kind === 'ps_club') {
       Icon = Gamepad2
-      color = 'from-purple-500 to-pink-500'
+      color = 'from-blue-500 to-blue-500'
     } else if (kind === 'shop' || kind === 'food') {
       Icon = Store
       color = 'from-orange-500 to-red-500'
@@ -486,7 +486,7 @@ export default function AddIncomePage() {
                       onClick={() => setShift('night')}
                       className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
                         shift === 'night'
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-500 text-white shadow-lg'
                           : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -579,7 +579,7 @@ export default function AddIncomePage() {
                       key={z.key}
                       className={`rounded-2xl border p-5 ${
                         i % 2 === 0
-                          ? 'border-purple-500/20 bg-gradient-to-br from-purple-50 to-slate-50 dark:from-purple-900/20 dark:to-gray-900/50'
+                          ? 'border-blue-500/20 bg-gradient-to-br from-blue-50 to-slate-50 dark:from-blue-900/20 dark:to-gray-900/50'
                           : 'border-cyan-500/20 bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-gray-900/50'
                       }`}
                     >
@@ -685,7 +685,7 @@ export default function AddIncomePage() {
                         placeholder="0"
                         value={card}
                         onValueChange={setCard}
-                        className="h-auto w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-3 px-4 text-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all"
+                        className="h-auto w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-3 px-4 text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₸</span>
                     </div>
@@ -700,7 +700,7 @@ export default function AddIncomePage() {
                   rows={3}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-3 px-4 text-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all resize-none"
+                  className="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl py-3 px-4 text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none"
                   placeholder="Например: предоплата за бронь, акция, скидка..."
                 />
               </div>
@@ -708,7 +708,7 @@ export default function AddIncomePage() {
 
             {/* Итоговая карточка */}
             {previewTotal > 0 && (
-              <Card className="p-4 sm:p-6 border-0 bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-purple-900/30 dark:via-gray-900 dark:to-blue-900/30 backdrop-blur-sm">
+              <Card className="p-4 sm:p-6 border-0 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-blue-900/30 dark:via-gray-900 dark:to-blue-900/30 backdrop-blur-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-purple-500/20 rounded-xl">
@@ -716,7 +716,7 @@ export default function AddIncomePage() {
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-gray-400">Итого к сохранению</p>
-                      <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                      <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-blue-400 bg-clip-text text-transparent">
                         {formatMoney(previewTotal)}
                       </p>
                     </div>
@@ -744,7 +744,7 @@ export default function AddIncomePage() {
               <Button
                 type="submit"
                 disabled={saving || !validation.ok}
-                className="flex-[2] h-14 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-base font-semibold rounded-xl shadow-lg shadow-purple-500/25 disabled:opacity-50"
+                className="flex-[2] h-14 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white text-base font-semibold rounded-xl shadow-lg shadow-blue-500/25 disabled:opacity-50"
               >
                 {saving ? (
                   <span className="flex items-center gap-2">

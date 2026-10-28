@@ -1849,7 +1849,7 @@ function OverviewTab({ analytics, trendIcon, rows, companyName, extraCompanyId, 
           label="Средний чек"
           value={analytics.avgExpense}
           icon={<Target className="w-5 h-5" />}
-          color="from-purple-500 to-pink-500"
+          color="from-blue-500 to-blue-500"
         />
       </div>
 

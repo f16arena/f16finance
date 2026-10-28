@@ -3,7 +3,7 @@
 export function ReportsPageSkeleton() {
   return (
     <div className="app-page-ultra max-w-[1800px] space-y-6 animate-pulse" aria-hidden>
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/10 to-fuchsia-600/10 p-8">
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-blue-600/10 to-blue-600/10 p-8">
         <div className="flex flex-col lg:flex-row gap-6 justify-between">
           <div className="flex gap-4">
             <div className="h-14 w-14 rounded-2xl bg-white/10" />

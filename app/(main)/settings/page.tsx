@@ -649,7 +649,7 @@ export default function SettingsPage() {
                             placeholder="Поиск сотрудника..."
                             value={searchStaff}
                             onChange={e => setSearchStaff(e.target.value)}
-                            className="w-full bg-input/50 border border-border rounded-lg py-2 pl-9 pr-4 text-sm focus:border-purple-500 transition-colors"
+                            className="w-full bg-input/50 border border-border rounded-lg py-2 pl-9 pr-4 text-sm focus:border-blue-500 transition-colors"
                         />
                     </div>
 
@@ -763,25 +763,25 @@ export default function SettingsPage() {
                                 value={newStaff.name}
                                 onChange={e => setNewStaff({...newStaff, name: e.target.value})}
                                 placeholder="ФИО сотрудника..."
-                                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:border-purple-500"
+                                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:border-blue-500"
                             />
                             <input
                                 value={newStaff.email}
                                 onChange={e => setNewStaff({...newStaff, email: e.target.value})}
                                 placeholder="Email (для входа)..."
-                                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-xs focus:border-purple-500"
+                                className="w-full bg-input border border-border rounded-lg px-3 py-2 text-xs focus:border-blue-500"
                             />
                             <div className="flex gap-2">
                                 <input
                                     value={newStaff.phone}
                                     onChange={e => setNewStaff({...newStaff, phone: e.target.value})}
                                     placeholder="Телефон"
-                                    className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-xs focus:border-purple-500"
+                                    className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-xs focus:border-blue-500"
                                 />
                                 <select
                                     value={newStaff.role}
                                     onChange={e => setNewStaff({...newStaff, role: e.target.value})}
-                                    className="w-28 bg-input border border-border rounded-lg px-2 py-2 text-xs focus:border-purple-500"
+                                    className="w-28 bg-input border border-border rounded-lg px-2 py-2 text-xs focus:border-blue-500"
                                 >
                                     <option value="other">Прочие</option>
                                     <option value="manager">Руководитель</option>
@@ -790,7 +790,7 @@ export default function SettingsPage() {
                                 </select>
                             </div>
                             {can('access.manage_staff_roles') && (
-                            <Button type="submit" disabled={!newStaff.name.trim() || saving} className="w-full bg-purple-600 hover:bg-purple-700 mt-2">
+                            <Button type="submit" disabled={!newStaff.name.trim() || saving} className="w-full bg-blue-600 hover:bg-blue-700 mt-2">
                                 <Plus className="w-4 h-4 mr-2" /> Добавить сотрудника
                             </Button>
                             )}

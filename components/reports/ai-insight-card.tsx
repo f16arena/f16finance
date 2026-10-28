@@ -62,9 +62,9 @@ export function AIInsightCard({ dateFrom, dateTo, totals, totalsPrev, topIncome,
   if (!totals.incomeTotal && !totals.expenseTotal) return null
 
   return (
-    <div className={embedded ? '' : 'rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent p-4'}>
+    <div className={embedded ? '' : 'rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-transparent p-4'}>
       <div className="flex items-start gap-3">
-        <div className={`grid shrink-0 place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 ${embedded ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl shadow-lg shadow-violet-500/30'}`}>
+        <div className={`grid shrink-0 place-items-center bg-gradient-to-br from-blue-500 to-blue-500 ${embedded ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl shadow-lg shadow-blue-500/30'}`}>
           <Sparkles className={embedded ? 'h-4 w-4 text-white' : 'h-5 w-5 text-white'} />
         </div>
         <div className="flex-1 min-w-0">
@@ -74,7 +74,7 @@ export function AIInsightCard({ dateFrom, dateTo, totals, totalsPrev, topIncome,
               type="button"
               onClick={() => void load()}
               disabled={loading}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-blue-600 dark:text-blue-300 hover:bg-blue-500/20 disabled:opacity-50"
             >
               <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'думаю…' : text ? 'обновить' : 'получить'}

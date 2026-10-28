@@ -472,7 +472,7 @@ export default function PerformancePage() {
         backHref="/"
         actions={
           <>
-            <div className="flex flex-wrap max-w-full items-center gap-1 bg-slate-100 dark:bg-zinc-900/50 p-1 rounded-xl border border-border">
+            <div className="flex flex-wrap max-w-full items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-border">
               {(Object.keys(PERIOD_PRESETS) as PeriodPreset[]).map((p) => (
                 <button
                   key={p}
@@ -504,16 +504,16 @@ export default function PerformancePage() {
               <select
                 value={companyId}
                 onChange={(e) => setCompanyId(e.target.value)}
-                className="bg-slate-100 dark:bg-zinc-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground outline-none hover:bg-slate-200 dark:hover:bg-zinc-900/70 cursor-pointer"
+                className="bg-slate-100 dark:bg-slate-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground outline-none hover:bg-slate-200 dark:hover:bg-slate-900/70 cursor-pointer"
               >
-                <option value="" className="bg-white dark:bg-zinc-900">📍 Все точки</option>
+                <option value="" className="bg-white dark:bg-slate-900">📍 Все точки</option>
                 {companies.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-white dark:bg-zinc-900">
+                  <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900">
                     📍 {c.name}
                   </option>
                 ))}
               </select>
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900/50 p-1 rounded-xl border border-border">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-border">
                 {(['all', 'day', 'night'] as ShiftFilter[]).map((s) => (
                   <button
                     key={s}
@@ -552,20 +552,20 @@ export default function PerformancePage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Поиск оператора…"
-                  className="w-full sm:w-44 bg-slate-100 dark:bg-zinc-900/50 border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-slate-400 outline-none focus:border-violet-400"
+                  className="w-full sm:w-44 bg-slate-100 dark:bg-slate-900/50 border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-slate-400 outline-none focus:border-blue-400"
                 />
               </div>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="bg-slate-100 dark:bg-zinc-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground outline-none cursor-pointer"
+                className="bg-slate-100 dark:bg-slate-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-foreground outline-none cursor-pointer"
               >
-                <option value="pi" className="bg-white dark:bg-zinc-900">Сортировка: PI</option>
-                <option value="aboveNorm" className="bg-white dark:bg-zinc-900">Сверх нормы ₸</option>
-                <option value="revenue" className="bg-white dark:bg-zinc-900">Выручка</option>
-                <option value="shifts" className="bg-white dark:bg-zinc-900">Смены</option>
+                <option value="pi" className="bg-white dark:bg-slate-900">Сортировка: PI</option>
+                <option value="aboveNorm" className="bg-white dark:bg-slate-900">Сверх нормы ₸</option>
+                <option value="revenue" className="bg-white dark:bg-slate-900">Выручка</option>
+                <option value="shifts" className="bg-white dark:bg-slate-900">Смены</option>
               </select>
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900/50 border border-border rounded-xl px-3 py-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/50 border border-border rounded-xl px-3 py-1.5">
                 <span className="text-xs font-medium text-muted-foreground">Бонус</span>
                 <input
                   type="number"
@@ -604,7 +604,7 @@ export default function PerformancePage() {
                   }
                 }}
                 disabled={filteredRanking.length === 0 || exporting}
-                className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-body hover:bg-slate-200 dark:hover:bg-zinc-900/70 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/50 border border-border rounded-xl px-3 py-1.5 text-xs font-medium text-body hover:bg-slate-200 dark:hover:bg-slate-900/70 disabled:opacity-40"
                 title="Скачать Excel: итог словами, смены, дни недели, точки и операторы"
               >
                 {exporting ? (

@@ -308,7 +308,7 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-pink-500/10 border-slate-200 dark:border-white/5">
+      <Card className="p-4 bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-blue-500/10 border-slate-200 dark:border-white/5">
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1 text-sm">
@@ -345,7 +345,7 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
         <Button
           size="sm"
           onClick={openCreate}
-          className="gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500"
+          className="gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
         >
           <Plus className="h-4 w-4" /> Добавить вариант
         </Button>
@@ -524,7 +524,7 @@ export function SalaryVariantsTab({ companies }: { companies: CompanyRow[] }) {
               size="sm"
               onClick={() => void handleSave()}
               disabled={saving}
-              className="gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500"
+              className="gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
             >
               <Save className="h-4 w-4" /> {saving ? 'Сохранение...' : 'Сохранить'}
             </Button>

@@ -560,7 +560,7 @@ export default function AccessPage() {
                       <tr key={op.id} className="border-b border-slate-200 dark:border-white/5 hover:bg-surface-muted transition-colors">
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-violet-500 to-fuchsia-500 flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-blue-500 flex-shrink-0">
                               {op.photo_url ? (
                                 <Image
                                   src={op.photo_url}
@@ -735,7 +735,7 @@ export default function AccessPage() {
           </Card>
 
           {/* Инструкция */}
-          <Card className="p-6 bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-blue-500/20">
+          <Card className="p-6 bg-gradient-to-br from-blue-600/10 to-blue-600/10 border-blue-500/20">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-blue-500/20 rounded-xl">
                 <FileText className="w-5 h-5 text-blue-400" />

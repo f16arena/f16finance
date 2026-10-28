@@ -1119,7 +1119,7 @@ function SalaryRulesContent() {
                 {canCreateRule && (
                   <Button
                     size="sm"
-                    className="gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500"
+                    className="gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
                     onClick={() => void handleAddRule()}
                     disabled={adding}
                   >
@@ -1190,7 +1190,7 @@ function SalaryRulesContent() {
 
           {/* Info Card */}
           <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
-            <Card className="p-4 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-pink-500/10 border-slate-200 dark:border-white/5">
+            <Card className="p-4 bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-blue-500/10 border-slate-200 dark:border-white/5">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
                 <div className="space-y-1 text-sm">
@@ -1264,7 +1264,7 @@ function SalaryRulesContent() {
                 onClick={() => setFilterCompany('all')}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   filterCompany === 'all'
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-gray-950'
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950'
                     : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -1296,7 +1296,7 @@ function SalaryRulesContent() {
               <select
                 value={filterCompany}
                 onChange={(e) => setFilterCompany(e.target.value)}
-                className="px-3 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-violet-500/50"
+                className="px-3 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-blue-500/50"
               >
                 <option value="all">Все компании</option>
                 {companyOptions.map(c => (
@@ -1307,7 +1307,7 @@ function SalaryRulesContent() {
               <select
                 value={filterShift}
                 onChange={(e) => setFilterShift(e.target.value as ShiftType | 'all')}
-                className="px-3 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-violet-500/50"
+                className="px-3 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground focus:outline-none focus:border-blue-500/50"
               >
                 <option value="all">Все смены</option>
                 <option value="day">Дневные</option>
@@ -1319,7 +1319,7 @@ function SalaryRulesContent() {
                   type="checkbox"
                   checked={showInactive}
                   onChange={(e) => setShowInactive(e.target.checked)}
-                  className="rounded border-border bg-white dark:bg-gray-800/50 text-violet-500 focus:ring-violet-500/20"
+                  className="rounded border-border bg-white dark:bg-gray-800/50 text-blue-500 focus:ring-blue-500/20"
                 />
                 <span className="text-xs text-slate-700 dark:text-gray-400">Показывать неактивные</span>
               </label>
@@ -1332,7 +1332,7 @@ function SalaryRulesContent() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Поиск по компании..."
-                  className="w-full sm:w-auto pl-8 pr-7 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground placeholder-gray-500 focus:outline-none focus:border-violet-500/50"
+                  className="w-full sm:w-auto pl-8 pr-7 py-1.5 bg-white dark:bg-gray-800/50 border border-border rounded-lg text-xs text-foreground placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
                 />
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
                 {searchTerm && (
@@ -1613,7 +1613,7 @@ function SalaryRulesContent() {
                               {isDirty && can('salary-rules.edit') && (
                                 <Button
                                   size="xs"
-                                  className="h-7 px-2 bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 border-0"
+                                  className="h-7 px-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-0"
                                   onClick={() => handleSaveRow(r)}
                                   disabled={savingId === r.id || dup}
                                 >
@@ -1648,7 +1648,7 @@ function SalaryRulesContent() {
                         {expandedRuleId === r.id && (() => {
                           const versions = versionsByRule.get(r.id) || []
                           return (
-                            <tr key={`${r.id}-versions`} className="bg-slate-50 dark:bg-gray-950/60 border-t border-slate-200 dark:border-white/5">
+                            <tr key={`${r.id}-versions`} className="bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-white/5">
                               <td colSpan={12} className="px-4 py-4">
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between gap-3">
@@ -1816,7 +1816,7 @@ function SalaryRulesContent() {
                                                     {isEditing ? (
                                                       <>
                                                         {can('salary-rules.upsert_version') && (
-                                                        <Button size="xs" className="h-7 px-2 bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 border-0" onClick={() => void handleSaveVersion(v.id)} disabled={savingVersionId === v.id}>
+                                                        <Button size="xs" className="h-7 px-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-0" onClick={() => void handleSaveVersion(v.id)} disabled={savingVersionId === v.id}>
                                                           {savingVersionId === v.id ? '...' : <><Save className="w-3 h-3 mr-1" />Сохранить</>}
                                                         </Button>
                                                         )}
@@ -2018,7 +2018,7 @@ function SalaryRulesContent() {
                         min={0}
                         value={newTierMonths}
                         onChange={(e) => setNewTierMonths(e.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white dark:bg-gray-950 px-3 text-sm text-foreground outline-none focus:border-violet-500/60"
+                        className="h-10 rounded-xl border border-border bg-white dark:bg-slate-950 px-3 text-sm text-foreground outline-none focus:border-blue-500/60"
                       />
                     </label>
                     <label className="grid gap-1 text-xs text-slate-700 dark:text-gray-400">
@@ -2030,7 +2030,7 @@ function SalaryRulesContent() {
                         step={1}
                         value={newTierPercent}
                         onChange={(e) => setNewTierPercent(e.target.value)}
-                        className="h-10 rounded-xl border border-border bg-white dark:bg-gray-950 px-3 text-sm text-foreground outline-none focus:border-violet-500/60"
+                        className="h-10 rounded-xl border border-border bg-white dark:bg-slate-950 px-3 text-sm text-foreground outline-none focus:border-blue-500/60"
                       />
                     </label>
                     <label className="grid gap-1 text-xs text-slate-700 dark:text-gray-400">
@@ -2044,7 +2044,7 @@ function SalaryRulesContent() {
                     {can('salary-rules.upsert_seniority') && (
                     <Button
                       type="button"
-                      className="h-10 gap-2 rounded-xl bg-violet-600 text-white hover:bg-violet-500"
+                      className="h-10 gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
                       onClick={() => void handleAddSeniorityTier()}
                       disabled={addingTier}
                     >
@@ -2094,7 +2094,7 @@ function SalaryRulesContent() {
                                       min={0}
                                       value={tier.min_months ?? ''}
                                       onChange={(e) => handleTierFieldChange(tier.id, 'min_months', e.target.value)}
-                                      className="h-9 w-28 rounded-xl border border-border bg-white dark:bg-gray-950 px-3 text-right text-sm text-foreground outline-none focus:border-violet-500/60"
+                                      className="h-9 w-28 rounded-xl border border-border bg-white dark:bg-slate-950 px-3 text-right text-sm text-foreground outline-none focus:border-blue-500/60"
                                     />
                                     <span className="text-sm text-slate-500 dark:text-gray-400">мес.</span>
                                   </div>
@@ -2108,7 +2108,7 @@ function SalaryRulesContent() {
                                       step={1}
                                       value={tier.bonus_percent ?? ''}
                                       onChange={(e) => handleTierFieldChange(tier.id, 'bonus_percent', e.target.value)}
-                                      className="h-9 w-20 rounded-xl border border-border bg-white dark:bg-gray-950 px-3 text-right text-sm text-foreground outline-none focus:border-violet-500/60"
+                                      className="h-9 w-20 rounded-xl border border-border bg-white dark:bg-slate-950 px-3 text-right text-sm text-foreground outline-none focus:border-blue-500/60"
                                     />
                                     <span className="text-sm text-slate-500 dark:text-gray-400">%</span>
                                   </div>
@@ -2134,7 +2134,7 @@ function SalaryRulesContent() {
                                     <Button
                                       type="button"
                                       size="xs"
-                                      className="h-8 gap-1 rounded-xl bg-violet-500/20 px-3 text-violet-700 dark:text-violet-300 hover:bg-violet-500/30"
+                                      className="h-8 gap-1 rounded-xl bg-blue-500/20 px-3 text-blue-700 dark:text-blue-300 hover:bg-blue-500/30"
                                       onClick={() => void handleSaveSeniorityTier(tier)}
                                       disabled={savingTierId === tier.id}
                                     >

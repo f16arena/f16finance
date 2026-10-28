@@ -140,7 +140,7 @@ export function SalesKpiCard() {
       {/* Последний экзамен: человек должен видеть свой результат, иначе
           проверка знаний быстро превращается в формальность. */}
       {data.exam ? (
-        <div className="mt-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3">
+        <div className="mt-3 rounded-2xl border border-zinc-800 bg-slate-900/60 p-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
@@ -172,7 +172,7 @@ export function SalesKpiCard() {
       ) : null}
 
       {bonus ? (
-        <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3">
+        <div className="mt-4 rounded-2xl border border-zinc-800 bg-slate-900/60 p-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
             Доплата за качество
           </div>

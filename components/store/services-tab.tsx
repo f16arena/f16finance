@@ -277,7 +277,7 @@ export function ServicesTab() {
                           key={m}
                           type="button"
                           onClick={() => setVariant(v.key, { minutes: String(m) })}
-                          className={`rounded-full px-2.5 py-1 ${v.minutes === String(m) ? 'bg-violet-600 text-white' : 'bg-surface-hover'}`}
+                          className={`rounded-full px-2.5 py-1 ${v.minutes === String(m) ? 'bg-blue-600 text-white' : 'bg-surface-hover'}`}
                         >
                           {durationLabel(m)}
                         </button>

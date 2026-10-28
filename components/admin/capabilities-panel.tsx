@@ -722,7 +722,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
                 </button>
                 {otherRoles.length > 0 && (
                   <select
-                    className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-1.5 text-violet-700 dark:text-violet-200 transition-colors hover:bg-violet-500/20 focus:outline-none disabled:opacity-50"
+                    className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-blue-700 dark:text-blue-200 transition-colors hover:bg-blue-500/20 focus:outline-none disabled:opacity-50"
                     disabled={savingKey?.startsWith(`preset:${role}:`)}
                     value=""
                     onChange={(e) => {

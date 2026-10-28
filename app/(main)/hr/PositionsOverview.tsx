@@ -104,7 +104,7 @@ export default function PositionsOverview() {
   return (
     <div className="space-y-4">
       {/* Заголовок секции */}
-      <Card className="p-5 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-indigo-900/20 border-blue-500/20">
+      <Card className="p-5 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-blue-900/20 dark:via-gray-900 dark:to-blue-900/20 border-blue-500/20">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30 flex items-center justify-center shrink-0">
@@ -142,7 +142,7 @@ export default function PositionsOverview() {
         <Card className="p-8 text-center text-sm text-muted-foreground bg-white dark:bg-gray-900/60 border-slate-200 dark:border-gray-800">
           <p className="mb-3">Должности ещё не созданы.</p>
           <Link href="/access">
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+            <Button className="bg-gradient-to-r from-blue-600 to-blue-600">
               <Plus className="w-4 h-4 mr-2" />
               Создать первую должность
             </Button>

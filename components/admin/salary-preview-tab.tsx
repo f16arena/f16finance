@@ -153,7 +153,7 @@ export function SalaryPreviewTab() {
               value={operatorId}
               onChange={(event) => setOperatorId(event.target.value)}
               disabled={loadingOperators}
-              className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-white/10 dark:bg-gray-950 dark:text-white"
+              className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none dark:border-white/10 dark:bg-slate-950 dark:text-white"
             >
               {loadingOperators ? (
                 <option>Загрузка...</option>
@@ -258,7 +258,7 @@ export function SalaryPreviewTab() {
                   return (
                     <div
                       key={shift.id}
-                      className="rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-gray-950/60 p-4"
+                      className="rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/60 p-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -334,7 +334,7 @@ export function SalaryPreviewTab() {
                 {data.companyAllocations.map((alloc) => (
                   <div
                     key={alloc.companyId}
-                    className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-gray-950/60 p-3 md:grid-cols-[1.5fr_repeat(6,auto)]"
+                    className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/60 p-3 md:grid-cols-[1.5fr_repeat(6,auto)]"
                   >
                     <div className="text-sm font-medium text-foreground">
                       {alloc.companyName || '—'}

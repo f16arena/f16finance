@@ -386,7 +386,7 @@ function UserMenu({
           <Link
             href="/profile"
             onClick={() => setOpen(false)}
-            className="mt-3 flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 dark:border-white/5 dark:bg-slate-800/50 px-3 py-2 text-sm text-body transition-all duration-300 hover:border-violet-500/20 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-300"
+            className="mt-3 flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 dark:border-white/5 dark:bg-slate-800/50 px-3 py-2 text-sm text-body transition-all duration-300 hover:border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-300"
           >
             <User className="h-4 w-4" />
             Мой профиль

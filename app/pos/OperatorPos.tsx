@@ -579,7 +579,7 @@ export default function OperatorPos({
   // ── Render (владелец): точка не выбрана → экран выбора точки ─────────────
   if (isOwner && !companyId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-white">
         <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-gray-900 p-6 shadow-2xl">
           <div className="mb-5 text-center">
             <h1 className="text-lg font-bold">Выберите точку</h1>
@@ -608,7 +608,7 @@ export default function OperatorPos({
   // ── Render: нет открытой смены → экран открытия ──────────────────────────
   if (!shift?.id) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-white">
         <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-gray-900 p-6 shadow-2xl">
           <div className="mb-5 flex flex-col items-center text-center">
             <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-blue-600/20 text-blue-400">
@@ -685,7 +685,7 @@ export default function OperatorPos({
     : ''
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-white">
       {/* Top bar */}
       <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-gray-900 px-4 py-3">
         <div className="flex items-center gap-2">

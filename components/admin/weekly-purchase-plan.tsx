@@ -496,7 +496,7 @@ export function WeeklyPurchasePlan({ reportEndDate }: { reportEndDate?: string }
             <Button
               onClick={addItem}
               disabled={saving}
-              className="h-9 w-full bg-violet-600 text-white hover:bg-violet-500 sm:w-auto sm:px-5"
+              className="h-9 w-full bg-blue-600 text-white hover:bg-blue-500 sm:w-auto sm:px-5"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
               Добавить

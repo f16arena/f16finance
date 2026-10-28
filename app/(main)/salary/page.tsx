@@ -2432,7 +2432,7 @@ export default function SalaryPage() {
                     <Card className="overflow-hidden border-border bg-white dark:bg-white/[0.04]">
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
                         <div className="flex items-center gap-3">
-                          <div className={'flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-semibold ' + (selected.dismissed ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-slate-700 dark:from-slate-600 dark:to-slate-700 dark:text-white' : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white')}>
+                          <div className={'flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-semibold ' + (selected.dismissed ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-slate-700 dark:from-slate-600 dark:to-slate-700 dark:text-white' : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white')}>
                             {(s.short_name || s.full_name).charAt(0).toUpperCase()}
                           </div>
                           <div>

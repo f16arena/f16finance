@@ -309,7 +309,7 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
           <div key={position.id} className={`${row} ${position.is_active ? '' : 'opacity-60'}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className={`${tile} bg-gradient-to-br from-violet-400/25 to-amber-400/15 text-violet-700 dark:text-violet-200`}>
+                <div className={`${tile} bg-gradient-to-br from-blue-400/25 to-amber-400/15 text-blue-700 dark:text-blue-200`}>
                   <Store className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">

@@ -915,7 +915,7 @@ export default function LogsPage() {
                           onClick={() => explainError(item)}
                           disabled={explainingId === item.id || !!explanations[item.id]}
                           title="Объяснить ошибку простым языком (AI)"
-                          className="rounded-md border border-violet-300 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20"
+                          className="rounded-md border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20"
                         >
                           {explainingId === item.id ? '🤖 думает…' : '🤖 Объяснить'}
                         </button>

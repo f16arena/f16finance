@@ -924,7 +924,7 @@ export default function AccessPage() {
                         {account?.userId && can('access.manage_user_overrides') && (
                           <button
                             onClick={() => setOverridesFor({ userId: account.userId!, name: s.full_name || s.email || 'Сотрудник', role: s.role })}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-1.5 text-xs text-violet-700 dark:text-violet-200 transition-colors hover:bg-violet-500/25"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/30 bg-blue-500/15 px-3 py-1.5 text-xs text-blue-700 dark:text-blue-200 transition-colors hover:bg-blue-500/25"
                             title="Индивидуальные права (исключения поверх роли)"
                           >
                             <SlidersHorizontal className="h-3.5 w-3.5" />

@@ -22,12 +22,12 @@ const ACCENT = {
   violet: {
     glow1: 'bg-violet-500/15',
     glow2: 'bg-fuchsia-500/10',
-    chip: 'from-violet-400/30 to-fuchsia-400/20 text-violet-700 dark:text-violet-100',
+    chip: 'from-blue-400/30 to-blue-400/20 text-blue-700 dark:text-blue-100',
   },
   blue: {
     glow1: 'bg-sky-500/15',
     glow2: 'bg-indigo-500/10',
-    chip: 'from-sky-400/30 to-indigo-400/20 text-sky-700 dark:text-sky-100',
+    chip: 'from-sky-400/30 to-blue-400/20 text-sky-700 dark:text-sky-100',
   },
 } as const
 

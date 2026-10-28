@@ -54,16 +54,16 @@ export default function NotFound() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-gray-950 via-gray-900 to-indigo-950 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* Декоративные блобы */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-indigo-500 rounded-full blur-3xl opacity-10 pointer-events-none animate-pulse" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-fuchsia-500 rounded-full blur-3xl opacity-10 pointer-events-none animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500 rounded-full blur-3xl opacity-5 pointer-events-none" />
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500 rounded-full blur-3xl opacity-10 pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-500 rounded-full blur-3xl opacity-10 pointer-events-none animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500 rounded-full blur-3xl opacity-5 pointer-events-none" />
 
       <div className="relative z-10 text-center max-w-xl">
         {/* Гигантский 404 */}
         <div className="relative inline-block">
-          <div className="text-[160px] sm:text-[220px] font-black bg-gradient-to-br from-indigo-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent leading-none tracking-tighter select-none">
+          <div className="text-[160px] sm:text-[220px] font-black bg-gradient-to-br from-blue-400 via-sky-400 to-blue-400 bg-clip-text text-transparent leading-none tracking-tighter select-none">
             404
           </div>
           {/* Парящий emoji */}
@@ -85,7 +85,7 @@ export default function NotFound() {
         {/* Кнопки */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link href="/dashboard">
-            <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 text-white font-medium shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 flex items-center gap-2">
+            <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-medium shadow-lg shadow-blue-500/30 transition-all hover:scale-105 flex items-center gap-2">
               <Home className="w-4 h-4" />
               На главную
             </button>

@@ -645,7 +645,7 @@ function MapEditor({ projectId, companyId, zones, stations, decorations, cellSiz
         {/* Grid */}
         <div
           ref={gridRef}
-          className="relative border border-border rounded-lg overflow-hidden bg-slate-100 dark:bg-zinc-900 cursor-crosshair"
+          className="relative border border-border rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 cursor-crosshair"
           style={{ width: GRID_W * CELL, height: GRID_H * CELL }}
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
@@ -733,7 +733,7 @@ function MapEditor({ projectId, companyId, zones, stations, decorations, cellSiz
                 {/* Color picker popover */}
                 {colorPicker === zone.id && (
                   <div
-                    className="absolute z-50 top-6 left-0 flex flex-wrap gap-1 rounded-lg border border-slate-200 dark:border-white/20 bg-white dark:bg-zinc-900 p-2 shadow-xl"
+                    className="absolute z-50 top-6 left-0 flex flex-wrap gap-1 rounded-lg border border-slate-200 dark:border-white/20 bg-white dark:bg-slate-900 p-2 shadow-xl"
                     style={{ width: 120 }}
                     onClick={e => e.stopPropagation()}
                   >
@@ -837,7 +837,7 @@ function MapEditor({ projectId, companyId, zones, stations, decorations, cellSiz
         {/* Add decoration modal */}
         {addDecoCell && (
           <div
-            className="flex flex-col gap-3 rounded-xl border border-border bg-white dark:bg-zinc-900 p-3"
+            className="flex flex-col gap-3 rounded-xl border border-border bg-white dark:bg-slate-900 p-3"
             style={{ width: GRID_W * CELL }}
           >
             <div className="flex items-center justify-between">

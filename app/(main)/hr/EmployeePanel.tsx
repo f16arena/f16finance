@@ -134,7 +134,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
 
   const typeLabel = isHybrid ? 'Hybrid' : isOperator ? 'Оператор' : 'Админ'
   const typeColor = isHybrid
-    ? 'from-purple-500/20 to-fuchsia-500/10 text-purple-300 border-purple-500/30'
+    ? 'from-blue-500/20 to-blue-500/10 text-blue-300 border-blue-500/30'
     : isOperator
       ? 'from-blue-500/20 to-green-500/10 text-blue-300 border-blue-500/30'
       : 'from-blue-500/20 to-cyan-500/10 text-blue-300 border-blue-500/30'
@@ -275,7 +275,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
         <div className="px-5 py-4 border-b border-slate-200 dark:border-gray-800 bg-gradient-to-r from-white to-slate-50 dark:from-gray-900 dark:to-gray-900/95 shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-blue-500/10 ring-1 ring-indigo-500/20 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 ring-1 ring-indigo-500/20 flex items-center justify-center shrink-0">
                 <User className="w-6 h-6 text-indigo-300" />
               </div>
               <div className="min-w-0">
@@ -590,7 +590,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
           <Button
             onClick={save}
             disabled={saving}
-            className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg shadow-indigo-500/20"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white shadow-lg shadow-indigo-500/20"
           >
             {saving ? (
               <>

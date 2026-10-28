@@ -2248,7 +2248,7 @@ function SelectOrganizationContent() {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <h2 className="text-base font-semibold text-white">Создать новую организацию</h2>
-                            <Badge className="bg-violet-500/15 text-violet-100 hover:bg-violet-500/15">Умный запуск</Badge>
+                            <Badge className="bg-blue-500/15 text-blue-100 hover:bg-blue-500/15">Умный запуск</Badge>
                           </div>
                           <p className="text-sm text-slate-400">Новый клиент, новый проект или отдельный бизнес-контур с подсказкой по тарифу и первому запуску.</p>
                         </div>

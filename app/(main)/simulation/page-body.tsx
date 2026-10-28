@@ -205,7 +205,7 @@ export default function SimulationPage() {
       {success ? <Card className="border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-200">{success}</Card> : null}
 
       {/* ── РЕЗУЛЬТАТ ───────────────────────────────────────────────────────── */}
-      <Card className="relative overflow-hidden border-blue-500/30 bg-gradient-to-br from-blue-500/[0.08] to-indigo-500/[0.03] p-6">
+      <Card className="relative overflow-hidden border-blue-500/30 bg-gradient-to-br from-blue-500/[0.08] to-blue-500/[0.03] p-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <p className="text-[11px] uppercase tracking-widest text-blue-700 dark:text-blue-300/80">Потенциал клуба / мес</p>

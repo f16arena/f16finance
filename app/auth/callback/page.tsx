@@ -119,7 +119,7 @@ function CallbackContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 p-4">
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center">
           <Card className="w-full border-red-500/20 bg-gray-900/60 p-6 text-white">
             <div className="mb-4 flex items-center gap-3">
@@ -144,7 +144,7 @@ function CallbackContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 p-4">
       <div className="mx-auto flex min-h-screen max-w-md items-center justify-center">
         <Card className="w-full border-white/10 bg-gray-900/60 p-6 text-white">
           <div className="mb-4 flex items-center gap-3">

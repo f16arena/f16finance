@@ -210,7 +210,7 @@ const RESPONSE_CONFIG: Record<
   already_done: {
     label: 'Уже сделано',
     status: 'review',
-    tone: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-200 hover:bg-violet-500/20',
+    tone: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-200 hover:bg-blue-500/20',
     helper: 'Задача уйдет на проверку.',
   },
   complete: {
@@ -832,7 +832,7 @@ function TasksContent() {
               <AlertCircle className="w-5 h-5" />
               <span>{error}</span>
             </div>
-            <Button onClick={() => loadData(true)} className="mt-4 bg-violet-500 hover:bg-violet-600">
+            <Button onClick={() => loadData(true)} className="mt-4 bg-blue-500 hover:bg-blue-600">
               <RefreshCw className="w-4 h-4 mr-2" />
               Повторить
             </Button>
@@ -900,7 +900,7 @@ function TasksContent() {
                 {can('tasks.create') && (
                   <Button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 gap-2"
+                    className="rounded-xl bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Новая задача
@@ -937,7 +937,7 @@ function TasksContent() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Поиск задач..."
-                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground placeholder-slate-500 focus:outline-none focus:border-violet-500/50"
+                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
                 />
                 {searchTerm && (
                   <button
@@ -954,7 +954,7 @@ function TasksContent() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-violet-500/50 sm:w-auto"
+                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-blue-500/50 sm:w-auto"
                 >
                   <option value="all">Все статусы</option>
                   {Object.entries(STATUS_CONFIG).map(([key, config]) => (
@@ -965,7 +965,7 @@ function TasksContent() {
                 <select
                   value={filterPriority}
                   onChange={(e) => setFilterPriority(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-violet-500/50 sm:w-auto"
+                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-blue-500/50 sm:w-auto"
                 >
                   <option value="all">Все приоритеты</option>
                   {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
@@ -976,7 +976,7 @@ function TasksContent() {
                 <select
                   value={filterAssignee}
                   onChange={(e) => setFilterAssignee(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-violet-500/50 sm:w-auto"
+                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-blue-500/50 sm:w-auto"
                 >
                   <option value="all">Все исполнители</option>
                   <optgroup label="Операторы">
@@ -1000,7 +1000,7 @@ function TasksContent() {
                 <select
                   value={filterCompany}
                   onChange={(e) => setFilterCompany(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-violet-500/50 sm:w-auto"
+                  className="w-full min-w-0 px-3 py-2 bg-white dark:bg-slate-800/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-blue-500/50 sm:w-auto"
                 >
                   <option value="all">Все компании</option>
                   {companies.map(company => (
@@ -1224,7 +1224,7 @@ function TasksContent() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 text-xs"
+                        className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200 text-xs"
                         onClick={() => bulkUpdateStatus('review')}
                       >
                         На проверку
@@ -1377,7 +1377,7 @@ function TasksContent() {
                           <div className="flex items-center gap-2">
                             <div className={cn(
                               'w-6 h-6 rounded-full bg-gradient-to-br flex items-center justify-center text-[10px] font-bold text-white',
-                              task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-purple-500 to-pink-500',
+                              task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-blue-500 to-blue-500',
                             )}>
                               {task.assignee_name?.[0] || task.assignee_short_name?.[0] || '?'}
                             </div>
@@ -1587,7 +1587,7 @@ function TaskCard({ task, onClick, onStatusChange, onNotify, onDragStart, onDrag
         <div className="flex items-center gap-1 text-muted-foreground">
           <div className={cn(
             'w-5 h-5 rounded-full bg-gradient-to-br flex items-center justify-center text-[8px] font-bold text-white',
-            task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-purple-500 to-pink-500',
+            task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-blue-500 to-blue-500',
           )}>
             {task.assignee_short_name?.[0] || task.assignee_name?.[0] || '?'}
           </div>
@@ -1690,7 +1690,7 @@ function QuickAddTask({
         disabled={busy}
       />
       <div className="flex gap-1.5">
-        <Button size="sm" className="h-7 flex-1 text-xs bg-violet-500 hover:bg-violet-600" onClick={() => void submit()} disabled={busy || !title.trim()}>
+        <Button size="sm" className="h-7 flex-1 text-xs bg-blue-500 hover:bg-blue-600" onClick={() => void submit()} disabled={busy || !title.trim()}>
           {busy ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Добавить'}
         </Button>
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setOpen(false); setTitle('') }} disabled={busy}>
@@ -2114,7 +2114,7 @@ function TaskDetailModal({
           <div className="flex items-center gap-2">
             <div className={cn(
               'flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white',
-              task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-purple-500 to-pink-500',
+              task.assignee_kind === 'staff' ? 'from-sky-500 to-cyan-500' : 'from-blue-500 to-blue-500',
             )}>
               {task.assignee_short_name?.[0] || task.assignee_name?.[0] || '?'}
             </div>
@@ -2366,7 +2366,7 @@ function TaskDetailModal({
                 <Button
                   onClick={handleAddComment}
                   disabled={loading || !newComment.trim()}
-                  className="self-end bg-violet-500 text-white hover:bg-violet-600"
+                  className="self-end bg-blue-500 text-white hover:bg-blue-600"
                 >
                   {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Отправить'}
                 </Button>
@@ -2379,7 +2379,7 @@ function TaskDetailModal({
                     <div className={cn(
                       'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white',
                       comment.author_type === 'operator'
-                        ? 'from-violet-500 to-fuchsia-500'
+                        ? 'from-blue-500 to-blue-500'
                         : comment.author_type === 'staff'
                           ? 'from-sky-500 to-cyan-500'
                           : 'from-slate-400 to-slate-500',
@@ -2431,7 +2431,7 @@ function TaskDetailModal({
                   size="sm"
                   onClick={handleTaskSave}
                   disabled={savingTask || !editForm.title.trim()}
-                  className="bg-violet-500 text-white hover:bg-violet-600"
+                  className="bg-blue-500 text-white hover:bg-blue-600"
                 >
                   {savingTask ? 'Сохраняем...' : 'Сохранить'}
                 </Button>
@@ -3099,7 +3099,7 @@ function TaskTemplatesModal({
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <Button
                     size="sm"
-                    className="h-7 gap-1.5 bg-violet-500 px-2 text-xs text-white hover:bg-violet-600"
+                    className="h-7 gap-1.5 bg-blue-500 px-2 text-xs text-white hover:bg-blue-600"
                     onClick={() => void spawnNow(template)}
                     disabled={busyId === template.id}
                   >

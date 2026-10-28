@@ -328,7 +328,7 @@ export default function PosPage() {
 
   if (role === 'checking') {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
         <RefreshCw className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
@@ -922,7 +922,7 @@ function AdminPosPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-4">
           <RefreshCw className="h-8 w-8 animate-spin text-blue-400" />
           <p className="text-gray-400">Загрузка кассы...</p>
@@ -933,7 +933,7 @@ function AdminPosPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-4 max-w-sm text-center">
           <div className="text-red-400 text-4xl">⚠</div>
           <p className="text-red-400 text-lg font-semibold">Ошибка загрузки</p>
@@ -957,7 +957,7 @@ function AdminPosPage() {
   // ── Main render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-white overflow-hidden">
+    <div className="flex h-screen flex-col bg-slate-950 text-white overflow-hidden">
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-gray-900 px-4 py-3">
         <button
@@ -1403,7 +1403,7 @@ function AdminPosPage() {
                           setSelectedDiscount(null)
                         }}
                         placeholder="0"
-                        className="w-full rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
 
@@ -1416,11 +1416,11 @@ function AdminPosPage() {
                           value={promoCode}
                           onChange={(e) => setPromoCode(e.target.value)}
                           placeholder="Введите код..."
-                          className="flex-1 rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          className="flex-1 rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                         <button
                           onClick={applyPromoCode}
-                          className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-medium hover:bg-purple-700 transition-colors"
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium hover:bg-blue-700 transition-colors"
                         >
                           ОК
                         </button>
@@ -1443,7 +1443,7 @@ function AdminPosPage() {
                                 }}
                                 className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors ${
                                   selectedDiscount?.id === d.id
-                                    ? 'bg-purple-600/30 border border-purple-500/50 text-white'
+                                    ? 'bg-blue-600/30 border border-blue-500/50 text-white'
                                     : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
                                 }`}
                               >

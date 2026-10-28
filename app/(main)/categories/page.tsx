@@ -426,7 +426,7 @@ export default function CategoriesPage() {
                       onClick={suggestGroup}
                       disabled={newName.trim().length < 2 || aiHinting}
                       title="ИИ определит группу по названию"
-                      className="inline-flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 transition hover:bg-violet-500/20 disabled:opacity-40"
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-400/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-300 transition hover:bg-blue-500/20 disabled:opacity-40"
                     >
                       {aiHinting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       Определить (AI)

@@ -43,8 +43,8 @@ export default function ForgotPasswordPage() {
           <Card className="hidden border-white/10 bg-slate-950/60 p-8 text-white backdrop-blur-xl lg:block">
             <div className="flex h-full flex-col justify-between">
               <div>
-                <div className="mb-5 inline-flex rounded-2xl bg-violet-500/10 p-4">
-                  <KeyRound className="h-7 w-7 text-violet-400" />
+                <div className="mb-5 inline-flex rounded-2xl bg-blue-500/10 p-4">
+                  <KeyRound className="h-7 w-7 text-blue-400" />
                 </div>
                 <h1 className="text-3xl font-semibold text-white">Восстановление доступа</h1>
                 <p className="mt-3 text-sm leading-6 text-slate-400">
@@ -70,8 +70,8 @@ export default function ForgotPasswordPage() {
 
           <Card className="border-white/10 bg-slate-950/70 p-6 text-white backdrop-blur-xl sm:p-8">
             <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-2xl bg-violet-500/10 p-3">
-                <KeyRound className="h-6 w-6 text-violet-400" />
+              <div className="rounded-2xl bg-blue-500/10 p-3">
+                <KeyRound className="h-6 w-6 text-blue-400" />
               </div>
               <div>
                 <h1 className="text-lg font-semibold">Сброс пароля</h1>
@@ -127,7 +127,7 @@ export default function ForgotPasswordPage() {
             </form>
 
             <div className="mt-5 text-center text-sm text-slate-400">
-              <Link href="/login" className="text-violet-400 hover:text-violet-300">
+              <Link href="/login" className="text-blue-400 hover:text-blue-300">
                 Вернуться ко входу
               </Link>
             </div>

@@ -315,10 +315,10 @@ function BigStat({
   hint?: string
 }) {
   const toneMap = {
-    indigo: 'from-indigo-500/15 to-blue-500/5 border-indigo-500/30 text-indigo-300',
+    indigo: 'from-blue-500/15 to-blue-500/5 border-indigo-500/30 text-indigo-300',
     emerald: 'from-blue-500/15 to-green-500/5 border-blue-500/30 text-blue-300',
     blue: 'from-blue-500/15 to-cyan-500/5 border-blue-500/30 text-blue-300',
-    purple: 'from-purple-500/15 to-fuchsia-500/5 border-purple-500/30 text-purple-300',
+    purple: 'from-blue-500/15 to-blue-500/5 border-blue-500/30 text-blue-300',
   }
   return (
     <Card className={`p-4 bg-gradient-to-br ${toneMap[tone]} border`}>

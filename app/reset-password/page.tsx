@@ -170,7 +170,7 @@ function ResetPasswordContent() {
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center">
           <Card className="w-full border-white/10 bg-slate-950/70 p-6 text-white backdrop-blur-xl">
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-slate-300">
-              <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
               Готовим безопасную смену пароля...
             </div>
           </Card>
@@ -186,8 +186,8 @@ function ResetPasswordContent() {
           <Card className="hidden border-white/10 bg-slate-950/60 p-8 text-white backdrop-blur-xl lg:block">
             <div className="flex h-full flex-col justify-between">
               <div>
-                <div className="mb-5 inline-flex rounded-2xl bg-violet-500/10 p-4">
-                  {isInviteFlow ? <ShieldCheck className="h-7 w-7 text-violet-400" /> : <KeyRound className="h-7 w-7 text-violet-400" />}
+                <div className="mb-5 inline-flex rounded-2xl bg-blue-500/10 p-4">
+                  {isInviteFlow ? <ShieldCheck className="h-7 w-7 text-blue-400" /> : <KeyRound className="h-7 w-7 text-blue-400" />}
                 </div>
                 <h1 className="text-3xl font-semibold text-white">{copy.title}</h1>
                 <p className="mt-3 text-sm leading-6 text-slate-400">{copy.description}</p>
@@ -211,8 +211,8 @@ function ResetPasswordContent() {
 
           <Card className="border-white/10 bg-slate-950/70 p-6 text-white backdrop-blur-xl sm:p-8">
             <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-2xl bg-violet-500/10 p-3">
-                  {isInviteFlow ? <ShieldCheck className="h-6 w-6 text-violet-400" /> : <KeyRound className="h-6 w-6 text-violet-400" />}
+              <div className="rounded-2xl bg-blue-500/10 p-3">
+                  {isInviteFlow ? <ShieldCheck className="h-6 w-6 text-blue-400" /> : <KeyRound className="h-6 w-6 text-blue-400" />}
               </div>
               <div>
                 <h1 className="text-lg font-semibold">{copy.title}</h1>

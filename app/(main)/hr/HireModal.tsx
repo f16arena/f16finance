@@ -290,7 +290,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative px-6 py-5 border-b border-slate-200 dark:border-gray-800 bg-gradient-to-r from-indigo-50 via-white to-white dark:from-indigo-900/30 dark:via-gray-900 dark:to-gray-900">
+        <div className="relative px-6 py-5 border-b border-slate-200 dark:border-gray-800 bg-gradient-to-r from-blue-50 via-white to-white dark:from-blue-900/30 dark:via-gray-900 dark:to-gray-900">
           <div className="absolute -top-12 -right-12 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -603,7 +603,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
           <Button
             onClick={submit}
             disabled={submitting}
-            className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg shadow-indigo-500/20"
+            className="bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white shadow-lg shadow-indigo-500/20"
           >
             {submitting ? (
               <>
@@ -674,7 +674,7 @@ function TypeCard({
       onClick={onClick}
       className={`p-4 rounded-xl border text-left transition-all ${
         active
-          ? 'border-indigo-500/60 bg-gradient-to-br from-indigo-500/15 to-blue-500/10 ring-1 ring-indigo-500/30 shadow-lg shadow-indigo-500/10'
+          ? 'border-indigo-500/60 bg-gradient-to-br from-blue-500/15 to-blue-500/10 ring-1 ring-indigo-500/30 shadow-lg shadow-indigo-500/10'
           : 'border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 hover:border-slate-300 dark:hover:border-gray-600'
       }`}
     >

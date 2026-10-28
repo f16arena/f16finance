@@ -330,7 +330,7 @@ export default function BusinessIntelligencePage() {
               <ol className="mt-4 space-y-2">
                 {ai.map((line, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[11px] font-semibold text-white">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[11px] font-semibold text-white">
                       {i + 1}
                     </span>
                     <span className="leading-relaxed">{line}</span>
