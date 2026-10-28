@@ -116,6 +116,6 @@ export const Formatters = {
 export const COLORS = {
   income: '#10b981',
   expense: '#ef4444',
-  profit: '#8b5cf6',
-  chart: ['#8b5cf6', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899'],
+  profit: '#3b82f6', // кобальт ORDA CONTROL: акцент графиков
+  chart: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#0ea5e9', '#8b5cf6'],
 }

@@ -172,6 +172,11 @@
   --color-amber-800: var(--brand-800);
   --color-amber-900: var(--brand-900);
   --color-amber-950: var(--brand-950);
+  /* ORDA CONTROL: самые тёмные «slate» — тёмно-синие, а не почти чёрные.
+     Тёмная тема получает navy-фон без правки сотен страниц, светлая — navy-текст. */
+  --color-slate-800: #1a3157;
+  --color-slate-900: #0f2444;
+  --color-slate-950: #081a33;
 }
 
 @layer components {
