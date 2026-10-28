@@ -50,7 +50,7 @@ export function SeoPageShell(props: {
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
               <Link href="/">На главную</Link>
             </Button>
-            <Button asChild className="bg-amber-500 text-slate-950 hover:bg-amber-400">
+            <Button asChild className="bg-amber-500 text-white hover:bg-amber-400">
               <Link href="/login">
                 Войти
                 <ArrowRight className="ml-2 h-4 w-4" />

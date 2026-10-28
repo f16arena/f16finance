@@ -55,7 +55,7 @@ function MegaMenuItem({
       className={cn(
         'group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-all duration-200',
         active
-          ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-foreground'
+          ? 'bg-gradient-to-r from-amber-500/10 to-blue-600/10 text-foreground'
           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white',
       )}
     >
@@ -63,7 +63,7 @@ function MegaMenuItem({
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200',
           active
-            ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 text-amber-500 dark:text-amber-400'
+            ? 'bg-gradient-to-br from-amber-500/20 to-blue-600/20 text-amber-500 dark:text-amber-400'
             : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200 dark:bg-slate-800/50 dark:group-hover:bg-slate-800 dark:group-hover:text-slate-300',
         )}
       >

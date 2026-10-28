@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
-import { SITE_NAME } from '@/lib/core/site'
 import { LEGAL_ENTITY, PRODUCT_SITE } from '@/lib/core/legal'
 import { findHelpImageSlot, type HelpImageRecord } from '@/lib/core/help-images'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { SiteFooter, SiteHeader } from '@/components/public/site-chrome'
+import { APP_STORE_URL, GOOGLE_PLAY_URL } from '@/lib/public/app-links'
 
 export const metadata: Metadata = {
   title: 'Руководство пользователя — Orda',
@@ -44,7 +44,7 @@ function HelpFigure({ slot, images }: { slot: string; images: HelpImages }) {
   const meta = findHelpImageSlot(slot)
   const caption = image.caption || meta?.caption || ''
   return (
-    <figure className="mt-4 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc]">
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#f8fafc]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={image.url}
@@ -53,7 +53,7 @@ function HelpFigure({ slot, images }: { slot: string; images: HelpImages }) {
         className="w-full"
       />
       {caption ? (
-        <figcaption className="border-t border-[#e2e8f0] px-4 py-2.5 text-xs text-[#64748b]">
+        <figcaption className="border-t border-[#e5e7eb] px-4 py-2.5 text-xs text-[#6b7280]">
           {caption}
         </figcaption>
       ) : null}
@@ -65,7 +65,7 @@ const sections = [
   { id: 'about', title: '1. Что такое Orda' },
   { id: 'start', title: '2. Организация, точки и права' },
   { id: 'web', title: '3. Сайт ordaops.kz' },
-  { id: 'mobile', title: '4. Приложение для iPhone и iPad' },
+  { id: 'mobile', title: '4. Приложение для телефона (iPhone и Android)' },
   { id: 'point', title: '5. Программа точки (Windows)' },
   { id: 'kiosk', title: '6. Киоск самообслуживания' },
   { id: 'howto', title: '7. Как делать основное' },
@@ -87,35 +87,27 @@ export default async function HelpPage() {
   const images = await loadHelpImages()
 
   return (
-    <main className="min-h-screen bg-white text-[#475569]">
-      <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">К {SITE_NAME}</span>
-          </Link>
-          <span className="text-xs text-[#64748b]">Руководство пользователя</span>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#fafaf8] text-[#374151]">
+      <SiteHeader />
 
       <div className="mx-auto max-w-screen-2xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:items-start">
-          <aside className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+          <aside className="lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(11,31,59,0.04),0_10px_30px_-18px_rgba(11,31,59,0.18)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">Содержание</div>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {sections.map((s) => (
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
+                      className="block rounded-lg px-2 py-1 text-[#4b5563] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
+              <div className="mt-4 grid gap-1 text-xs text-[#6b7280]">
                 <Link href="/help/operator" className="font-medium text-[#2563eb] hover:text-[#1d4ed8]">→ Регламент оператора</Link>
                 <Link href="/privacy" className="hover:text-[#2563eb]">→ Политика конфиденциальности</Link>
                 <Link href="/terms" className="hover:text-[#2563eb]">→ Пользовательское соглашение</Link>
@@ -125,14 +117,14 @@ export default async function HelpPage() {
             </div>
           </aside>
 
-          <article className="max-w-3xl space-y-10 text-[#475569]">
+          <article className="max-w-3xl space-y-10 text-[#374151]">
             <header>
               <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Руководство пользователя
               </h1>
-              <p className="mt-4 text-sm leading-7 text-[#56657d]">
-                Как установить, войти и работать: сайт, приложение для iPhone и
-                iPad, программа точки и киоск самообслуживания. Инструкцию можно
+              <p className="mt-4 text-sm leading-7 text-[#4b5563]">
+                Как установить, войти и работать: сайт, приложение для iPhone,
+                iPad и Android, программа точки и киоск самообслуживания. Инструкцию можно
                 отправить новому сотруднику вместо объяснения по телефону.
               </p>
             </header>
@@ -155,7 +147,7 @@ export default async function HelpPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-[#e2e8f0] text-left text-[#0b1f3b]">
+                      <tr className="border-b border-[#e5e7eb] text-left text-[#0b1f3b]">
                         <th className="py-2 pr-4 font-semibold">Программа</th>
                         <th className="py-2 pr-4 font-semibold">Где работает</th>
                         <th className="py-2 font-semibold">Для кого</th>
@@ -168,8 +160,8 @@ export default async function HelpPage() {
                         <td className="py-2">владелец, управляющий, бухгалтер</td>
                       </tr>
                       <tr className="border-b border-[#eef2f8]">
-                        <td className="py-2 pr-4">Orda для iPhone и iPad</td>
-                        <td className="py-2 pr-4">App Store</td>
+                        <td className="py-2 pr-4">Orda Point для iPhone, iPad и Android</td>
+                        <td className="py-2 pr-4">App Store, Google Play</td>
                         <td className="py-2">владелец и оператор</td>
                       </tr>
                       <tr className="border-b border-[#eef2f8]">
@@ -264,10 +256,18 @@ export default async function HelpPage() {
 
             {/* ── 4 ─────────────────────────────────────────────────────── */}
             <section id="mobile">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">4. Приложение для iPhone и iPad</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">4. Приложение для телефона (iPhone и Android)</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <h3 className="text-base font-semibold text-[#0b1f3b]">Установка</h3>
-                <p>App Store → поиск «Orda Point» → «Загрузить». Нужен iPhone или iPad с iOS 17 и новее.</p>
+                <p>
+                  <strong>iPhone и iPad:</strong> App Store → поиск «Orda Point» → «Загрузить» (нужна iOS 17 и новее) или{' '}
+                  <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="text-[#2563eb] hover:underline">ссылка на App Store</a>.
+                </p>
+                <p>
+                  <strong>Android:</strong> Google Play → поиск «Orda Point» → «Установить» или{' '}
+                  <a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer" className="text-[#2563eb] hover:underline">ссылка на Google Play</a>.
+                  Возможности те же, что на iPhone; вместо Face ID — отпечаток пальца или разблокировка телефона.
+                </p>
 
                 <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Вход</h3>
                 <p>
@@ -275,7 +275,7 @@ export default async function HelpPage() {
                   оператор — по логину, который выдал владелец.
                 </p>
                 <p>
-                  После первого входа доступен <strong>вход по Face ID</strong>:
+                  После первого входа доступен <strong>вход по Face ID</strong> (на Android — по отпечатку):
                   на экране входа появится соответствующая кнопка. Устройство
                   помнит не пароль, а токен доступа; отключить — «Аккаунт» →
                   «Забыть это устройство».
@@ -495,12 +495,13 @@ export default async function HelpPage() {
               </div>
             </section>
 
-            <footer className="border-t border-[#e2e8f0] pt-8 text-xs text-[#64748b]">
+            <footer className="border-t border-[#e5e7eb] pt-8 text-xs text-[#6b7280]">
               <p>© 2026 {LEGAL_ENTITY.shortName}. Все права защищены.</p>
             </footer>
           </article>
         </div>
       </div>
+      <SiteFooter />
     </main>
   )
 }

@@ -257,14 +257,14 @@ export default function RatingsPage() {
                           </td>
                           <td className="py-3 pr-4">
                             <div>
-                              <p className={`font-medium ${rank === 1 && row.revenue > 0 ? 'text-amber-700 dark:text-amber-300' : rank === 2 && row.revenue > 0 ? 'text-body' : rank === 3 && row.revenue > 0 ? 'text-orange-600 dark:text-orange-300' : 'text-muted-foreground'}`}>
+                              <p className={`font-medium ${rank === 1 && row.revenue > 0 ? 'text-amber-700 dark:text-amber-300' : rank === 2 && row.revenue > 0 ? 'text-body' : rank === 3 && row.revenue > 0 ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>
                                 {row.name}
                               </p>
                               {row.revenue > 0 && (
                                 <div className="flex items-center gap-2 mt-1">
                                   <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-800 flex-1 max-w-[120px]">
                                     <div
-                                      className="h-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                                      className="h-1 rounded-full bg-gradient-to-r from-amber-500 to-blue-600"
                                       style={{ width: `${sharePercent}%` }}
                                     />
                                   </div>

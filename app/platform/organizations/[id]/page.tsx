@@ -512,7 +512,7 @@ export default function OrgDetailPage() {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -538,12 +538,12 @@ export default function OrgDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20 text-sm font-bold text-violet-700 dark:text-violet-300">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20 text-sm font-bold text-blue-700 dark:text-blue-300">
             {org.name.slice(0, 2).toUpperCase()}
           </div>
           <div>
             <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{org.name}</h1>
-            <a href={org.appUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-slate-400 hover:text-violet-300">
+            <a href={org.appUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-300">
               {org.primaryDomain} <ExternalLink className="h-3 w-3" />
             </a>
           </div>
@@ -560,7 +560,7 @@ export default function OrgDetailPage() {
               onClick={() => setActiveTab(t.key)}
               className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                 active
-                  ? 'border-violet-500 text-violet-600 dark:text-violet-300'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
             >
@@ -675,7 +675,7 @@ export default function OrgDetailPage() {
               )}
               <button
                 onClick={() => setActiveTab('billing')}
-                className="mt-3 text-xs font-medium text-violet-500 hover:text-violet-600 dark:hover:text-violet-300"
+                className="mt-3 text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-300"
               >
                 Управлять оплатой →
               </button>
@@ -683,7 +683,7 @@ export default function OrgDetailPage() {
 
             <div className={cardCls}>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                <Users className="h-4 w-4 text-violet-400" />
+                <Users className="h-4 w-4 text-blue-400" />
                 Ключевые факты
               </h2>
               <div className="grid grid-cols-3 gap-3">
@@ -704,7 +704,7 @@ export default function OrgDetailPage() {
           {/* Точки */}
           <div className={cardCls}>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <Building2 className="h-4 w-4 text-violet-400" />
+              <Building2 className="h-4 w-4 text-blue-400" />
               Точки ({org.companies.length})
             </h2>
             <div className="space-y-1.5">
@@ -741,7 +741,7 @@ export default function OrgDetailPage() {
                     <Input value={ownerFullName} onChange={(e) => setOwnerFullName(e.target.value)} placeholder="Имя (необяз.)" className="border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-white" />
                     <Input value={ownerPwd} onChange={(e) => setOwnerPwd(e.target.value)} placeholder="Пароль (или сгенерируем)" className="border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-white" />
                   </div>
-                  <Button onClick={handleCreateOwner} disabled={creatingOwner || !ownerEmail.trim()} className="bg-violet-600 text-white hover:bg-violet-500">
+                  <Button onClick={handleCreateOwner} disabled={creatingOwner || !ownerEmail.trim()} className="bg-blue-600 text-white hover:bg-blue-500">
                     {creatingOwner ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Создать аккаунт владельца
                   </Button>
@@ -917,7 +917,7 @@ export default function OrgDetailPage() {
           {/* Тариф (пакет) */}
           <div className={cardCls}>
             <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-              <Package className="h-4 w-4 text-violet-400" />
+              <Package className="h-4 w-4 text-blue-400" />
               Пакет
             </h2>
             <p className="mb-3 text-xs text-slate-500">Основной отраслевой пакет клиента. Его функции включаются автоматически.</p>
@@ -934,7 +934,7 @@ export default function OrgDetailPage() {
                       disabled={savingPkg}
                       className={`rounded-xl border px-3 py-2 text-left text-sm transition disabled:opacity-50 ${
                         active
-                          ? 'border-violet-500/50 bg-violet-500/10 text-slate-900 dark:text-white'
+                          ? 'border-blue-500/50 bg-blue-500/10 text-slate-900 dark:text-white'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:hover:bg-white/[0.04]'
                       }`}
                     >
@@ -955,7 +955,7 @@ export default function OrgDetailPage() {
           {/* Доп. модули */}
           <div className={cardCls}>
             <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-              <Package className="h-4 w-4 text-violet-400" />
+              <Package className="h-4 w-4 text-blue-400" />
               Доп. модули
             </h2>
             <p className="mb-3 text-xs text-slate-500">Платные надстройки поверх пакета. Включаются тумблером.</p>
@@ -990,7 +990,7 @@ export default function OrgDetailPage() {
           {/* Счета */}
           <div className={cardCls}>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <CreditCard className="h-4 w-4 text-violet-400" />
+              <CreditCard className="h-4 w-4 text-blue-400" />
               Счета
             </h2>
 
@@ -1004,7 +1004,7 @@ export default function OrgDetailPage() {
                     <span className="text-[11px] text-slate-500">К оплате по пакету:</span>
                     <span className="text-xs tabular-nums text-slate-700 dark:text-slate-300">{tenge(suggested)}/мес</span>
                     {suggested > 0 ? (
-                      <button type="button" onClick={() => setInvAmount(String(suggested))} className="text-[11px] text-violet-400 hover:text-violet-300">
+                      <button type="button" onClick={() => setInvAmount(String(suggested))} className="text-[11px] text-blue-400 hover:text-blue-300">
                         подставить
                       </button>
                     ) : null}
@@ -1017,7 +1017,7 @@ export default function OrgDetailPage() {
                   </div>
                   <div className="mt-2 flex gap-2">
                     <Input value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="Комментарий (необяз.)" className="flex-1 border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-white" />
-                    <Button onClick={handleCreateInvoice} disabled={savingInvoice} className="bg-violet-600 text-white hover:bg-violet-500">
+                    <Button onClick={handleCreateInvoice} disabled={savingInvoice} className="bg-blue-600 text-white hover:bg-blue-500">
                       {savingInvoice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Выставить счёт
                     </Button>
@@ -1135,7 +1135,7 @@ export default function OrgDetailPage() {
 
           <div className={cardCls}>
             <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 text-violet-400" />
+              <Sparkles className="h-4 w-4 text-blue-400" />
               Что включено у клиента
             </h2>
             <p className="mb-3 text-xs text-slate-500">
@@ -1272,7 +1272,7 @@ export default function OrgDetailPage() {
                 type="button"
                 disabled={mBusy || !mEmail.trim()}
                 onClick={() => void memberAction({ action: 'inviteMember', fullName: mFullName.trim(), email: mEmail.trim(), role: mRole })}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-50"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
                 Пригласить
               </button>
@@ -1293,7 +1293,7 @@ export default function OrgDetailPage() {
                   const stateLabel =
                     m.accountState === 'active' ? 'Активен' : m.accountState === 'invited' ? 'Приглашён' : m.accountState === 'no_account' ? 'Нет аккаунта' : 'Без почты'
                   const stateColor =
-                    m.accountState === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : m.accountState === 'invited' ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300' : 'bg-slate-500/15 text-slate-500 dark:text-slate-400'
+                    m.accountState === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : m.accountState === 'invited' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300' : 'bg-slate-500/15 text-slate-500 dark:text-slate-400'
                   const roleLabel = m.role === 'owner' ? 'Владелец' : m.role === 'manager' ? 'Управляющий' : m.role === 'marketer' ? 'Маркетолог' : 'Сотрудник'
                   return (
                     <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
@@ -1337,7 +1337,7 @@ export default function OrgDetailPage() {
       {activeTab === 'history' && (
         <div className={cardCls}>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Calendar className="h-4 w-4 text-violet-400" />
+            <Calendar className="h-4 w-4 text-blue-400" />
             История оплат и подписки
           </h2>
           {org.billingEvents && org.billingEvents.length > 0 ? (
@@ -1382,7 +1382,7 @@ export default function OrgDetailPage() {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:opacity-90"
+          className="bg-gradient-to-r from-blue-500 to-sky-500 text-white hover:opacity-90"
         >
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Сохранить

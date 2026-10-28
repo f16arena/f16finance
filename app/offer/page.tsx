@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
-import { SITE_NAME } from '@/lib/core/site'
 import {
   LEGAL_ENTITY,
   LEGAL_EFFECTIVE_DATE,
@@ -13,6 +11,7 @@ import {
   PRODUCT_SITE,
   TRIAL_DAYS,
 } from '@/lib/core/legal'
+import { SiteFooter, SiteHeader } from '@/components/public/site-chrome'
 
 export const metadata: Metadata = {
   title: `Публичная оферта — ${PRODUCT_NAME}`,
@@ -40,23 +39,13 @@ const sections = [
 
 export default function OfferPage() {
   return (
-    <main className="min-h-screen bg-white text-[#475569]">
-      <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">К {SITE_NAME}</span>
-          </Link>
-          <span className="text-xs text-[#64748b]">
-            Версия от {LEGAL_VERSION} · обновлено {LEGAL_LAST_UPDATED}
-          </span>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#fafaf8] text-[#374151]">
+      <SiteHeader />
 
       <div className="mx-auto max-w-screen-2xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:items-start">
-          <aside className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+          <aside className="lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(11,31,59,0.04),0_10px_30px_-18px_rgba(11,31,59,0.18)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">
                 Содержание
               </div>
@@ -65,14 +54,14 @@ export default function OfferPage() {
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
+                      className="block rounded-lg px-2 py-1 text-[#4b5563] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
+              <div className="mt-4 grid gap-1 text-xs text-[#6b7280]">
                 <Link href="/privacy" className="hover:text-[#2563eb]">→ Политика конфиденциальности</Link>
                 <Link href="/terms" className="hover:text-[#2563eb]">→ Пользовательское соглашение</Link>
                 <Link href="/sla" className="hover:text-[#2563eb]">→ SLA</Link>
@@ -81,21 +70,22 @@ export default function OfferPage() {
             </div>
           </aside>
 
-          <article className="prose-doc max-w-3xl space-y-8 text-[#475569]">
+          <article className="prose-doc max-w-3xl space-y-8 text-[#374151]">
             <header>
+              <div className="mb-3 text-xs text-[#6b7280]">Версия от {LEGAL_VERSION} · обновлено {LEGAL_LAST_UPDATED}</div>
               <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Публичная оферта на оказание услуг
                 <br />
                 информационной системы «{PRODUCT_NAME}»
               </h1>
-              <p className="mt-4 text-sm leading-7 text-[#56657d]">
+              <p className="mt-4 text-sm leading-7 text-[#4b5563]">
                 Настоящий документ является публичной офертой {LEGAL_ENTITY.shortName} в
                 соответствии со статьями 395 и 396 Гражданского кодекса Республики
                 Казахстан. Регистрация в Сервисе, вход в Личный кабинет, использование
                 Сервиса или оплата выставленного счёта означают полный и безоговорочный
                 акцепт условий настоящей оферты.
               </p>
-              <p className="mt-3 text-sm leading-7 text-[#56657d]">
+              <p className="mt-3 text-sm leading-7 text-[#4b5563]">
                 <strong>Город:</strong> {LEGAL_ENTITY.city}, {LEGAL_ENTITY.country}
                 <br />
                 <strong>Дата вступления в силу:</strong> {LEGAL_EFFECTIVE_DATE}
@@ -296,8 +286,8 @@ export default function OfferPage() {
 
             <section id="requisites">
               <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">15. Реквизиты Исполнителя</h2>
-              <div className="mt-4 rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 text-sm leading-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-                <div className="grid gap-2 text-[#56657d]">
+              <div className="mt-4 rounded-2xl border border-[#e5e7eb] bg-[#eef2f8] p-5 text-sm leading-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+                <div className="grid gap-2 text-[#4b5563]">
                   <div><strong className="text-[#0b1f3b]">Наименование:</strong> {LEGAL_ENTITY.fullName}</div>
                   <div><strong className="text-[#0b1f3b]">БИН:</strong> {LEGAL_ENTITY.bin}</div>
                   <div><strong className="text-[#0b1f3b]">Адрес:</strong> {LEGAL_ENTITY.address}</div>
@@ -319,13 +309,13 @@ export default function OfferPage() {
                 {LEGAL_HISTORY.map((entry) => (
                   <div key={entry.date} className="flex gap-3">
                     <span className="shrink-0 font-mono text-xs text-[#2563eb]">{entry.date}</span>
-                    <span className="text-[#56657d]">{entry.note}</span>
+                    <span className="text-[#4b5563]">{entry.note}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <footer className="border-t border-[#e2e8f0] pt-8 text-xs text-[#64748b]">
+            <footer className="border-t border-[#e5e7eb] pt-8 text-xs text-[#6b7280]">
               <p>
                 Настоящая оферта составлена в соответствии с Гражданским кодексом
                 Республики Казахстан (ст. 395–397), Законом Республики Казахстан
@@ -339,6 +329,7 @@ export default function OfferPage() {
           </article>
         </div>
       </div>
+      <SiteFooter />
     </main>
   )
 }

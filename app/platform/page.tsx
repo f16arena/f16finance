@@ -75,7 +75,7 @@ function Kpi({
   const tones: Record<string, string> = {
     slate: 'text-slate-900 dark:text-white',
     emerald: 'text-emerald-600 dark:text-emerald-400',
-    violet: 'text-violet-600 dark:text-violet-400',
+    violet: 'text-blue-600 dark:text-blue-400',
     rose: 'text-rose-600 dark:text-rose-400',
     amber: 'text-amber-600 dark:text-amber-400',
   }
@@ -126,7 +126,7 @@ export default function PlatformOverviewPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -145,7 +145,7 @@ export default function PlatformOverviewPage() {
         </div>
         <Link
           href="/platform/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           <PlusCircle className="h-4 w-4" /> Новый клиент
         </Link>
@@ -160,7 +160,7 @@ export default function PlatformOverviewPage() {
           </p>
           <Link
             href="/platform/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             <PlusCircle className="h-4 w-4" /> Завести первого клиента
           </Link>
@@ -289,7 +289,7 @@ export default function PlatformOverviewPage() {
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Клиенты</h2>
-              <Link href="/platform/organizations" className="text-xs text-violet-500 hover:text-violet-600 dark:hover:text-violet-300">
+              <Link href="/platform/organizations" className="text-xs text-blue-500 hover:text-blue-600 dark:hover:text-blue-300">
                 Открыть полный список →
               </Link>
             </div>
@@ -310,7 +310,7 @@ export default function PlatformOverviewPage() {
                     <tr key={org.id} className="bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/[0.02]">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-xs font-bold text-violet-700 dark:text-violet-300">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 text-xs font-bold text-blue-700 dark:text-blue-300">
                             {org.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
@@ -324,7 +324,7 @@ export default function PlatformOverviewPage() {
                       <td className="px-3 py-3 text-center tabular-nums text-slate-600 dark:text-slate-300">{org.companyCount}</td>
                       <td className="px-3 py-3 text-center tabular-nums text-slate-600 dark:text-slate-300">{org.memberCount}</td>
                       <td className="px-4 py-3 text-right">
-                        <Link href={`/platform/organizations/${org.id}`} className="text-xs font-medium text-violet-500 hover:text-violet-600 dark:hover:text-violet-300">
+                        <Link href={`/platform/organizations/${org.id}`} className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-300">
                           Открыть →
                         </Link>
                       </td>
@@ -337,21 +337,21 @@ export default function PlatformOverviewPage() {
 
           {/* Быстрые действия */}
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Link href="/platform/invoices" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-400/40 dark:border-white/10 dark:bg-slate-900/40">
-              <FileText className="h-5 w-5 text-violet-500" />
+            <Link href="/platform/invoices" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-400/40 dark:border-white/10 dark:bg-slate-900/40">
+              <FileText className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm font-medium">Счета</p>
                 <p className="text-xs text-slate-400">Выставить и отметить оплату</p>
               </div>
             </Link>
-            <Link href="/platform/billing" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-400/40 dark:border-white/10 dark:bg-slate-900/40">
+            <Link href="/platform/billing" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-400/40 dark:border-white/10 dark:bg-slate-900/40">
               <CreditCard className="h-5 w-5 text-amber-500" />
               <div>
                 <p className="text-sm font-medium">Тарифы и модули</p>
                 <p className="text-xs text-slate-400">Что входит и сколько стоит</p>
               </div>
             </Link>
-            <Link href="/platform/organizations" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-400/40 dark:border-white/10 dark:bg-slate-900/40">
+            <Link href="/platform/organizations" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-400/40 dark:border-white/10 dark:bg-slate-900/40">
               <Building2 className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm font-medium">Все клиенты</p>

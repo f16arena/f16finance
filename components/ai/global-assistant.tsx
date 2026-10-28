@@ -74,7 +74,7 @@ export function GlobalAssistant() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
-          className="fixed bottom-5 right-5 z-40 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-6 text-black shadow-[0_20px_45px_rgba(251,146,60,0.25)] hover:from-amber-400 hover:to-orange-400 group"
+          className="fixed bottom-5 right-5 z-40 rounded-full bg-gradient-to-r from-amber-500 to-blue-600 px-5 py-6 text-white shadow-[0_20px_45px_rgba(37,99,235,0.25)] hover:from-amber-400 hover:to-blue-500 group"
         >
           <Sparkles className="mr-2 h-4 w-4 transition group-hover:rotate-12" />
           AI Copilot

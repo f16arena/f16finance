@@ -1146,7 +1146,7 @@ function ReportsContent() {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`px-3 lg:px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      activeTab === tab ? 'bg-amber-500 text-white shadow-sm' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
+                      activeTab === tab ? 'bg-amber-500 text-white shadow-sm' : 'text-muted-foreground hover:text-white dark:hover:text-white'
                     }`}
                   >
                     {tab === 'overview' && 'Обзор'}

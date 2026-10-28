@@ -43,6 +43,7 @@ export const LEGAL_ENTITY = {
   iik: 'KZ02722S000053834515',
   bik: 'CASPKZKA',
   kbe: '17',
+  director: 'Кенесканов А. Ж.',
 } as const
 
 export const PRODUCT_NAME = 'Orda Control'

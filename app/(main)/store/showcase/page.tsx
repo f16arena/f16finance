@@ -1160,7 +1160,7 @@ export default function ShowcasePage({ embedded = false }: { embedded?: boolean 
                   {returnError && <p className="text-xs text-rose-400">{returnError}</p>}
 
                   {can('store-showcase.return_to_warehouse') && (
-                  <Button type="submit" disabled={returning} className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-black">
+                  <Button type="submit" disabled={returning} className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white">
                     {returning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     Вернуть на склад
                   </Button>

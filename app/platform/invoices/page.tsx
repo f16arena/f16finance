@@ -88,7 +88,7 @@ export default function PlatformInvoicesPage() {
             onClick={() => setFilter(f.k)}
             className={`rounded-xl border px-3 py-1.5 text-sm transition ${
               filter === f.k
-                ? 'border-violet-500/40 bg-violet-500/15 text-violet-700 dark:text-violet-200'
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-700 dark:text-blue-200'
                 : 'border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/[0.04]'
             }`}
           >
@@ -98,7 +98,7 @@ export default function PlatformInvoicesPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center dark:border-white/15 dark:bg-white/[0.02]">
           <FileText className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
@@ -118,7 +118,7 @@ export default function PlatformInvoicesPage() {
                   <div className="min-w-[180px]">
                     <Link
                       href={`/platform/organizations/${r.organizationId}`}
-                      className="font-medium text-slate-900 hover:text-violet-700 dark:text-white dark:hover:text-violet-300"
+                      className="font-medium text-slate-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-300"
                     >
                       {r.orgName}
                     </Link>

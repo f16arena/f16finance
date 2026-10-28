@@ -839,7 +839,7 @@ export default function KnowledgeAdminPage() {
                   })
                 }
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-orange-950/30 transition hover:brightness-110 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110 disabled:opacity-50"
               >
                 <Sparkles className="h-4 w-4" />
                 Создать стартовую базу
@@ -929,7 +929,7 @@ export default function KnowledgeAdminPage() {
                         <button
                           type="button"
                           onClick={openArticleDialogNew}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-orange-950/30 transition hover:brightness-110"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110"
                         >
                           <Plus className="h-4 w-4" />
                           Новый материал
@@ -1086,7 +1086,7 @@ export default function KnowledgeAdminPage() {
                           <button
                             type="button"
                             onClick={openChecklistTemplateNew}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-orange-950/30 transition hover:brightness-110"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110"
                           >
                             <Plus className="h-4 w-4" />
                             Создать чек-лист
@@ -1384,7 +1384,7 @@ export default function KnowledgeAdminPage() {
                       <button
                         type="button"
                         onClick={openCategoryDialogNew}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-orange-950/30 transition hover:brightness-110"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110"
                       >
                         <Plus className="h-4 w-4" />
                         Новая категория

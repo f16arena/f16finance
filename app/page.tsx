@@ -33,7 +33,6 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { OrdaControlMark } from '@/components/brand/orda-control-mark'
 import { ContactLeadForm } from '@/components/public/contact-lead-form'
 import { FloatingCta } from '@/components/public/floating-cta'
 import { FaqStructuredData, WebsiteStructuredData } from '@/components/public/structured-data'
@@ -41,6 +40,7 @@ import { CountUp, HeroIn, Reveal, Stagger, StaggerItem } from '@/components/publ
 import { CopilotDemo, FeatureMarquee, OfflineDemo, ScrollProgress, TelegramDemo } from '@/components/public/landing-demos'
 import { AppsStage, StoreBadge } from '@/components/public/apps-showcase'
 import { APP_STORE_URL, GOOGLE_PLAY_URL, OPERATOR_DOWNLOAD_URL } from '@/lib/public/app-links'
+import { SiteFooter, SiteHeader } from '@/components/public/site-chrome'
 
 export const metadata: Metadata = {
   title: 'Orda Control — касса, склад, зарплаты и AI-управление бизнесом',
@@ -61,19 +61,17 @@ const eyebrowDark =
   'inline-flex items-center gap-2 rounded-full border border-[#60a5fa]/30 bg-[#60a5fa]/10 px-4 py-1.5 text-[12.5px] font-semibold uppercase tracking-[0.1em] text-[#93c5fd]'
 const h2Class =
   'font-display text-balance text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-[#0b1f3b] sm:text-[42px] lg:text-[52px]'
-const leadClass = 'text-pretty text-[17px] leading-[1.55] text-[#56657d] sm:text-[19px]'
+const leadClass = 'text-pretty text-[17px] leading-[1.55] text-[#4b5563] sm:text-[19px]'
 const bentoCard =
   'relative flex h-full flex-col overflow-hidden rounded-[24px] border border-[#dbe3ee] bg-white p-6 shadow-[0_10px_30px_-18px_rgba(15,32,56,0.2)] transition duration-300 hover:-translate-y-1 hover:border-[#2563eb]/35 sm:p-7'
 const bentoTitle = 'font-display text-[19px] font-bold leading-[1.25] tracking-[-0.01em] text-[#0b1f3b] sm:text-[21px]'
-const bentoText = 'mt-3 text-[14px] leading-[1.55] text-[#56657d]'
+const bentoText = 'mt-3 text-[14px] leading-[1.55] text-[#4b5563]'
 const btnPrimary =
   'rounded-[14px] bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] px-8 py-[15px] text-[16.5px] font-semibold text-white shadow-[0_12px_28px_-8px_rgba(37,99,235,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-8px_rgba(37,99,235,0.6)]'
 // dark:-переопределения обязательны: у Button.outline есть dark:bg-input/30 и dark:text-foreground,
 // из-за них при тёмной теме ОС кнопка на белом лендинге становилась невидимой.
 const btnGhost =
   'rounded-[14px] border border-[#c8d1de] bg-white px-8 py-[15px] text-[16.5px] font-semibold text-[#0b1f3b] shadow-none transition hover:bg-white hover:border-[#2563eb]/40 hover:text-[#1d4ed8] dark:border-[#c8d1de] dark:bg-white dark:text-[#0b1f3b] dark:shadow-none dark:hover:bg-white dark:hover:text-[#1d4ed8]'
-const navLink =
-  'hidden rounded-[11px] text-[14px] font-medium text-[#56657d] hover:bg-[#f3f6fa] hover:text-[#0b1f3b] dark:hover:bg-[#f3f6fa] dark:hover:text-[#0b1f3b] md:inline-flex'
 
 // ─────────────── ДАННЫЕ ───────────────
 
@@ -146,29 +144,7 @@ export default function MarketingHomePage() {
       <ScrollProgress />
 
       {/* Шапка */}
-      <header className="sticky top-0 z-50 border-b border-[#e5e7eb] bg-[#fafaf8]/85 backdrop-blur-xl">
-        <div className={`${container} flex items-center justify-between py-3`}>
-          <Link href="/" className="flex items-center gap-2.5">
-            <OrdaControlMark size={36} className="shrink-0 drop-shadow-[0_6px_12px_rgba(11,31,59,0.35)]" />
-            <div className="leading-none">
-              <div className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-[#0b1f3b]">ORDA</div>
-              <div className="mt-[3px] text-[9.5px] font-semibold tracking-[0.42em] text-[#6b7280]">CONTROL</div>
-            </div>
-          </Link>
-          <nav className="flex items-center gap-1">
-            <Button asChild variant="ghost" className={navLink}><Link href="#apps">Приложения</Link></Button>
-            <Button asChild variant="ghost" className={navLink}><Link href="#how">Как работает</Link></Button>
-            <Button asChild variant="ghost" className={navLink}><Link href="#features">Возможности</Link></Button>
-            <Button asChild variant="ghost" className={navLink}><Link href="#pricing">Пакеты</Link></Button>
-            <Button asChild variant="ghost" className="rounded-[11px] text-[14px] font-medium text-[#56657d] hover:bg-[#f3f6fa] hover:text-[#0b1f3b] dark:hover:bg-[#f3f6fa] dark:hover:text-[#0b1f3b]">
-              <Link href="/login">Войти</Link>
-            </Button>
-            <Button asChild className="rounded-[12px] bg-none bg-[#2563eb] px-5 py-2 text-[14px] font-semibold text-white hover:bg-[#1d4ed8]">
-              <Link href="#contact">Попробовать<ArrowRight className="ml-1.5 h-4 w-4" /></Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader onHome />
 
       {/* HERO: заголовок + сцена со всеми устройствами */}
       <section className="relative overflow-hidden">
@@ -198,7 +174,7 @@ export default function MarketingHomePage() {
               <Button asChild size="lg" className={btnPrimary}><Link href="#contact">Начать бесплатно<ArrowRight className="ml-2 h-5 w-5" /></Link></Button>
               <Button asChild size="lg" variant="outline" className={btnGhost}><Link href="#apps">Смотреть приложения</Link></Button>
             </div>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[14px] font-medium text-[#5b6b82]">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[14px] font-medium text-[#6b7280]">
               <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[#2563eb]" />2 недели бесплатно</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[#2563eb]" />Касса работает без интернета</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[#2563eb]" />Чеки по требованиям РК</span>
@@ -213,12 +189,12 @@ export default function MarketingHomePage() {
       </section>
 
       {/* СОЦ-ДОКАЗАТЕЛЬСТВО + MARQUEE */}
-      <div className="border-y border-[#e2e8f0] bg-[#f4f5f2] py-5">
-        <Reveal className={`${container} flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[14.5px] font-medium text-[#5b6b82]`}>
+      <div className="border-y border-[#e5e7eb] bg-[#f4f5f2] py-5">
+        <Reveal className={`${container} flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[14.5px] font-medium text-[#6b7280]`}>
           <span className="h-2 w-2 rounded-full bg-[#2563eb]" />
           Уже считает финансы сети <span className="font-bold text-[#0b1f3b]">F16</span>
           <span className="text-[#cbd3e0]">·</span>
-          <span className="font-semibold text-[#475569]">Arena · Ramen · Extra</span>
+          <span className="font-semibold text-[#374151]">Arena · Ramen · Extra</span>
         </Reveal>
         <div className="mt-4"><FeatureMarquee items={marqueeFeatures} /></div>
       </div>
@@ -242,11 +218,11 @@ export default function MarketingHomePage() {
                       <span className="grid h-[68px] w-[68px] place-items-center rounded-[20px] border border-[#2563eb]/25 bg-white text-[#1d4ed8] shadow-[0_12px_30px_-14px_rgba(37,99,235,0.5)]">
                         <Icon className="h-7 w-7" />
                       </span>
-                      <span className="font-display text-[44px] font-extrabold leading-none text-[#e2e8f0]">0{i + 1}</span>
+                      <span className="font-display text-[44px] font-extrabold leading-none text-[#e5e7eb]">0{i + 1}</span>
                     </div>
-                    <div className="mt-5 inline-flex rounded-full bg-[#f3f6fa] px-3 py-1 text-[12px] font-semibold text-[#56657d]">{s.tag}</div>
+                    <div className="mt-5 inline-flex rounded-full bg-[#f3f6fa] px-3 py-1 text-[12px] font-semibold text-[#4b5563]">{s.tag}</div>
                     <h3 className="mt-3 font-display text-[21px] font-bold leading-[1.25] text-[#0b1f3b]">{s.title}</h3>
-                    <p className="mt-2 text-[15px] leading-[1.55] text-[#56657d]">{s.text}</p>
+                    <p className="mt-2 text-[15px] leading-[1.55] text-[#4b5563]">{s.text}</p>
                   </div>
                 </StaggerItem>
               )
@@ -361,7 +337,7 @@ export default function MarketingHomePage() {
                     <div key={l.name} className="flex items-center justify-between rounded-[11px] bg-[#f4f5f2] px-3.5 py-2.5 text-[13px]">
                       <div>
                         <div className="font-semibold text-[#0b1f3b]">{l.name}</div>
-                        <div className="text-[11.5px] text-[#94a3b8]">{l.note}</div>
+                        <div className="text-[11.5px] text-[#9ca3af]">{l.note}</div>
                       </div>
                       <span className="font-semibold text-[#1d4ed8] tabular-nums">{l.qty}</span>
                     </div>
@@ -375,10 +351,10 @@ export default function MarketingHomePage() {
                 <BentoHead icon={Wallet} title="Зарплата и смены — без споров" />
                 <p className={bentoText}>Ставка, процент, KPI, бонусы и штрафы считаются сами. Сотрудник видит свою зарплату в телефоне.</p>
                 <div className="mt-auto space-y-2 pt-5">
-                  <div className="rounded-[14px] border border-[#e2e8f0] bg-[#f4f5f2] p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748b]">К выплате за неделю</div>
+                  <div className="rounded-[14px] border border-[#e5e7eb] bg-[#f4f5f2] p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6b7280]">К выплате за неделю</div>
                     <div className="mt-1 font-display text-[24px] font-extrabold text-[#0b1f3b] tabular-nums">86 400 ₸</div>
-                    <div className="mt-0.5 text-[11.5px] text-[#64748b]">5 смен · бонус за оборот · −1 долг</div>
+                    <div className="mt-0.5 text-[11.5px] text-[#6b7280]">5 смен · бонус за оборот · −1 долг</div>
                   </div>
                   <div className="flex items-center justify-between rounded-[11px] bg-[#f4f5f2] px-3.5 py-2.5 text-[13px]">
                     <span className="font-semibold text-[#0b1f3b]">Квиз по стандартам смены</span>
@@ -412,7 +388,7 @@ export default function MarketingHomePage() {
                 <BentoHead icon={BadgePercent} title="Клиенты возвращаются" />
                 <p className={bentoText}>Бонусные баллы, промокоды, акции и смешанная оплата. Чек — на почту покупателю.</p>
                 <div className="mt-auto space-y-2 pt-5">
-                  <div className="flex items-center justify-between rounded-[14px] border border-[#e2e8f0] bg-[#f4f5f2] p-4 text-[13px]">
+                  <div className="flex items-center justify-between rounded-[14px] border border-[#e5e7eb] bg-[#f4f5f2] p-4 text-[13px]">
                     <div>
                       <div className="font-semibold text-[#0b1f3b]">Чек 3 640 ₸ · нал + Kaspi</div>
                       <div className="mt-0.5 text-[11.5px] text-[#1d4ed8]">Клиенту начислено 36 бонусов</div>
@@ -439,7 +415,7 @@ export default function MarketingHomePage() {
               <StaggerItem key={n.label}>
                 <div className="flex h-full items-center gap-4 rounded-[18px] border border-[#dbe3ee] bg-[#f4f5f2] px-5 py-4">
                   <span className="font-display text-[30px] font-extrabold tracking-[-0.02em] text-[#1d4ed8] sm:text-[34px]"><CountUp value={n.value} suffix={n.suffix} /></span>
-                  <span className="text-[13px] font-medium leading-[1.35] text-[#56657d]">{n.label}</span>
+                  <span className="text-[13px] font-medium leading-[1.35] text-[#4b5563]">{n.label}</span>
                 </div>
               </StaggerItem>
             ))}
@@ -448,27 +424,27 @@ export default function MarketingHomePage() {
       </section>
 
       {/* СРАВНЕНИЕ */}
-      <section className="border-y border-[#e2e8f0] bg-[#f4f5f2]">
+      <section className="border-y border-[#e5e7eb] bg-[#f4f5f2]">
         <div className={`${container} py-20 lg:py-28`}>
           <Reveal className="mx-auto max-w-[800px] text-center">
             <div className={eyebrowClass}><Scale className="h-3.5 w-3.5" />Сравнение</div>
             <h2 className={`mt-4 ${h2Class}`}>Excel, 1С и кассы решают по куску</h2>
             <p className={`mt-4 ${leadClass}`}>Orda собирает всё в одном месте — и подходит: {audiences.join(' · ').toLowerCase()}.</p>
           </Reveal>
-          <Reveal className="mt-12 hidden overflow-hidden rounded-[20px] border border-[#d6dde8] bg-white lg:block">
+          <Reveal className="mt-12 hidden overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-white lg:block">
             <div className="grid" style={{ gridTemplateColumns: `minmax(220px,1.2fr) repeat(${comparisonColumns.length}, minmax(150px,1fr))` }}>
-              <div className="border-b border-[#e2e8f0] px-5 py-4"><span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#64748b]">Критерий</span></div>
+              <div className="border-b border-[#e5e7eb] px-5 py-4"><span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6b7280]">Критерий</span></div>
               {comparisonColumns.map((col) => (
-                <div key={col.key} className={'border-b border-l border-[#e2e8f0] px-5 py-4 ' + (col.highlight ? 'bg-[#2563eb]/[0.06]' : '')}>
+                <div key={col.key} className={'border-b border-l border-[#e5e7eb] px-5 py-4 ' + (col.highlight ? 'bg-[#2563eb]/[0.06]' : '')}>
                   <div className={'font-display text-[16px] font-bold ' + (col.highlight ? 'text-[#1d4ed8]' : 'text-[#0b1f3b]')}>{col.label}</div>
-                  <div className="mt-0.5 text-[11px] text-[#64748b]">{col.subtitle}</div>
+                  <div className="mt-0.5 text-[11px] text-[#6b7280]">{col.subtitle}</div>
                 </div>
               ))}
               {comparisonRows.map((row, ri) => (
                 <Fragment key={row.criterion}>
-                  <div className={'px-5 py-4 text-[13.5px] font-semibold text-[#0b1f3b] ' + (ri < comparisonRows.length - 1 ? 'border-b border-[#e2e8f0]' : '')}>{row.criterion}</div>
+                  <div className={'px-5 py-4 text-[13.5px] font-semibold text-[#0b1f3b] ' + (ri < comparisonRows.length - 1 ? 'border-b border-[#e5e7eb]' : '')}>{row.criterion}</div>
                   {comparisonColumns.map((col) => (
-                    <div key={col.key} className={'border-l border-[#e2e8f0] px-5 py-4 text-[13px] ' + (ri < comparisonRows.length - 1 ? 'border-b ' : '') + (col.highlight ? 'bg-[#2563eb]/[0.04] font-medium text-[#0b1f3b]' : 'text-[#56657d]')}>
+                    <div key={col.key} className={'border-l border-[#e5e7eb] px-5 py-4 text-[13px] ' + (ri < comparisonRows.length - 1 ? 'border-b ' : '') + (col.highlight ? 'bg-[#2563eb]/[0.04] font-medium text-[#0b1f3b]' : 'text-[#4b5563]')}>
                       {col.highlight ? <span className="inline-flex items-start gap-1.5"><CheckCircle2 className="mt-[1px] h-3.5 w-3.5 shrink-0 text-[#2563eb]" />{row.values[col.key]}</span> : row.values[col.key]}
                     </div>
                   ))}
@@ -479,12 +455,12 @@ export default function MarketingHomePage() {
           <Stagger className="mt-10 grid gap-3 sm:grid-cols-2 lg:hidden">
             {comparisonColumns.map((col) => (
               <StaggerItem key={col.key}>
-                <div className={col.highlight ? 'h-full rounded-[18px] border-2 border-[#2563eb]/40 bg-white p-5' : 'h-full rounded-[18px] border border-[#d6dde8] bg-white p-5'}>
+                <div className={col.highlight ? 'h-full rounded-[18px] border-2 border-[#2563eb]/40 bg-white p-5' : 'h-full rounded-[18px] border border-[#e5e7eb] bg-white p-5'}>
                   <div className={'font-display text-[18px] font-bold ' + (col.highlight ? 'text-[#1d4ed8]' : 'text-[#0b1f3b]')}>{col.label}</div>
-                  <dl className="mt-3 grid gap-2 border-t border-[#e2e8f0] pt-3">
+                  <dl className="mt-3 grid gap-2 border-t border-[#e5e7eb] pt-3">
                     {comparisonRows.map((row) => (
                       <div key={row.criterion} className="grid grid-cols-[1fr_auto] gap-3">
-                        <dt className="text-[12px] text-[#64748b]">{row.criterion}</dt>
+                        <dt className="text-[12px] text-[#6b7280]">{row.criterion}</dt>
                         <dd className="text-right text-[12.5px] text-[#0b1f3b]">{row.values[col.key]}</dd>
                       </div>
                     ))}
@@ -509,18 +485,18 @@ export default function MarketingHomePage() {
               <StaggerItem key={plan.name}>
                 <div className={plan.highlight
                   ? 'relative flex h-full flex-col rounded-[22px] border-2 border-[#2563eb]/45 bg-white p-7 shadow-[0_24px_54px_-18px_rgba(37,99,235,0.45)] transition-transform duration-300 hover:-translate-y-3 xl:-translate-y-2'
-                  : 'flex h-full flex-col rounded-[22px] border border-[#d6dde8] bg-white p-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)] transition duration-300 hover:-translate-y-1'}>
+                  : 'flex h-full flex-col rounded-[22px] border border-[#e5e7eb] bg-white p-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)] transition duration-300 hover:-translate-y-1'}>
                   {plan.highlight && plan.badge ? <span className="absolute right-5 top-5 rounded-full bg-gradient-to-br from-[#fb923c] to-[#f97316] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white shadow-[0_6px_16px_-6px_rgba(249,115,22,0.6)]">{plan.badge}</span> : null}
-                  <div className={'text-[11px] font-semibold uppercase tracking-[0.12em] ' + (plan.highlight ? 'text-[#1d4ed8]' : 'text-[#64748b]')}>{plan.levelLabel}</div>
+                  <div className={'text-[11px] font-semibold uppercase tracking-[0.12em] ' + (plan.highlight ? 'text-[#1d4ed8]' : 'text-[#6b7280]')}>{plan.levelLabel}</div>
                   <div className="mt-1.5 font-display text-[26px] font-bold text-[#0b1f3b]">{plan.name}</div>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span className="font-display text-[30px] font-extrabold tabular-nums text-[#0b1f3b]">{plan.price.toLocaleString('ru-RU')}</span>
-                    <span className="text-[14px] font-medium text-[#64748b]">₸ / мес</span>
+                    <span className="text-[14px] font-medium text-[#6b7280]">₸ / мес</span>
                   </div>
-                  <p className="mt-2 text-[14px] leading-[1.5] text-[#56657d]">{plan.description}</p>
-                  <ul className="mt-5 flex-1 space-y-2.5 border-t border-[#e2e8f0] pt-5">
+                  <p className="mt-2 text-[14px] leading-[1.5] text-[#4b5563]">{plan.description}</p>
+                  <ul className="mt-5 flex-1 space-y-2.5 border-t border-[#e5e7eb] pt-5">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-[14px] leading-[1.5] text-[#475569]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#2563eb]" /><span>{f}</span></li>
+                      <li key={f} className="flex items-start gap-2 text-[14px] leading-[1.5] text-[#374151]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#2563eb]" /><span>{f}</span></li>
                     ))}
                   </ul>
                   <Button asChild className={plan.highlight
@@ -566,12 +542,12 @@ export default function MarketingHomePage() {
               <Stagger className="mt-8 space-y-3">
                 {faqItems.map((item) => (
                   <StaggerItem key={item.question}>
-                    <details className="group rounded-[16px] border border-[#d6dde8] bg-white px-5 py-4 transition-colors duration-300 hover:border-[#2563eb]/30 open:border-[#2563eb]/30 [&_summary::-webkit-details-marker]:hidden">
+                    <details className="group rounded-[16px] border border-[#e5e7eb] bg-white px-5 py-4 transition-colors duration-300 hover:border-[#2563eb]/30 open:border-[#2563eb]/30 [&_summary::-webkit-details-marker]:hidden">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
                         <h3 className="font-display text-[16px] font-bold leading-[1.35] text-[#0b1f3b]">{item.question}</h3>
                         <ChevronDown className="h-5 w-5 shrink-0 text-[#2563eb] transition-transform duration-300 group-open:rotate-180" />
                       </summary>
-                      <p className="mt-2.5 text-[14px] leading-[1.6] text-[#56657d]">{item.answer}</p>
+                      <p className="mt-2.5 text-[14px] leading-[1.6] text-[#4b5563]">{item.answer}</p>
                     </details>
                   </StaggerItem>
                 ))}
@@ -582,9 +558,9 @@ export default function MarketingHomePage() {
                 <div className="rounded-[24px] border border-[#2563eb]/25 bg-white p-7 shadow-[0_24px_60px_-28px_rgba(37,99,235,0.4)] sm:p-8">
                   <div className={eyebrowClass}><Sparkles className="h-3.5 w-3.5" />Начните сегодня</div>
                   <h3 className="mt-4 font-display text-[24px] font-bold leading-[1.2] text-[#0b1f3b] sm:text-[27px]">Покажем систему на ваших данных</h3>
-                  <p className="mt-2 text-[14px] leading-[1.55] text-[#56657d]">Оставьте контакты — ответим в течение рабочего дня и подскажем пакет. Без спама и звонков-роботов.</p>
+                  <p className="mt-2 text-[14px] leading-[1.55] text-[#4b5563]">Оставьте контакты — ответим в течение рабочего дня и подскажем пакет. Без спама и звонков-роботов.</p>
                   <div className="mt-5"><ContactLeadForm /></div>
-                  <div className="mt-5 space-y-2 border-t border-[#e2e8f0] pt-4">
+                  <div className="mt-5 space-y-2 border-t border-[#e5e7eb] pt-4">
                     {[
                       { icon: Wallet, text: 'Прибыль и маржа в реальном времени' },
                       { icon: CloudOff, text: 'Касса работает даже без интернета' },
@@ -593,7 +569,7 @@ export default function MarketingHomePage() {
                     ].map((f) => {
                       const Icon = f.icon
                       return (
-                        <div key={f.text} className="flex items-center gap-2.5 text-[13px] font-medium text-[#475569]">
+                        <div key={f.text} className="flex items-center gap-2.5 text-[13px] font-medium text-[#374151]">
                           <Icon className="h-4 w-4 shrink-0 text-[#2563eb]" />{f.text}
                         </div>
                       )
@@ -606,47 +582,7 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      {/* ФУТЕР */}
-      <footer className="border-t border-[#e2e8f0] bg-[#f4f5f2]">
-        <div className={`${container} py-12`}>
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-[340px]">
-              <div className="flex items-center gap-2.5">
-                <OrdaControlMark size={36} className="shrink-0 drop-shadow-[0_6px_12px_rgba(11,31,59,0.35)]" />
-                <div className="font-display text-[16px] font-bold text-[#0b1f3b]">{PRODUCT}</div>
-              </div>
-              <p className="mt-3 text-[14px] leading-[1.5] text-[#5b6b82]">Касса, склад, финансы и AI — на кассе, в браузере и в телефоне.</p>
-            </div>
-            <div className="flex flex-wrap gap-x-14 gap-y-7">
-              <FooterCol title="Продукт" links={[
-                { href: '#apps', label: 'Приложения' },
-                { href: '#features', label: 'Возможности' },
-                { href: '#pricing', label: 'Пакеты' },
-                { href: '/club-management-system', label: 'Для клубов' },
-                { href: '/login', label: 'Войти' },
-              ]} />
-              <FooterCol title="Скачать" external links={[
-                { href: APP_STORE_URL, label: 'iPhone — App Store' },
-                { href: GOOGLE_PLAY_URL, label: 'Android — Google Play' },
-                { href: OPERATOR_DOWNLOAD_URL, label: 'Касса для Windows' },
-              ]} />
-              <FooterCol title="Документы" links={[
-                { href: '/offer', label: 'Оферта' },
-                { href: '/help', label: 'Инструкция' },
-                { href: '/help/operator', label: 'Регламент оператора' },
-                { href: '/privacy', label: 'Политика' },
-                { href: '/terms', label: 'Соглашение' },
-                { href: '/sla', label: 'SLA' },
-              ]} />
-              <FooterCol title="Связь" links={[
-                { href: '#contact', label: 'Оставить заявку' },
-                { href: '/cookies', label: 'Cookies' },
-              ]} />
-            </div>
-          </div>
-          <div className="mt-10 border-t border-[#e2e8f0] pt-6 text-[12px] text-[#64748b]">© 2026 {PRODUCT} — все права защищены</div>
-        </div>
-      </footer>
+      <SiteFooter onHome />
 
       <FloatingCta />
     </main>
@@ -664,23 +600,6 @@ function BentoHead({ icon: Icon, title, badge }: { icon: any; title: string; bad
         <h3 className={bentoTitle}>{title}</h3>
       </div>
       {badge ? <span className="hidden shrink-0 rounded-full bg-[#2563eb]/10 px-3 py-1.5 text-[12px] font-bold text-[#1d4ed8] xl:block">{badge}</span> : null}
-    </div>
-  )
-}
-
-function FooterCol({ title, links, external }: { title: string; links: Array<{ href: string; label: string }>; external?: boolean }) {
-  return (
-    <div>
-      <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#64748b]">{title}</div>
-      <div className="mt-3.5 flex flex-col gap-2.5 text-[14px] font-medium text-[#5b6b82]">
-        {links.map((l) =>
-          external ? (
-            <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#2563eb]">{l.label}</a>
-          ) : (
-            <Link key={l.href} href={l.href} className="transition-colors hover:text-[#2563eb]">{l.label}</Link>
-          ),
-        )}
-      </div>
     </div>
   )
 }

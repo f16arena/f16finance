@@ -54,7 +54,7 @@ function Kpi({ label, value, hint, icon, tone = 'slate' }: { label: string; valu
   const tones: Record<string, string> = {
     slate: 'text-slate-900 dark:text-white',
     emerald: 'text-emerald-600 dark:text-emerald-400',
-    violet: 'text-violet-600 dark:text-violet-400',
+    violet: 'text-blue-600 dark:text-blue-400',
   }
   return (
     <div className={card}>
@@ -79,7 +79,7 @@ export default function PlatformAnalyticsPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -123,7 +123,7 @@ export default function PlatformAnalyticsPage() {
             <h2 className="text-sm font-semibold">Рост клиентов</h2>
             <span className="text-xs text-slate-400">всего {data.totals.organizations}</span>
           </div>
-          <BarChart months={data.months} values={data.cumulativeOrgsByMonth} format={(n) => String(n)} color="bg-violet-500" />
+          <BarChart months={data.months} values={data.cumulativeOrgsByMonth} format={(n) => String(n)} color="bg-blue-500" />
         </div>
       </div>
 

@@ -258,7 +258,7 @@ function ShaLink({ repo, d }: { repo?: string; d: Deploy }) {
   if (!sha) return null
   const inner = <><GitCommit className="h-3 w-3" />{sha}</>
   return repo
-    ? <a href={`${repo}/commit/${d.sha_full || sha}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-violet-500 dark:text-slate-400">{inner}</a>
+    ? <a href={`${repo}/commit/${d.sha_full || sha}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-blue-500 dark:text-slate-400">{inner}</a>
     : <span className="inline-flex items-center gap-1 font-mono text-xs text-slate-500">{inner}</span>
 }
 
@@ -296,18 +296,18 @@ function LogDrawer({ source, onClose, sources, setSource }: { source: [string, s
       <div onClick={onClose} className={`fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} />
       <aside className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-[860px] flex-col border-l border-slate-200 bg-white transition-transform duration-300 dark:border-white/10 dark:bg-[#070b17] ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/[0.07]">
-          <ScrollText className="h-4 w-4 text-violet-500" />
+          <ScrollText className="h-4 w-4 text-blue-500" />
           <div className="font-semibold text-slate-900 dark:text-white">Журналы</div>
           <button onClick={onClose} className="ml-auto grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex flex-wrap gap-1.5 px-5 pt-4">
           {sources.map((s) => {
             const on = source && source[0] === s[0] && source[1] === s[1]
-            return <button key={s.join(':')} onClick={() => setSource(s)} className={`rounded-full border px-2.5 py-1 font-mono text-xs transition ${on ? 'border-violet-500 bg-violet-500 text-white' : 'border-slate-200 text-slate-500 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:text-white'}`}>{s[0] === 'log' ? '📄 ' : ''}{s[1]}</button>
+            return <button key={s.join(':')} onClick={() => setSource(s)} className={`rounded-full border px-2.5 py-1 font-mono text-xs transition ${on ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-200 text-slate-500 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:text-white'}`}>{s[0] === 'log' ? '📄 ' : ''}{s[1]}</button>
           })}
         </div>
         <div className="flex items-center gap-3 px-5 py-3 text-xs text-slate-500">
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Фильтр строк…" className="w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-violet-400 dark:border-white/10 dark:bg-white/[0.03] dark:text-white" />
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Фильтр строк…" className="w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-400 dark:border-white/10 dark:bg-white/[0.03] dark:text-white" />
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> обновлять</label>
           <span className="ml-auto tabular-nums">{lines.length} строк</span>
         </div>
@@ -414,7 +414,7 @@ function ServerTab() {
   const sources: Array<[string, string]> = [['log', 'deploy'], ['log', 'cron'], ['log', 'backup'], ...(p?.containers || []).map((c) => ['c', c.name] as [string, string])]
 
   if (!data && !error) {
-    return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="h-6 w-6 animate-spin text-violet-400" /></div>
+    return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div>
   }
 
   const hero = state ? {
@@ -514,7 +514,7 @@ function ServerTab() {
                 <Card key={c.url} className="p-5">
                   <div className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${ok ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.15)]' : 'bg-rose-500 shadow-[0_0_0_4px_rgba(244,63,94,.15)]'}`} />
-                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="truncate font-medium hover:text-violet-500">{c.url.replace('https://', '').replace(/\/$/, '')}</a>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="truncate font-medium hover:text-blue-500">{c.url.replace('https://', '').replace(/\/$/, '')}</a>
                     <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium ${ok ? LEVEL.ok.pill : LEVEL.bad.pill}`}>{c.code || 'нет ответа'}{c.code === 401 ? ' · ждёт ключ' : ''}</span>
                   </div>
                   <div className="mt-4"><Bars cells={c.history.map((h) => ({ ok: h.ok, title: `${hm(h.t)} · ${h.ok ? 'ок' : 'сбой'}${h.ms != null ? ' · ' + h.ms + ' мс' : ''}` }))} /></div>
@@ -558,7 +558,7 @@ function ServerTab() {
                           <ShaLink repo={p.repo} d={d} />
                           <span className={LEVEL[lv].text}>{label}</span>
                           {d.action === 'rollback' ? <span className="rounded-full bg-amber-500/10 px-2 py-px text-[11px] font-medium text-amber-600 dark:text-amber-300">откат</span> : d.action === 'redeploy' ? <span className="rounded-full bg-sky-500/10 px-2 py-px text-[11px] font-medium text-sky-600 dark:text-sky-300">пересборка</span> : d.action === 'unpin' ? <span className="rounded-full bg-emerald-500/10 px-2 py-px text-[11px] font-medium text-emerald-600 dark:text-emerald-300">возврат автодеплоя</span> : null}
-                          {live ? <span className="rounded-full bg-violet-500/10 px-2 py-px text-[11px] font-medium text-violet-600 dark:text-violet-300">сейчас на сайте</span> : null}
+                          {live ? <span className="rounded-full bg-blue-500/10 px-2 py-px text-[11px] font-medium text-blue-600 dark:text-blue-300">сейчас на сайте</span> : null}
                           {d.error ? <span className="text-rose-500">· {d.error}</span> : null}
                         </div>
                       </div>
@@ -665,7 +665,7 @@ function ServerTab() {
                     <tr key={c.name} className="hover:bg-slate-50 dark:hover:bg-white/[0.02]">
                       <td className="px-5 py-2.5"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${LEVEL[lv].dot}`} /><span className="font-mono text-xs">{c.name}</span></div><div className="ml-4 truncate text-[11px] text-slate-400">{c.image}</div></td>
                       <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums">{c.cpu == null ? '—' : c.cpu.toFixed(1) + '%'}</td>
-                      <td className="px-3 py-2.5 text-right"><div className="flex items-center justify-end gap-2"><span className="font-mono text-xs tabular-nums">{c.mem ? mb(c.mem) : '—'}</span><span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/[0.07]"><span className="block h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" style={{ width: `${pct(c.mem || 0, memMax)}%` }} /></span></div></td>
+                      <td className="px-3 py-2.5 text-right"><div className="flex items-center justify-end gap-2"><span className="font-mono text-xs tabular-nums">{c.mem ? mb(c.mem) : '—'}</span><span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-white/[0.07]"><span className="block h-full rounded-full bg-gradient-to-r from-blue-500 to-sky-500" style={{ width: `${pct(c.mem || 0, memMax)}%` }} /></span></div></td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400"><Clock className="mr-1 inline h-3 w-3" />{c.status.replace(/^Up /, '').replace(/\s*\(.*\)/, '').replace('About a minute', '~1 minute').replace('About an hour', '~1 hour')}</td>
                       <td className="px-5 py-2.5 text-right"><button onClick={() => setLogSource(['c', c.name])} className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:border-white/10 dark:hover:bg-white/5 dark:hover:text-white">Логи</button></td>
                     </tr>
@@ -708,7 +708,7 @@ export default function PlatformStatusPage() {
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#050816]/80">
         <div className="mx-auto flex max-w-[1400px] gap-1 px-4 sm:px-6">
           {TABS.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => choose(key)} className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition ${tab === key ? 'border-violet-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}>
+            <button key={key} onClick={() => choose(key)} className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition ${tab === key ? 'border-blue-500 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}>
               <Icon className="h-4 w-4" />{label}
             </button>
           ))}

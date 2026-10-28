@@ -138,7 +138,7 @@ export default function ValuationPage() {
       />
 
       {/* Hero — диапазон оценки */}
-      <Card className="relative overflow-hidden border-amber-500/30 bg-gradient-to-br from-amber-500/[0.08] to-orange-500/[0.03] p-6">
+      <Card className="relative overflow-hidden border-amber-500/30 bg-gradient-to-br from-amber-500/[0.08] to-blue-600/[0.03] p-6">
         <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl" />
         <p className="text-[11px] uppercase tracking-widest text-amber-700 dark:text-amber-300/80">Ориентировочная стоимость бизнеса</p>
         {data.profitable ? (

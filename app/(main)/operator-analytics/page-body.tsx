@@ -470,7 +470,7 @@ const StatCard = memo(({ title, value, subValue, icon: Icon, trend, color = 'blu
     blue: 'from-blue-500 to-blue-400',
     green: 'from-blue-500 to-teal-500',
     red: 'from-rose-500 to-red-500',
-    amber: 'from-amber-500 to-orange-500',
+    amber: 'from-amber-500 to-blue-600',
     violet: 'from-amber-400 to-amber-600',
   }
   

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { OrdaControlMark } from '@/components/brand/orda-control-mark'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog'
@@ -47,12 +48,10 @@ export default function PlatformShell({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-[#050816]">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 dark:border-white/[0.06] bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl">
+    <div className="flex min-h-screen bg-white dark:bg-[#081a33]">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 dark:border-white/[0.06] bg-white/60 dark:bg-[#0b1f3b]/60 backdrop-blur-xl">
         <div className="flex h-14 items-center gap-2.5 border-b border-slate-200 dark:border-white/[0.06] px-4">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600">
-            <Zap className="h-4 w-4 text-white dark:text-white" />
-          </div>
+          <OrdaControlMark size={28} className="rounded-lg" />
           <span className="text-sm font-semibold text-slate-900 dark:text-white">Orda Platform</span>
         </div>
 
@@ -65,7 +64,7 @@ export default function PlatformShell({ children }: { children: React.ReactNode 
                 href={href}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >

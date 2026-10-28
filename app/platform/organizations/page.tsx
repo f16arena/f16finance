@@ -83,7 +83,7 @@ export default function OrganizationsPage() {
         </div>
         <Link
           href="/platform/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           <PlusCircle className="h-4 w-4" /> Новый клиент
         </Link>
@@ -91,7 +91,7 @@ export default function OrganizationsPage() {
 
       {loading ? (
         <div className="flex h-40 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
         </div>
       ) : orgs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center dark:border-white/15 dark:bg-white/[0.02]">
@@ -102,7 +102,7 @@ export default function OrganizationsPage() {
           </p>
           <Link
             href="/platform/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             <PlusCircle className="h-4 w-4" /> Завести клиента
           </Link>
@@ -139,7 +139,7 @@ export default function OrganizationsPage() {
                   <tr key={org.id} className="bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/[0.02]">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-xs font-bold text-violet-700 dark:text-violet-300">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 text-xs font-bold text-blue-700 dark:text-blue-300">
                           {org.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
@@ -166,7 +166,7 @@ export default function OrganizationsPage() {
                           {enteringId === org.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <LogIn className="h-3 w-3" />}
                           Войти
                         </button>
-                        <Link href={`/platform/organizations/${org.id}`} className="text-xs font-medium text-violet-500 hover:text-violet-600 dark:hover:text-violet-300">
+                        <Link href={`/platform/organizations/${org.id}`} className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-300">
                           Открыть →
                         </Link>
                       </div>

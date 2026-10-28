@@ -25,7 +25,7 @@ export default function PlatformSettingsPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -42,7 +42,7 @@ export default function PlatformSettingsPage() {
         </div>
         <Link
           href="/platform/packages"
-          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           <Package className="h-4 w-4" /> Конструктор пакетов
         </Link>
@@ -52,7 +52,7 @@ export default function PlatformSettingsPage() {
         {/* Пакеты */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-900/40">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Package className="h-4 w-4 text-violet-500" /> Пакеты ({packages.length})
+            <Package className="h-4 w-4 text-blue-500" /> Пакеты ({packages.length})
           </h2>
           <div className="mt-4 space-y-2 text-sm">
             {packages.map((p) => (
@@ -68,7 +68,7 @@ export default function PlatformSettingsPage() {
         {/* Модули */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-900/40">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-violet-500" /> Модули ({addons.length})
+            <Sparkles className="h-4 w-4 text-blue-500" /> Модули ({addons.length})
           </h2>
           <div className="mt-4 space-y-2 text-sm">
             {addons.map((a) => (

@@ -534,7 +534,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
                   <Button
                     onClick={promote}
                     disabled={acting === 'promote'}
-                    className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white"
+                    className="w-full bg-gradient-to-r from-amber-600 to-blue-700 hover:from-amber-500 hover:to-blue-600 text-white"
                   >
                     {acting === 'promote' ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
 import { PRODUCT_SITE } from '@/lib/core/legal'
 import { findHelpImageSlot, type HelpImageRecord } from '@/lib/core/help-images'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { SiteFooter, SiteHeader } from '@/components/public/site-chrome'
 
 export const metadata: Metadata = {
   title: 'Программа кассы: экран за экраном — Orda',
@@ -36,11 +36,11 @@ function Figure({ slot, images }: { slot: string; images: HelpImages }) {
   const meta = findHelpImageSlot(slot)
   const caption = image.caption || meta?.caption || ''
   return (
-    <figure className="mt-4 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc]">
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#f8fafc]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={image.url} alt={image.alt || meta?.title || caption} loading="lazy" className="w-full" />
       {caption ? (
-        <figcaption className="border-t border-[#e2e8f0] px-4 py-2.5 text-xs text-[#64748b]">{caption}</figcaption>
+        <figcaption className="border-t border-[#e5e7eb] px-4 py-2.5 text-xs text-[#6b7280]">{caption}</figcaption>
       ) : null}
     </figure>
   )
@@ -71,7 +71,7 @@ function Note({ title, children }: { title: string; children: React.ReactNode })
   return (
     <div className="mt-4 rounded-2xl border border-[#d97706]/30 bg-[#d97706]/[0.07] px-4 py-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-[#b45309]">{title}</div>
-      <div className="mt-1.5 text-sm leading-7 text-[#475569]">{children}</div>
+      <div className="mt-1.5 text-sm leading-7 text-[#374151]">{children}</div>
     </div>
   )
 }
@@ -81,7 +81,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | React.ReactNode
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[#e2e8f0] text-left text-[#0b1f3b]">
+          <tr className="border-b border-[#e5e7eb] text-left text-[#0b1f3b]">
             {head.map((h) => (
               <th key={h} className="py-2 pr-4 font-semibold">{h}</th>
             ))}
@@ -128,46 +128,38 @@ export default async function OperatorManualPage() {
   const images = await loadHelpImages()
 
   return (
-    <main className="min-h-screen bg-white text-[#475569]">
-      <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/help" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">К руководству</span>
-          </Link>
-          <span className="text-xs text-[#64748b]">Orda Point · программа кассы</span>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#fafaf8] text-[#374151]">
+      <SiteHeader />
 
       <div className="mx-auto max-w-screen-2xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[280px_1fr] lg:items-start">
-          <aside className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+          <aside className="lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(11,31,59,0.04),0_10px_30px_-18px_rgba(11,31,59,0.18)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">Экраны</div>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {sections.map((s) => (
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
+                      className="block rounded-lg px-2 py-1 text-[#4b5563] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
+              <div className="mt-4 grid gap-1 text-xs text-[#6b7280]">
                 <Link href="/help" className="hover:text-[#2563eb]">→ Руководство по системе</Link>
               </div>
             </div>
           </aside>
 
-          <article className="max-w-3xl space-y-10 text-[#475569]">
+          <article className="max-w-3xl space-y-10 text-[#374151]">
             <header>
               <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Программа кассы: экран за экраном
               </h1>
-              <p className="mt-4 text-sm leading-7 text-[#56657d]">
+              <p className="mt-4 text-sm leading-7 text-[#4b5563]">
                 Что за экран перед вами, какие на нём кнопки и что произойдёт
                 после нажатия. Названия — дословно как в программе. Открывайте
                 тот раздел, чей экран сейчас на мониторе.
@@ -657,6 +649,7 @@ export default async function OperatorManualPage() {
           </article>
         </div>
       </div>
+      <SiteFooter />
     </main>
   )
 }

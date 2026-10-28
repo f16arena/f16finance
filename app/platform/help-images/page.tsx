@@ -104,7 +104,7 @@ export default function PlatformHelpImagesPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -124,7 +124,7 @@ export default function PlatformHelpImagesPage() {
         <Link
           href="/help"
           target="_blank"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium transition hover:border-violet-400/40 dark:border-white/10"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium transition hover:border-blue-400/40 dark:border-white/10"
         >
           <ExternalLink className="h-4 w-4" /> Открыть /help
         </Link>
@@ -146,7 +146,7 @@ export default function PlatformHelpImagesPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wider text-violet-500">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-blue-500">
                     {row.section}
                   </div>
                   <h2 className="mt-1 text-sm font-semibold">{row.title}</h2>
@@ -187,7 +187,7 @@ export default function PlatformHelpImagesPage() {
               <input
                 value={captions[row.slot] ?? ''}
                 onChange={(e) => setCaptions((c) => ({ ...c, [row.slot]: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-slate-950/40"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-400 dark:border-white/10 dark:bg-slate-950/40"
                 placeholder={row.caption}
               />
 
@@ -209,7 +209,7 @@ export default function PlatformHelpImagesPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => inputs.current[row.slot]?.click()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   {row.image ? 'Заменить' : 'Загрузить'}
@@ -220,7 +220,7 @@ export default function PlatformHelpImagesPage() {
                       type="button"
                       disabled={busy}
                       onClick={() => void saveCaption(row.slot)}
-                      className="rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium transition hover:border-violet-400/40 disabled:opacity-60 dark:border-white/10"
+                      className="rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium transition hover:border-blue-400/40 disabled:opacity-60 dark:border-white/10"
                     >
                       Сохранить подпись
                     </button>

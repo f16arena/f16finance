@@ -11,7 +11,7 @@ type Line = { t: number; ts: string; src: string; text: string; level: 'error' |
 
 const FILE_SOURCES: Array<[string, string]> = [['log:deploy', 'сборка'], ['log:cron', 'кроны'], ['log:backup', 'бэкап']]
 const DEFAULT_ON = ['c:orda-web', 'log:cron', 'log:deploy']
-const COLORS = ['text-violet-400', 'text-sky-400', 'text-emerald-400', 'text-amber-300', 'text-pink-400', 'text-cyan-300', 'text-lime-300', 'text-orange-300', 'text-fuchsia-300', 'text-teal-300']
+const COLORS = ['text-violet-400', 'text-sky-400', 'text-emerald-400', 'text-amber-300', 'text-pink-400', 'text-cyan-300', 'text-lime-300', 'text-blue-400', 'text-fuchsia-300', 'text-teal-300']
 const TZ = 'Asia/Almaty'
 
 function levelOf(text: string): Line['level'] {

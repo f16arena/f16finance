@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
-import { SITE_NAME } from '@/lib/core/site'
 import {
   LEGAL_ENTITY,
   LEGAL_EFFECTIVE_DATE,
@@ -12,6 +10,7 @@ import {
   PRODUCT_NAME,
   PRODUCT_SITE,
 } from '@/lib/core/legal'
+import { SiteFooter, SiteHeader } from '@/components/public/site-chrome'
 
 export const metadata: Metadata = {
   title: `Политика конфиденциальности — ${PRODUCT_NAME}`,
@@ -39,23 +38,13 @@ const sections = [
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-white text-[#475569]">
-      <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">К {SITE_NAME}</span>
-          </Link>
-          <span className="text-xs text-[#64748b]">
-            Версия от {LEGAL_VERSION} · обновлено {LEGAL_LAST_UPDATED}
-          </span>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#fafaf8] text-[#374151]">
+      <SiteHeader />
 
       <div className="mx-auto max-w-screen-2xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:items-start">
-          <aside className="lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+          <aside className="lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(11,31,59,0.04),0_10px_30px_-18px_rgba(11,31,59,0.18)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">
                 Содержание
               </div>
@@ -64,14 +53,14 @@ export default function PrivacyPage() {
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
+                      className="block rounded-lg px-2 py-1 text-[#4b5563] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
+              <div className="mt-4 grid gap-1 text-xs text-[#6b7280]">
                 <Link href="/offer" className="hover:text-[#2563eb]">→ Публичная оферта</Link>
                 <Link href="/terms" className="hover:text-[#2563eb]">→ Пользовательское соглашение</Link>
                 <Link href="/sla" className="hover:text-[#2563eb]">→ SLA</Link>
@@ -80,21 +69,22 @@ export default function PrivacyPage() {
             </div>
           </aside>
 
-          <article className="max-w-3xl space-y-8 text-[#475569]">
+          <article className="max-w-3xl space-y-8 text-[#374151]">
             <header>
+              <div className="mb-3 text-xs text-[#6b7280]">Версия от {LEGAL_VERSION} · обновлено {LEGAL_LAST_UPDATED}</div>
               <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Политика конфиденциальности
                 <br />
                 и обработки персональных данных
               </h1>
-              <p className="mt-4 text-sm leading-7 text-[#56657d]">
+              <p className="mt-4 text-sm leading-7 text-[#4b5563]">
                 Настоящая Политика разработана в соответствии с Законом Республики
                 Казахстан «О персональных данных и их защите» № 94-V от 21 мая
                 2013 года, Законом Республики Казахстан «Об информатизации»
                 № 418-V от 24 ноября 2015 года и иными нормативными правовыми
                 актами Республики Казахстан.
               </p>
-              <p className="mt-3 text-sm leading-7 text-[#56657d]">
+              <p className="mt-3 text-sm leading-7 text-[#4b5563]">
                 <strong>Дата вступления в силу:</strong> {LEGAL_EFFECTIVE_DATE}
                 <br />
                 <strong>Версия:</strong> {LEGAL_VERSION}
@@ -205,37 +195,37 @@ export default function PrivacyPage() {
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Для работы Сервиса {LEGAL_ENTITY.shortName} привлекает следующих обработчиков:</p>
                 <div className="space-y-2">
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Supabase Inc.</div>
-                    <div className="text-xs text-[#5b6b82]">Управляемая база данных PostgreSQL, аутентификация, файловое хранилище. Передаётся: вся бизнес-логика и данные Заказчика.</div>
+                    <div className="text-xs text-[#6b7280]">Управляемая база данных PostgreSQL, аутентификация, файловое хранилище. Передаётся: вся бизнес-логика и данные Заказчика.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Vercel Inc.</div>
-                    <div className="text-xs text-[#5b6b82]">Хостинг веб-приложения и веб-аналитика (Vercel Analytics). Передаётся: обезличенные метрики просмотров страниц, технические данные браузера.</div>
+                    <div className="text-xs text-[#6b7280]">Хостинг веб-приложения и веб-аналитика (Vercel Analytics). Передаётся: обезличенные метрики просмотров страниц, технические данные браузера.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">OpenAI, LLC</div>
-                    <div className="text-xs text-[#5b6b82]">Модели искусственного интеллекта (GPT). Передаётся: тексты запросов AI-помощника, изображения чеков для распознавания, обезличенные финансовые данные для прогнозов.</div>
+                    <div className="text-xs text-[#6b7280]">Модели искусственного интеллекта (GPT). Передаётся: тексты запросов AI-помощника, изображения чеков для распознавания, обезличенные финансовые данные для прогнозов.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Google LLC (Google Gemini)</div>
-                    <div className="text-xs text-[#5b6b82]">Резервный поставщик AI-моделей. Передаётся: те же данные, что и OpenAI, при недоступности основного поставщика.</div>
+                    <div className="text-xs text-[#6b7280]">Резервный поставщик AI-моделей. Передаётся: те же данные, что и OpenAI, при недоступности основного поставщика.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Google LLC (Firebase Cloud Messaging, Firebase Crashlytics)</div>
-                    <div className="text-xs text-[#5b6b82]">Push-уведомления и отчёты о сбоях мобильного приложения для Android. Передаётся: идентификатор устройства для уведомлений, текст уведомления, технические данные о сбое (модель устройства, версия системы, стек ошибки) без содержимого рабочих данных.</div>
+                    <div className="text-xs text-[#6b7280]">Push-уведомления и отчёты о сбоях мобильного приложения для Android. Передаётся: идентификатор устройства для уведомлений, текст уведомления, технические данные о сбое (модель устройства, версия системы, стек ошибки) без содержимого рабочих данных.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Telegram FZ-LLC (Telegram Bot API)</div>
-                    <div className="text-xs text-[#5b6b82]">Отправка отчётов и уведомлений сотрудникам Заказчика. Передаётся: текст уведомлений, кассовые отчёты, идентификаторы чатов сотрудников.</div>
+                    <div className="text-xs text-[#6b7280]">Отправка отчётов и уведомлений сотрудникам Заказчика. Передаётся: текст уведомлений, кассовые отчёты, идентификаторы чатов сотрудников.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">Поставщик SMTP-почты</div>
-                    <div className="text-xs text-[#5b6b82]">Отправка системных email (подтверждение регистрации, сброс пароля, заявки с лендинга) через библиотеку nodemailer. Передаётся: email-адрес, текст сообщения.</div>
+                    <div className="text-xs text-[#6b7280]">Отправка системных email (подтверждение регистрации, сброс пароля, заявки с лендинга) через библиотеку nodemailer. Передаётся: email-адрес, текст сообщения.</div>
                   </div>
-                  <div className="rounded-xl border border-[#d6dde8] bg-[#eef2f8] p-4">
+                  <div className="rounded-xl border border-[#e5e7eb] bg-[#eef2f8] p-4">
                     <div className="font-semibold text-[#0b1f3b]">АО «Kaspi Bank» и иные банки</div>
-                    <div className="text-xs text-[#5b6b82]">Расчёты по выставленным счетам. Реквизиты банковских карт Заказчика в Сервисе не хранятся.</div>
+                    <div className="text-xs text-[#6b7280]">Расчёты по выставленным счетам. Реквизиты банковских карт Заказчика в Сервисе не хранятся.</div>
                   </div>
                 </div>
                 <p>Каждый обработчик связан собственными политиками обработки данных и соответствующими договорами.</p>
@@ -305,8 +295,8 @@ export default function PrivacyPage() {
 
             <section id="contacts">
               <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">15. Контакты для запросов</h2>
-              <div className="mt-4 rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 text-sm leading-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-                <div className="grid gap-2 text-[#56657d]">
+              <div className="mt-4 rounded-2xl border border-[#e5e7eb] bg-[#eef2f8] p-5 text-sm leading-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+                <div className="grid gap-2 text-[#4b5563]">
                   <div><strong className="text-[#0b1f3b]">Оператор данных:</strong> {LEGAL_ENTITY.fullName}</div>
                   <div><strong className="text-[#0b1f3b]">БИН:</strong> {LEGAL_ENTITY.bin}</div>
                   <div><strong className="text-[#0b1f3b]">Адрес:</strong> {LEGAL_ENTITY.address}</div>
@@ -322,13 +312,13 @@ export default function PrivacyPage() {
                 {LEGAL_HISTORY.map((entry) => (
                   <div key={entry.date} className="flex gap-3">
                     <span className="shrink-0 font-mono text-xs text-[#2563eb]">{entry.date}</span>
-                    <span className="text-[#56657d]">{entry.note}</span>
+                    <span className="text-[#4b5563]">{entry.note}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <footer className="border-t border-[#e2e8f0] pt-8 text-xs text-[#64748b]">
+            <footer className="border-t border-[#e5e7eb] pt-8 text-xs text-[#6b7280]">
               <p>
                 Настоящая Политика составлена в соответствии с Законом Республики
                 Казахстан «О персональных данных и их защите» № 94-V от 21.05.2013,
@@ -341,6 +331,7 @@ export default function PrivacyPage() {
           </article>
         </div>
       </div>
+      <SiteFooter />
     </main>
   )
 }

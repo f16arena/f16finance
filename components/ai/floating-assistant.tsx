@@ -23,7 +23,7 @@ function MessageBubble({ message }: { message: AssistantChatMessage }) {
         className={cn(
           'max-w-[88%] rounded-2xl px-3 py-2 text-xs whitespace-pre-wrap leading-relaxed',
           isUser
-            ? 'bg-gradient-to-r from-amber-500/25 to-orange-500/20 text-foreground border border-amber-500/20'
+            ? 'bg-gradient-to-r from-amber-500/25 to-blue-600/20 text-foreground border border-amber-500/20'
             : 'bg-slate-100 dark:bg-white/5 text-body border border-border',
         )}
       >
@@ -194,7 +194,7 @@ export function FloatingAssistant({
                 size="sm"
                 onClick={() => void sendPrompt()}
                 disabled={!canSubmit}
-                className="h-7 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-xs hover:from-amber-400 hover:to-orange-400 px-3"
+                className="h-7 rounded-xl bg-gradient-to-r from-amber-500 to-blue-600 text-white text-xs hover:from-amber-400 hover:to-blue-500 px-3"
               >
                 <SendHorizonal className="mr-1.5 h-3 w-3" />
                 Спросить
@@ -211,7 +211,7 @@ export function FloatingAssistant({
           'fixed bottom-5 right-5 z-50 flex h-13 w-13 items-center justify-center rounded-2xl shadow-2xl transition-all duration-200',
           open
             ? 'bg-slate-100 dark:bg-slate-800 border border-border text-amber-500 dark:text-amber-300'
-            : 'bg-gradient-to-br from-amber-500 to-orange-500 text-black hover:scale-105 hover:shadow-amber-500/30',
+            : 'bg-gradient-to-br from-amber-500 to-blue-600 text-white hover:scale-105 hover:shadow-amber-500/30',
         )}
         style={{ height: 52, width: 52 }}
         title={open ? 'Свернуть' : 'AI-консультант'}

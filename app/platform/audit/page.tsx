@@ -45,7 +45,7 @@ export default function PlatformAuditPage() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center dark:border-white/15 dark:bg-white/[0.02]">
@@ -64,7 +64,7 @@ export default function PlatformAuditPage() {
                 className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3 text-sm transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/[0.02]"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:text-violet-300">
+                  <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-300">
                     {ENTITY_LABELS[e.entity_type] || e.entity_type}
                   </span>
                   <span className="text-slate-700 dark:text-slate-200">{e.action}</span>

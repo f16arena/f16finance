@@ -24,7 +24,7 @@ export function AppLogoMark({ className, size = 'md', logoUrl }: Props) {
   if (logoUrl) {
     return (
       <div className={cn('relative shrink-0 group', className)}>
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 blur-lg opacity-30 transition-opacity duration-500 group-hover:opacity-60" />
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 blur-lg opacity-30 transition-opacity duration-500 group-hover:opacity-60" />
         <div
           className={cn(
             'relative flex items-center justify-center overflow-hidden border border-slate-200 bg-white shadow-lg dark:border-white/10',
@@ -50,7 +50,7 @@ export function AppLogoMark({ className, size = 'md', logoUrl }: Props) {
 
   return (
     <div className={cn('relative shrink-0 group', className)}>
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 blur-lg opacity-40 transition-opacity duration-500 group-hover:opacity-70 dark:opacity-50 dark:group-hover:opacity-80" />
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 blur-lg opacity-40 transition-opacity duration-500 group-hover:opacity-70 dark:opacity-50 dark:group-hover:opacity-80" />
       <div
         className={cn(
           // Светлая тема — светлый значок; тёмная — тёмный.

@@ -108,7 +108,7 @@ export function SubscriptionGate() {
       className={`flex items-center gap-2 px-4 py-2 text-sm ${
         isRed
           ? 'bg-rose-600 text-white'
-          : 'bg-amber-500 text-black'
+          : 'bg-amber-500 text-white'
       }`}
     >
       <AlertTriangle className="h-4 w-4 shrink-0" />

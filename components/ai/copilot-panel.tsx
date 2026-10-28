@@ -131,7 +131,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
       {/* Header strip */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-blue-600">
             <Sparkles className="h-4 w-4 text-black" />
           </div>
           <div>
@@ -164,7 +164,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
             <div key={msg.id}>
               <div className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                 {msg.role === 'assistant' && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 text-amber-300 mt-0.5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-blue-600/20 text-amber-300 mt-0.5">
                     <Bot className="h-3.5 w-3.5" />
                   </div>
                 )}
@@ -172,7 +172,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
                   className={cn(
                     'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed',
                     msg.role === 'user'
-                      ? 'bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-foreground border border-amber-500/20'
+                      ? 'bg-gradient-to-r from-amber-500/15 to-blue-600/15 text-foreground border border-amber-500/20'
                       : 'bg-slate-100 dark:bg-white/5 text-body border border-border',
                   )}
                 >
@@ -248,7 +248,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
             type="button"
             onClick={() => handleSend(input)}
             disabled={busy || !input.trim()}
-            className="shrink-0 bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-400 hover:to-orange-400"
+            className="shrink-0 bg-gradient-to-r from-amber-500 to-blue-600 text-white hover:from-amber-400 hover:to-blue-500"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
           </Button>
@@ -264,7 +264,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
 function EmptyState({ onPrompt, prompts }: { onPrompt: (text: string) => void; prompts: string[] }) {
   return (
     <div className="flex flex-col items-center text-center gap-3 py-8">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/15 to-orange-500/15 border border-amber-500/20">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/15 to-blue-600/15 border border-amber-500/20">
         <Sparkles className="h-7 w-7 text-amber-300" />
       </div>
       <div className="space-y-1 max-w-xs">

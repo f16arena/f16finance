@@ -108,7 +108,7 @@ export default function ModerationPage() {
   }
 
   const severityColor = (s: number) =>
-    s >= 8 ? 'text-red-400' : s >= 6 ? 'text-orange-400' : s >= 4 ? 'text-amber-400' : 'text-yellow-400'
+    s >= 8 ? 'text-red-400' : s >= 6 ? 'text-blue-500' : s >= 4 ? 'text-amber-400' : 'text-yellow-400'
 
   return (
     <div className="app-page-wide space-y-6">

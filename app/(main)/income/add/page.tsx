@@ -475,7 +475,7 @@ export default function AddIncomePage() {
                       onClick={() => setShift('day')}
                       className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
                         shift === 'day'
-                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
+                          ? 'bg-gradient-to-r from-amber-500 to-blue-600 text-white shadow-lg'
                           : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >

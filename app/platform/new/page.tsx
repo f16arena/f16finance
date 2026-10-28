@@ -110,7 +110,7 @@ export default function NewOrganizationPage() {
           </div>
           <h2 className="text-2xl font-semibold">Клиент заведён</h2>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Поддомен <span className="text-violet-600 dark:text-violet-300">{createdOrg.primaryDomain}</span> активирован.
+            Поддомен <span className="text-blue-600 dark:text-blue-300">{createdOrg.primaryDomain}</span> активирован.
             После обновления DNS клиент сможет войти.
           </p>
           {createdOrg.appUrl && (
@@ -118,7 +118,7 @@ export default function NewOrganizationPage() {
               href={createdOrg.appUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               Открыть рабочее пространство
@@ -156,7 +156,7 @@ export default function NewOrganizationPage() {
             </Button>
             <Button
               onClick={handleReset}
-              className="bg-violet-600 text-white hover:bg-violet-700"
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
               Завести ещё
             </Button>
@@ -182,7 +182,7 @@ export default function NewOrganizationPage() {
       {/* Прогресс */}
       <div className="mb-6 flex max-w-lg gap-2">
         {[1, 2].map(s => (
-          <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-violet-500' : 'bg-slate-200 dark:bg-white/10'}`} />
+          <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-blue-500' : 'bg-slate-200 dark:bg-white/10'}`} />
         ))}
       </div>
 
@@ -220,7 +220,7 @@ export default function NewOrganizationPage() {
                 </div>
                 {slug && (
                   <p className="text-xs text-slate-500">
-                    Клиент зайдёт по адресу: <span className="text-violet-600 dark:text-violet-300">{slug}.ordaops.kz</span>
+                    Клиент зайдёт по адресу: <span className="text-blue-600 dark:text-blue-300">{slug}.ordaops.kz</span>
                   </p>
                 )}
               </div>
@@ -271,7 +271,7 @@ export default function NewOrganizationPage() {
             <Button
               onClick={() => setStep(2)}
               disabled={!name.trim() || !slug.trim()}
-              className="bg-violet-600 text-white hover:bg-violet-700"
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
               Далее <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -297,7 +297,7 @@ export default function NewOrganizationPage() {
                     onClick={() => setPackageCode(packageCode === pkg.code ? '' : pkg.code)}
                     className={`w-full rounded-xl border p-4 text-left transition ${
                       packageCode === pkg.code
-                        ? 'border-violet-500/50 bg-violet-500/10'
+                        ? 'border-blue-500/50 bg-blue-500/10'
                         : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                     }`}
                   >
@@ -321,7 +321,7 @@ export default function NewOrganizationPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Поддомен</span>
-                  <span className="font-medium text-violet-600 dark:text-violet-300">{slug}.ordaops.kz</span>
+                  <span className="font-medium text-blue-600 dark:text-blue-300">{slug}.ordaops.kz</span>
                 </div>
                 {ownerEmail && (
                   <div className="flex items-center justify-between">
@@ -351,7 +351,7 @@ export default function NewOrganizationPage() {
               <Button
                 onClick={handleCreate}
                 disabled={loading}
-                className="bg-violet-600 text-white hover:bg-violet-700"
+                className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
                 Завести клиента

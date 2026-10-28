@@ -33,7 +33,7 @@ function MessageBubble({ message }: { message: AssistantChatMessage }) {
         className={cn(
           'max-w-[90%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed',
           isUser
-            ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-foreground border border-amber-500/20'
+            ? 'bg-gradient-to-r from-amber-500/20 to-blue-600/20 text-foreground border border-amber-500/20'
             : 'bg-slate-100 dark:bg-white/5 text-body border border-border',
         )}
       >
@@ -173,7 +173,7 @@ export function AssistantPanel({
     <Card className={cn('border-border bg-white dark:bg-slate-950/60 text-foreground', className)}>
       <CardHeader className="gap-3">
         <div className="flex items-start gap-3">
-          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/20 to-orange-500/10 p-3">
+          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/20 to-blue-600/10 p-3">
             <Bot className="h-5 w-5 text-amber-300" />
           </div>
           <div className="min-w-0 flex-1">
@@ -259,7 +259,7 @@ export function AssistantPanel({
                 type="button"
                 onClick={() => void sendPrompt()}
                 disabled={!canSubmit}
-                className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-400 hover:to-orange-400"
+                className="rounded-xl bg-gradient-to-r from-amber-500 to-blue-600 text-white hover:from-amber-400 hover:to-blue-500"
               >
                 <SendHorizonal className="mr-2 h-4 w-4" />
                 Спросить

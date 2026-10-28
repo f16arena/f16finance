@@ -205,7 +205,7 @@ export function OperatorPwaInstall() {
                 <Button
                   type="button"
                   size="sm"
-                  className="rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400"
+                  className="rounded-xl bg-amber-500 text-white hover:bg-amber-400"
                   disabled={installing}
                   onClick={() => void onInstall()}
                 >

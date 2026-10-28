@@ -1529,7 +1529,7 @@ function OverviewTab(props: any) {
           label="Наличные"
           value={analytics.cash}
           icon={<Banknote className="w-5 h-5" />}
-          color="from-amber-500 to-orange-500"
+          color="from-amber-500 to-blue-600"
           percentage={analytics.total ? (analytics.cash / analytics.total) * 100 : 0}
         />
         <MetricCard

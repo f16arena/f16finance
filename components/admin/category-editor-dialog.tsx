@@ -137,7 +137,7 @@ export function CategoryEditorDialog({ open, onOpenChange, initialValue, compani
             onClick={async () => {
               await onSubmit(value)
             }}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-2.5 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-blue-600 px-5 py-2.5 text-sm font-black text-white transition hover:brightness-110 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {isEditing ? 'Сохранить' : 'Создать'}
