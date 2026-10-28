@@ -40,6 +40,27 @@ export function addDays(isoDate: string, days: number) {
   return d.toISOString().slice(0, 10)
 }
 
+/** Сегодня по Алматы (UTC+5). */
+export function todayLocal() {
+  return new Date(Date.now() + 5 * 3600_000).toISOString().slice(0, 10)
+}
+
+/** Понедельник следующей недели — раньше этой даты API график не трогает. */
+export function firstOpenDate() {
+  return addDays(mondayOf(todayLocal()), 7)
+}
+
+/**
+ * Текущую неделю ведут люди на месте: через API её не меняют и не публикуют,
+ * программа планирует только со следующей недели.
+ */
+export function assertOpenWeek(isoDate: string) {
+  const open = firstOpenDate()
+  if (isoDate < open) {
+    throw new ScheduleError(422, 'week_locked', `Текущую и прошлые недели через API не меняют — можно с ${open}`)
+  }
+}
+
 type PointOperator = { id: string; name: string; role: string | null; telegramConnected: boolean }
 
 /** Активные операторы, закреплённые за точкой. */
@@ -142,6 +163,7 @@ export async function setShift(
     comment?: string | null
   },
 ) {
+  assertOpenWeek(params.date)
   const operators = await listPointOperators(db, params.companyId)
   const operator = operators.find((op) => op.id === params.operatorId)
   if (!operator) {
@@ -221,6 +243,7 @@ export async function deleteShift(db: Db, companyId: string, apiKeyId: string, s
   if (!row || String(row.company_id) !== companyId) {
     throw new ScheduleError(404, 'not_found', 'Смена не найдена')
   }
+  assertOpenWeek(String(row.date))
   assertOwnShift(row, apiKeyId)
   // Старые смены могли нести суммы выручки — такие API не удаляет.
   const money = ['cash_amount', 'kaspi_amount', 'card_amount', 'debt_amount', 'cashless_amount']

@@ -1,6 +1,6 @@
 import { writeAuditLog } from '@/lib/server/audit'
 import { requireApiKey, v1Error, v1Json, v1Options } from '@/lib/server/api-keys'
-import { ScheduleError, mondayOf, parseIsoDate, scheduleErrorResponse } from '@/lib/server/api-v1-schedule'
+import { ScheduleError, assertOpenWeek, mondayOf, parseIsoDate, scheduleErrorResponse } from '@/lib/server/api-v1-schedule'
 import { publishShiftWeekForCompany } from '@/lib/server/shift-workflow'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
 
@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
     const weekStart = mondayOf(parseIsoDate(body?.week, 'week'))
+    assertOpenWeek(weekStart)
     const db = createAdminSupabaseClient()
 
     let result: Awaited<ReturnType<typeof publishShiftWeekForCompany>>
