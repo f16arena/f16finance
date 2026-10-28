@@ -843,11 +843,25 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
 
   // ── Selection / bulk category / labels ──────────────────────────────────────
 
-  function toggleSelect(id: string) {
+  // Последняя кликнутая галочка — от неё Shift+клик отмечает диапазон строк.
+  const selectAnchorRef = useRef<string | null>(null)
+
+  function toggleSelect(id: string, shiftKey = false) {
+    const anchor = selectAnchorRef.current
+    selectAnchorRef.current = id
     setSelectedItemIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const checking = !next.has(id)
+      const from = anchor && shiftKey ? paginated.findIndex((i) => i.id === anchor) : -1
+      const to = paginated.findIndex((i) => i.id === id)
+      if (from >= 0 && to >= 0) {
+        // Весь диапазон получает то же состояние, что и нажатая галочка.
+        for (const item of paginated.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+          if (checking) next.add(item.id)
+          else next.delete(item.id)
+        }
+      } else if (checking) next.add(id)
+      else next.delete(id)
       return next
     })
   }
@@ -864,6 +878,17 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
   }
 
   const selectedItems = items.filter((i) => selectedItemIds.has(i.id))
+  // Сводка по отмеченным: остаток (склад + витрина) в закупе и в продаже.
+  const selectedTotals = selectedItems.reduce(
+    (acc, item) => {
+      const qty = catalogQtyOf(item)
+      acc.qty += qty
+      acc.purchase += qty * item.default_purchase_price
+      acc.sale += qty * item.sale_price
+      return acc
+    },
+    { qty: 0, purchase: 0, sale: 0 },
+  )
 
   function openLabelsForSelection() {
     const list = selectedItems.map((i): LabelItem => ({
@@ -1516,6 +1541,26 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
                   Снять выбор
                 </Button>
               </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: 'Остаток', value: `${selectedTotals.qty.toLocaleString('ru-RU')} ед.` },
+                  { label: 'По закупу', value: formatMoney(selectedTotals.purchase) },
+                  { label: 'По продаже', value: formatMoney(selectedTotals.sale) },
+                  {
+                    label: 'Наценка',
+                    value: formatMoney(selectedTotals.sale - selectedTotals.purchase),
+                    hint: selectedTotals.purchase > 0 ? `${(((selectedTotals.sale - selectedTotals.purchase) / selectedTotals.purchase) * 100).toFixed(1)}%` : null,
+                  },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg border border-border/60 bg-background/70 px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">{s.label}</div>
+                    <div className="text-sm font-semibold tabular-nums">
+                      {s.value}
+                      {s.hint && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{s.hint}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
@@ -1566,7 +1611,7 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
                               type="checkbox"
                               className="h-4 w-4 cursor-pointer accent-emerald-500"
                               checked={selectedItemIds.has(item.id)}
-                              onChange={() => toggleSelect(item.id)}
+                              onChange={(e) => toggleSelect(item.id, (e.nativeEvent as MouseEvent).shiftKey)}
                             />
                           </td>
                           <td className="px-2 py-2.5 text-center text-xs tabular-nums text-muted-foreground">{(page - 1) * PAGE_SIZE + idx + 1}</td>
