@@ -36,6 +36,7 @@ import {
   Mail,
   Settings,
   Sparkles,
+  KeyRound,
 } from 'lucide-react'
 
 const INDUSTRY_OPTIONS = listIndustries()
@@ -397,6 +398,24 @@ export default function SettingsPage() {
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </Link>
+
+          {isOwner && (
+            <Link
+              href="/settings/api"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-blue-500/40"
+            >
+              <span className="flex items-center gap-3">
+                <KeyRound className="h-5 w-5 text-blue-500" />
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">API-ключи</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Доступ для своих программ — например, автозаполнение графика смен. Без доступа к деньгам.
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:gap-8">
 

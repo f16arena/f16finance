@@ -27,6 +27,8 @@
   // по QR без входа (доступ по UUID). Данные тянутся сервером, PII минимальна.
   '/r/*',
   '/z/*',
+  // Документация открытого API — читают разработчики без учётки в системе.
+  '/docs/api',
 ] as const
 
 /** См. docs/roles.md — матрица staff/оператор/платформа и гостевой контур (`CLIENT_PATHS`, `customers.auth_user_id`).
@@ -669,6 +671,8 @@ const MOVED_PATHS: Record<string, string> = {
   '/regulations/setup': '/knowledge-setup',
   // Мастер новой точки — часть настроек: открыт тем, у кого открыты «Настройки».
   '/settings/new-point': '/settings',
+  // API-ключи — тоже часть настроек; сами ключи выдаёт только владелец (роут).
+  '/settings/api': '/settings',
   // Игровая зона переехала со страницы проекта /stations/<id> в разделы меню
   '/arena': '/stations/arena',
   '/arena/hall': '/stations/arena',

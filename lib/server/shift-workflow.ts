@@ -160,11 +160,15 @@ export async function findOperatorForShiftName(supabase: DbClient, operatorName:
   }) || null
 }
 
-async function getActiveOperators(supabase: DbClient) {
-  const { data, error } = await supabase
+// organizationId обязателен там, где операторов сопоставляют по имени: без него
+// однофамилец из чужой организации получил бы чужой график в Telegram.
+async function getActiveOperators(supabase: DbClient, organizationId?: string | null) {
+  let query = supabase
     .from('operators')
     .select('id, name, short_name, telegram_chat_id, operator_profiles(*)')
     .eq('is_active', true)
+  if (organizationId) query = query.eq('organization_id', organizationId)
+  const { data, error } = await query
 
   if (error) throw error
   return (data || []) as OperatorRow[]
@@ -287,7 +291,12 @@ export async function publishShiftWeekForCompany(params: {
     throw new Error('На эту неделю по выбранной точке нет назначенных смен.')
   }
 
-  const operators = await getActiveOperators(params.supabase)
+  const { data: company } = await params.supabase
+    .from('companies')
+    .select('organization_id')
+    .eq('id', params.companyId)
+    .maybeSingle()
+  const operators = await getActiveOperators(params.supabase, (company as any)?.organization_id || null)
   const uniqueAssignments = new Map<string, { operator: OperatorRow; assignments: ShiftRow[] }>()
 
   for (const operator of operators) {
