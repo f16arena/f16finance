@@ -80,6 +80,8 @@ function toApiShift(row: any) {
     operatorId: row.operator_id ? String(row.operator_id) : null,
     operatorName: String(row.operator_name || ''),
     comment: row.comment || null,
+    // manual — поставил человек, через API не изменить; api — поставил ключ.
+    source: row.api_key_id ? 'api' : 'manual',
   }
 }
 
@@ -87,7 +89,7 @@ export async function getWeek(db: Db, companyId: string, weekStart: string) {
   const weekEnd = addDays(weekStart, 6)
   const { data, error } = await db
     .from('shifts')
-    .select('id, date, shift_type, operator_id, operator_name, comment')
+    .select('id, date, shift_type, operator_id, operator_name, comment, api_key_id')
     .eq('company_id', companyId)
     .gte('date', weekStart)
     .lte('date', weekEnd)
@@ -113,12 +115,32 @@ export async function getWeek(db: Db, companyId: string, weekStart: string) {
 }
 
 /**
+ * Смену, поставленную человеком (на сайте, в боте) или другим ключом, API не
+ * меняет и не удаляет: менеджер правит график руками, программа — только своё.
+ */
+function assertOwnShift(row: { api_key_id?: string | null; operator_name?: string | null } | null, apiKeyId: string) {
+  if (!row) return
+  if (String(row.api_key_id || '') !== apiKeyId) {
+    const who = row.operator_name ? ` (${row.operator_name})` : ''
+    throw new ScheduleError(409, 'manual_shift', `Эту смену${who} поставили вручную — через API её менять нельзя. Изменить можно на сайте в «Сменах».`)
+  }
+}
+
+/**
  * Ставит оператора в слот (дата + день/ночь). Слот один на точку: если там уже
  * кто-то стоит — заменяем. Один человек — одна смена в день по всей организации.
  */
 export async function setShift(
   db: Db,
-  params: { companyId: string; organizationId: string; date: string; shift: ShiftKind; operatorId: string; comment?: string | null },
+  params: {
+    companyId: string
+    organizationId: string
+    apiKeyId: string
+    date: string
+    shift: ShiftKind
+    operatorId: string
+    comment?: string | null
+  },
 ) {
   const operators = await listPointOperators(db, params.companyId)
   const operator = operators.find((op) => op.id === params.operatorId)
@@ -128,12 +150,13 @@ export async function setShift(
 
   const { data: slot, error: slotError } = await db
     .from('shifts')
-    .select('id')
+    .select('id, api_key_id, operator_name')
     .eq('company_id', params.companyId)
     .eq('date', params.date)
     .eq('shift_type', params.shift)
     .maybeSingle()
   if (slotError) throw slotError
+  assertOwnShift(slot, params.apiKeyId)
 
   const { data: orgCompanies } = await db.from('companies').select('id').eq('organization_id', params.organizationId)
   const companyIds = (orgCompanies || []).map((c: any) => String(c.id))
@@ -152,14 +175,19 @@ export async function setShift(
     throw new ScheduleError(409, 'operator_busy', `${operator.name} уже стоит на ${params.date}. Сначала уберите ту смену.`)
   }
 
-  const fields = { operator_id: operator.id, operator_name: operator.name, comment: params.comment?.trim() || null }
+  const fields = {
+    operator_id: operator.id,
+    operator_name: operator.name,
+    comment: params.comment?.trim() || null,
+    api_key_id: params.apiKeyId,
+  }
   if (slot?.id) {
     const { data, error } = await db
       .from('shifts')
       .update(fields)
       .eq('id', slot.id)
       .eq('company_id', params.companyId)
-      .select('id, date, shift_type, operator_id, operator_name, comment')
+      .select('id, date, shift_type, operator_id, operator_name, comment, api_key_id')
       .single()
     if (error) throw error
     return { mode: 'updated' as const, shift: toApiShift(data) }
@@ -177,22 +205,23 @@ export async function setShift(
       card_amount: 0,
       debt_amount: 0,
     })
-    .select('id, date, shift_type, operator_id, operator_name, comment')
+    .select('id, date, shift_type, operator_id, operator_name, comment, api_key_id')
     .single()
   if (error) throw error
   return { mode: 'created' as const, shift: toApiShift(data) }
 }
 
-export async function deleteShift(db: Db, companyId: string, shiftId: string) {
+export async function deleteShift(db: Db, companyId: string, apiKeyId: string, shiftId: string) {
   const { data: row, error } = await db
     .from('shifts')
-    .select('id, company_id, date, shift_type, operator_name, cash_amount, kaspi_amount, card_amount, debt_amount, cashless_amount')
+    .select('id, company_id, api_key_id, date, shift_type, operator_name, cash_amount, kaspi_amount, card_amount, debt_amount, cashless_amount')
     .eq('id', shiftId)
     .maybeSingle()
   if (error) throw error
   if (!row || String(row.company_id) !== companyId) {
     throw new ScheduleError(404, 'not_found', 'Смена не найдена')
   }
+  assertOwnShift(row, apiKeyId)
   // Старые смены могли нести суммы выручки — такие API не удаляет.
   const money = ['cash_amount', 'kaspi_amount', 'card_amount', 'debt_amount', 'cashless_amount']
     .reduce((sum, key) => sum + Math.abs(Number((row as any)[key]) || 0), 0)

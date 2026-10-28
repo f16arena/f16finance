@@ -2282,7 +2282,7 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
       if (existingSlot?.id) {
         const { error } = await supabase
           .from('shifts')
-          .update({ operator_name: operatorLabel, comment: String(args.comment || '').trim() || null })
+          .update({ operator_name: operatorLabel, comment: String(args.comment || '').trim() || null, api_key_id: null })
           .eq('id', existingSlot.id)
         if (error) return `Ошибка назначения смены: ${error.message}`
       } else {

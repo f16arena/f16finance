@@ -10,7 +10,9 @@ export const metadata: Metadata = {
   description: 'Открытый API Orda Control: ключи, график смен, публикация недели в Telegram. Методы, примеры на Python и JavaScript.',
 }
 
-const BASE = `https://${PRODUCT_SITE}/api/v1`
+// apex ordaops.kz отвечает 308 на www, а клиенты (requests, fetch) при смене
+// хоста выбрасывают Authorization — поэтому адрес сразу с www.
+const BASE = `https://www.${PRODUCT_SITE}/api/v1`
 
 const sections = [
   { id: 'start', title: 'Начало' },
@@ -203,15 +205,23 @@ curl ${BASE}/me \\
   "published": { "version": 2, "publishedAt": "2026-10-30T14:05:11Z" },
   "shifts": [
     { "id": "9e8f…", "date": "2026-11-02", "shift": "day",
-      "operatorId": "a1b2…", "operatorName": "Айдана", "comment": null }
+      "operatorId": "a1b2…", "operatorName": "Айдана", "comment": null, "source": "manual" }
   ]
 }
 `}</Code>
               <p><code className={ic}>published: null</code> — неделю ещё не публиковали.</p>
+              <p>
+                <code className={ic}>source</code>: <code className={ic}>manual</code> — смену поставил человек (на сайте или в
+                боте), через API её не изменить; <code className={ic}>api</code> — смену поставила программа.
+              </p>
             </Endpoint>
 
             <Endpoint id="set" method="PUT" path="/schedule/shifts" scope="schedule:write" title="Поставить на смену">
-              <p>Ставит оператора на дату и смену. Если там уже кто-то стоит — заменяет.</p>
+              <p>
+                Ставит оператора на дату и смену. Заполнять можно пустые слоты и менять смены, которые поставил этот же ключ.
+                Смену, поставленную вручную, API не трогает — ответ <code className={ic}>409 manual_shift</code>. Если менеджер
+                поправил смену программы на сайте, она тоже становится ручной.
+              </p>
               <Fields>
                 <Field name="date" type="string">Дата смены, <code className={ic}>2026-11-02</code></Field>
                 <Field name="shift" type="string"><code className={ic}>day</code> или <code className={ic}>night</code></Field>
@@ -225,7 +235,7 @@ PUT ${BASE}/schedule/shifts
               <Code lang="Ответ 201 (новая) или 200 (замена)">{`
 { "mode": "created",
   "shift": { "id": "9e8f…", "date": "2026-11-02", "shift": "night",
-             "operatorId": "a1b2…", "operatorName": "Айдана", "comment": null } }
+             "operatorId": "a1b2…", "operatorName": "Айдана", "comment": null, "source": "api" } }
 `}</Code>
               <p>
                 Один человек — одна смена в день по всей организации. Если он уже стоит в этот день (на любой точке), ответ{' '}
@@ -235,7 +245,7 @@ PUT ${BASE}/schedule/shifts
             </Endpoint>
 
             <Endpoint id="delete" method="DELETE" path="/schedule/shifts/{id}" scope="schedule:write" title="Убрать смену">
-              <p>Удаляет смену из графика по её id.</p>
+              <p>Удаляет смену по её id — только ту, что поставил этот ключ. Ручную — <code className={ic}>409 manual_shift</code>.</p>
               <Code lang="Ответ 200">{`
 { "deleted": { "id": "9e8f…", "date": "2026-11-02", "shift": "night", "operatorName": "Айдана" } }
 `}</Code>
@@ -274,6 +284,7 @@ POST ${BASE}/schedule/publish
                   <Field name="403 forbidden" type="код">У ключа нет нужного права, или точка закрыта</Field>
                   <Field name="404 not_found" type="код">Смена не найдена (или она с другой точки)</Field>
                   <Field name="409 operator_busy" type="код">Оператор уже стоит в этот день</Field>
+                  <Field name="409 manual_shift" type="код">Смену поставил человек — менять её можно только на сайте</Field>
                   <Field name="422 unknown_operator" type="код">Такого оператора нет на точке</Field>
                   <Field name="422 nothing_to_publish" type="код">На неделе нет смен — публиковать нечего</Field>
                   <Field name="429 rate_limited" type="код">Больше 60 запросов в минуту</Field>
@@ -313,8 +324,11 @@ for d in range(7):
     for shift in ("day", "night"):
         op = operators[i % len(operators)]
         i += 1
-        api("PUT", "/schedule/shifts", json={"date": day, "shift": shift, "operatorId": op["id"]})
-        print(day, shift, "→", op["name"])
+        try:
+            api("PUT", "/schedule/shifts", json={"date": day, "shift": shift, "operatorId": op["id"]})
+            print(day, shift, "→", op["name"])
+        except RuntimeError as e:
+            print(day, shift, "пропуск:", e)  # например, смену уже поставил менеджер
 
 result = api("POST", "/schedule/publish", json={"week": monday.isoformat()})
 print("Отправлено в Telegram:", result["delivered"], "· без Telegram:", result["missingTelegram"])

@@ -15,7 +15,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params
     if (!/^[0-9a-f-]{36}$/i.test(id)) return v1Error(404, 'not_found', 'Смена не найдена')
     const db = createAdminSupabaseClient()
-    const removed = await deleteShift(db, auth.key.companyId, id)
+    const removed = await deleteShift(db, auth.key.companyId, auth.key.id, id)
     await writeAuditLog(db, {
       entityType: 'shift',
       entityId: id,

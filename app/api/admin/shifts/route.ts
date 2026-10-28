@@ -413,6 +413,8 @@ async function upsertShift(
         operator_name: trimmedName,
         operator_id: resolvedOperatorId,
         comment: comment?.trim() || null,
+        // Правка на сайте делает смену ручной — открытый API её больше не трогает.
+        api_key_id: null,
       })
       .eq('id', shiftId)
       // Второй слой к проверке выше: id смены пришёл из запроса.
@@ -433,6 +435,8 @@ async function upsertShift(
         operator_name: trimmedName,
         operator_id: resolvedOperatorId,
         comment: comment?.trim() || null,
+        // Правка на сайте делает смену ручной — открытый API её больше не трогает.
+        api_key_id: null,
       })
       .eq('id', existingForSlot.id)
 

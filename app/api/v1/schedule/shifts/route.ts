@@ -25,6 +25,7 @@ export async function PUT(request: Request) {
     const result = await setShift(db, {
       companyId: auth.key.companyId,
       organizationId: auth.key.organizationId,
+      apiKeyId: auth.key.id,
       date,
       shift,
       operatorId,
