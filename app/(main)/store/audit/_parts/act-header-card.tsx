@@ -97,7 +97,7 @@ export function ActHeaderCard({
                     <input type="checkbox" checked={zeroUncounted} onChange={(e) => setZeroUncounted(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-500" />
                     <span>
                       <span className="font-medium">Полная ревизия: обнулить непосчитанное.</span>{' '}
-                      <span className="text-muted-foreground">Не посчитано {uncountedRows.length} поз. на {money(zeroSum)} по закупу — «чего не посчитали, того нет». Перед проведением покажем список.</span>
+                      <span className="text-muted-foreground">Не посчитано {uncountedRows.length} поз. на {money(zeroSum)} по закупу — «чего не посчитали, того нет». Список — ниже.</span>
                     </span>
                   </label>
                   {isBigZeroing(uncountedRows, detail.totalItems) ? (
@@ -111,6 +111,43 @@ export function ActHeaderCard({
                       Лучше досчитать.
                     </div>
                   ) : null}
+                  {/* Что не посчитали — открыто до галочки, чтобы было видно, что досчитать */}
+                  <details className="group rounded-md border border-border bg-background">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                      <span>Что не посчитали — {uncountedRows.length} поз.</span>
+                      <span className="text-muted-foreground group-open:hidden">показать список</span>
+                      <span className="hidden text-muted-foreground group-open:inline">скрыть</span>
+                    </summary>
+                    <div className="max-h-80 overflow-y-auto border-t border-border">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-surface-muted text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-1.5 text-left font-medium">Товар</th>
+                            <th className="px-3 py-1.5 text-right font-medium">По системе</th>
+                            <th className="px-3 py-1.5 text-right font-medium">По закупу</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {uncountedRows.map((r) => (
+                            <tr key={r.item_id} className="border-t border-border/60">
+                              <td className="px-3 py-1.5 text-foreground">
+                                {r.name}
+                                {(r.sold_recent || 0) > 0 ? <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-300">продавался на неделе</span> : null}
+                                {(r.other_location_qty || 0) > 0 ? (
+                                  <span className="ml-1.5 text-[10px] text-muted-foreground">
+                                    · ещё {r.other_location_qty} шт {detail.otherLocationType === 'warehouse' ? 'на складе' : 'на витрине'}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-1.5 text-right tabular-nums text-foreground">{r.expected} шт</td>
+                              <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{money(r.expected * (r.purchase_price || 0))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">Досчитайте эти позиции в сканере ревизии — после подсчёта они уйдут из списка.</p>
+                  </details>
                   {zeroUncounted ? (
                     <label className="flex cursor-pointer items-start gap-2 pl-6 text-xs text-muted-foreground">
                       <input type="checkbox" checked={assignDebtZeroed} onChange={(e) => setAssignDebtZeroed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-500" />
