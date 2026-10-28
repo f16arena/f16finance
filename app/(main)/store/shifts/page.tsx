@@ -73,7 +73,7 @@ function printZReport(r: any) {
     .hd .co{font-size:17px;font-weight:800;letter-spacing:.2px}
     .hd .m{color:#666;font-size:11.5px;margin-top:3px}
     .title{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
-    .title h1{font-size:20px;font-weight:800;color:#059669;letter-spacing:1px}
+    .title h1{font-size:20px;font-weight:800;color:#0b1f3b;letter-spacing:1px}
     .title .sh{font-size:13px;color:#555;font-weight:700}
     .meta{display:grid;grid-template-columns:1fr 1fr;gap:2px 28px;margin-bottom:18px}
     .meta .r{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dotted #ddd;padding:4px 0}
@@ -90,7 +90,7 @@ function printZReport(r: any) {
     .sum .r{display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #f1f1f1}
     .sum .r span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
     .sum .r.tot{border-top:2px solid #111;border-bottom:none;margin-top:5px;padding-top:9px;font-size:16px;font-weight:800}
-    .sum .r.tot span:last-child{color:#059669}
+    .sum .r.tot span:last-child{color:#0b1f3b}
     table{width:100%;border-collapse:collapse}
     thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#999;padding:7px 8px;border-bottom:2px solid #111}
     tbody td{padding:6px 8px;border-bottom:1px solid #f1f1f1;vertical-align:middle}
@@ -103,7 +103,7 @@ function printZReport(r: any) {
     .foot{margin-top:22px;padding-top:8px;border-top:1px solid #eee;display:flex;justify-content:space-between;color:#aaa;font-size:10.5px}
     .bar{position:sticky;top:0;z-index:9;display:flex;gap:8px;justify-content:center;padding:10px;background:#f4f4f5;border-bottom:1px solid #e4e4e7;margin:-14mm -14mm 14px}
     .bar button{border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer}
-    .bar .p{background:#059669;color:#fff}.bar .c{background:#e4e4e7;color:#111}
+    .bar .p{background:#2563eb;color:#fff}.bar .c{background:#e4e4e7;color:#111}
     @media print{.bar{display:none}}
     </style></head>
     <body>

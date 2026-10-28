@@ -46,7 +46,7 @@ function showPdfBusy() {
     'animation:pdfin 0.18s ease-out'
   el.innerHTML =
     `<span data-pdf-spinner style="width:16px;height:16px;border:2px solid ${spinnerTrack};` +
-    'border-top-color:#10b981;border-radius:50%;display:inline-block;animation:pdfspin 0.7s linear infinite"></span>' +
+    'border-top-color:#2563eb;border-radius:50%;display:inline-block;animation:pdfspin 0.7s linear infinite"></span>' +
     '<span data-pdf-text>Готовим PDF…</span>'
   document.body.appendChild(el)
   pdfOverlay = el

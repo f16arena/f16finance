@@ -18,7 +18,7 @@ export default function OgImage() {
           height: '100%',
           display: 'flex',
           background:
-            'radial-gradient(circle at 20% 10%, rgba(52,211,153,0.18), transparent 22%), radial-gradient(circle at 82% 80%, rgba(37,99,235,0.20), transparent 24%), linear-gradient(180deg, #050816 0%, #0a1020 52%, #050816 100%)',
+            'radial-gradient(circle at 20% 10%, rgba(37,99,235,0.22), transparent 26%), radial-gradient(circle at 82% 80%, rgba(59,130,246,0.14), transparent 24%), linear-gradient(180deg, #0b1f3b 0%, #091a33 52%, #08172d 100%)',
           color: '#fff',
           padding: '56px',
           fontFamily: 'Arial, sans-serif',
@@ -42,31 +42,20 @@ export default function OgImage() {
                   display: 'flex',
                   width: '70px',
                   height: '70px',
-                  borderRadius: '22px',
-                  background: 'linear-gradient(180deg, #34d399 0%, #10b981 48%, #1d4ed8 100%)',
+                  borderRadius: '20px',
+                  background: 'linear-gradient(180deg, #173563 0%, #0b1f3b 100%)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '999px',
-                    border: '3px solid #ffffff',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    fontSize: 22,
-                    fontWeight: 700,
-                  }}
-                >
-                  OC
-                </div>
+                <svg width="70" height="70" viewBox="18 18 72 72" fill="none">
+                  <path stroke="#FFFFFF" strokeWidth="9" d="M54,36.6 a17.4,17.4 0 1,1 0,34.8 a17.4,17.4 0 1,1 0,-34.8" />
+                  <path stroke="#2563EB" strokeWidth="11.4" strokeLinecap="round" d="M49.79,37.12 A17.4,17.4 0 0,1 70.88,49.79" />
+                </svg>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ color: '#34d399', fontSize: 24, textTransform: 'uppercase', letterSpacing: '0.22em' }}>Orda Control</div>
+                <div style={{ color: '#93c5fd', fontSize: 24, textTransform: 'uppercase', letterSpacing: '0.22em' }}>Orda Control</div>
                 <div style={{ color: '#cbd5e1', fontSize: 18 }}>Собственная система для смен, точки и управленки</div>
               </div>
             </div>

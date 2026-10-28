@@ -591,7 +591,7 @@ export default function OperatorPos({
               <button
                 key={c.id}
                 onClick={() => onCompanyChange?.(c.id)}
-                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium transition hover:border-emerald-500 hover:bg-white/10"
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium transition hover:border-blue-500 hover:bg-white/10"
               >
                 {c.name}
               </button>
@@ -639,7 +639,7 @@ export default function OperatorPos({
                 key={t}
                 onClick={() => setShiftType(t)}
                 className={`rounded-xl border py-2.5 text-sm font-medium transition ${
-                  shiftType === t ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-white/10 text-gray-400 hover:text-white'
+                  shiftType === t ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-white/10 text-gray-400 hover:text-white'
                 }`}
               >
                 {t === 'day' ? '☀️ День' : '🌙 Ночь'}
@@ -744,7 +744,7 @@ export default function OperatorPos({
               </div>
               <button
                 onClick={() => setShowUniversal(true)}
-                className="rounded-xl border border-white/20 px-4 text-sm font-medium text-gray-200 hover:border-emerald-500 hover:text-emerald-300"
+                className="rounded-xl border border-white/20 px-4 text-sm font-medium text-gray-200 hover:border-blue-500 hover:text-blue-300"
               >
                 + Универсальная
               </button>

@@ -310,7 +310,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
     .foot{margin-top:20px;padding-top:8px;border-top:1px solid #eee;color:#aaa;font-size:10px}
     .bar{position:sticky;top:0;z-index:9;display:flex;gap:8px;justify-content:center;padding:10px;background:#f4f4f5;border-bottom:1px solid #e4e4e7;margin:-12mm -12mm 12px}
     .bar button{border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer}
-    .bar .p{background:#059669;color:#fff}.bar .c{background:#e4e4e7;color:#111}
+    .bar .p{background:#2563eb;color:#fff}.bar .c{background:#e4e4e7;color:#111}
     @media print{.bar{display:none}}
     </style></head>
     <body>

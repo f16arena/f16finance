@@ -184,7 +184,7 @@ export function renderSaleReceiptEmail(r: ReceiptEmailData): RenderedEmail {
   const onlineButton = r.onlineUrl
     ? `
       <tr><td style="padding-top:22px;text-align:center">
-        <a href="${escapeHtml(r.onlineUrl)}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 26px;border-radius:12px">Открыть чек онлайн</a>
+        <a href="${escapeHtml(r.onlineUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 26px;border-radius:12px">Открыть чек онлайн</a>
       </td></tr>`
     : ''
 
@@ -196,7 +196,7 @@ export function renderSaleReceiptEmail(r: ReceiptEmailData): RenderedEmail {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;font-family:Arial,Helvetica,sans-serif">
         <tr><td style="padding:26px 26px 6px;text-align:center">
-          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#15803d;font-weight:bold">Электронная копия чека</div>
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#0b1f3b;font-weight:bold">Электронная копия чека</div>
           <div style="font-size:19px;font-weight:bold;color:#0f2038;margin-top:10px">${escapeHtml(seller)}</div>
           ${r.requisites.bin ? `<div style="font-size:13px;color:#64748b;margin-top:4px">БИН/ИИН ${escapeHtml(r.requisites.bin)}</div>` : ''}
           ${r.requisites.address ? `<div style="font-size:13px;color:#64748b;margin-top:2px">${escapeHtml(r.requisites.address)}</div>` : ''}

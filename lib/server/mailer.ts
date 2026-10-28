@@ -97,7 +97,7 @@ export async function sendLeadRequestEmail(payload: LeadRequestPayload) {
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;padding:24px">
       <div style="max-width:640px;margin:0 auto;border:1px solid #e2e8f0;border-radius:20px;padding:28px;background:#ffffff">
-        <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#15803d;font-weight:bold;margin-bottom:10px">Новая заявка с сайта</div>
+        <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#2563eb;font-weight:bold;margin-bottom:10px">Новая заявка с сайта</div>
         <h1 style="margin:0 0 20px;font-size:26px;line-height:1.2;color:#0f2038">Orda Control</h1>
         <table style="width:100%;border-collapse:collapse">
           ${rows

@@ -1399,7 +1399,7 @@ function SelectOrganizationContent() {
                 {hubOverview ? (
                   <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="mb-4 flex items-center gap-3">
-                      <div className="rounded-2xl bg-emerald-500/10 p-3">
+                      <div className="rounded-2xl bg-blue-500/10 p-3">
                         <Sparkles className="h-5 w-5 text-blue-300" />
                       </div>
                       <div>
@@ -2649,7 +2649,7 @@ function SelectOrganizationContent() {
                 {canCreateCompanies ? (
                   <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="mb-4 flex items-center gap-3">
-                      <div className="rounded-2xl bg-emerald-500/10 p-3">
+                      <div className="rounded-2xl bg-blue-500/10 p-3">
                         <Store className="h-5 w-5 text-blue-300" />
                       </div>
                       <div>
