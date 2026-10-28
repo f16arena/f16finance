@@ -232,6 +232,9 @@ export async function GET(request: Request) {
         .map((r) => String(r.item_id))
       const soldRecent = new Map<string, number>()
       const otherQty = new Map<string, number>()
+      // Остаток сейчас: после открытия товар могли продать, взять в долг или
+      // обнулить вручную. Обнуление заменит именно его, а не снимок.
+      const balanceNow = new Map<string, number>()
       let otherLocationType: string | null = null
       if ((act as any).status === 'open' && uncountedIds.length) {
         const locRow = (loc.data || null) as any
@@ -250,7 +253,7 @@ export async function GET(request: Request) {
         otherLocationType = otherLoc ? String((otherLoc as any).location_type) : null
         for (let i = 0; i < uncountedIds.length; i += 200) {
           const chunk = uncountedIds.slice(i, i + 200)
-          const [moves, other] = await Promise.all([
+          const [moves, other, own] = await Promise.all([
             fetchAllRows((from, to) =>
               supabase
                 .from('inventory_movements')
@@ -265,7 +268,9 @@ export async function GET(request: Request) {
             otherLoc
               ? supabase.from('inventory_balances').select('item_id, quantity').eq('location_id', String((otherLoc as any).id)).in('item_id', chunk)
               : Promise.resolve({ data: [] as any[] }),
+            supabase.from('inventory_balances').select('item_id, quantity').eq('location_id', String((act as any).location_id)).in('item_id', chunk),
           ])
+          for (const b of ((own as any).data || []) as any[]) balanceNow.set(String(b.item_id), num(b.quantity))
           for (const m of moves as any[]) soldRecent.set(String(m.item_id), (soldRecent.get(String(m.item_id)) || 0) + num(m.quantity))
           for (const b of ((other as any).data || []) as any[]) if (num(b.quantity) > 0) otherQty.set(String(b.item_id), num(b.quantity))
         }
@@ -295,11 +300,13 @@ export async function GET(request: Request) {
             .map((r) => ({
               item_id: String(r.item_id),
               name: itemName.get(String(r.item_id)) || 'Товар',
-              expected: num(r.expected_qty),
+              // у открытого акта — остаток сейчас (с продажами и ручной установкой после открытия)
+              expected: (act as any).status === 'open' ? (balanceNow.get(String(r.item_id)) ?? 0) : num(r.expected_qty),
               purchase_price: itemPrice.get(String(r.item_id)) || 0,
               sold_recent: soldRecent.get(String(r.item_id)) || 0,
               other_location_qty: otherQty.get(String(r.item_id)) || 0,
             }))
+            .filter((r) => r.expected > 0)
             .sort((a, b) => b.expected * b.purchase_price - a.expected * a.purchase_price),
         },
       })
@@ -616,7 +623,8 @@ export async function POST(request: Request) {
         for (const [itemId, expectedRaw] of expectedBy) {
           if (grouped.has(itemId)) continue
           if (zeroOnly && !zeroOnly.has(itemId)) continue
-          const expected = num(expectedRaw)
+          // снимок + движения после открытия: проданное и вручную обнулённое уже не «пропало»
+          const expected = num(expectedRaw) + (movesByItem.get(itemId) || []).reduce((sum, m) => sum + m.delta, 0)
           if (expected <= 0) continue
           zeroedItemIds.push(itemId)
           stocktakeItems.push({ item_id: itemId, actual_qty: 0, comment: 'Полная ревизия: не посчитано — обнулено' })
