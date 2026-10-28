@@ -32,9 +32,9 @@ export function BrandLogo({ size = 'sm', className = '' }: Props) {
   // Дефолт: gradient OP
   return (
     <div
-      className={`${cfg.box} ${cfg.radius} flex items-center justify-center shadow-md shadow-emerald-500/30 ${className}`}
+      className={`${cfg.box} ${cfg.radius} flex items-center justify-center shadow-md shadow-blue-500/30 ${className}`}
       style={{
-        background: 'linear-gradient(to bottom right, var(--brand-color, #34d399), var(--brand-color-dark, #059669))',
+        background: 'linear-gradient(to bottom right, var(--brand-color, #3b82f6), var(--brand-color-dark, #1d4ed8))',
       }}
     >
       <span className={`${cfg.text} font-bold tracking-tight text-white`}>OP</span>

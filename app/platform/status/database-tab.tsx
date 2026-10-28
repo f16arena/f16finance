@@ -112,7 +112,7 @@ export default function DatabaseTab() {
     <div className="mx-auto max-w-[1400px] px-4 pb-16 sm:px-6">
       {/* обзор */}
       <div className="flex flex-wrap items-center gap-3 pt-8">
-        <div className="relative grid h-12 w-12 place-items-center rounded-2xl text-emerald-500">
+        <div className="relative grid h-12 w-12 place-items-center rounded-2xl text-blue-500">
           <span className="absolute inset-0 rounded-2xl bg-current opacity-[.14]" />
           <Database className="relative h-6 w-6" />
         </div>
@@ -120,7 +120,7 @@ export default function DatabaseTab() {
           <h1 className="text-2xl font-bold tracking-tight">База данных</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">{overview.version} · работает с {new Date(overview.started_at).toLocaleString('ru-RU', { timeZone: 'Asia/Almaty', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <a href={STUDIO_URL} className="ml-auto inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95">
+        <a href={STUDIO_URL} className="ml-auto inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:opacity-95">
           Открыть Supabase Studio <ExternalLink className="h-4 w-4" />
         </a>
       </div>
@@ -146,12 +146,12 @@ export default function DatabaseTab() {
           <div className="border-b border-slate-200 p-3 dark:border-white/[0.07]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Поиск по ${tables.length} таблицам`} className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-sm outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/[0.03]" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Поиск по ${tables.length} таблицам`} className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-sm outline-none focus:border-blue-400 dark:border-white/10 dark:bg-white/[0.03]" />
             </div>
           </div>
           <div className="max-h-72 flex-1 overflow-y-auto p-1.5 lg:max-h-none">
             {filtered.map((t) => (
-              <button key={t.name} onClick={() => pick(t.name)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition ${selected === t.name ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]'}`}>
+              <button key={t.name} onClick={() => pick(t.name)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition ${selected === t.name ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]'}`}>
                 <Table2 className="h-3.5 w-3.5 shrink-0 opacity-60" />
                 <span className="min-w-0 flex-1 truncate font-mono text-xs">{t.name}</span>
                 {!t.rls ? <span title="RLS выключен" className="text-amber-500"><Lock className="h-3 w-3" /></span> : null}
@@ -190,8 +190,8 @@ export default function DatabaseTab() {
                   <option value="">колонка…</option>
                   {(data?.columns || []).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
-                <input value={filterQ} onChange={(e) => setFilterQ(e.target.value)} placeholder="содержит / равно" className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/[0.03]" />
-                <button className="rounded-lg bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600">Фильтр</button>
+                <input value={filterQ} onChange={(e) => setFilterQ(e.target.value)} placeholder="содержит / равно" className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-blue-400 dark:border-white/10 dark:bg-white/[0.03]" />
+                <button className="rounded-lg bg-blue-500 px-3 py-1 text-xs font-medium text-white hover:bg-blue-600">Фильтр</button>
                 {appliedFilter ? <button type="button" onClick={() => { setAppliedFilter(null); setFilterQ(''); setPage(0) }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"><X className="h-3 w-3" />сбросить</button> : null}
                 <div className="ml-auto flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -225,13 +225,13 @@ export default function DatabaseTab() {
                     </thead>
                     <tbody>
                       {data.rows.map((r, i) => (
-                        <tr key={i} onClick={() => setOpenRow(r)} className="cursor-pointer hover:bg-emerald-500/[0.04]">
+                        <tr key={i} onClick={() => setOpenRow(r)} className="cursor-pointer hover:bg-blue-500/[0.04]">
                           {data.columns.map((c) => <td key={c.name} className="max-w-[320px] truncate whitespace-nowrap border-b border-r border-slate-100 px-3 py-1.5 dark:border-white/[0.05]"><Cell value={r[c.name]} type={c.type} /></td>)}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                ) : <div className="grid h-40 place-items-center"><Loader2 className="h-5 w-5 animate-spin text-emerald-400" /></div>}
+                ) : <div className="grid h-40 place-items-center"><Loader2 className="h-5 w-5 animate-spin text-blue-400" /></div>}
                 {data && !data.rows.length && !data.error ? <div className="py-12 text-center text-sm text-slate-400">Строк нет</div> : null}
               </div>
             </> : (
@@ -264,7 +264,7 @@ export default function DatabaseTab() {
           <div onClick={() => setOpenRow(null)} className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px]" />
           <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[560px] flex-col border-l border-slate-200 bg-white dark:border-white/10 dark:bg-[#070b17]">
             <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/[0.07]">
-              <Table2 className="h-4 w-4 text-emerald-500" /><div className="font-mono text-sm font-semibold">{selected}</div>
+              <Table2 className="h-4 w-4 text-blue-500" /><div className="font-mono text-sm font-semibold">{selected}</div>
               <button onClick={() => setOpenRow(null)} className="ml-auto grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto p-5">

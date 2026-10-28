@@ -90,7 +90,7 @@ export default async function HelpPage() {
     <main className="min-h-screen bg-white text-[#475569]">
       <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#16a34a]">
+          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm">К {SITE_NAME}</span>
           </Link>
@@ -102,13 +102,13 @@ export default async function HelpPage() {
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:items-start">
           <aside className="lg:sticky lg:top-8">
             <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#16a34a]">Содержание</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">Содержание</div>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {sections.map((s) => (
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#16a34a]/[0.07] hover:text-[#16a34a]"
+                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
@@ -116,18 +116,18 @@ export default async function HelpPage() {
                 ))}
               </ul>
               <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
-                <Link href="/help/operator" className="font-medium text-[#16a34a] hover:text-[#15803d]">→ Регламент оператора</Link>
-                <Link href="/privacy" className="hover:text-[#16a34a]">→ Политика конфиденциальности</Link>
-                <Link href="/terms" className="hover:text-[#16a34a]">→ Пользовательское соглашение</Link>
-                <Link href="/offer" className="hover:text-[#16a34a]">→ Публичная оферта</Link>
-                <Link href="/sla" className="hover:text-[#16a34a]">→ SLA</Link>
+                <Link href="/help/operator" className="font-medium text-[#2563eb] hover:text-[#1d4ed8]">→ Регламент оператора</Link>
+                <Link href="/privacy" className="hover:text-[#2563eb]">→ Политика конфиденциальности</Link>
+                <Link href="/terms" className="hover:text-[#2563eb]">→ Пользовательское соглашение</Link>
+                <Link href="/offer" className="hover:text-[#2563eb]">→ Публичная оферта</Link>
+                <Link href="/sla" className="hover:text-[#2563eb]">→ SLA</Link>
               </div>
             </div>
           </aside>
 
           <article className="max-w-3xl space-y-10 text-[#475569]">
             <header>
-              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0f2038] sm:text-4xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Руководство пользователя
               </h1>
               <p className="mt-4 text-sm leading-7 text-[#56657d]">
@@ -139,7 +139,7 @@ export default async function HelpPage() {
 
             {/* ── 1 ─────────────────────────────────────────────────────── */}
             <section id="about">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">1. Что такое Orda</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">1. Что такое Orda</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>
                   Orda — система управления точкой продаж: компьютерным клубом,
@@ -155,7 +155,7 @@ export default async function HelpPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-[#e2e8f0] text-left text-[#0f2038]">
+                      <tr className="border-b border-[#e2e8f0] text-left text-[#0b1f3b]">
                         <th className="py-2 pr-4 font-semibold">Программа</th>
                         <th className="py-2 pr-4 font-semibold">Где работает</th>
                         <th className="py-2 font-semibold">Для кого</th>
@@ -194,7 +194,7 @@ export default async function HelpPage() {
 
             {/* ── 2 ─────────────────────────────────────────────────────── */}
             <section id="start">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">2. Организация, точки и права</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">2. Организация, точки и права</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <ol className="list-decimal space-y-1 pl-6">
                   <li>Владелец получает доступ к сайту после оформления подписки. Первый вход — по адресу почты и паролю из письма.</li>
@@ -204,7 +204,7 @@ export default async function HelpPage() {
                   <li><strong>«Управление доступом»</strong> — раздайте права.</li>
                 </ol>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Права</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Права</h3>
                 <p>
                   Права — не «должности», а список из 397 разрешений,
                   сгруппированных по страницам. Из них собираются роли:
@@ -226,9 +226,9 @@ export default async function HelpPage() {
 
             {/* ── 3 ─────────────────────────────────────────────────────── */}
             <section id="web">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">3. Сайт {PRODUCT_SITE}</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">3. Сайт {PRODUCT_SITE}</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
-                <h3 className="text-base font-semibold text-[#0f2038]">Вход</h3>
+                <h3 className="text-base font-semibold text-[#0b1f3b]">Вход</h3>
                 <p>
                   Адрес: <strong>https://www.ordaops.kz</strong>. Логин — рабочая
                   почта, пароль задаётся при первом входе по ссылке из письма.
@@ -236,7 +236,7 @@ export default async function HelpPage() {
                 </p>
 
                 <HelpFigure slot="web-login" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Что где лежит</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Что где лежит</h3>
                 <ul className="list-disc space-y-1 pl-6">
                   <li><strong>Обзор</strong> — выручка дня, смены, что требует внимания.</li>
                   <li><strong>Доходы</strong> и <strong>Расходы</strong> — журналы; расход заводится с фотографией чека.</li>
@@ -250,7 +250,7 @@ export default async function HelpPage() {
                 </ul>
 
                 <HelpFigure slot="web-dashboard" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Порядок первого месяца</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Порядок первого месяца</h3>
                 <ol className="list-decimal space-y-1 pl-6">
                   <li>Точки, сотрудники, операторы.</li>
                   <li>Зарплатные правила: ставка, процент от выручки, надбавка за стаж.</li>
@@ -264,12 +264,12 @@ export default async function HelpPage() {
 
             {/* ── 4 ─────────────────────────────────────────────────────── */}
             <section id="mobile">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">4. Приложение для iPhone и iPad</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">4. Приложение для iPhone и iPad</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
-                <h3 className="text-base font-semibold text-[#0f2038]">Установка</h3>
+                <h3 className="text-base font-semibold text-[#0b1f3b]">Установка</h3>
                 <p>App Store → поиск «Orda Point» → «Загрузить». Нужен iPhone или iPad с iOS 17 и новее.</p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Вход</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Вход</h3>
                 <p>
                   Логин и пароль те же, что на сайте: сотрудник входит по почте,
                   оператор — по логину, который выдал владелец.
@@ -282,13 +282,13 @@ export default async function HelpPage() {
                 </p>
 
                 <HelpFigure slot="mobile-home" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Что видит владелец</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Что видит владелец</h3>
                 <p>
                   Разделы собираются из выданных прав: обзор, доходы и расходы,
                   ОПиУ, склад, зарплата, задачи, отчёты, команда, чат.
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Что видит оператор</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Что видит оператор</h3>
                 <p>Пять вкладок: «Смена», «Продажа», «Ревизия», «Задачи», «Профиль».</p>
                 <ul className="list-disc space-y-1 pl-6">
                   <li><strong>Смена</strong> — открыть смену с указанием старта кассы, видеть выручку, закрыть смену. Если смену открыл сменщик, видно только его имя: выручку и закрытие видит тот, кто открыл.</li>
@@ -298,7 +298,7 @@ export default async function HelpPage() {
                   <li><strong>Профиль</strong> — график, деньги, база знаний, экзамены, чат, сообщения, вход на терминал по QR.</li>
                 </ul>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Закрытие смены</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Закрытие смены</h3>
                 <p>
                   Форма повторяет то, что заполняют на точке: купюры и мелочь
                   отдельно, Kaspi на терминале и онлайн, у ночной смены — сколько
@@ -311,7 +311,7 @@ export default async function HelpPage() {
                 </p>
 
                 <HelpFigure slot="mobile-shift" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Уведомления</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Уведомления</h3>
                 <p>
                   Приходят: новости, личные сообщения, упоминания в чате,
                   объявления, дни рождения операторов, назначенные экзамены и
@@ -322,18 +322,18 @@ export default async function HelpPage() {
 
             {/* ── 5 ─────────────────────────────────────────────────────── */}
             <section id="point">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">5. Программа точки (Windows)</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">5. Программа точки (Windows)</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Это касса на точке: продажи, смены, ревизия, чек-листы.</p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Установка</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Установка</h3>
                 <ol className="list-decimal space-y-1 pl-6">
                   <li>Скачайте установщик <code className="rounded bg-[#eef2f8] px-1">Orda-Point-Setup-&lt;версия&gt;.exe</code> со страницы релизов.</li>
                   <li>Запустите. Windows может предупредить о неизвестном издателе — «Подробнее» → «Выполнить в любом случае».</li>
                   <li>После установки программа запросит настройку.</li>
                 </ol>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Привязка к точке</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Привязка к точке</h3>
                 <p>
                   Программа привязывается не к человеку, а к устройству — так
                   выручка попадает на нужную точку, даже когда за кассой меняются
@@ -352,7 +352,7 @@ export default async function HelpPage() {
                 </p>
 
                 <HelpFigure slot="point-setup" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Вход оператора</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Вход оператора</h3>
                 <p>
                   На привязанном устройстве оператор входит своим логином и
                   паролем. Если пароль временный, программа сразу попросит
@@ -370,13 +370,13 @@ export default async function HelpPage() {
                 <p>
                   Пошаговый порядок смены — от приёма кассы до сменного отчёта —
                   вынесен в отдельный документ:{' '}
-                  <Link href="/help/operator" className="font-medium text-[#16a34a] hover:underline">
+                  <Link href="/help/operator" className="font-medium text-[#2563eb] hover:underline">
                     регламент оператора
                   </Link>
                   . Его можно распечатать и выдать сотруднику.
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Работа за кассой</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Работа за кассой</h3>
                 <ul className="list-disc space-y-1 pl-6">
                   <li><strong>Смена</strong> — открытие с указанием старта кассы, закрытие с пересчётом и сменным отчётом.</li>
                   <li><strong>Продажа</strong> — сканер или поиск, наличные и Kaspi, долг клиента, карта лояльности.</li>
@@ -388,7 +388,7 @@ export default async function HelpPage() {
                 <HelpFigure slot="point-sale" images={images} />
                 <HelpFigure slot="point-shift-close" images={images} />
                 <HelpFigure slot="point-checklist" images={images} />
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Без интернета</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Без интернета</h3>
                 <p>
                   Чеки не теряются: они складываются в очередь на устройстве и
                   уходят на сервер, как только появится связь. Пока очередь не
@@ -401,7 +401,7 @@ export default async function HelpPage() {
 
             {/* ── 6 ─────────────────────────────────────────────────────── */}
             <section id="kiosk">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">6. Киоск самообслуживания</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">6. Киоск самообслуживания</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Киоск для клиентов: выбор услуги и оплата без оператора.</p>
                 <ol className="list-decimal space-y-1 pl-6">
@@ -420,9 +420,9 @@ export default async function HelpPage() {
 
             {/* ── 7 ─────────────────────────────────────────────────────── */}
             <section id="howto">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">7. Как делать основное</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">7. Как делать основное</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
-                <h3 className="text-base font-semibold text-[#0f2038]">Завести оператора</h3>
+                <h3 className="text-base font-semibold text-[#0b1f3b]">Завести оператора</h3>
                 <p>
                   Сайт → «Операторы» → «Добавить», либо в приложении: «Команда» →
                   «плюс». Имя, телефон, точка. Тут же создаётся вход в программу
@@ -431,14 +431,14 @@ export default async function HelpPage() {
                   он привязан).
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Провести расход</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Провести расход</h3>
                 <p>
                   Приложение: «Расходы» → «плюс» → сумма, категория, точка,
                   комментарий, фото чека. Расходы сверх лимита уходят на
                   подтверждение владельцу — он видит их в «Ожидающих расходах».
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Посмотреть прибыль</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Посмотреть прибыль</h3>
                 <p>
                   «Рентабельность (ОПиУ)»: выберите период. Отчёт за период и
                   разбор по месяцам, у каждой строки доля в выручке. Если ФОТ за
@@ -446,7 +446,7 @@ export default async function HelpPage() {
                   ровно на него.
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Назначить аттестацию</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Назначить аттестацию</h3>
                 <p>
                   Сайт → «Экзамены»: выберите точки и операторов, число вопросов
                   и порог сдачи. Вопросы собираются из базы знаний вашей точки —
@@ -456,7 +456,7 @@ export default async function HelpPage() {
                   соберётся новый.
                 </p>
 
-                <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Разобрать жалобу на сообщение</h3>
+                <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Разобрать жалобу на сообщение</h3>
                 <p>
                   Любой сотрудник может пожаловаться на сообщение в чате (долгое
                   нажатие → «Пожаловаться») и заблокировать собеседника в личной
@@ -468,7 +468,7 @@ export default async function HelpPage() {
 
             {/* ── 8 ─────────────────────────────────────────────────────── */}
             <section id="faq">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">8. Частые вопросы</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">8. Частые вопросы</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p><strong>Не могу войти в приложение.</strong> Проверьте, что учётную запись выдал владелец и она активна. Оператор входит по логину, а не по почте. Если пароль временный, войдите сначала в программе на точке — она попросит его сменить.</p>
                 <p><strong>В приложении нет раздела, который есть на сайте.</strong> Значит, право на него не выдано: меню строится из прав. Попросите владельца открыть «Управление доступом».</p>
@@ -481,16 +481,16 @@ export default async function HelpPage() {
 
             {/* ── 9 ─────────────────────────────────────────────────────── */}
             <section id="support">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">9. Поддержка</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">9. Поддержка</h2>
               <div className="mt-4 space-y-2 text-sm leading-7">
                 <p>Почта: <strong>{LEGAL_ENTITY.emailSupport}</strong></p>
                 <p>Телефон: <strong>{LEGAL_ENTITY.phone}</strong></p>
                 <p>Сайт: <strong>https://www.ordaops.kz</strong></p>
                 <p className="pt-2">
-                  Правовые документы: <Link href="/privacy" className="text-[#16a34a] hover:underline">политика конфиденциальности</Link>,{' '}
-                  <Link href="/terms" className="text-[#16a34a] hover:underline">пользовательское соглашение</Link>,{' '}
-                  <Link href="/offer" className="text-[#16a34a] hover:underline">оферта</Link>,{' '}
-                  <Link href="/sla" className="text-[#16a34a] hover:underline">SLA</Link>.
+                  Правовые документы: <Link href="/privacy" className="text-[#2563eb] hover:underline">политика конфиденциальности</Link>,{' '}
+                  <Link href="/terms" className="text-[#2563eb] hover:underline">пользовательское соглашение</Link>,{' '}
+                  <Link href="/offer" className="text-[#2563eb] hover:underline">оферта</Link>,{' '}
+                  <Link href="/sla" className="text-[#2563eb] hover:underline">SLA</Link>.
                 </p>
               </div>
             </section>

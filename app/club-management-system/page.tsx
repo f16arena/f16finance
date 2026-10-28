@@ -80,18 +80,18 @@ export default function ClubManagementSystemPage() {
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-8 sm:px-8 lg:px-10">
         <div className="flex items-center justify-between rounded-2xl border border-[#e2e8f0] bg-white/80 px-5 py-4 backdrop-blur">
           <div>
-            <div className="text-lg font-semibold text-[#0f2038]">Orda Control</div>
+            <div className="text-lg font-semibold text-[#0b1f3b]">Orda Control</div>
             <div className="text-sm text-[#5b6b82]">Система для управления сменами, командой и финансами</div>
           </div>
           <div className="flex items-center gap-3">
             <Button
               asChild
               variant="ghost"
-              className="hidden text-[#56657d] hover:text-[#16a34a] sm:inline-flex"
+              className="hidden text-[#56657d] hover:text-[#2563eb] sm:inline-flex"
             >
               <Link href="/">На главную</Link>
             </Button>
-            <Button asChild className="bg-none bg-[#16a34a] text-white hover:bg-[#15803d]">
+            <Button asChild className="bg-none bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
               <Link href="/login">
                 Войти
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -104,17 +104,17 @@ export default function ClubManagementSystemPage() {
       <section className="mx-auto max-w-6xl px-6 pb-14 sm:px-8 lg:px-10">
         <Card className="border-[#d6dde8] bg-[#eef2f8] p-8 text-[#475569] shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
           <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#16a34a]/20 bg-[#16a34a]/[0.07] px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-[#15803d]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#2563eb]/20 bg-[#2563eb]/[0.07] px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-[#1d4ed8]">
               {eyebrow}
             </div>
-            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.04em] text-[#0f2038] sm:text-5xl">{title}</h1>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.04em] text-[#0b1f3b] sm:text-5xl">{title}</h1>
             <p className="mt-5 text-lg leading-8 text-[#56657d]">{description}</p>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {bullets.map((bullet) => (
               <div key={bullet} className="flex items-start gap-3 rounded-2xl border border-[#d6dde8] bg-white px-4 py-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-[#16a34a]" />
+                <CheckCircle2 className="mt-0.5 h-5 w-5 text-[#2563eb]" />
                 <div className="text-sm leading-6 text-[#475569]">{bullet}</div>
               </div>
             ))}
@@ -126,7 +126,7 @@ export default function ClubManagementSystemPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {sections.map((section) => (
             <Card key={section.title} className="border-[#d6dde8] bg-white p-6 text-[#475569] shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#0f2038]">{section.title}</h2>
+              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#0b1f3b]">{section.title}</h2>
               <p className="mt-3 text-sm leading-7 text-[#56657d]">{section.text}</p>
             </Card>
           ))}
@@ -135,11 +135,11 @@ export default function ClubManagementSystemPage() {
 
       <section className="mx-auto max-w-6xl px-6 pb-12 sm:px-8 lg:px-10">
         <Card className="border-[#d6dde8] bg-[#eef2f8] p-6 text-[#475569] shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#0f2038]">Частые вопросы</h2>
+          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#0b1f3b]">Частые вопросы</h2>
           <div className="mt-5 space-y-4">
             {faq.map((item) => (
               <div key={item.question} className="rounded-2xl border border-[#d6dde8] bg-white p-4">
-                <h3 className="text-base font-semibold text-[#0f2038]">{item.question}</h3>
+                <h3 className="text-base font-semibold text-[#0b1f3b]">{item.question}</h3>
                 <p className="mt-2 text-sm leading-7 text-[#56657d]">{item.answer}</p>
               </div>
             ))}
@@ -148,17 +148,17 @@ export default function ClubManagementSystemPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-20 sm:px-8 lg:px-10">
-        <Card className="border-[#d6dde8] bg-[linear-gradient(135deg,rgba(22,163,74,0.10),rgba(246,248,251,0.9))] p-8 text-[#475569] shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-          <h2 className="text-3xl font-semibold tracking-[-0.03em] text-[#0f2038]">{ctaTitle}</h2>
+        <Card className="border-[#d6dde8] bg-[linear-gradient(135deg,rgba(37,99,235,0.10),rgba(246,248,251,0.9))] p-8 text-[#475569] shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
+          <h2 className="text-3xl font-semibold tracking-[-0.03em] text-[#0b1f3b]">{ctaTitle}</h2>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[#56657d]">{ctaText}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="bg-none bg-[#16a34a] text-white hover:bg-[#15803d]">
+            <Button asChild size="lg" className="bg-none bg-[#2563eb] text-white hover:bg-[#1d4ed8]">
               <Link href="/login">
                 Открыть систему
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-[#d6dde8] bg-white text-[#56657d] hover:bg-[#eef2f8] hover:text-[#16a34a]">
+            <Button asChild size="lg" variant="outline" className="border-[#d6dde8] bg-white text-[#56657d] hover:bg-[#eef2f8] hover:text-[#2563eb]">
               <Link href="/">Вернуться на главную</Link>
             </Button>
           </div>

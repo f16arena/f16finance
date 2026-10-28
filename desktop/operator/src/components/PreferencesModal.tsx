@@ -151,7 +151,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
                 onClick={() => onThemeChange(value)}
                 className={`flex flex-1 flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3 transition ${
                   theme === value
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                     : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                 }`}
               >
@@ -178,7 +178,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
                 onClick={() => onScaleChange(value)}
                 className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-semibold transition ${
                   uiScale === value
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                     : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                 }`}
               >
@@ -211,7 +211,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
                   }}
                   className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-semibold transition ${
                     lite === value
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                       : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                   }`}
                 >
@@ -242,7 +242,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
                 onClick={() => onFontChange(value)}
                 className={`flex-1 rounded-xl border-2 py-3 font-bold transition ${size} ${
                   fontSize === value
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                     : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                 }`}
               >
@@ -267,7 +267,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
                 onClick={() => onSalesLayoutChangeLocal(value)}
                 className={`flex flex-1 flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3 transition ${
                   salesLayout === value
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                     : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                 }`}
               >
@@ -291,7 +291,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
             onClick={() => onSoundChange(!sound)}
             className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 transition ${
               sound
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                 : 'border-slate-200 dark:border-slate-700'
             }`}
           >
@@ -299,7 +299,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
               {sound ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
               {sound ? 'Звуки включены' : 'Звуки отключены'}
             </span>
-            <div className={`h-6 w-12 rounded-full transition ${sound ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'} relative`}>
+            <div className={`h-6 w-12 rounded-full transition ${sound ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'} relative`}>
               <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${sound ? 'left-6' : 'left-0.5'}`} />
             </div>
           </button>
@@ -313,7 +313,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
             disabled={!customerDisplayAvailable && !customerDisplay}
             className={`flex w-full items-center justify-between rounded-xl border-2 px-4 py-3 transition disabled:cursor-not-allowed disabled:opacity-50 ${
               customerDisplay
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
                 : 'border-slate-200 dark:border-slate-700'
             }`}
           >
@@ -321,7 +321,7 @@ export function PreferencesModal({ open, onClose, onSalesLayoutChange, v2 }: Pre
               <MonitorSmartphone className="h-5 w-5" />
               {customerDisplay ? 'Окно клиента открыто' : 'Окно клиента отключено'}
             </span>
-            <div className={`relative h-6 w-12 rounded-full transition ${customerDisplay ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+            <div className={`relative h-6 w-12 rounded-full transition ${customerDisplay ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
               <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${customerDisplay ? 'left-6' : 'left-0.5'}`} />
             </div>
           </button>

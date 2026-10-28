@@ -256,7 +256,7 @@ export default function PurchasePlanPage() {
               ))}
             </NativeSelect>
           </div>
-          <Button onClick={calculate} disabled={loading || !companyId} className="bg-emerald-600 hover:bg-emerald-500">
+          <Button onClick={calculate} disabled={loading || !companyId} className="bg-blue-600 hover:bg-blue-500">
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Calculator className="h-4 w-4 mr-1.5" />}
             Рассчитать
           </Button>

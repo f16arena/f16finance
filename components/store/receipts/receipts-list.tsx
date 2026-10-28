@@ -21,7 +21,7 @@ function receiptTitle(r: InventoryReceipt) {
 
 function InvoiceLink({ r, className = '' }: { r: InventoryReceipt; className?: string }) {
   return r.invoice_file_url ? (
-    <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className={`truncate font-mono text-xs text-emerald-700 underline dark:text-emerald-300 ${className}`}>
+    <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className={`truncate font-mono text-xs text-blue-700 underline dark:text-blue-300 ${className}`}>
       {r.invoice_number || 'Открыть'}
     </a>
   ) : (

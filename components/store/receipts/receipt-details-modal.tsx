@@ -38,7 +38,7 @@ export function ReceiptDetailsModal(props: {
             <Fact
               label="Накладная"
               value={r.invoice_file_url ? (
-                <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-emerald-700 underline dark:text-emerald-300">{r.invoice_number || 'Открыть файл'}</a>
+                <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-blue-700 underline dark:text-blue-300">{r.invoice_number || 'Открыть файл'}</a>
               ) : (r.invoice_number || <span className="text-rose-700 dark:text-rose-300">Нет файла</span>)}
             />
             <Fact

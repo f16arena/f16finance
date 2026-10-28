@@ -263,13 +263,13 @@ function AccountInfo({ account, onCopyUsername, onCopyPassword, onClose }: {
       maxWidth="max-w-md"
       title={
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-emerald-500/20"><Key className="w-5 h-5 text-emerald-400" /></div>
+          <div className="p-2 rounded-lg bg-blue-500/20"><Key className="w-5 h-5 text-blue-400" /></div>
           <span>Аккаунт создан!</span>
         </div>
       }
       footer={
         <div className="flex justify-end">
-          <Button onClick={onClose} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white">
+          <Button onClick={onClose} className="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white">
             <Check className="w-4 h-4 mr-2" />Понятно
           </Button>
         </div>
@@ -648,7 +648,7 @@ function DocumentUpload({
             size="sm"
             onClick={uploadDocument}
             disabled={uploading || !selectedFile || !documentType}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             {uploading ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -836,7 +836,7 @@ function DocumentList({
                   variant="outline"
                   onClick={() => handleVerify(doc.id)}
                   disabled={verifying === doc.id}
-                  className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs h-7"
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-xs h-7"
                 >
                   {verifying === doc.id ? (
                     <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -1724,7 +1724,7 @@ export default function OperatorProfilePage() {
                   <Button
                     onClick={handleCreateAccount}
                     disabled={creatingAccount}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
+                    className="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white border-0"
                   >
                     {creatingAccount ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1751,7 +1751,7 @@ export default function OperatorProfilePage() {
                       <Button
                         onClick={handleSaveProfile}
                         disabled={saving}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
                       >
                         {saving ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1819,7 +1819,7 @@ export default function OperatorProfilePage() {
             <Card className="p-4 bg-white dark:bg-gray-900/40 backdrop-blur-xl border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-emerald-500/20">
-                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  <Calendar className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Устроился</p>
@@ -2434,7 +2434,7 @@ export default function OperatorProfilePage() {
                       size="sm"
                       onClick={handleAddWork}
                       disabled={saving || !newWork.position || !newWork.start_date}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       {saving ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -2774,7 +2774,7 @@ export default function OperatorProfilePage() {
           {(profile?.bank_name || profile?.bank_account || profile?.bank_card_number || isEditing) && (
             <Card className="p-6 bg-white dark:bg-gray-900/40 backdrop-blur-xl border-slate-200 dark:border-white/5">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <CreditCard className="w-5 h-5 text-blue-400" />
                 Банковские реквизиты
               </h3>
 

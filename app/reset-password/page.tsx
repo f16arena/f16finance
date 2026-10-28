@@ -202,7 +202,7 @@ function ResetPasswordContent() {
                     <li>В будущем входите по email и этому паролю.</li>
                   </ol>
                 </div>
-                <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+                <div className="rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-200">
                   Если вы попали сюда из письма-приглашения, этот шаг завершает активацию аккаунта. После сохранения этот пароль станет постоянным.
                 </div>
               </div>
@@ -231,7 +231,7 @@ function ResetPasswordContent() {
               </div>
             ) : success ? (
               <div className="space-y-4">
-                <div className="flex items-start gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-300">
+                <div className="flex items-start gap-2 rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-4 text-sm text-blue-300">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{success}</span>
                 </div>

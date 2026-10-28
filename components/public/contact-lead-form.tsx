@@ -77,7 +77,7 @@ export function ContactLeadForm() {
             value={form.name}
             onChange={(event) => updateField('name', event.target.value)}
             placeholder="Как к вам обращаться"
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
         <div className="space-y-2">
@@ -87,7 +87,7 @@ export function ContactLeadForm() {
             value={form.phone}
             onChange={(event) => updateField('phone', event.target.value)}
             placeholder="+7 ..."
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
       </div>
@@ -100,7 +100,7 @@ export function ContactLeadForm() {
             value={form.niche}
             onChange={(event) => updateField('niche', event.target.value)}
             placeholder="Клуб, кофейня, сеть точек..."
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
         <div className="space-y-2">
@@ -109,7 +109,7 @@ export function ContactLeadForm() {
             value={form.company}
             onChange={(event) => updateField('company', event.target.value)}
             placeholder="Если хотите, можно указать"
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
       </div>
@@ -121,7 +121,7 @@ export function ContactLeadForm() {
             value={form.telegram}
             onChange={(event) => updateField('telegram', event.target.value)}
             placeholder="@username"
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
         <div className="space-y-2">
@@ -131,7 +131,7 @@ export function ContactLeadForm() {
             value={form.email}
             onChange={(event) => updateField('email', event.target.value)}
             placeholder="email@company.com"
-            className="h-11 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+            className="h-11 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
           />
         </div>
       </div>
@@ -142,7 +142,7 @@ export function ContactLeadForm() {
           value={form.message}
           onChange={(event) => updateField('message', event.target.value)}
           placeholder="Например: смены, точку, Telegram-отчеты, зарплату, ОПиУ..."
-          className="min-h-32 border-[#c8d1de] bg-white text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:ring-[#16a34a]/30"
+          className="min-h-32 border-[#c8d1de] bg-white text-[#0b1f3b] placeholder:text-[#94a3b8] focus-visible:ring-[#2563eb]/30"
         />
       </div>
 
@@ -155,7 +155,7 @@ export function ContactLeadForm() {
         <div
           className={`rounded-2xl border px-4 py-3 text-sm ${
             status.type === 'success'
-              ? 'border-[#16a34a]/30 bg-[#16a34a]/[0.08] text-[#15803d]'
+              ? 'border-[#2563eb]/30 bg-[#2563eb]/[0.08] text-[#1d4ed8]'
               : 'border-red-300 bg-red-50 text-[#dc2626]'
           }`}
         >
@@ -163,7 +163,7 @@ export function ContactLeadForm() {
         </div>
       ) : null}
 
-      <Button type="submit" disabled={isPending} size="lg" className="bg-gradient-to-br from-[#1db955] to-[#15803d] text-white shadow-[0_10px_26px_-8px_rgba(22,163,74,0.5)] hover:from-[#15803d] hover:to-[#15803d]">
+      <Button type="submit" disabled={isPending} size="lg" className="bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.5)] hover:from-[#1d4ed8] hover:to-[#1d4ed8]">
         {isPending ? 'Отправляем...' : 'Оставить заявку'}
       </Button>
     </form>

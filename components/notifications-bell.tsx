@@ -264,7 +264,7 @@ export function NotificationsBell() {
                 <button
                   type="button"
                   onClick={handleMarkAllRead}
-                  className="flex items-center gap-1 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 transition hover:border-emerald-500/40 hover:bg-emerald-500/20 dark:text-emerald-300"
+                  className="flex items-center gap-1 rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-700 transition hover:border-blue-500/40 hover:bg-blue-500/20 dark:text-blue-300"
                   title="Отметить все как прочитанные"
                 >
                   <Check className="h-3 w-3" />

@@ -159,7 +159,7 @@ export function V2Shell(props: {
       <div className="h-9 shrink-0 drag-region" />
       <header className="glass no-drag z-10 mx-4 flex h-16 shrink-0 items-center gap-4 rounded-[22px] px-3">
         <div className="flex min-w-0 items-center gap-3 pl-1">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#5ac8fa] to-[#0a84ff] text-[15px] font-semibold text-white">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#60a5fa] to-[#2563eb] text-[15px] font-semibold text-white">
             {initials || 'OP'}
           </div>
           <div className="min-w-0">

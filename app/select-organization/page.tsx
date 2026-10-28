@@ -1400,7 +1400,7 @@ function SelectOrganizationContent() {
                   <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="mb-4 flex items-center gap-3">
                       <div className="rounded-2xl bg-emerald-500/10 p-3">
-                        <Sparkles className="h-5 w-5 text-emerald-300" />
+                        <Sparkles className="h-5 w-5 text-blue-300" />
                       </div>
                       <div>
                         <h2 className="text-base font-semibold text-white">Пульт владельца SaaS</h2>
@@ -2203,7 +2203,7 @@ function SelectOrganizationContent() {
                                   }
                                   className={`rounded-2xl border px-4 py-4 text-left transition ${
                                     enabled
-                                      ? 'border-emerald-400 bg-emerald-500/10'
+                                      ? 'border-blue-400 bg-blue-500/10'
                                       : 'border-white/10 bg-slate-900/50 hover:border-white/20'
                                   }`}
                                 >
@@ -2351,7 +2351,7 @@ function SelectOrganizationContent() {
                                         onClick={() => setOrganizationPointScale(option.value)}
                                         className={`rounded-2xl border px-4 py-3 text-left transition ${
                                           organizationPointScale === option.value
-                                            ? 'border-emerald-400 bg-emerald-500/10'
+                                            ? 'border-blue-400 bg-blue-500/10'
                                             : 'border-white/10 bg-black/20 hover:border-white/20'
                                         }`}
                                       >
@@ -2650,7 +2650,7 @@ function SelectOrganizationContent() {
                   <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                     <div className="mb-4 flex items-center gap-3">
                       <div className="rounded-2xl bg-emerald-500/10 p-3">
-                        <Store className="h-5 w-5 text-emerald-300" />
+                        <Store className="h-5 w-5 text-blue-300" />
                       </div>
                       <div>
                         <h2 className="text-base font-semibold text-white">Добавить новую точку</h2>

@@ -37,7 +37,7 @@ function parseDecimal(raw: string): number | null {
   const n = Number(clean)
   return Number.isFinite(n) ? n : null
 }
-const inputCls = 'rounded-xl border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/40'
+const inputCls = 'rounded-xl border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/40'
 // Единицы измерения — выпадающие списки вместо ручного ввода.
 const UNITS = ['г', 'кг', 'мл', 'л', 'шт', 'уп'] // сырьё и компоненты
 const OUTPUT_UNITS = ['порц', 'шт', 'кг', 'г', 'л', 'мл', 'уп'] // выход блюда
@@ -336,7 +336,7 @@ export default function ProductionPage() {
             <button onClick={loadJournal} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-slate-100 dark:bg-white/5 px-3 py-2 text-xs font-medium text-body hover:bg-slate-200 dark:hover:bg-white/10">
               Журнал
             </button>
-            <button onClick={() => setShowForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500">
+            <button onClick={() => setShowForm((v) => !v)} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500">
               <Plus className="h-3.5 w-3.5" /> Новая техкарта
             </button>
           </div>
@@ -378,7 +378,7 @@ export default function ProductionPage() {
               <p className={hintCls}>Цена за 1 {ingUnit}.</p>
             </div>
             {can('production.create_ingredient') && (
-              <button onClick={addIngredient} disabled={savingIng} className="mb-5 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50">
+              <button onClick={addIngredient} disabled={savingIng} className="mb-5 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
                 {savingIng ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Добавить
               </button>
             )}
@@ -547,7 +547,7 @@ export default function ProductionPage() {
           <div className="mt-4 flex justify-end gap-2">
             <button onClick={() => { setShowForm(false); resetForm() }} className="rounded-xl border border-border bg-slate-100 dark:bg-white/5 px-4 py-2 text-sm text-body hover:bg-slate-200 dark:hover:bg-white/10">Отмена</button>
             {can('production.create') && (
-              <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50">
+              <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Сохранить
               </button>
             )}
@@ -563,7 +563,7 @@ export default function ProductionPage() {
             <div className="w-40 shrink-0"><DatePicker className={inputCls} value={anFrom} onChange={setAnFrom} /></div>
             <span className="text-slate-500">—</span>
             <div className="w-40 shrink-0"><DatePicker className={inputCls} value={anTo} onChange={setAnTo} /></div>
-            <button onClick={runAnalysis} disabled={anLoading} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50">
+            <button onClick={runAnalysis} disabled={anLoading} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
               {anLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Посчитать
             </button>
             {can('production.writeoff') && (
@@ -691,7 +691,7 @@ export default function ProductionPage() {
             <button
               onClick={submitQty}
               disabled={qtyBusy}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
             >
               {qtyBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {qtyPrompt?.kind === 'receipt' ? 'Оприходовать' : 'Записать'}

@@ -35,7 +35,7 @@ export function ChangeCalculator({ amountDue, paymentLabel = 'Получено' 
   return (
     <div className="border-t border-slate-200 px-5 py-3 dark:border-slate-800">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-        <Banknote className="h-4 w-4 text-emerald-500" />
+        <Banknote className="h-4 w-4 text-blue-500" />
         Калькулятор сдачи
       </div>
       <div className="flex items-center gap-2">
@@ -48,7 +48,7 @@ export function ChangeCalculator({ amountDue, paymentLabel = 'Получено' 
             value={received}
             onChange={(e) => setReceived(e.target.value)}
             placeholder={String(amountDue)}
-            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm tabular-nums focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm tabular-nums focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
         </div>
         <div className="flex-1">
@@ -58,7 +58,7 @@ export function ChangeCalculator({ amountDue, paymentLabel = 'Получено' 
               !received
                 ? 'border-slate-200 text-slate-400 dark:border-slate-700'
                 : isExact
-                  ? 'border-emerald-500 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                   : isShort
                     ? 'border-rose-500 text-rose-600 dark:border-rose-400 dark:text-rose-400'
                     : 'border-amber-500 text-amber-600 dark:border-amber-400 dark:text-amber-400'

@@ -296,7 +296,7 @@ export function PointPositionsList(props: { companies: Company[]; canEdit: boole
                 type="button"
                 onClick={save}
                 disabled={saving || !draft.name.trim()}
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/15 px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-200 hover:bg-blue-500/25 disabled:opacity-40"
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Сохранить
               </button>

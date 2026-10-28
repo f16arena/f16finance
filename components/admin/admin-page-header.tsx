@@ -6,18 +6,18 @@ import { ArrowLeft } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-// Soft modern: тёмный, но тёплый — мягкое цветное свечение по углам,
+// Soft modern (ORDA CONTROL: navy + кобальт): мягкое цветное свечение по углам,
 // градиентный чип-иконка, плавные закругления. Акцент задаёт оттенок свечения.
 const ACCENT = {
   emerald: {
-    glow1: 'bg-emerald-500/15',
+    glow1: 'bg-blue-500/12',
     glow2: 'bg-sky-500/10',
-    chip: 'from-emerald-400/30 to-sky-400/20 text-emerald-700 dark:text-emerald-100',
+    chip: 'from-blue-400/25 to-sky-400/15 text-blue-700 dark:text-blue-100',
   },
   amber: {
     glow1: 'bg-amber-500/15',
-    glow2: 'bg-orange-500/10',
-    chip: 'from-amber-400/30 to-orange-400/20 text-amber-700 dark:text-amber-100',
+    glow2: 'bg-sky-500/10',
+    chip: 'from-amber-400/30 to-sky-400/20 text-amber-700 dark:text-amber-100',
   },
   violet: {
     glow1: 'bg-violet-500/15',

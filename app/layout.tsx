@@ -13,7 +13,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/core/site'
 import './globals.css'
 
 export const viewport: Viewport = {
-  themeColor: '#16a34a',
+  themeColor: '#0b1f3b',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',

@@ -1213,7 +1213,7 @@ export default function InventorySalesPageMinimal({
                 size="sm"
                 onClick={() => void handleSimpleOpenShift()}
                 disabled={simpleShiftBusy}
-                className="h-9 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+                className="h-9 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
                 title="Открыть смену"
               >
                 {simpleShiftBusy ? '…' : 'Открыть смену'}
@@ -2066,7 +2066,7 @@ export default function InventorySalesPageMinimal({
             </div>
             <div className="flex justify-between gap-3 border-t border-border p-4">
               <Button variant="outline" onClick={onLogout} disabled={simpleShiftBusy} className="h-11 px-6">Выйти</Button>
-              <Button onClick={() => void handleSimpleOpenShift()} disabled={simpleShiftBusy} className="h-11 px-6 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={() => void handleSimpleOpenShift()} disabled={simpleShiftBusy} className="h-11 px-6 bg-blue-600 text-white hover:bg-blue-700">
                 {simpleShiftBusy ? 'Открываю…' : 'Открыть смену'}
               </Button>
             </div>

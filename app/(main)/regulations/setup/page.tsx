@@ -243,7 +243,7 @@ export default function KnowledgeSetupPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="space-y-3 p-5">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Database className="h-4 w-4 text-emerald-500" />
+                  <Database className="h-4 w-4 text-blue-500" />
                   Собрать из данных системы
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -419,7 +419,7 @@ export default function KnowledgeSetupPage() {
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] ${
                               topic.factsAvailable
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-300'
                                 : 'bg-slate-500/10 text-muted-foreground'
                             }`}
                           >
@@ -517,7 +517,7 @@ export default function KnowledgeSetupPage() {
               </div>
               <Link
                 href="/regulations/exams"
-                className="rounded-xl bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-500/25 dark:text-emerald-200"
+                className="rounded-xl bg-blue-500/15 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-500/25 dark:text-blue-200"
               >
                 Назначить экзамен →
               </Link>

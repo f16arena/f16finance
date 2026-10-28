@@ -19,7 +19,7 @@ export function ScrollProgress() {
     <motion.div
       aria-hidden
       style={{ scaleX: scrollYProgress }}
-      className="fixed inset-x-0 top-0 z-[60] h-[3px] origin-left bg-gradient-to-r from-[#16a34a] via-[#22c55e] to-[#16a34a]"
+      className="fixed inset-x-0 top-0 z-[60] h-[3px] origin-left bg-gradient-to-r from-[#2563eb] via-[#3b82f6] to-[#2563eb]"
     />
   )
 }
@@ -64,7 +64,7 @@ export function GrowBars({ values, highlightLast = true }: { values: number[]; h
           initial={rm ? { height: `${h}%` } : { height: '8%' }}
           animate={inView ? { height: `${h}%` } : undefined}
           transition={{ duration: 0.7, ease: EASE, delay: 0.08 * i }}
-          className={`flex-1 rounded-t-[3px] bg-gradient-to-t from-[#16a34a]/25 ${highlightLast && i === values.length - 1 ? 'to-[#16a34a]' : 'to-[#16a34a]/80'}`}
+          className={`flex-1 rounded-t-[3px] bg-gradient-to-t from-[#2563eb]/25 ${highlightLast && i === values.length - 1 ? 'to-[#2563eb]' : 'to-[#2563eb]/80'}`}
         />
       ))}
     </div>
@@ -111,8 +111,8 @@ function TgBubble({ side, children }: { side: 'out' | 'in'; children: ReactNode 
       <div
         className={
           side === 'out'
-            ? 'max-w-[82%] rounded-[14px] rounded-br-[4px] bg-[#16a34a] px-3.5 py-2.5 text-[13px] leading-[1.5] text-white'
-            : 'max-w-[82%] rounded-[14px] rounded-bl-[4px] border border-[#e2e8f0] bg-white px-3.5 py-2.5 text-[13px] leading-[1.5] text-[#0f2038]'
+            ? 'max-w-[82%] rounded-[14px] rounded-br-[4px] bg-[#2563eb] px-3.5 py-2.5 text-[13px] leading-[1.5] text-white'
+            : 'max-w-[82%] rounded-[14px] rounded-bl-[4px] border border-[#e2e8f0] bg-white px-3.5 py-2.5 text-[13px] leading-[1.5] text-[#0b1f3b]'
         }
       >
         {children}
@@ -137,7 +137,7 @@ export function TelegramDemo() {
     },
     { side: 'in', body: <>Распознал накладную: <b>14 позиций на 182 400 ₸</b>. Все сопоставлены с каталогом. Создать приёмку?</> },
     { side: 'out', body: <>Да</> },
-    { side: 'in', body: <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 shrink-0 text-[#16a34a]" />Приёмка создана, остатки склада обновлены.</span> },
+    { side: 'in', body: <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 shrink-0 text-[#2563eb]" />Приёмка создана, остатки склада обновлены.</span> },
     { side: 'in', body: <><b>Итоги дня:</b> выручка 412 800 ₸ (+8%), прибыль 96 200 ₸. Аномалий нет. Подробный отчёт — /report</> },
   ]
   const [step, setStep] = useState(rm ? messages.length : 0)
@@ -150,9 +150,9 @@ export function TelegramDemo() {
   return (
     <div ref={ref} className="rounded-[20px] border border-[#d6dde8] bg-[#eef2f8] p-4">
       <div className="flex items-center gap-2.5 border-b border-[#dbe3ee] pb-3">
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-[#16a34a] text-white"><Bot className="h-4 w-4" /></span>
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-[#2563eb] text-white"><Bot className="h-4 w-4" /></span>
         <div>
-          <div className="text-[13px] font-bold text-[#0f2038]">Orda Bot</div>
+          <div className="text-[13px] font-bold text-[#0b1f3b]">Orda Bot</div>
           <div className="text-[11px] text-[#64748b]">Telegram · онлайн</div>
         </div>
       </div>
@@ -211,13 +211,13 @@ export function CopilotDemo() {
 
   return (
     <div ref={ref} className="rounded-[20px] border border-[#d6dde8] bg-white p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-      <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#15803d]">
+      <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#1d4ed8]">
         <Bot className="h-4 w-4" />AI-копилот
       </div>
-      <div className="mt-3 flex min-h-[52px] items-center rounded-[13px] border border-[#c8d1de] bg-[#f7f9fc] px-4 py-3">
-        <span className="text-[14.5px] font-medium text-[#0f2038]">
+      <div className="mt-3 flex min-h-[52px] items-center rounded-[13px] border border-[#c8d1de] bg-[#f4f5f2] px-4 py-3">
+        <span className="text-[14.5px] font-medium text-[#0b1f3b]">
           {typed}
-          {!rm && <motion.span aria-hidden className="ml-0.5 inline-block h-[16px] w-[2px] translate-y-[3px] bg-[#16a34a]" animate={{ opacity: [1, 0, 1] }} transition={{ duration: 0.9, repeat: Infinity }} />}
+          {!rm && <motion.span aria-hidden className="ml-0.5 inline-block h-[16px] w-[2px] translate-y-[3px] bg-[#2563eb]" animate={{ opacity: [1, 0, 1] }} transition={{ duration: 0.9, repeat: Infinity }} />}
         </span>
       </div>
       <div className="mt-3 min-h-[76px]">
@@ -229,10 +229,10 @@ export function CopilotDemo() {
               animate={{ opacity: 1, y: 0 }}
               exit={rm ? undefined : { opacity: 0 }}
               transition={{ duration: 0.4, ease: EASE }}
-              className="flex items-start gap-2.5 rounded-[13px] border border-[#16a34a]/25 bg-[#16a34a]/[0.06] px-4 py-3"
+              className="flex items-start gap-2.5 rounded-[13px] border border-[#2563eb]/25 bg-[#2563eb]/[0.06] px-4 py-3"
             >
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#16a34a]" />
-              <span className="text-[13.5px] leading-[1.55] text-[#0f2038]">{COPILOT_SCENES[scene].result}</span>
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#2563eb]" />
+              <span className="text-[13.5px] leading-[1.55] text-[#0b1f3b]">{COPILOT_SCENES[scene].result}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -273,23 +273,23 @@ export function OfflineDemo() {
             initial={rm ? false : { opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={rm ? undefined : { opacity: 0 }}
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.net ? 'bg-[#16a34a]/10 text-[#15803d]' : 'bg-[#f97316]/10 text-[#c2570c]'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.net ? 'bg-[#2563eb]/10 text-[#1d4ed8]' : 'bg-[#f97316]/10 text-[#c2570c]'}`}
           >
             {s.net ? <Wifi className="h-3.5 w-3.5" /> : <CloudOff className="h-3.5 w-3.5" />}
             {s.net ? 'Сеть восстановлена' : 'Нет интернета'}
           </motion.span>
         </AnimatePresence>
       </div>
-      <div className="mt-3 flex items-center justify-between rounded-[12px] bg-[#f7f9fc] px-4 py-3">
-        <span className="text-[13.5px] font-medium text-[#0f2038]">Продажи продолжаются</span>
+      <div className="mt-3 flex items-center justify-between rounded-[12px] bg-[#f4f5f2] px-4 py-3">
+        <span className="text-[13.5px] font-medium text-[#0b1f3b]">Продажи продолжаются</span>
         <AnimatePresence mode="wait">
           {s.done ? (
-            <motion.span key="done" initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#15803d]">
+            <motion.span key="done" initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#1d4ed8]">
               <CheckCircle2 className="h-4 w-4" />Синхронизировано
             </motion.span>
           ) : s.syncing ? (
-            <motion.span key="sync" initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#0f2038]">
-              <RefreshCw className="h-4 w-4 animate-spin text-[#16a34a]" />Отправка очереди…
+            <motion.span key="sync" initial={rm ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#0b1f3b]">
+              <RefreshCw className="h-4 w-4 animate-spin text-[#2563eb]" />Отправка очереди…
             </motion.span>
           ) : (
             <motion.span key={`q${s.queue}`} initial={rm ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-[12.5px] font-semibold text-[#c2570c]">

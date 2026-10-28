@@ -318,7 +318,7 @@ function CompanyAssignmentEditor({
                 <button
                   type="button"
                   onClick={() => toggle(c.id)}
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/15"
+                  className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:text-blue-200 hover:bg-blue-500/15"
                 >
                   + Добавить
                 </button>

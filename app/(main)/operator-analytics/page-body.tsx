@@ -468,7 +468,7 @@ const StatCard = memo(({ title, value, subValue, icon: Icon, trend, color = 'blu
 }) => {
   const colors: Record<string, string> = {
     blue: 'from-blue-500 to-blue-400',
-    green: 'from-emerald-500 to-teal-500',
+    green: 'from-blue-500 to-teal-500',
     red: 'from-rose-500 to-red-500',
     amber: 'from-amber-500 to-orange-500',
     violet: 'from-amber-400 to-amber-600',
@@ -684,7 +684,7 @@ const OperatorDetailsModal = memo(({
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/20">
+                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20">
                   <div className="flex items-center justify-between mb-2">
                     <DollarSign className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs text-slate-500">Выручка</span>
@@ -821,7 +821,7 @@ const OperatorDetailsModal = memo(({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
                   <div className="flex items-center gap-2 mb-3">
-                    <Award className="w-5 h-5 text-emerald-400" />
+                    <Award className="w-5 h-5 text-blue-400" />
                     <span className="font-medium text-emerald-400">Премии</span>
                   </div>
                   <p className="text-2xl font-bold text-emerald-400 mb-2">{formatMoneyFull(operator.manualPlus)}</p>
@@ -1621,7 +1621,7 @@ function OperatorAnalyticsContent() {
       ],
       sections: [
         { type: 'bars', title: 'Топ операторов по выручке', hint: 'топ по сумме', items: byTurnover.slice(0, 6).map((o) => ({ label: o.name, amount: o.turnover, ratio: o.turnover / maxTurn })) },
-        { type: 'split', title: 'Структура оплат', parts: [{ label: 'Нал', pct: cashPct, amount: cashT, color: '#16a34a' }, { label: 'Безнал', pct: 100 - cashPct, amount: cashlessT, color: '#3b82f6' }], accent: { title: 'Лидер периода', text: leader ? `${leader} — ${nf(maxTurn)} тг` : '' } },
+        { type: 'split', title: 'Структура оплат', parts: [{ label: 'Нал', pct: cashPct, amount: cashT, color: '#2563eb' }, { label: 'Безнал', pct: 100 - cashPct, amount: cashlessT, color: '#3b82f6' }], accent: { title: 'Лидер периода', text: leader ? `${leader} — ${nf(maxTurn)} тг` : '' } },
         { type: 'previewTable', title: 'Минусовой чистый итог', hint: 'требуют внимания', columns: [{ key: 'name', label: 'Оператор' }, { key: 'net', label: 'Чистый итог', align: 'right' }], rows: negNet.slice(0, 7).map((o) => ({ name: o.name, net: o.net })), moreNote: negNet.length === 0 ? 'нет операторов в минусе' : (negNet.length > 7 ? `+ ещё ${negNet.length - 7}` : '') },
         { type: 'previewTable', title: 'Топ по средней смене', hint: 'эффективность', columns: [{ key: 'name', label: 'Оператор' }, { key: 'avgShift', label: 'Ср. смена', align: 'right' }], rows: byAvg.slice(0, 7).map((o) => ({ name: o.name, avgShift: o.avgShift })) },
       ],
@@ -1760,7 +1760,7 @@ function OperatorAnalyticsContent() {
                       onClick={() => togglePointCode(code)}
                       className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                         on
-                          ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10'
+                          ? 'border-blue-500/50 text-blue-700 dark:text-blue-300 bg-blue-500/10'
                           : 'border-border text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
                       }`}
                     >

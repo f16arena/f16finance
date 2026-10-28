@@ -84,7 +84,7 @@ function ReceiptLineRowImpl({ line, index, items, itemsById, canRemove, onPatch,
   return (
     <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03] p-4">
       <div className="flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs font-bold text-blue-700 dark:text-blue-300">
           {index}
         </span>
         <span className="text-xs font-medium text-muted-foreground">Строка {index}</span>
@@ -179,7 +179,7 @@ function ReceiptLineRowImpl({ line, index, items, itemsById, canRemove, onPatch,
                 markup_percent: event.target.checked ? '' : line.markup_percent,
               })
             }
-            className="h-3.5 w-3.5 accent-emerald-500"
+            className="h-3.5 w-3.5 accent-blue-500"
           />
           <span className={line.is_bonus ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}>
             Бонус (подарок поставщика)

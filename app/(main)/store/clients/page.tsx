@@ -36,7 +36,7 @@ export default function StoreClientsPage() {
                 onClick={() => setTab(key)}
                 className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all sm:px-4 ${tab === key ? 'bg-white dark:bg-white/10 text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
               >
-                <Icon className={`h-4 w-4 ${tab === key ? 'text-emerald-600 dark:text-emerald-300' : ''}`} />
+                <Icon className={`h-4 w-4 ${tab === key ? 'text-blue-600 dark:text-blue-300' : ''}`} />
                 {label}
               </button>
             ))}

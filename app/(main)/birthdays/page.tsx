@@ -228,7 +228,7 @@ export default function BirthdaysPage() {
 
                   <Card className="border-border bg-white dark:bg-slate-950/60 p-5 text-foreground">
                     <div className="flex items-center gap-2">
-                      <CalendarDays className="h-5 w-5 text-emerald-300" />
+                      <CalendarDays className="h-5 w-5 text-blue-300" />
                       <h3 className="text-lg font-semibold">Ближайшие 7 дней</h3>
                     </div>
                     <div className="mt-4 space-y-3">

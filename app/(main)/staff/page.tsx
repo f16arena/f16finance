@@ -548,7 +548,7 @@ export default function StaffPageSmart() {
       ],
       sections: [
         { type: 'bars', title: 'ФОТ по ролям', hint: 'месячный фонд', items: roleFot.slice(0, 6).map((r) => ({ label: r.name, amount: r.value, ratio: r.value / maxRoleFot })) },
-        { type: 'split', title: 'Активные / Неактивные', parts: [{ label: 'Активные', pct: activePct, amount: `${active}`, color: '#16a34a' }, { label: 'Архив', pct: 100 - activePct, amount: `${total - active}`, color: '#94a3b8' }], accent: { title: 'Без роли', text: noRole.length ? `${noRole.length} сотрудников требуют роли` : 'все роли заданы' } },
+        { type: 'split', title: 'Активные / Неактивные', parts: [{ label: 'Активные', pct: activePct, amount: `${active}`, color: '#2563eb' }, { label: 'Архив', pct: 100 - activePct, amount: `${total - active}`, color: '#94a3b8' }], accent: { title: 'Без роли', text: noRole.length ? `${noRole.length} сотрудников требуют роли` : 'все роли заданы' } },
         { type: 'previewTable', title: 'Структура по ролям', hint: 'кол-во и ФОТ', columns: [{ key: 'role', label: 'Роль' }, { key: 'count', label: 'Чел.', align: 'right' }, { key: 'fot', label: 'ФОТ', align: 'right' }], rows: roleFot.slice(0, 7).map((r) => ({ role: r.name, count: byRoleCnt.get(r.name) || 0, fot: r.value })) },
         { type: 'previewTable', title: 'Без роли', hint: 'требуют заполнения', columns: [{ key: 'name', label: 'Сотрудник' }, { key: 'salary', label: 'Оклад', align: 'right' }], rows: noRole.slice(0, 7).map((s) => ({ name: s.name, salary: s.salary })), moreNote: noRole.length > 7 ? `+ ещё ${noRole.length - 7}` : (noRole.length === 0 ? 'нет сотрудников без роли' : '') },
       ],
@@ -622,10 +622,10 @@ export default function StaffPageSmart() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Поиск..." className="w-full pl-9 pr-8 h-9 bg-white dark:bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:border-emerald-500/50" />
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Поиск..." className="w-full pl-9 pr-8 h-9 bg-white dark:bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:border-blue-500/50" />
               {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:hover:text-white"><X className="w-4 h-4" /></button>}
             </div>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-9 px-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 dark:[color-scheme:dark]">
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="h-9 px-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-blue-500/50 dark:[color-scheme:dark]">
               <option value="name">По имени</option>
               <option value="salary">По окладу</option>
             </select>
@@ -886,7 +886,7 @@ function StaffRow({
                   "h-8 w-8",
                   staff.is_active
                     ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10"
-                    : "text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                    : "text-slate-500 hover:text-blue-400 hover:bg-blue-500/10"
                 )}
                 onClick={onToggleStatus}
                 title={staff.is_active ? "В архив" : "Активировать"}
@@ -1014,7 +1014,7 @@ function StaffCardMobile({
             variant="outline"
             className={cn(
               'h-9 gap-1.5 rounded-xl border-border bg-white text-xs dark:bg-white/[0.03]',
-              staff.is_active ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400',
+              staff.is_active ? 'text-slate-500 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-500 hover:bg-blue-500/10 hover:text-blue-400',
             )}
             onClick={onToggleStatus}
             title={staff.is_active ? 'В архив' : 'Активировать'}
@@ -1127,7 +1127,7 @@ function AddPaymentDialog({ isOpen, onClose, staff, paidSoFar, dateDefault, onSu
               <select
                 value={slot}
                 onChange={e => setSlot(e.target.value as PaySlot)}
-                className="w-full h-9 rounded-md border border-border bg-white dark:bg-slate-800/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:border-emerald-500/50"
+                className="w-full h-9 rounded-md border border-border bg-white dark:bg-slate-800/50 px-3 py-1 text-sm text-foreground focus:outline-none focus:border-blue-500/50"
                 required
               >
                 <option value="first">Аванс (1-е число)</option>
@@ -1189,7 +1189,7 @@ function AddPaymentDialog({ isOpen, onClose, staff, paidSoFar, dateDefault, onSu
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+              className="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white"
             >
               {loading ? 'Сохранение...' : 'Подтвердить выплату'}
             </Button>

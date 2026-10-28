@@ -172,7 +172,7 @@ function ReceiptDetailModal({ sale, onClose }: { sale: Sale; onClose: () => void
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-emerald-400" />
+            <Receipt className="h-5 w-5 text-blue-400" />
             Чек #{sale.id.slice(-6).toUpperCase()}
           </DialogTitle>
         </DialogHeader>

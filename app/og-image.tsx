@@ -18,7 +18,7 @@ export default function OgImage() {
           height: '100%',
           display: 'flex',
           background:
-            'radial-gradient(circle at 20% 10%, rgba(52,211,153,0.18), transparent 22%), radial-gradient(circle at 82% 80%, rgba(22,163,74,0.20), transparent 24%), linear-gradient(180deg, #050816 0%, #0a1020 52%, #050816 100%)',
+            'radial-gradient(circle at 20% 10%, rgba(52,211,153,0.18), transparent 22%), radial-gradient(circle at 82% 80%, rgba(37,99,235,0.20), transparent 24%), linear-gradient(180deg, #050816 0%, #0a1020 52%, #050816 100%)',
           color: '#fff',
           padding: '56px',
           fontFamily: 'Arial, sans-serif',
@@ -43,7 +43,7 @@ export default function OgImage() {
                   width: '70px',
                   height: '70px',
                   borderRadius: '22px',
-                  background: 'linear-gradient(180deg, #34d399 0%, #10b981 48%, #15803d 100%)',
+                  background: 'linear-gradient(180deg, #34d399 0%, #10b981 48%, #1d4ed8 100%)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -87,8 +87,8 @@ export default function OgImage() {
                     padding: '12px 18px',
                     borderRadius: '999px',
                     border: '1px solid rgba(251,191,36,0.2)',
-                    background: 'rgba(22,163,74,0.14)',
-                    color: '#86efac',
+                    background: 'rgba(37,99,235,0.14)',
+                    color: '#93c5fd',
                     fontSize: 20,
                   }}
                 >

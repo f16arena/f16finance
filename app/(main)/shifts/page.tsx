@@ -1177,7 +1177,7 @@ function ShiftsPageContent() {
                     onClick={() => toggleBulkDate(day.dateISO)}
                     className={`rounded-xl border px-2 py-2 text-center transition-all ${
                       checked
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                        ? 'border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300'
                         : 'border-border bg-background text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/[0.04]'
                     }`}
                   >
@@ -1267,7 +1267,7 @@ function ShiftsPageContent() {
                         hasIssues
                           ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
                           : allConfirmed
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                            ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300'
                             : 'border-border bg-card text-foreground'
                       }`}
                     >

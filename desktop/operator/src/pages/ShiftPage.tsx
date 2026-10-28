@@ -728,7 +728,7 @@ export default function ShiftPage({
       <div className="h-9 shrink-0 drag-region bg-white/80 backdrop-blur dark:bg-slate-900/80" />
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-white/80 backdrop-blur-xl dark:bg-slate-900/80 px-5 pb-3 no-drag">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-500/30">
             <span className="text-xs font-bold tracking-tight text-white">OP</span>
           </div>
           <div className="space-y-1">
@@ -1004,7 +1004,7 @@ export default function ShiftPage({
               </div>
 
               <aside className="space-y-4 xl:sticky xl:top-5 xl:h-fit">
-                <Card className="overflow-hidden border-emerald-500/20 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+                <Card className="overflow-hidden border-blue-500/20 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
                   <CardContent className="space-y-4 p-5">
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{cashLabels.providerName} за сутки</p>
@@ -1943,7 +1943,7 @@ export default function ShiftPage({
               <button
                 type="button"
                 onClick={() => printReceiptFromIframe(shiftReportIframeRef.current)}
-                className="h-12 flex-1 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="h-12 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 🖨 Печать
               </button>

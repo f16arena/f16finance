@@ -203,7 +203,7 @@ export function OnboardingTour() {
           шагами яркость затемнения не пульсировала (это и давало «моргание»). */}
       {rect ? (
         <div
-          className="pointer-events-none fixed z-[201] rounded-xl ring-2 ring-emerald-400 transition-[top,left,width,height] duration-200"
+          className="pointer-events-none fixed z-[201] rounded-xl ring-2 ring-blue-400 transition-[top,left,width,height] duration-200"
           style={{
             top: rect.top - PAD,
             left: rect.left - PAD,
@@ -241,7 +241,7 @@ export function OnboardingTour() {
                   <ArrowLeft className="h-4 w-4" /> Назад
                 </button>
               )}
-              <button onClick={() => go(1)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">
+              <button onClick={() => go(1)} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
                 {isLast ? 'Готово' : 'Далее'} {!isLast && <ArrowRight className="h-4 w-4" />}
               </button>
             </div>

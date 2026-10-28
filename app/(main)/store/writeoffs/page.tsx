@@ -822,7 +822,7 @@ export default function StoreWriteoffsPage({ embedded = false }: { embedded?: bo
                 <div key={`writeoff-${index}`} className="grid gap-3 rounded-2xl border border-border bg-white dark:bg-white/[0.02] p-3 md:grid-cols-[minmax(0,1.3fr)_180px_120px_minmax(0,1fr)_auto]">
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5">
-                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">{index + 1}</span>
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500/15 text-[10px] font-bold text-blue-700 dark:text-blue-300">{index + 1}</span>
                       Товар
                     </Label>
                     <Select

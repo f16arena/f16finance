@@ -108,7 +108,7 @@ export default function StoreExpiryPage({ embedded = false }: { embedded?: boole
       >
         {depletedCount > 0 && (
           <label className="flex cursor-pointer items-start gap-2 border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
-            <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-emerald-600" checked={showDepleted} onChange={(e) => setShowDepleted(e.target.checked)} />
+            <input type="checkbox" className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-blue-600" checked={showDepleted} onChange={(e) => setShowDepleted(e.target.checked)} />
             <span>Показать израсходованные партии ({depletedCount}) — по FIFO их остаток уже продан или списан</span>
           </label>
         )}

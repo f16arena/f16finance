@@ -352,7 +352,7 @@ export default function PlatformOverviewPage() {
               </div>
             </Link>
             <Link href="/platform/organizations" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-400/40 dark:border-white/10 dark:bg-slate-900/40">
-              <Building2 className="h-5 w-5 text-emerald-500" />
+              <Building2 className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm font-medium">Все клиенты</p>
                 <p className="text-xs text-slate-400">Список и настройка</p>

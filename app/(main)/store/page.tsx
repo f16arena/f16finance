@@ -177,7 +177,7 @@ export default function StoreOverviewPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Поиск по магазину: товар, штрихкод, заявка, приёмка…"
-              className="w-full rounded-xl border border-border bg-white dark:bg-slate-950/50 py-2.5 pl-10 pr-3 text-sm text-foreground placeholder-slate-500 focus:border-emerald-400/50 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-white dark:bg-slate-950/50 py-2.5 pl-10 pr-3 text-sm text-foreground placeholder-slate-500 focus:border-blue-400/50 focus:outline-none"
             />
             {(searching || searchResults.length > 0) && q.trim() && (
               <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-border bg-white dark:bg-slate-950/95 shadow-2xl backdrop-blur">

@@ -42,7 +42,7 @@ export default function MaintenancePage() {
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    <ShieldAlert className="h-4 w-4 text-emerald-300" />
+                    <ShieldAlert className="h-4 w-4 text-blue-300" />
                     Почему вышло из аккаунта
                   </div>
                   <p className="mt-2 text-sm text-slate-400">

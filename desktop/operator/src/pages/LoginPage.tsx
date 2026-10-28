@@ -326,7 +326,7 @@ export default function LoginPage({
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Декоративные градиентные пятна на фоне */}
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-fuchsia-500/15 blur-3xl" />
       <div className="pointer-events-none absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
 
@@ -335,7 +335,7 @@ export default function LoginPage({
       <div className="relative z-10 flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-sm space-y-6">
           <div className="space-y-3 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30 transition-transform hover:scale-105">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-500/30 transition-transform hover:scale-105">
               <span className="text-xl font-bold tracking-tight text-white">OP</span>
             </div>
             <div>
@@ -361,7 +361,7 @@ export default function LoginPage({
               }}
               className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
                 mode === 'operator'
-                  ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-white shadow-lg shadow-emerald-500/10 border border-emerald-500/30'
+                  ? 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-white shadow-lg shadow-blue-500/10 border border-blue-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -484,7 +484,7 @@ export default function LoginPage({
                       autoComplete="username"
                       autoFocus
                       disabled={loading}
-                      className="no-drag h-11 bg-slate-800/40 border-slate-200 dark:border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-emerald-500/40 focus-visible:border-emerald-400/50 transition-colors"
+                      className="no-drag h-11 bg-slate-800/40 border-slate-200 dark:border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/40 focus-visible:border-blue-400/50 transition-colors"
                     />
                   </div>
                 ) : (
@@ -515,7 +515,7 @@ export default function LoginPage({
                       placeholder="••••••••"
                       autoComplete="current-password"
                       disabled={loading}
-                      className="no-drag pr-10 h-11 bg-slate-800/40 border-slate-200 dark:border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-emerald-500/40 focus-visible:border-emerald-400/50 transition-colors"
+                      className="no-drag pr-10 h-11 bg-slate-800/40 border-slate-200 dark:border-slate-800 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/40 focus-visible:border-blue-400/50 transition-colors"
                     />
                     <button
                       type="button"
@@ -535,7 +535,7 @@ export default function LoginPage({
 
                 <Button
                   type="submit"
-                  className="w-full gap-2 no-drag h-11 bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
+                  className="w-full gap-2 no-drag h-11 bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800 hover:shadow-lg hover:shadow-blue-500/30 transition-all"
                   disabled={loading}
                 >
                   {loading ? (

@@ -201,7 +201,7 @@ const VERDICTS: Record<string, { label: string; hint: string; className: string 
     label: 'Сильная смена',
     hint: 'Из того же числа покупателей выжали заметно больше обычного.',
     className:
-      'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20',
+      'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/20',
   },
   NORMAL: {
     label: 'Норма',
@@ -815,7 +815,7 @@ function SettingsModal(props: {
                         coordsBroken
                           ? 'text-rose-600 dark:text-rose-400'
                           : hasCoords
-                            ? 'text-emerald-600 dark:text-emerald-400'
+                            ? 'text-blue-600 dark:text-blue-400'
                             : 'text-muted-foreground'
                       }`}
                     >
@@ -871,7 +871,7 @@ function SettingsModal(props: {
             {/* Суммы доплаты */}
             <section className="rounded-xl border border-border p-4">
               <div className="flex items-start gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
                   <Wallet className="h-4.5 w-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -941,7 +941,7 @@ function SettingsModal(props: {
             {/* Допродажи */}
             <section className="rounded-xl border border-border p-4">
               <div className="flex items-start gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
                   <ShoppingBag className="h-4.5 w-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">

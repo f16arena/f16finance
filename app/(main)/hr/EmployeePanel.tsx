@@ -136,7 +136,7 @@ export default function EmployeePanel({ employee, onClose, onUpdated }: Props) {
   const typeColor = isHybrid
     ? 'from-purple-500/20 to-fuchsia-500/10 text-purple-300 border-purple-500/30'
     : isOperator
-      ? 'from-emerald-500/20 to-green-500/10 text-emerald-300 border-emerald-500/30'
+      ? 'from-blue-500/20 to-green-500/10 text-blue-300 border-blue-500/30'
       : 'from-blue-500/20 to-cyan-500/10 text-blue-300 border-blue-500/30'
 
   const save = async () => {

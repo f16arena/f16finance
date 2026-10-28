@@ -453,7 +453,7 @@ export default function ReceiptSettingsPage() {
             : success
               ? <StoreChip tone="emerald">{success}</StoreChip>
               : <span className="text-xs text-muted-foreground">Все изменения сохранены</span>}
-          <Button onClick={handleSave} disabled={saving || loading || !settings || !dirty} className="ml-auto bg-emerald-600 text-white hover:bg-emerald-700">
+          <Button onClick={handleSave} disabled={saving || loading || !settings || !dirty} className="ml-auto bg-blue-600 text-white hover:bg-blue-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Сохранить
           </Button>

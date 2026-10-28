@@ -606,7 +606,7 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
                     .map((l) => (
                       <SelectItem key={l.id} value={l.id}>
                         <div className="flex items-center gap-2">
-                          <Store className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" />
+                          <Store className="h-3.5 w-3.5 text-blue-700 dark:text-blue-300" />
                           <span>{l.name}</span>
                           <span className="text-[10px] text-muted-foreground">витрина</span>
                         </div>
@@ -679,7 +679,7 @@ export default function StorePostingsPage({ embedded = false }: { embedded?: boo
                 return (
                   <div key={line.key} className="rounded-lg border border-border bg-slate-50 dark:bg-white/[0.02] p-3 space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">{idx + 1}</span>
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/15 text-[11px] font-bold text-blue-700 dark:text-blue-300">{idx + 1}</span>
                       <span className="text-[11px] font-medium text-muted-foreground">Строка {idx + 1}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">

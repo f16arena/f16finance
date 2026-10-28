@@ -1234,7 +1234,7 @@ function TasksContent() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200 text-xs"
+                        className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200 text-xs"
                         onClick={() => bulkUpdateStatus('done')}
                       >
                         Готово

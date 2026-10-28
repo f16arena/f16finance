@@ -1014,7 +1014,7 @@ export default function InventorySalesPage({
                 size="sm"
                 onClick={() => void handleSimpleOpenShift()}
                 disabled={simpleShiftBusy}
-                className="h-9 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+                className="h-9 gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
                 title="Открыть смену"
               >
                 {simpleShiftBusy ? '…' : 'Открыть смену'}

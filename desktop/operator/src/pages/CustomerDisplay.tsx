@@ -333,7 +333,7 @@ function CustomerDisplayClassic() {
   if (paid) {
     const loyalty = paid.loyalty
     return (
-      <div className="grid h-screen place-items-center overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white">
+      <div className="grid h-screen place-items-center overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 text-white">
         <style>{checkmarkStyle}</style>
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/4 left-1/3 h-72 w-72 animate-pulse rounded-full bg-white/5 blur-3xl" />
@@ -426,10 +426,10 @@ function CustomerDisplayClassic() {
     }
     return (
       <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
-        <div className="pointer-events-none absolute -top-40 -right-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -top-40 -right-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-blue-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-blue-500/10 blur-3xl [animation-delay:1.2s]" />
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <div className="grid h-28 w-28 place-items-center rounded-[28px] bg-gradient-to-br from-emerald-400 to-teal-600 text-3xl font-bold text-white shadow-[0_20px_60px_-15px_rgba(16,185,129,0.6)] cd-float">
+          <div className="grid h-28 w-28 place-items-center rounded-[28px] bg-gradient-to-br from-blue-400 to-blue-700 text-3xl font-bold text-white shadow-[0_20px_60px_-15px_rgba(37,99,235,0.6)] cd-float">
             OP
           </div>
           <h1 className="mt-10 text-6xl font-bold tracking-tight">{state.companyName || 'Orda Point'}</h1>
@@ -455,14 +455,14 @@ function CustomerDisplayClassic() {
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
-      <div className="pointer-events-none absolute -top-32 right-0 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -top-32 right-0 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 -left-32 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
       <style>{activeStyle}</style>
 
       {/* Шапка: точка слева, клиент по центру, часы и дата справа */}
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-6 border-b border-slate-200/70 bg-white/80 px-10 py-5 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="flex items-center gap-4">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-base font-bold text-white shadow-lg shadow-emerald-500/30">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-blue-400 to-blue-700 text-base font-bold text-white shadow-lg shadow-blue-500/30">
             OP
           </div>
           <div>
@@ -511,7 +511,7 @@ function CustomerDisplayClassic() {
             <div className="mt-1 flex flex-wrap items-baseline gap-x-6 gap-y-1">
               <p
                 key={totalPulse /* перерисовка для анимации */}
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-[5.5rem] font-bold leading-none tabular-nums tracking-tight text-transparent cd-total-pulse"
+                className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-[5.5rem] font-bold leading-none tabular-nums tracking-tight text-transparent cd-total-pulse"
               >
                 {formatMoney(animatedTotal)} <span className="text-[3rem]">₸</span>
               </p>
@@ -615,7 +615,7 @@ function CartCardGrid({
               data-line-id={line.id || `idx-${idx}`}
               className={`flex flex-col overflow-hidden rounded-3xl border shadow-sm transition ${s.pad} ${
                 isNew
-                  ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-400/40 dark:border-emerald-500/60 dark:bg-emerald-950/30 cd-card-new'
+                  ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-400/40 dark:border-blue-500/60 dark:bg-blue-950/30 cd-card-new'
                   : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
               }`}
             >
@@ -674,7 +674,7 @@ function ProductImage({
   }
   const letter = (name.trim().charAt(0) || '·').toUpperCase()
   return (
-    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700 dark:from-emerald-500 dark:via-teal-600 dark:to-emerald-900">
+    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-blue-400 via-blue-600 to-blue-700 dark:from-blue-500 dark:via-blue-700 dark:to-blue-900">
       <span className={`font-bold text-white/90 drop-shadow-lg ${letterClass}`}>{letter}</span>
     </div>
   )
@@ -718,12 +718,12 @@ function ShowcasePlayer({
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
-      <div className="pointer-events-none absolute -top-40 -right-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-emerald-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-teal-500/10 blur-3xl [animation-delay:1.2s]" />
+      <div className="pointer-events-none absolute -top-40 -right-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-40 h-[28rem] w-[28rem] animate-pulse rounded-full bg-blue-600/10 blur-3xl [animation-delay:1.2s]" />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-10 py-6">
         <div className="flex items-center gap-4">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-sm font-bold text-white shadow-lg shadow-emerald-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-blue-400 to-blue-700 text-sm font-bold text-white shadow-lg shadow-blue-500/30">
             OP
           </div>
           <p className="text-2xl font-semibold">{companyName}</p>
@@ -736,7 +736,7 @@ function ShowcasePlayer({
           <ShowcaseImage item={current} />
         </div>
         <p className="mt-8 max-w-[70vw] truncate text-center text-5xl font-bold tracking-tight">{current.name}</p>
-        <p className="mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-6xl font-bold tabular-nums text-transparent">
+        <p className="mt-4 bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-6xl font-bold tabular-nums text-transparent">
           {formatMoney(current.sale_price)} ₸
         </p>
       </div>
@@ -749,7 +749,7 @@ function ShowcasePlayer({
               key={it.id}
               className={`h-2 rounded-full transition-all ${
                 i === safeIndex % Math.min(items.length, 12)
-                  ? 'w-6 bg-emerald-500'
+                  ? 'w-6 bg-blue-500'
                   : 'w-2 bg-slate-300 dark:bg-slate-700'
               }`}
             />
@@ -770,7 +770,7 @@ function ShowcaseImage({ item }: { item: ShowcaseItem }) {
   if (failed) {
     const letter = (item.name.trim().charAt(0) || '·').toUpperCase()
     return (
-      <div className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700">
+      <div className="grid h-full w-full place-items-center bg-gradient-to-br from-blue-400 via-blue-600 to-blue-700">
         <span className="text-[10rem] font-bold text-white/90 drop-shadow-lg">{letter}</span>
       </div>
     )
@@ -909,9 +909,9 @@ const activeStyle = `
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   @keyframes cd-card-glow {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0), 0 2px 6px -1px rgba(0,0,0,0.05); }
-    30% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.25), 0 6px 18px -4px rgba(16,185,129,0.45); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0), 0 2px 6px -1px rgba(0,0,0,0.05); }
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.0), 0 2px 6px -1px rgba(0,0,0,0.05); }
+    30% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.25), 0 6px 18px -4px rgba(37,99,235,0.45); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.0), 0 2px 6px -1px rgba(0,0,0,0.05); }
   }
   .cd-card-new { animation: cd-card-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both, cd-card-glow 1400ms ease-out both; }
 

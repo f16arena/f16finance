@@ -715,7 +715,7 @@ export default function OperatorExamsPage() {
                     }
                     className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
                       active
-                        ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                        ? 'border-blue-400/60 bg-blue-500/15 text-blue-800 dark:text-blue-200'
                         : 'border-border bg-slate-100 text-body hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10'
                     }`}
                   >
@@ -736,7 +736,7 @@ export default function OperatorExamsPage() {
                       operatorIds.length === eligibleOperators.length ? [] : eligibleOperators.map((o) => o.id),
                     )
                   }
-                  className="text-emerald-600 hover:underline dark:text-emerald-300"
+                  className="text-blue-600 hover:underline dark:text-blue-300"
                 >
                   {operatorIds.length === eligibleOperators.length ? 'снять всех' : 'выбрать всех'}
                 </button>
@@ -764,7 +764,7 @@ export default function OperatorExamsPage() {
                       title={noTelegram ? 'У оператора не указан Telegram — экзамен не дойдёт' : undefined}
                       className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
                         active
-                          ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                          ? 'border-blue-400/60 bg-blue-500/15 text-blue-800 dark:text-blue-200'
                           : 'border-border bg-slate-100 text-body hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10'
                       }`}
                     >
@@ -803,7 +803,7 @@ export default function OperatorExamsPage() {
                     }
                     className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
                       active
-                        ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                        ? 'border-blue-400/60 bg-blue-500/15 text-blue-800 dark:text-blue-200'
                         : 'border-border bg-white text-body hover:border-slate-400 dark:bg-slate-950/40'
                     }`}
                   >
@@ -1036,7 +1036,7 @@ export default function OperatorExamsPage() {
                           key={i}
                           className={`text-[11px] ${
                             i === question.correct
-                              ? 'font-medium text-emerald-700 dark:text-emerald-300'
+                              ? 'font-medium text-blue-700 dark:text-blue-300'
                               : 'text-muted-foreground'
                           }`}
                         >

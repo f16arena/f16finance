@@ -370,7 +370,7 @@ export default function AdvertisingPage({ embedded = false }: { embedded?: boole
                       title={ad.is_active ? 'Нажмите, чтобы выключить показ' : 'Нажмите, чтобы включить показ'}
                       className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         ad.is_active
-                          ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+                          ? 'bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-300'
                           : 'bg-slate-100 text-muted-foreground hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10'
                       }`}
                     >

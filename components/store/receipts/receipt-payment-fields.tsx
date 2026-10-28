@@ -56,10 +56,10 @@ export function ReceiptPaymentFields({ form }: { form: ReceiptForm }) {
                 onChange={(event) => void uploadPaymentReceipt(event.target.files?.[0] || null)}
                 disabled={uploadingPaymentReceipt}
               />
-              {uploadingPaymentReceipt ? <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-300" /> : null}
+              {uploadingPaymentReceipt ? <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-300" /> : null}
             </div>
             {paymentReceiptFileUrl ? (
-              <a href={paymentReceiptFileUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-700 dark:text-emerald-300 underline">
+              <a href={paymentReceiptFileUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 dark:text-blue-300 underline">
                 Чек загружен — открыть файл
               </a>
             ) : (

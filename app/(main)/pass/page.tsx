@@ -441,7 +441,7 @@ export default function AccessPage() {
                   <Button
                     onClick={resetAllPasswords}
                     disabled={resetting === 'all'}
-                    className="bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-lg shadow-emerald-500/25"
+                    className="bg-gradient-to-r from-blue-500 to-green-500 text-white border-0 shadow-lg shadow-blue-500/25"
                   >
                     {resetting === 'all' ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -528,7 +528,7 @@ export default function AccessPage() {
             <Card className="p-3 sm:p-5 bg-white dark:bg-gray-900/40 backdrop-blur-xl border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-emerald-500/20 rounded-lg">
-                  <Key className="w-4 h-4 text-emerald-400" />
+                  <Key className="w-4 h-4 text-blue-400" />
                 </div>
                 <p className="text-xs text-gray-500 uppercase">Сгенерировано</p>
               </div>
@@ -667,7 +667,7 @@ export default function AccessPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-8 text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                              className="h-8 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                               onClick={() => resetPassword(op.id)}
                               disabled={resetting === op.id}
                             >

@@ -72,11 +72,11 @@ export default function PackagesConstructorPage() {
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">{error}</div>}
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-blue-600 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>}
 
       <div className="inline-flex rounded-xl border border-border bg-surface-muted p-1">
         {([['packages', 'Пакеты', Package], ['addons', 'Аддоны', Puzzle], ['assign', 'Назначение', Building2]] as const).map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${tab === key ? 'bg-emerald-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button key={key} onClick={() => setTab(key)} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${tab === key ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
             <Icon className="h-4 w-4" />{label}
           </button>
         ))}
@@ -126,8 +126,8 @@ function PagePicker({ grouped, selected, toggle, setMany }: { grouped: [string, 
               </div>
               <div className="grid gap-1.5 sm:grid-cols-2">
                 {items.map((p) => (
-                  <label key={p.feature} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${p.base ? 'border-border bg-surface-hover opacity-70' : selected.has(p.feature) ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'border-border bg-white dark:bg-white/5 hover:border-emerald-300'}`}>
-                    <input type="checkbox" disabled={p.base} checked={p.base || selected.has(p.feature)} onChange={() => toggle(p.feature)} className="h-4 w-4 accent-emerald-600" />
+                  <label key={p.feature} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${p.base ? 'border-border bg-surface-hover opacity-70' : selected.has(p.feature) ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10' : 'border-border bg-white dark:bg-white/5 hover:border-blue-300'}`}>
+                    <input type="checkbox" disabled={p.base} checked={p.base || selected.has(p.feature)} onChange={() => toggle(p.feature)} className="h-4 w-4 accent-blue-600" />
                     <span className="min-w-0 flex-1 truncate text-foreground">{p.label}</span>
                     {p.base && <span className="shrink-0 text-[10px] text-muted-foreground">базовая</span>}
                   </label>
@@ -220,7 +220,7 @@ function PackageEditor({ packages, grouped, saving, setSaving, reload, showToast
           )}
           <p className="mt-2 text-xs text-muted-foreground">Базовые страницы доступны всегда. Остальные разделы — скрыты.</p>
         </div>
-        <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Сохранить пакет</button>
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Сохранить пакет</button>
       </div>
     </div>
   )
@@ -280,7 +280,7 @@ function AddonEditor({ addons, grouped, saving, setSaving, reload, showToast }: 
           <div className="mb-2 text-sm font-medium text-foreground">Страницы аддона <span className="text-muted-foreground">({sel.size})</span></div>
           <PagePicker grouped={grouped} selected={sel} toggle={toggle} setMany={setMany} />
         </div>
-        <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Сохранить аддон</button>
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Сохранить аддон</button>
       </div>
     </div>
   )
@@ -345,7 +345,7 @@ function AssignTab({ orgs, packages, addons, saving, setSaving, showToast }: any
                 const checked = addonCodes.has(a.code)
                 return (
                 <label key={a.code} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${checked ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'border-border bg-white dark:bg-white/5'}`}>
-                  <input type="checkbox" checked={checked} onChange={() => setAddonCodes((s) => { const n = new Set(s); n.has(a.code) ? n.delete(a.code) : n.add(a.code); return n })} className="h-4 w-4 accent-emerald-600" />
+                  <input type="checkbox" checked={checked} onChange={() => setAddonCodes((s) => { const n = new Set(s); n.has(a.code) ? n.delete(a.code) : n.add(a.code); return n })} className="h-4 w-4 accent-blue-600" />
                   <span className="flex-1 text-foreground">{a.name}{pts > 0 ? <span className="ml-1 text-xs text-emerald-600">+{pts} точк.</span> : null}</span>
                   {checked && pts > 0 && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -365,7 +365,7 @@ function AssignTab({ orgs, packages, addons, saving, setSaving, showToast }: any
               <span className="text-muted-foreground"> (пакет {pkgPoints || 1}{addonPoints > 0 ? ` + аддоны ${addonPoints}` : ''}). Ручное поле на карточке орг может поднять его выше.</span>
             </div>
           )}
-          <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Назначить организации</button>
+          <button onClick={save} disabled={saving} className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Назначить организации</button>
         </>
       )}
     </div>

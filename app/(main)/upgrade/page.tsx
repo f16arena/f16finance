@@ -78,7 +78,7 @@ function UpgradeContent() {
             <>
               {info && info.packages.length > 0 && (
                 <div>
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Package className="h-4 w-4 text-emerald-600" />Входит в пакеты</div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Package className="h-4 w-4 text-blue-600" />Входит в пакеты</div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {info.packages.map((p) => (
                       <div key={p.code} className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/[0.07]">
@@ -95,7 +95,7 @@ function UpgradeContent() {
 
               {info && info.addons.length > 0 && (
                 <div>
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Puzzle className="h-4 w-4 text-emerald-600" />Или докупите отдельно</div>
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground"><Puzzle className="h-4 w-4 text-blue-600" />Или докупите отдельно</div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {info.addons.map((a) => (
                       <div key={a.code} className="rounded-2xl border border-border bg-surface-muted p-4">
@@ -119,7 +119,7 @@ function UpgradeContent() {
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Подключение оформляет менеджер Orda. Напишите в поддержку или вашему менеджеру — активируем нужный пакет/модуль, и страница сразу появится.
                 </p>
-                <a href={SUPPORT_CONTACT} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700">
+                <a href={SUPPORT_CONTACT} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700">
                   Связаться с менеджером
                 </a>
               </div>

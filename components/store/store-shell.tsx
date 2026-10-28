@@ -90,11 +90,11 @@ function StoreCompanySwitcher() {
         aria-haspopup="listbox"
         aria-expanded={open}
         title="Точка магазина"
-        className="inline-flex max-w-[220px] items-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-1.5 pl-2.5 pr-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-500/15 dark:text-emerald-200"
+        className="inline-flex max-w-[220px] items-center gap-1.5 rounded-xl border border-blue-400/40 bg-blue-500/10 py-1.5 pl-2.5 pr-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-500/15 dark:text-blue-200"
       >
-        {current ? <Store className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" /> : <Boxes className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />}
+        {current ? <Store className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-300" /> : <Boxes className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-300" />}
         <span className="truncate">{label}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-emerald-600/70 transition-transform dark:text-emerald-300/70 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-blue-600/70 transition-transform dark:text-blue-300/70 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -113,15 +113,15 @@ function StoreCompanySwitcher() {
                 onClick={() => { setCompanyId(o.id); setOpen(false) }}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
                   active
-                    ? 'bg-emerald-500/10 font-semibold text-emerald-700 dark:text-emerald-200'
+                    ? 'bg-blue-500/10 font-semibold text-blue-700 dark:text-blue-200'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5'
                 }`}
               >
                 {o.all
-                  ? <Boxes className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-emerald-500' : 'text-slate-400'}`} />
-                  : <Store className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-emerald-500' : 'text-slate-400'}`} />}
+                  ? <Boxes className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-blue-500' : 'text-slate-400'}`} />
+                  : <Store className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-blue-500' : 'text-slate-400'}`} />}
                 <span className="flex-1 truncate">{o.name}</span>
-                {active && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                {active && <Check className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
               </button>
             )
           })}
@@ -183,12 +183,12 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
                   aria-current={active ? 'page' : undefined}
                   className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
                     active
-                      ? 'bg-emerald-500/10 font-semibold text-emerald-800 dark:text-emerald-200'
+                      ? 'bg-blue-500/10 font-semibold text-blue-800 dark:text-blue-200'
                       : 'font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'
                   }`}
                 >
-                  {active && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-emerald-500" aria-hidden />}
-                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'}`} />
+                  {active && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-blue-500" aria-hidden />}
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-blue-600 dark:text-blue-300' : 'text-slate-400 dark:text-slate-500'}`} />
                   <span className="truncate">{item.label}</span>
                 </Link>
               )
@@ -208,13 +208,13 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
             <Menu className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="grid h-7 w-7 place-items-center rounded-lg border border-emerald-400/30 bg-emerald-500/15">
-              <Store className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+            <div className="grid h-7 w-7 place-items-center rounded-lg border border-blue-400/30 bg-blue-500/15">
+              <Store className="h-3.5 w-3.5 text-blue-600 dark:text-blue-300" />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-foreground">Orda</span>
               <span className="hidden text-slate-400 sm:inline">·</span>
-              <span className="hidden text-sm font-semibold text-emerald-600 dark:text-emerald-300 sm:inline">Магазин</span>
+              <span className="hidden text-sm font-semibold text-blue-600 dark:text-blue-300 sm:inline">Магазин</span>
               
             </div>
           </div>
@@ -259,7 +259,7 @@ function StoreShellInner({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-y-0 left-0 flex w-[80%] max-w-[18rem] flex-col border-r border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-950">
             <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4 dark:border-white/10">
               <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-xl border border-emerald-400/30 bg-emerald-500/15"><Store className="h-4 w-4 text-emerald-600 dark:text-emerald-300" /></div>
+                <div className="grid h-8 w-8 place-items-center rounded-xl border border-blue-400/30 bg-blue-500/15"><Store className="h-4 w-4 text-blue-600 dark:text-blue-300" /></div>
                 <span className="text-sm font-semibold text-foreground">Магазин</span>
               </div>
               <button onClick={() => setMobileOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"><X className="h-4 w-4" /></button>

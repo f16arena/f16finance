@@ -168,7 +168,7 @@ export default function ShiftReportsPage() {
                 onClick={() => setStatus(value)}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   status === value
-                    ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                    ? 'border-blue-400/50 bg-blue-500/15 text-blue-700 dark:text-blue-200'
                     : 'border-border text-muted-foreground hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -183,7 +183,7 @@ export default function ShiftReportsPage() {
                 onClick={() => setLimit(value)}
                 className={`rounded-full border px-3 py-1 text-xs transition ${
                   limit === value
-                    ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                    ? 'border-blue-400/50 bg-blue-500/15 text-blue-700 dark:text-blue-200'
                     : 'border-border text-muted-foreground hover:text-slate-900 dark:hover:text-white'
                 }`}
               >

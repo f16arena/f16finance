@@ -105,7 +105,7 @@ export default function NewOrganizationPage() {
     return (
       <div className="mx-auto max-w-6xl p-6 text-slate-900 dark:text-white">
         <div className="mx-auto flex max-w-lg flex-col items-center rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-slate-900/40">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/15">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/15">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
           </div>
           <h2 className="text-2xl font-semibold">Клиент заведён</h2>

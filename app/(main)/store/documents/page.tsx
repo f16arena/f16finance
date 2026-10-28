@@ -113,7 +113,7 @@ export default function StoreDocumentsPage() {
                   aria-pressed={tab === key}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-all sm:px-4 ${tab === key ? 'bg-surface-hover text-foreground shadow-sm ring-1 ring-slate-200 dark:ring-white/10' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                  <Icon className={`h-4 w-4 ${tab === key ? 'text-emerald-700 dark:text-emerald-300' : ''}`} />
+                  <Icon className={`h-4 w-4 ${tab === key ? 'text-blue-700 dark:text-blue-300' : ''}`} />
                   {label}
                   {key === 'writeoffs' && unresolved ? (
                     <span className="rounded-full bg-amber-500/15 px-1.5 text-[11px] font-semibold tabular-nums text-amber-700 dark:text-amber-300">{unresolved}</span>

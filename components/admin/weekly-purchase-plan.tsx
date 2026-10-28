@@ -543,7 +543,7 @@ export function WeeklyPurchasePlan({ reportEndDate }: { reportEndDate?: string }
                       className={cn(
                         'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition',
                         it.status === 'bought'
-                          ? 'border-emerald-500 bg-emerald-500 text-white dark:text-white'
+                          ? 'border-blue-500 bg-blue-500 text-white dark:text-white'
                           : 'border-slate-300 dark:border-slate-600 text-transparent hover:border-slate-400',
                       )}
                       title={it.status === 'bought' ? 'Отметить как план' : 'Отметить куплено'}

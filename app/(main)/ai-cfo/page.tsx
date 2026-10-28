@@ -642,7 +642,7 @@ function WhatIfCard({ data }: { data: CfoResponse }) {
   return (
     <Card className="gap-0 p-5">
       <SectionTitle
-        icon={<Calculator className="h-4 w-4 text-emerald-500" />}
+        icon={<Calculator className="h-4 w-4 text-blue-500" />}
         title="Что если"
         subtitle="Подвигайте и посмотрите, как изменится прибыль за такой же период."
         action={

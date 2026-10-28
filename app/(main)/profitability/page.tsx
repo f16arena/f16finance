@@ -271,7 +271,7 @@ export default function ProfitabilityPage() {
               <Section
                 title={`${monthLabel(month)}${pointName ? ` — ${pointName}` : ''}`}
                 subtitle={previous ? `Рядом — ${monthLabel(previous.month).toLowerCase()} и насколько изменилось. Нажмите на строку, чтобы увидеть статьи.` : 'Нажмите на строку, чтобы увидеть статьи.'}
-                icon={<Landmark className="h-4 w-4 text-emerald-500" />}
+                icon={<Landmark className="h-4 w-4 text-blue-500" />}
                 action={
                   can('profitability.export_pdf') ? (
                     <Button variant="outline" size="sm" disabled={exporting || loading} onClick={() => void exportDetailed()}>

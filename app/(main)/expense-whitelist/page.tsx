@@ -99,7 +99,7 @@ export default function ExpenseWhitelistPage() {
     }
   }
 
-  const inputCls = 'h-10 rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 text-sm text-foreground placeholder-slate-500 focus:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/15'
+  const inputCls = 'h-10 rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 text-sm text-foreground placeholder-slate-500 focus:border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500/15'
 
   return (
     <div className="app-page-wide space-y-5">
@@ -173,7 +173,7 @@ export default function ExpenseWhitelistPage() {
               className={inputCls}
             />
           </div>
-          <Button onClick={add} disabled={saving} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={add} disabled={saving} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             Добавить
           </Button>
@@ -203,7 +203,7 @@ export default function ExpenseWhitelistPage() {
               return (
                 <div key={v.id} className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.03]">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-300">
                       <ShieldCheck className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">

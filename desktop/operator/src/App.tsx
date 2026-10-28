@@ -326,7 +326,7 @@ function UpdateBanner({
               <button
                 type="button"
                 onClick={onDownload}
-                className="rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
+                className="rounded-2xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-400"
               >
                 Скачать обновление
               </button>
@@ -346,7 +346,7 @@ function UpdateBanner({
             <p className="text-sm text-white/85">Скачиваем новую версию...</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
+                className="h-full rounded-full bg-blue-500 transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -928,7 +928,7 @@ export default function App() {
     return withUpdateBanner(
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-background">
         <div className="h-9 drag-region absolute inset-x-0 top-0" />
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-500/30">
           <span className="text-base font-bold tracking-tight text-white">OP</span>
         </div>
         <span className="animate-spin h-5 w-5 border-2 border-border border-t-foreground rounded-full" />

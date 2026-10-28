@@ -43,11 +43,11 @@ export default function AdminLayout({ config, session, bootstrap, onLogout }: Pr
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
-      <div className="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-emerald-500/5 blur-3xl dark:bg-emerald-500/10" />
+      <div className="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       <header className="drag-region relative z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200/70 bg-white/80 px-5 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="no-drag flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[13px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 text-[13px] font-bold tracking-tight text-white shadow-md shadow-blue-500/30">
             OP
           </div>
           <div className="space-y-1">
@@ -84,7 +84,7 @@ export default function AdminLayout({ config, session, bootstrap, onLogout }: Pr
                 className={cn(
                   'no-drag flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-all',
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/30 text-slate-900 dark:text-slate-100 shadow-sm'
+                    ? 'bg-gradient-to-r from-blue-500/15 to-blue-600/15 border border-blue-500/30 text-slate-900 dark:text-slate-100 shadow-sm'
                     : 'text-sidebar-foreground hover:bg-white/5 hover:text-slate-900 dark:text-slate-100',
                 )}
               >

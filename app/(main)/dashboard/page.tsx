@@ -1206,7 +1206,7 @@ function ChangesCard({ articles, days }: { articles: ExpenseArticle[]; days: Cha
         <div className="mt-4 space-y-1.5 border-t border-border pt-3 text-xs">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-emerald-500" />
+              <Sparkles className="h-3 w-3 text-blue-500" />
               Лучший день — {DateUtils.formatShort(best.date)}
             </span>
             <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{Formatters.moneyDetailed(best.profit ?? 0)}</span>

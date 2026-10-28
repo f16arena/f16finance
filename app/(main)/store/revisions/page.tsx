@@ -1063,7 +1063,7 @@ export default function StoreRevisionsPage({ embedded = false }: { embedded?: bo
                 </div>
                 <div className="h-2 overflow-hidden rounded-full border border-border bg-slate-100 dark:bg-white/[0.03]">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all"
+                    className="h-full bg-gradient-to-r from-amber-500 to-blue-500 transition-all"
                     style={{
                       width: `${Math.min(100, (lines.length / Math.max(1, selectedBalances.length)) * 100)}%`,
                     }}

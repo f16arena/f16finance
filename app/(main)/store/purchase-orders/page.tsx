@@ -281,7 +281,7 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
     <div className={embedded ? 'space-y-4' : 'app-page max-w-[1600px] space-y-4'}>
       {(() => {
         const hdrActions = (
-          <Button onClick={() => setCreateOpen(true)} className="bg-emerald-600 text-white hover:bg-emerald-700">
+          <Button onClick={() => setCreateOpen(true)} className="bg-blue-600 text-white hover:bg-blue-700">
             <Plus className="mr-1 h-4 w-4" /> Создать заявку
           </Button>
         )
@@ -372,7 +372,7 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
           <>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Отмена</Button>
             {can('store-purchase-orders.create') && (
-              <Button onClick={submitCreate} disabled={saving} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={submitCreate} disabled={saving} className="bg-blue-600 text-white hover:bg-blue-700">
                 {saving ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Создаю...</> : 'Создать заявку'}
               </Button>
             )}
@@ -457,14 +457,14 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
                 <Button variant="outline" onClick={() => void changeStatus('sent')} disabled={statusBusy}>
                   Просто отметить «Отправлена»
                 </Button>
-                <Button className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => void sendWhatsApp()} disabled={statusBusy}>
+                <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => void sendWhatsApp()} disabled={statusBusy}>
                   {statusBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-1 h-4 w-4" />}
                   Отправить в WhatsApp
                 </Button>
               </>
             ) : null}
             {detail.status === 'sent' && can('store-purchase-orders.edit') ? (
-              <Button onClick={() => void changeStatus('received')} disabled={statusBusy} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={() => void changeStatus('received')} disabled={statusBusy} className="bg-blue-600 text-white hover:bg-blue-700">
                 {statusBusy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
                 Отметить «Получена»
               </Button>
@@ -542,7 +542,7 @@ export default function PurchaseOrdersPage({ embedded = false }: { embedded?: bo
 
       {detailLoading ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30">
-          <Loader2 className="h-6 w-6 animate-spin text-emerald-300" />
+          <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
         </div>
       ) : null}
     </div>

@@ -392,7 +392,7 @@ export default function OperatorCabinetPage({
       <div className="h-9 shrink-0 drag-region bg-white/80 backdrop-blur dark:bg-slate-900/80" />
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 bg-white/80 px-5 py-2 backdrop-blur-xl no-drag dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-[13px] font-bold tracking-tight text-white shadow-md shadow-emerald-500/30">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 text-[13px] font-bold tracking-tight text-white shadow-md shadow-blue-500/30">
             OP
           </div>
           <div>
@@ -681,7 +681,7 @@ export default function OperatorCabinetPage({
                                     size="sm"
                                     disabled={!!taskActionLoading}
                                     onClick={() => void handleTaskResponse(task.id, 'accept')}
-                                    className="h-9 border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                                    className="h-9 border border-blue-500/30 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-300"
                                   >
                                     {taskActionLoading === `${task.id}:accept` ? <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
                                     В работу
@@ -722,7 +722,7 @@ export default function OperatorCabinetPage({
                                   size="sm"
                                   disabled={!!taskActionLoading}
                                   onClick={() => void handleTaskResponse(task.id, 'complete')}
-                                  className="h-9 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow shadow-emerald-500/30 hover:from-emerald-600 hover:to-teal-700"
+                                  className="h-9 bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow shadow-blue-500/30 hover:from-blue-600 hover:to-blue-800"
                                 >
                                   {taskActionLoading === `${task.id}:complete` ? <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-2 h-3.5 w-3.5" />}
                                   Готово
@@ -895,13 +895,13 @@ function KnowledgeArticleCard({
                 <button
                   type="button"
                   onClick={() => setExplainOpen(true)}
-                  className="text-xs font-medium text-emerald-600 underline underline-offset-2 dark:text-emerald-300"
+                  className="text-xs font-medium text-blue-600 underline underline-offset-2 dark:text-blue-300"
                 >
                   Не понял — объясни проще
                 </button>
               ) : (
-                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
-                  <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+                <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-3">
+                  <div className="text-xs font-semibold text-blue-700 dark:text-blue-200">
                     Объяснение по правилу
                   </div>
                   <input

@@ -592,7 +592,7 @@ create table if not exists telegram_allowed_users (
                   >
                     <div className={`p-1.5 rounded-lg ${user.can_finance ? 'bg-emerald-500/10' : 'bg-slate-100 dark:bg-slate-700'}`}>
                       {user.can_finance ? (
-                        <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       ) : (
                         <UserX className="w-4 h-4 text-slate-500" />
                       )}
@@ -704,7 +704,7 @@ create table if not exists telegram_allowed_users (
                                 }
                               }}
                               disabled={staffSaveLoading === member.id}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+                              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
                             >
                               {staffSaveLoading === member.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Сохранить'}
                             </button>
@@ -787,7 +787,7 @@ create table if not exists telegram_allowed_users (
                   <button
                     onClick={() => handleSendReport('daily')}
                     disabled={!!reportLoading}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
                   >
                     {reportLoading === 'daily' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarDays className="w-4 h-4" />}
                     Дневной отчёт

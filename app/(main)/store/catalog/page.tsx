@@ -30,7 +30,7 @@ function QuickLink({
       prefetch
       className="group flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-100/60 px-3 py-2 transition hover:border-emerald-400/30 hover:bg-slate-100 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.07]"
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300">
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0">

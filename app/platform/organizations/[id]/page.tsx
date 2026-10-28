@@ -725,7 +725,7 @@ export default function OrgDetailPage() {
               <Button
                 onClick={handleEnter}
                 disabled={entering}
-                className="w-full bg-emerald-600 text-white hover:bg-emerald-500"
+                className="w-full bg-blue-600 text-white hover:bg-blue-500"
               >
                 {entering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                 Войти в кабинет клиента
@@ -832,18 +832,18 @@ export default function OrgDetailPage() {
                       <option value={6}>6 мес</option>
                       <option value={12}>12 мес</option>
                     </select>
-                    <button disabled={subBusy !== null} onClick={() => runSub({ subscriptionAction: 'renewCycle', renewMonths }, 'renew')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">Активировать / Продлить</button>
+                    <button disabled={subBusy !== null} onClick={() => runSub({ subscriptionAction: 'renewCycle', renewMonths }, 'renew')} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">Активировать / Продлить</button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button disabled={subBusy !== null} onClick={() => runSub({ organizationStatus: 'suspended', subscriptionAction: 'markPastDue' }, 'suspend')} className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10 disabled:opacity-50">Приостановить доступ</button>
-                    <button disabled={subBusy !== null} onClick={() => runSub({ organizationStatus: 'active', subscriptionAction: 'resume' }, 'resume')} className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10 disabled:opacity-50">Возобновить</button>
+                    <button disabled={subBusy !== null} onClick={() => runSub({ organizationStatus: 'active', subscriptionAction: 'resume' }, 'resume')} className="rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10 disabled:opacity-50">Возобновить</button>
                   </div>
                   <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <input type="checkbox" checked={billingExempt} onChange={e => runSub({ billingExempt: e.target.checked }, 'exempt')} className="h-4 w-4 accent-emerald-500" />
+                    <input type="checkbox" checked={billingExempt} onChange={e => runSub({ billingExempt: e.target.checked }, 'exempt')} className="h-4 w-4 accent-blue-500" />
                     Вне подписки (billing exempt) — доступ всегда, без блокировок
                   </label>
                   <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <input type="checkbox" checked={tourEnabled} onChange={e => runSub({ onboardingTourEnabled: e.target.checked }, 'tour')} className="h-4 w-4 accent-emerald-500" />
+                    <input type="checkbox" checked={tourEnabled} onChange={e => runSub({ onboardingTourEnabled: e.target.checked }, 'tour')} className="h-4 w-4 accent-blue-500" />
                     Онбординг-тур включён
                   </label>
                   <button disabled={subBusy !== null} onClick={() => runSub({ resetOnboarding: true }, 'resetTour')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50">Запустить тур заново для всех</button>
@@ -872,7 +872,7 @@ export default function OrgDetailPage() {
                     <button
                       disabled={subBusy !== null || deleting}
                       onClick={() => runSub({ action: 'unarchiveOrg' }, 'unarchive')}
-                      className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10 disabled:opacity-50"
+                      className="rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10 disabled:opacity-50"
                     >
                       Восстановить (в «остановлено»)
                     </button>
@@ -1050,7 +1050,7 @@ export default function OrgDetailPage() {
                             type="button"
                             onClick={() => handleInvoiceAction(inv.id, 'paid')}
                             disabled={busy}
-                            className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-700 transition hover:bg-emerald-500/20 disabled:opacity-50 dark:text-emerald-300"
+                            className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-500/20 disabled:opacity-50 dark:text-blue-300"
                           >
                             Оплачен
                           </button>
@@ -1390,7 +1390,7 @@ export default function OrgDetailPage() {
         <Button
           onClick={handleEnter}
           disabled={entering}
-          className="bg-emerald-600 text-white hover:bg-emerald-500"
+          className="bg-blue-600 text-white hover:bg-blue-500"
         >
           {entering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Войти в кабинет

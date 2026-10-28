@@ -68,7 +68,7 @@ type Tab = 'monitor' | 'best' | 'profit' | 'category' | 'stock' | 'abc' | 'forec
 type Preset = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'
 
 const card = storeCard
-const inputCls = 'h-9 rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 py-2 text-sm text-foreground placeholder-slate-500 focus:border-emerald-400/50 focus:outline-none'
+const inputCls = 'h-9 rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3 py-2 text-sm text-foreground placeholder-slate-500 focus:border-blue-400/50 focus:outline-none'
 const PAY_LABEL: Record<string, string> = { cash: 'Нал', kaspi: 'Безнал', card: 'Карта', online: 'Онлайн', mixed: 'Смеш.' }
 const PAY_TONE: Record<string, 'emerald' | 'amber' | 'sky' | 'violet' | 'neutral'> = {
   cash: 'emerald', kaspi: 'amber', card: 'sky', online: 'violet', mixed: 'neutral',
@@ -779,7 +779,7 @@ function CategoryView({ data, loading, q }: { data: ProdData | null; loading: bo
             onClick={() => setSort(key)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               sort === key
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-200'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

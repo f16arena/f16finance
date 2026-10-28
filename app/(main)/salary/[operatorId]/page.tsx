@@ -54,9 +54,9 @@ type AdjKind = 'bonus' | 'fine' | 'debt'
 type AdjustmentRow = { id: string; date: string; amount: number; kind: string; comment: string | null; company_id: string | null; status: string; salary_week_id: string | null; linked_expense_id: string | null }
 type VoidTarget = { type: 'payment' | 'adjustment'; id: string; label: string }
 
-const input = 'h-11 w-full rounded-xl border border-border bg-white dark:bg-white/5 px-3 text-sm text-foreground placeholder:text-slate-500 focus:border-emerald-400/40 focus:outline-none'
-const selectCls = 'h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-emerald-400/40 focus:outline-none dark:[color-scheme:dark]'
-const textarea = 'min-h-[80px] w-full rounded-2xl border border-border bg-white dark:bg-white/5 px-3 py-3 text-sm text-foreground placeholder:text-slate-500 focus:border-emerald-400/40 focus:outline-none'
+const input = 'h-11 w-full rounded-xl border border-border bg-white dark:bg-white/5 px-3 text-sm text-foreground placeholder:text-slate-500 focus:border-blue-400/40 focus:outline-none'
+const selectCls = 'h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-blue-400/40 focus:outline-none dark:[color-scheme:dark]'
+const textarea = 'min-h-[80px] w-full rounded-2xl border border-border bg-white dark:bg-white/5 px-3 py-3 text-sm text-foreground placeholder:text-slate-500 focus:border-blue-400/40 focus:outline-none'
 const money = formatMoney
 // Долги, внесённые вручную, расчёт кладёт в fineAmount (manualDebtAmount — их часть).
 const finesOf = (w: { fineAmount: number; manualDebtAmount?: number }) => Math.max(0, w.fineAmount - (w.manualDebtAmount || 0))
@@ -391,7 +391,7 @@ function OperatorSalaryDetailPageContent() {
                   </Button>
                 )}
                 {canCreatePayment && (
-                <Button type="button" className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50" disabled={!canPay} onClick={() => setPayOpen(true)}>
+                <Button type="button" className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-50" disabled={!canPay} onClick={() => setPayOpen(true)}>
                   <Wallet className="mr-2 h-4 w-4" />Выплатить
                 </Button>
                 )}
@@ -407,7 +407,7 @@ function OperatorSalaryDetailPageContent() {
               {data.week.companyAllocations.length > 0 && (
                 <Card className="border-border bg-white dark:bg-white/[0.04] p-5">
                   <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />Разбивка по точкам
+                    <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-300" />Разбивка по точкам
                   </div>
                   <AdminTableViewport maxHeight="min(45vh, 22rem)" className="rounded-xl border border-border bg-transparent">
                     <table className="w-full min-w-[640px] text-xs">
@@ -528,7 +528,7 @@ function OperatorSalaryDetailPageContent() {
                   <DatePicker className="h-11" value={adjDate} onChange={setAdjDate} />
                   <input className={input} type="text" placeholder="Сумма" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} />
                   {can('salary.create_adjustment') && (
-                  <Button type="submit" disabled={adjSaving} className="h-11 rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">
+                  <Button type="submit" disabled={adjSaving} className="h-11 rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">
                     {adjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}
                   </Button>
                   )}
@@ -608,7 +608,7 @@ function OperatorSalaryDetailPageContent() {
             <div className="rounded-2xl border border-border bg-surface-muted p-3 text-sm text-body">Итого: <span className="font-semibold text-foreground">{money(parseMoney(advanceCash) + parseMoney(advanceKaspi))}</span></div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setAdvanceOpen(false)}>Отмена</Button>
-              <Button type="submit" disabled={advanceSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{advanceSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Выдать аванс'}</Button>
+              <Button type="submit" disabled={advanceSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{advanceSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Выдать аванс'}</Button>
             </div>
           </form>
         </Modal>
@@ -657,7 +657,7 @@ function OperatorSalaryDetailPageContent() {
             <div className="rounded-2xl border border-border bg-surface-muted p-3 text-sm text-body">Выплата: <span className="font-semibold text-foreground">{money(parseMoney(payCash) + parseMoney(payKaspi))}</span></div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setPayOpen(false)}>Отмена</Button>
-              <Button type="submit" disabled={paySaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{paySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
+              <Button type="submit" disabled={paySaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{paySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
             </div>
           </form>
         </Modal>

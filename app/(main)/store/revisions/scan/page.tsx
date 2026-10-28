@@ -270,7 +270,7 @@ export default function ScanRevisionPage() {
   if (result) {
     return (
       <div className="mx-auto max-w-md space-y-4 py-6 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center border border-emerald-500/40 text-emerald-400">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center border border-blue-500/40 text-blue-400">
           <Check className="h-8 w-8" />
         </div>
         <div className="font-mono text-lg font-semibold uppercase tracking-wide text-slate-900 dark:text-zinc-100">Ревизия проведена</div>

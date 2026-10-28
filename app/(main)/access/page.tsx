@@ -64,9 +64,9 @@ on conflict (name) do nothing;`
 // ==================== SOFT MODERN DESIGN TOKENS ====================
 // Тёмный, но тёплый: плавные закругления, мягкие тени, изумруд/синий акценты.
 const card = 'rounded-2xl border border-border bg-white dark:bg-slate-900/60 shadow-lg shadow-black/20'
-const btnPrimary = 'inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-200 transition-colors hover:bg-emerald-500/25 disabled:opacity-40'
+const btnPrimary = 'inline-flex items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/15 px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-200 transition-colors hover:bg-blue-500/25 disabled:opacity-40'
 const btnNeutral = 'inline-flex items-center gap-1.5 rounded-xl border border-border bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-xs font-medium text-body transition-colors hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-50'
-const inputCls = 'rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3.5 py-2.5 text-sm text-foreground placeholder-slate-500 transition focus:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/15'
+const inputCls = 'rounded-xl border border-border bg-white dark:bg-slate-950/50 px-3.5 py-2.5 text-sm text-foreground placeholder-slate-500 transition focus:border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500/15'
 
 // ==================== HELPERS ====================
 function fmtDate(iso: string | null) {
@@ -491,7 +491,7 @@ export default function AccessPage() {
         <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
           <div className="flex items-center gap-3.5">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-border bg-gradient-to-br from-emerald-400/30 to-sky-400/20 text-emerald-700 dark:text-emerald-100">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-border bg-gradient-to-br from-blue-400/30 to-sky-400/20 text-blue-700 dark:text-blue-100">
               <Shield className="h-5 w-5" aria-hidden />
             </div>
             <div>
@@ -522,7 +522,7 @@ export default function AccessPage() {
                       : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${active ? 'text-emerald-600 dark:text-emerald-300' : ''}`} aria-hidden />
+                  <Icon className={`h-4 w-4 ${active ? 'text-blue-600 dark:text-blue-300' : ''}`} aria-hidden />
                   {label}
                 </button>
               )
@@ -552,15 +552,15 @@ export default function AccessPage() {
             </p>
             <ol className="space-y-2.5">
               <li className="flex gap-3">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">1</span>
+                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-blue-500/15 text-[11px] font-bold text-blue-700 dark:text-blue-300">1</span>
                 <span><span className="font-medium text-foreground">Должность</span> бывает двух видов. <span className="font-medium text-foreground">В офисе</span> («Бухгалтер», «SMM») — какие страницы портала видно; создаётся <span className="font-medium text-foreground">пустой</span>, без доступа. <span className="font-medium text-foreground">На точке</span> («Бариста», «Старший смены») — права в кассе и доплата за смену.</span>
               </li>
               <li className="flex gap-3">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">2</span>
+                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-blue-500/15 text-[11px] font-bold text-blue-700 dark:text-blue-300">2</span>
                 <span>Во вкладке <span className="font-medium text-foreground">«Права»</span> для каждой должности включаете, <span className="font-medium text-foreground">какие страницы видит</span> и <span className="font-medium text-foreground">какие действия</span> внутри может делать (создавать, редактировать, экспорт в PDF и т.д.).</span>
               </li>
               <li className="flex gap-3">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-emerald-500/15 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">3</span>
+                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md bg-blue-500/15 text-[11px] font-bold text-blue-700 dark:text-blue-300">3</span>
                 <span>Во вкладке <span className="font-medium text-foreground">«Аккаунты»</span> назначаете сотруднику должность и выдаёте вход (email + пароль). Нужны точечные отличия одному человеку — кнопка <span className="font-medium text-foreground">«Инд. права»</span> добавит/заберёт конкретное право поверх должности.</span>
               </li>
             </ol>
@@ -575,7 +575,7 @@ export default function AccessPage() {
       {tab === 'positions' && (
         <>
           <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-muted-foreground">
-            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
             Все должности организации в одном месте. Офисные решают, какие страницы портала видно (права — во вкладке «Права»); должности на точке — права в кассе и доплату. Базовые (Владелец, Руководитель, Маркетолог) менять нельзя.
           </p>
           {posTableExists === false && (
@@ -663,7 +663,7 @@ export default function AccessPage() {
               <select
                 value={newPosSeed}
                 onChange={e => setNewPosSeed(e.target.value as 'closed' | 'open' | 'copy_from')}
-                className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1.5 text-xs text-foreground focus:border-emerald-400/50 focus:outline-none"
+                className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1.5 text-xs text-foreground focus:border-blue-400/50 focus:outline-none"
               >
                 <option value="closed">Пустая — без доступа (рекомендуется)</option>
                 <option value="open">Полный доступ (все права)</option>
@@ -673,7 +673,7 @@ export default function AccessPage() {
                 <select
                   value={newPosCopyFrom}
                   onChange={e => setNewPosCopyFrom(e.target.value)}
-                  className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1.5 text-xs text-foreground focus:border-emerald-400/50 focus:outline-none"
+                  className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1.5 text-xs text-foreground focus:border-blue-400/50 focus:outline-none"
                 >
                   <option value="">— выберите роль —</option>
                   {allPositionNames.map(name => (
@@ -693,7 +693,7 @@ export default function AccessPage() {
           )}
 
           <h2 className="flex items-center gap-2 px-1 pt-2 text-sm font-semibold text-foreground">
-            <Building2 className="h-4 w-4 text-emerald-500" /> {POSITION_KIND_LABELS.office.title}
+            <Building2 className="h-4 w-4 text-blue-500" /> {POSITION_KIND_LABELS.office.title}
             <span className="font-normal text-muted-foreground">· {POSITION_KIND_LABELS.office.hint}</span>
           </h2>
 
@@ -736,7 +736,7 @@ export default function AccessPage() {
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/25 to-sky-400/15 text-emerald-700 dark:text-emerald-200">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-400/25 to-sky-400/15 text-blue-700 dark:text-blue-200">
                           <Briefcase className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -800,7 +800,7 @@ export default function AccessPage() {
       {tab === 'permissions' && (
         <>
         <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-muted-foreground">
-          <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
           Выберите должность и включите, какие страницы она видит и какие действия внутри может делать. «Видят» — доступ к странице; галочки ниже — конкретные действия (создать, изменить, экспорт и т.д.).
         </p>
         <div className="overflow-x-auto">
@@ -817,7 +817,7 @@ export default function AccessPage() {
       {tab === 'accounts' && (
         <>
           <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-muted-foreground">
-            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
             Сотрудники, их должность и вход в систему. Меняйте должность, выдавайте пароль. «Инд. права» — точечные исключения поверх должности для конкретного человека.
           </p>
           {accountsLoading ? (
@@ -851,7 +851,7 @@ export default function AccessPage() {
                                   value={editingEmailValue}
                                   onChange={e => setEditingEmailValue(e.target.value)}
                                   onKeyDown={e => { if (e.key === 'Enter') saveEmail(s.id); if (e.key === 'Escape') setEditingEmailId(null) }}
-                                  className="w-48 rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1 text-xs text-foreground focus:border-emerald-400/50 focus:outline-none"
+                                  className="w-48 rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1 text-xs text-foreground focus:border-blue-400/50 focus:outline-none"
                                 />
                                 <button onClick={() => saveEmail(s.id)} disabled={savingEmailId === s.id} className={btnPrimary}>
                                   {savingEmailId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Сохранить'}
@@ -881,7 +881,7 @@ export default function AccessPage() {
                                 <select
                                   defaultValue={s.role || ''}
                                   onChange={e => saveStaffRole(s.id, e.target.value)}
-                                  className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1 text-xs text-foreground focus:border-emerald-400/50 focus:outline-none"
+                                  className="rounded-lg border border-border bg-white dark:bg-slate-950/50 px-2.5 py-1 text-xs text-foreground focus:border-blue-400/50 focus:outline-none"
                                 >
                                   <option value="">— выберите —</option>
                                   {allPositionNames.map(name => (

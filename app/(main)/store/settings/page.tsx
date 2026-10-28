@@ -96,7 +96,7 @@ export default function StoreSettingsPage() {
                 <label
                   key={c.id}
                   className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                    active ? 'border-emerald-400/40 bg-emerald-500/10' : 'border-border bg-slate-50 hover:border-slate-300 dark:bg-white/[0.02] dark:hover:border-white/20'
+                    active ? 'border-blue-400/40 bg-blue-500/10' : 'border-border bg-slate-50 hover:border-slate-300 dark:bg-white/[0.02] dark:hover:border-white/20'
                   } ${canManage ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
                 >
                   <div className="min-w-0">
@@ -117,7 +117,7 @@ export default function StoreSettingsPage() {
         {err && <span className="text-sm text-rose-600 dark:text-rose-300">{err}</span>}
         {!canManage && <span className="text-xs text-muted-foreground">Менять может только владелец или менеджер</span>}
         {can('store-settings.edit') && (
-          <Button onClick={save} disabled={!canManage || saving || !dirty} className="ml-auto bg-emerald-600 text-white hover:bg-emerald-700">
+          <Button onClick={save} disabled={!canManage || saving || !dirty} className="ml-auto bg-blue-600 text-white hover:bg-blue-700">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Сохранить
           </Button>

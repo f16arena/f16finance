@@ -380,7 +380,7 @@ export default function SupplierCardPage() {
   if (!supplier) {
     return (
       <div className="app-page max-w-2xl space-y-4">
-        <Link href="/store/suppliers" className="inline-flex items-center text-sm text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-emerald-200">
+        <Link href="/store/suppliers" className="inline-flex items-center text-sm text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200">
           <ArrowLeft className="w-4 h-4 mr-1" /> К списку поставщиков
         </Link>
         <Card className="p-6 text-sm text-red-700 dark:text-red-200 border-red-500/30 bg-red-500/10">{error || 'Поставщик не найден'}</Card>
@@ -614,13 +614,13 @@ export default function SupplierCardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-300 shrink-0" />
+                      <FileText className="w-4 h-4 text-blue-600 dark:text-blue-300 shrink-0" />
                       <span className="font-medium">{r.invoice_number || `#${r.id.slice(0, 8)}`}</span>
                       <span className="text-muted-foreground text-xs">· {fmtDate(r.received_at)}</span>
                       {r.location?.name ? <span className="text-muted-foreground text-xs">→ {r.location.name}</span> : null}
                     </div>
                     {r.invoice_file_url ? (
-                      <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
+                      <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 dark:text-blue-300 underline">
                         Накладная ↗
                       </a>
                     ) : null}
@@ -670,7 +670,7 @@ export default function SupplierCardPage() {
                       {d.payment_paid_at ? <span>Оплачен: {fmtDate(d.payment_paid_at)}</span> : null}
                     </div>
                   </div>
-                  <Link href={`/store/billing`} className="text-xs text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-emerald-200">
+                  <Link href={`/store/billing`} className="text-xs text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200">
                     К долгам →
                   </Link>
                 </div>
@@ -751,7 +751,7 @@ export default function SupplierCardPage() {
           <>
             <Button variant="outline" onClick={() => setAddAliasOpen(false)} disabled={savingAlias}>Отмена</Button>
             {can('store-suppliers.add_alias') && (
-              <Button onClick={submitAlias} disabled={savingAlias} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={submitAlias} disabled={savingAlias} className="bg-blue-600 text-white hover:bg-blue-700">
                 {savingAlias ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Сохраняю...</> : 'Добавить'}
               </Button>
             )}
@@ -797,7 +797,7 @@ export default function SupplierCardPage() {
           <>
             <Button variant="outline" onClick={() => setTransferOpen(false)} disabled={transferring}>Отмена</Button>
             {can('store-suppliers.edit') && (
-              <Button onClick={() => void doTransfer()} disabled={transferring || !transferTarget} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={() => void doTransfer()} disabled={transferring || !transferTarget} className="bg-blue-600 text-white hover:bg-blue-700">
                 {transferring ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Переношу…</> : 'Перенести'}
               </Button>
             )}
@@ -821,7 +821,7 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
     <button
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-        active ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
+        active ? 'bg-blue-500/20 text-blue-700 dark:text-blue-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
       }`}
     >
       {icon}

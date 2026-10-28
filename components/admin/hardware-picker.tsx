@@ -140,7 +140,7 @@ export function HardwarePicker({
                         setQuery('')
                       }}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-white/5 ${
-                        active ? 'text-emerald-700 dark:text-emerald-300' : 'text-foreground'
+                        active ? 'text-blue-700 dark:text-blue-300' : 'text-foreground'
                       }`}
                     >
                       <span className="truncate">{item.model}</span>

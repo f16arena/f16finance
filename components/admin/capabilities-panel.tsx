@@ -510,7 +510,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
                 onClick={() => setFocusRole(active ? '' : role)}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition ${
                   active
-                    ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                    ? 'border-blue-400/60 bg-blue-500/15 text-blue-800 dark:text-blue-200'
                     : 'border-border bg-slate-100 dark:bg-white/5 text-body hover:bg-slate-200 dark:hover:bg-white/10'
                 }`}
                 title={active ? 'Показать все роли' : `Показать только «${roleLabel(role)}» — ${s.granted} из ${s.total} прав`}
@@ -598,7 +598,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
                   onClick={() => setStatusFilter(value)}
                   className={`px-3 py-1.5 font-medium transition ${
                     statusFilter === value
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-200'
                       : 'bg-slate-100 dark:bg-white/5 text-body hover:bg-slate-200 dark:hover:bg-white/10'
                   }`}
                 >
@@ -638,7 +638,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
                 className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-muted"
               >
                 <div className="flex items-center gap-2">
-                  {groupCollapsed ? <ChevronRight className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-emerald-300" />}
+                  {groupCollapsed ? <ChevronRight className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-blue-300" />}
                   <span className="font-semibold text-foreground">{group.label}</span>
                   <span className="text-xs text-slate-500">
                     ({group.pages.length} стр., {group.pages.reduce((acc, p) => acc + p.capabilities.length, 0)} прав)
@@ -698,7 +698,7 @@ export function CapabilitiesPanel({ scope = 'global' }: { scope?: 'global' | 'or
               <div className="mb-2 text-sm font-medium text-foreground">{roleLabel(role)}</div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-200 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-blue-700 dark:text-blue-200 transition-colors hover:bg-blue-500/20 disabled:opacity-50"
                   disabled={savingKey?.startsWith(`preset:${role}:`)}
                   onClick={() => applyPreset(role, 'reset_role', scope === 'org'
                     ? `Сбросить роль «${roleLabel(role)}» к платформенному дефолту (снять ваши изменения)?`
@@ -828,7 +828,7 @@ function PageRow({
                   disabled={saving}
                   className={`rounded-full border px-2 py-0.5 text-[11px] transition disabled:opacity-50 ${
                     visible
-                      ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/25'
+                      ? 'border-blue-400/30 bg-blue-500/15 text-blue-700 dark:text-blue-200 hover:bg-blue-500/25'
                       : 'border-border bg-slate-100 dark:bg-white/5 text-slate-500 line-through hover:bg-slate-200 dark:hover:bg-white/10'
                   }`}
                   title={visible ? `${roleLabel(role)}: страница видна — клик чтобы скрыть` : `${roleLabel(role)}: страница скрыта — клик чтобы показать`}
@@ -919,7 +919,7 @@ function PageRow({
                   <button
                     onClick={() => onBulkSet(role, allCapIds, true)}
                     disabled={savingKey === `bulk:${role}`}
-                    className="text-[11px] text-emerald-600 dark:text-emerald-300 hover:underline"
+                    className="text-[11px] text-blue-600 dark:text-blue-300 hover:underline"
                   >
                     все вкл
                   </button>

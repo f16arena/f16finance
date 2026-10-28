@@ -1737,7 +1737,7 @@ function ChecklistTemplateCard({
           if (linkedArticle) meta.push(`FAQ: ${linkedArticle.title}`)
           return (
             <div key={item.id} className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/40">
-              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-400/10 text-xs font-black text-emerald-700 dark:text-emerald-100">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-400/10 text-xs font-black text-blue-700 dark:text-blue-100">
                 {index + 1}
               </span>
               <div className="min-w-0 flex-1">

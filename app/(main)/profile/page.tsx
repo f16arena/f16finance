@@ -284,8 +284,8 @@ export default function ProfilePage() {
       {/* Email */}
       <Card className="border-border bg-white dark:bg-slate-950/70 p-6 text-foreground">
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10">
-            <Mail className="h-5 w-5 text-emerald-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10">
+            <Mail className="h-5 w-5 text-blue-300" />
           </div>
           <div>
             <h2 className="text-base font-semibold">Email и логин</h2>
@@ -330,7 +330,7 @@ export default function ProfilePage() {
           <Button
             onClick={handleChangeEmail}
             disabled={savingEmail || !newEmail.trim()}
-            className="bg-emerald-600 hover:bg-emerald-500"
+            className="bg-blue-600 hover:bg-blue-500"
           >
             {savingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
             Отправить подтверждение

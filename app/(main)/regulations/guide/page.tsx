@@ -34,7 +34,7 @@ function Section({
   return (
     <Card id={id} className="p-5">
       <div className="flex items-center gap-2.5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-300">
           {icon}
         </span>
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
@@ -123,15 +123,15 @@ export default function RegulationsGuidePage() {
           <Steps
             items={[
               <>
-                <Link href="/regulations/setup" className="font-medium text-emerald-700 underline dark:text-emerald-300">Настройка</Link>
+                <Link href="/regulations/setup" className="font-medium text-blue-700 underline dark:text-blue-300">Настройка</Link>
                 {' '}— выбрать точку и её нишу, собрать черновики правил из данных системы и опубликовать их.
               </>,
               <>
-                <Link href="/regulations" className="font-medium text-emerald-700 underline dark:text-emerald-300">Правила и чек-листы</Link>
+                <Link href="/regulations" className="font-medium text-blue-700 underline dark:text-blue-300">Правила и чек-листы</Link>
                 {' '}— дописать статьи руками и собрать чек-листы смены.
               </>,
               <>
-                <Link href="/regulations/exams" className="font-medium text-emerald-700 underline dark:text-emerald-300">Экзамены</Link>
+                <Link href="/regulations/exams" className="font-medium text-blue-700 underline dark:text-blue-300">Экзамены</Link>
                 {' '}— проверить, что операторы это знают.
               </>,
               <>Дальше — только журнал: смотреть, кто проходит чек-листы и как сдаёт экзамены.</>,

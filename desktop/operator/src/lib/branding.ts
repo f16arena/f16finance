@@ -4,12 +4,12 @@
  * — логотип → доступен через getBrandLogoUrl()
  *
  * Цвет должен быть hex (#RRGGBB или #RGB).
- * Если brand_color не задан — используется дефолт (emerald).
+ * Если brand_color не задан — используется дефолт (cobalt).
  */
 
 const DEFAULT_BRAND = {
-  hex: '#10b981', // emerald-500
-  hexDark: '#059669', // emerald-600
+  hex: '#2563eb', // cobalt (ORDA CONTROL)
+  hexDark: '#1d4ed8', // cobalt dark
 }
 
 let currentLogoUrl: string | null = null

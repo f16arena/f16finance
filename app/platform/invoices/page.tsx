@@ -140,7 +140,7 @@ export default function PlatformInvoicesPage() {
                         <button
                           onClick={() => act(r.id, 'markPaid')}
                           disabled={busy === r.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 px-2.5 py-1.5 text-xs text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-50 dark:text-emerald-300"
+                          className="inline-flex items-center gap-1 rounded-lg border border-blue-500/30 px-2.5 py-1.5 text-xs text-blue-700 hover:bg-blue-500/10 disabled:opacity-50 dark:text-blue-300"
                         >
                           <Check className="h-3.5 w-3.5" /> Оплачен
                         </button>

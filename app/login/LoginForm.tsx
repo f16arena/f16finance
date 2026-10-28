@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { normalizeOperatorUsername, toOperatorAuthEmail } from '@/lib/core/auth'
 import { SITE_NAME } from '@/lib/core/site'
-import { OrdaPointSymbol } from '@/components/brand/orda-point-symbol'
+import { OrdaControlMark } from '@/components/brand/orda-control-mark'
 import {
   AlertCircle,
   ArrowLeft,
@@ -28,7 +28,7 @@ function BackToSite({ href = '/' }: { href?: string }) {
   return (
     <Link
       href={href}
-      className="absolute left-5 top-5 z-10 inline-flex items-center gap-2 rounded-full border border-[#e3e8f0] bg-white/80 px-4 py-2 text-sm font-medium text-[#475569] shadow-sm backdrop-blur transition hover:border-emerald-300 hover:text-emerald-700"
+      className="absolute left-5 top-5 z-10 inline-flex items-center gap-2 rounded-full border border-[#e3e8f0] bg-white/80 px-4 py-2 text-sm font-medium text-[#475569] shadow-sm backdrop-blur transition hover:border-blue-300 hover:text-blue-700"
     >
       <ArrowLeft className="h-4 w-4" />
       На сайт
@@ -76,10 +76,10 @@ function BrandPanel({
   footer?: string
 }) {
   return (
-    <div className="relative hidden overflow-hidden rounded-[2rem] bg-[linear-gradient(150deg,#0a7d4a_0%,#0f6b40_45%,#0a5733_100%)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+    <div className="relative hidden overflow-hidden rounded-[2rem] bg-[linear-gradient(150deg,#173563_0%,#0f2a50_45%,#0b1f3b_100%)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
       {/* декоративное свечение/паттерн */}
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -left-20 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-400/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -left-20 h-72 w-72 rounded-full bg-blue-300/10 blur-3xl" />
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.07]"
         style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)', backgroundSize: '22px 22px' }}
@@ -92,24 +92,22 @@ function BrandPanel({
         {/* Знак Orda Point — тот же, что в приложении и в иконке вкладки.
             Здесь стоял универсальный «мозг» из набора иконок: страница входа
             встречает человека первой, и встречала его чужим лицом. */}
-        <div className="mt-10 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 shadow-lg backdrop-blur-sm">
-          <OrdaPointSymbol size={34} title="" tone="mono" className="text-white" />
-        </div>
+        <OrdaControlMark size={56} className="mt-10 rounded-2xl shadow-lg ring-1 ring-white/15" />
         <h1 className="mt-6 max-w-md text-4xl font-semibold leading-[1.12] tracking-[-0.03em]">{title}</h1>
-        <p className="mt-4 max-w-md text-sm leading-7 text-emerald-50/80">{subtitle}</p>
+        <p className="mt-4 max-w-md text-sm leading-7 text-blue-50/80">{subtitle}</p>
       </div>
 
       <div className="relative mt-10 space-y-4">
         {points.map((p) => (
           <div key={p.title} className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-200" />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-200" />
             <div>
               <div className="text-sm font-medium text-white">{p.title}</div>
-              <div className="text-sm leading-6 text-emerald-50/70">{p.text}</div>
+              <div className="text-sm leading-6 text-blue-50/70">{p.text}</div>
             </div>
           </div>
         ))}
-        {footer ? <p className="pt-3 text-xs leading-6 text-emerald-50/60">{footer}</p> : null}
+        {footer ? <p className="pt-3 text-xs leading-6 text-blue-50/60">{footer}</p> : null}
       </div>
     </div>
   )
@@ -120,7 +118,7 @@ function TenantNotFound({ platformUrl }: { platformUrl: string }) {
     <div className="min-h-screen bg-[linear-gradient(135deg,#ffffff_0%,#eef2f8_48%,#ffffff_100%)] p-4 text-[#0f2038]">
       <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center">
         <div className="w-full max-w-xl rounded-[2rem] border border-[#d6dde8] bg-white p-8 text-center shadow-[0_24px_60px_-28px_rgba(15,32,56,0.3)]">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-600">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-500/10 text-blue-600">
             <Building2 className="h-8 w-8" />
           </div>
           <h1 className="mt-6 text-3xl font-semibold tracking-[-0.03em]">Организация не найдена</h1>
@@ -129,7 +127,7 @@ function TenantNotFound({ platformUrl }: { platformUrl: string }) {
             платформы или используйте корректный адрес вашей организации.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button asChild className="bg-emerald-600 text-white hover:bg-emerald-700">
+            <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
               <Link href={platformUrl}>Перейти на платформу</Link>
             </Button>
             <Button asChild variant="outline" className="border-[#c8d1de] bg-white text-[#0f2038] hover:bg-[#eef2f8]">
@@ -292,9 +290,7 @@ export default function LoginForm({
     <div className="rounded-[2rem] border border-[#e3e8f0] bg-white p-7 shadow-[0_24px_60px_-28px_rgba(15,32,56,0.3)] sm:p-9">
       <div className="mb-7 flex flex-col items-center text-center lg:items-start lg:text-left">
         {/* На телефоне левой панели нет — знак переезжает сюда, в шапку формы. */}
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#20C997,#0F7F6E)] shadow-lg shadow-emerald-600/25 lg:hidden">
-          <OrdaPointSymbol size={28} title="" tone="mono" className="text-white" />
-        </div>
+        <OrdaControlMark size={48} className="mb-4 lg:hidden" />
         <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[#0f2038]">{title}</h2>
         <p className="mt-2 max-w-sm text-sm leading-6 text-[#5b6b82]">{subtitle}</p>
       </div>
@@ -304,7 +300,7 @@ export default function LoginForm({
         <button
           type="button"
           onClick={() => { setMode('email'); setError(null) }}
-          className={`rounded-xl px-4 py-3 text-left transition ${mode === 'email' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25' : 'text-[#475569] hover:bg-white'}`}
+          className={`rounded-xl px-4 py-3 text-left transition ${mode === 'email' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'text-[#475569] hover:bg-white'}`}
         >
           <div className="flex items-center gap-2 text-sm font-medium"><Shield className="h-4 w-4" />Команда</div>
           <p className="mt-1 text-xs opacity-80">Владелец, менеджер, staff</p>
@@ -312,7 +308,7 @@ export default function LoginForm({
         <button
           type="button"
           onClick={() => { setMode('operator'); setError(null) }}
-          className={`rounded-xl px-4 py-3 text-left transition ${mode === 'operator' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25' : 'text-[#475569] hover:bg-white'}`}
+          className={`rounded-xl px-4 py-3 text-left transition ${mode === 'operator' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'text-[#475569] hover:bg-white'}`}
         >
           <div className="flex items-center gap-2 text-sm font-medium"><User className="h-4 w-4" />Операторы</div>
           <p className="mt-1 text-xs opacity-80">Рабочий логин точки</p>
@@ -330,7 +326,7 @@ export default function LoginForm({
               type={mode === 'email' ? 'email' : 'text'}
               value={login}
               onChange={(e) => setLogin(e.target.value)}
-              className="h-12 rounded-xl border-[#d4dbe6] bg-[#fafbfd] pl-10 text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:border-emerald-500 focus-visible:ring-emerald-500/30"
+              className="h-12 rounded-xl border-[#d4dbe6] bg-[#fafbfd] pl-10 text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:border-blue-500 focus-visible:ring-blue-500/30"
               placeholder={mode === 'email' ? 'name@example.com' : 'login_operatora'}
               required
               autoComplete="username"
@@ -346,7 +342,7 @@ export default function LoginForm({
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-12 rounded-xl border-[#d4dbe6] bg-[#fafbfd] pl-10 pr-10 text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:border-emerald-500 focus-visible:ring-emerald-500/30"
+              className="h-12 rounded-xl border-[#d4dbe6] bg-[#fafbfd] pl-10 pr-10 text-[#0f2038] placeholder:text-[#94a3b8] focus-visible:border-blue-500 focus-visible:ring-blue-500/30"
               placeholder="Введите пароль"
               required
               autoComplete="current-password"
@@ -371,7 +367,7 @@ export default function LoginForm({
         <Button
           type="submit"
           disabled={loading}
-          className="h-12 w-full rounded-xl bg-[linear-gradient(135deg,#10b981,#0a7d4a)] text-base font-medium text-white shadow-lg shadow-emerald-600/25 transition hover:brightness-105 disabled:opacity-60"
+          className="h-12 w-full rounded-xl bg-[linear-gradient(135deg,#3b82f6,#2563eb)] text-base font-medium text-white shadow-lg shadow-blue-600/25 transition hover:brightness-105 disabled:opacity-60"
         >
           {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ArrowRight className="mr-2 h-5 w-5" />}
           {submitLabel}
@@ -379,15 +375,15 @@ export default function LoginForm({
       </form>
 
       <div className="mt-6 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/forgot-password" className="font-medium text-emerald-600 hover:text-emerald-700">Забыли пароль?</Link>
+        <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">Забыли пароль?</Link>
         <span className="text-[#94a3b8]">Нет доступа? Обратитесь к администратору</span>
       </div>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-[#94a3b8] lg:justify-start">
         <span>{SITE_NAME} · Безопасный вход</span>
         <span className="text-[#cbd5e1]">·</span>
-        <Link href="/privacy" className="hover:text-emerald-600">Конфиденциальность</Link>
+        <Link href="/privacy" className="hover:text-blue-600">Конфиденциальность</Link>
         <span className="text-[#cbd5e1]">·</span>
-        <Link href="/terms" className="hover:text-emerald-600">Условия</Link>
+        <Link href="/terms" className="hover:text-blue-600">Условия</Link>
       </div>
     </div>
   )

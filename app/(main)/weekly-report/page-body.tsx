@@ -520,7 +520,7 @@ function PlanCard({ plan, extraNames }: { plan: WeekPlanStatus; extraNames: stri
     <SectionCard
       title={`План на ${month}`}
       subtitle={`${plan.source === 'org' ? 'Общая цель организации' : 'Сумма целей точек'} · выручка${extraNames.length ? ` без ${extraNames.join(', ')}` : ''}, по ${dm(plan.lastFactDate)}`}
-      icon={<Target className="h-4 w-4 text-emerald-500" />}
+      icon={<Target className="h-4 w-4 text-blue-500" />}
       action={
         <Button asChild variant="outline" size="sm">
           <Link href="/goals">
@@ -617,7 +617,7 @@ function SummaryTab({ balance, plan, loading, onOpenShifts }: { balance: WeeklyB
                 : a.tone === 'warning'
                   ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200'
                   : a.tone === 'success'
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-800 dark:text-blue-200'
                     : 'border-border bg-surface-muted text-foreground'
             const Icon = a.tone === 'success' ? CheckCircle2 : a.tone === 'info' ? Info : AlertTriangle
             const isShifts = a.title.startsWith('Не внесены отчёты смен')
@@ -1447,7 +1447,7 @@ function ReportTab({
             <p className="text-sm text-muted-foreground">Нет права на печать акта.</p>
           )}
         </SectionCard>
-        <SectionCard title="PDF-отчёт недели" subtitle="Итоги, точки, статьи расходов, все операции и план закупа на следующую неделю." icon={<Download className="h-4 w-4 text-emerald-500" />}>
+        <SectionCard title="PDF-отчёт недели" subtitle="Итоги, точки, статьи расходов, все операции и план закупа на следующую неделю." icon={<Download className="h-4 w-4 text-blue-500" />}>
           {can('weekly-report.export') ? (
             <Button variant="outline" onClick={() => void downloadPdf()} disabled={pdfLoading}>
               {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Скачать PDF

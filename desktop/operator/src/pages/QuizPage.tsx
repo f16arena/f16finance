@@ -108,7 +108,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
     return (
       <div className="grid h-screen place-items-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-500" />
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-500" />
           <p className="mt-4 text-sm text-slate-500">Готовлю вопросы...</p>
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
           )}
           <Button
             onClick={() => onComplete(result.passed)}
-            className="mt-6 w-full bg-emerald-500 text-white hover:bg-emerald-600"
+            className="mt-6 w-full bg-blue-500 text-white hover:bg-blue-600"
           >
             Продолжить
           </Button>
@@ -158,7 +158,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
     return (
       <div className="grid h-screen place-items-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-500" />
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-500" />
           <p className="mt-4 text-sm text-slate-500">Проверяю ответы...</p>
         </div>
       </div>
@@ -173,13 +173,13 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
 
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <div className="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-emerald-500/5 blur-3xl dark:bg-emerald-500/10" />
+      <div className="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       {/* Header */}
       <div className="relative z-10 border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-emerald-500" />
+            <BookOpen className="h-5 w-5 text-blue-500" />
             <h1 className="text-lg font-bold">Тест знаний</h1>
           </div>
           <p className="text-sm tabular-nums text-slate-500">
@@ -188,7 +188,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -207,17 +207,17 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
                   onClick={() => setAnswers((cur) => ({ ...cur, [currentIdx]: i }))}
                   className={`flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
                       : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
                   }`}
                 >
                   <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold ${
-                    isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                   }`}>
                     {String.fromCharCode(65 + i)}
                   </div>
                   <span className="flex-1 text-sm">{choice}</span>
-                  {isSelected && <CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                  {isSelected && <CheckCircle2 className="h-5 w-5 text-blue-500" />}
                 </button>
               )
             })}
@@ -236,7 +236,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
               <Button
                 onClick={() => setCurrentIdx((i) => Math.min(questions.length - 1, i + 1))}
                 disabled={answers[currentIdx] === undefined}
-                className="bg-emerald-500 text-white hover:bg-emerald-600"
+                className="bg-blue-500 text-white hover:bg-blue-600"
               >
                 Далее →
               </Button>
@@ -244,7 +244,7 @@ export default function QuizPage({ config, session, onComplete, onSkip }: QuizPa
               <Button
                 onClick={() => void submit()}
                 disabled={!allAnswered}
-                className="bg-emerald-500 text-white hover:bg-emerald-600"
+                className="bg-blue-500 text-white hover:bg-blue-600"
               >
                 Завершить
               </Button>

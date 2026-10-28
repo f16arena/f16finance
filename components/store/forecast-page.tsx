@@ -229,7 +229,7 @@ export function InventoryForecastPageContent({ embedded = false }: { embedded?: 
             onClick={() => setFilterStatus(btn.key)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               filterStatus === btn.key
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-200'
                 : 'bg-slate-100 text-muted-foreground hover:bg-slate-200 hover:text-foreground dark:bg-white/5 dark:hover:bg-white/10'
             }`}
           >

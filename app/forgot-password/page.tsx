@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
 
               {success && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  <div className="flex items-center gap-2 rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-300">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>{success}</span>
                   </div>

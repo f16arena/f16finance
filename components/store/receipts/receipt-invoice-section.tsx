@@ -42,7 +42,7 @@ export function ReceiptInvoiceSection({ form, items }: { form: ReceiptForm; item
         )}
       </div>
       {invoiceFileUrl ? (
-        <a href={invoiceFileUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-700 dark:text-emerald-300 underline">
+        <a href={invoiceFileUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 dark:text-blue-300 underline">
           Накладная загружена — открыть файл
         </a>
       ) : (

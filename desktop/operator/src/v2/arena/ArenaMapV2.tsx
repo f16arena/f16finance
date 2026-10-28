@@ -142,7 +142,7 @@ export function ArenaMapV2(props: {
         </svg>
 
         {zonesOnMap.map((zone) => {
-          const color = zone.color ?? '#0a84ff'
+          const color = zone.color ?? '#2563eb'
           return (
             <div
               key={zone.id}

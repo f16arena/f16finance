@@ -81,7 +81,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | React.ReactNode
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[#e2e8f0] text-left text-[#0f2038]">
+          <tr className="border-b border-[#e2e8f0] text-left text-[#0b1f3b]">
             {head.map((h) => (
               <th key={h} className="py-2 pr-4 font-semibold">{h}</th>
             ))}
@@ -113,7 +113,7 @@ function Steps({ items }: { items: React.ReactNode[] }) {
 
 /** Название кнопки или поля ровно так, как оно подписано в программе. */
 function Btn({ children }: { children: React.ReactNode }) {
-  return <span className="rounded bg-[#eef2f8] px-1.5 py-0.5 text-[13px] font-medium text-[#0f2038]">{children}</span>
+  return <span className="rounded bg-[#eef2f8] px-1.5 py-0.5 text-[13px] font-medium text-[#0b1f3b]">{children}</span>
 }
 
 /**
@@ -131,7 +131,7 @@ export default async function OperatorManualPage() {
     <main className="min-h-screen bg-white text-[#475569]">
       <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/help" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#16a34a]">
+          <Link href="/help" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm">К руководству</span>
           </Link>
@@ -143,13 +143,13 @@ export default async function OperatorManualPage() {
         <div className="grid gap-10 lg:grid-cols-[280px_1fr] lg:items-start">
           <aside className="lg:sticky lg:top-8">
             <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#16a34a]">Экраны</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">Экраны</div>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {sections.map((s) => (
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#16a34a]/[0.07] hover:text-[#16a34a]"
+                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
@@ -157,14 +157,14 @@ export default async function OperatorManualPage() {
                 ))}
               </ul>
               <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
-                <Link href="/help" className="hover:text-[#16a34a]">→ Руководство по системе</Link>
+                <Link href="/help" className="hover:text-[#2563eb]">→ Руководство по системе</Link>
               </div>
             </div>
           </aside>
 
           <article className="max-w-3xl space-y-10 text-[#475569]">
             <header>
-              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0f2038] sm:text-4xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Программа кассы: экран за экраном
               </h1>
               <p className="mt-4 text-sm leading-7 text-[#56657d]">
@@ -176,7 +176,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Настройка устройства ── */}
             <section id="setup">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Экран настройки устройства</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Экран настройки устройства</h2>
               <p className="mt-4 text-sm leading-7">
                 Открывается при первом запуске, а позже — по ссылке{' '}
                 <Btn>Доступ к настройке устройства</Btn> на экране входа. Здесь
@@ -201,7 +201,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Вход ── */}
             <section id="login">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Экран входа</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Экран входа</h2>
               <p className="mt-4 text-sm leading-7">
                 Два способа: логин с паролем и вход по QR с телефона. Внизу —
                 вход для администратора точки.
@@ -213,7 +213,7 @@ export default async function OperatorManualPage() {
                   'Программа откроет рабочий экран или предложит выбрать точку.',
                 ]}
               />
-              <h3 className="pt-4 text-base font-semibold text-[#0f2038]">Вход по QR</h3>
+              <h3 className="pt-4 text-base font-semibold text-[#0b1f3b]">Вход по QR</h3>
               <Steps
                 items={[
                   <>Нажать <Btn>Войти по QR</Btn> — на мониторе появится код.</>,
@@ -230,7 +230,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Выбор точки ── */}
             <section id="point">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Экран выбора точки</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Экран выбора точки</h2>
               <p className="mt-4 text-sm leading-7">
                 Появляется, только если оператор привязан к нескольким точкам:
                 заголовок <Btn>Выберите точку</Btn> и список. Нажатие на точку
@@ -247,7 +247,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Каркас ── */}
             <section id="frame">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Верхняя панель: что есть всегда</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Верхняя панель: что есть всегда</h2>
               <p className="mt-4 text-sm leading-7">
                 Панель вкладок видна на всех рабочих экранах. Набор зависит от
                 настроек точки: лишние вкладки скрыты.
@@ -278,9 +278,9 @@ export default async function OperatorManualPage() {
 
             {/* ── Смена ── */}
             <section id="shift">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Смена»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Смена»</h2>
 
-              <h3 className="pt-2 text-base font-semibold text-[#0f2038]">Открытие</h3>
+              <h3 className="pt-2 text-base font-semibold text-[#0b1f3b]">Открытие</h3>
               <p className="mt-2 text-sm leading-7">
                 Пока смена не открыта, программа показывает окно{' '}
                 <Btn>Открытие смены</Btn> поверх экрана.
@@ -299,7 +299,7 @@ export default async function OperatorManualPage() {
                 Ошиблись — зовите менеджера, сам оператор это не исправит.
               </Note>
 
-              <h3 className="pt-4 text-base font-semibold text-[#0f2038]">Закрытие</h3>
+              <h3 className="pt-4 text-base font-semibold text-[#0b1f3b]">Закрытие</h3>
               <p className="mt-2 text-sm leading-7">
                 Экран разбит на три части: слева поля с деньгами, в середине
                 вычеты и комментарий, справа — карточка{' '}
@@ -318,7 +318,7 @@ export default async function OperatorManualPage() {
                   [<Btn key="6">Комментарий</Btn>, 'Всё, что объясняет расхождение: техсбой, пересадка, недостача'],
                 ]}
               />
-              <div className="mt-4 rounded-2xl border border-[#16a34a]/30 bg-[#16a34a]/[0.06] px-4 py-4 text-sm leading-8 text-[#0f2038]">
+              <div className="mt-4 rounded-2xl border border-[#2563eb]/30 bg-[#2563eb]/[0.06] px-4 py-4 text-sm leading-8 text-[#0b1f3b]">
                 <div><strong>ФАКТ</strong> = Наличные + Мелочь + Безнал + Тех. компенсации − Старт кассы</div>
                 <div><strong>ИТОГ</strong> = ФАКТ − Продажи по системе</div>
               </div>
@@ -343,7 +343,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Продажа ── */}
             <section id="sale">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Продажа»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Продажа»</h2>
               <p className="mt-4 text-sm leading-7">
                 Слева поиск и витрина, по центру чек, справа — оплата. Товар
                 добавляется в чек сразу после скана: отдельно подтверждать не
@@ -387,7 +387,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Возврат ── */}
             <section id="return">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Возврат»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Возврат»</h2>
               <p className="mt-4 text-sm leading-7">
                 Показывает продажи, доступные к возврату. Пустой экран с надписью
                 «Нет продаж для возврата» означает, что подходящих чеков нет.
@@ -409,7 +409,7 @@ export default async function OperatorManualPage() {
 
             {/* ── История ── */}
             <section id="history">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «История»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «История»</h2>
               <p className="mt-4 text-sm leading-7">
                 Чеки за последние 7 дней по всем кассирам точки. Поиск работает и
                 по сумме чека — удобно, когда клиент помнит только сумму.
@@ -430,7 +430,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Долги ── */}
             <section id="debts">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Долги»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Долги»</h2>
               <p className="mt-4 text-sm leading-7">
                 Экран сканера: сверху поле <Btn>Штрихкод</Btn> с подсказкой
                 «Наведите сканер», ниже — список долгов смены.
@@ -454,7 +454,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Заявка ── */}
             <section id="request">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Заявка»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Заявка»</h2>
               <p className="mt-4 text-sm leading-7">
                 Две вкладки внутри: <Btn>Заявка</Btn> — сборка (слева каталог
                 склада с остатками, справа собранные позиции) и{' '}
@@ -490,7 +490,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Зал ── */}
             <section id="hall">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Зал»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Зал»</h2>
               <p className="mt-4 text-sm leading-7">
                 Есть на точках с игровыми зонами. Переключается вид{' '}
                 <Btn>Карта</Btn> и <Btn>Список</Btn>, рядом —{' '}
@@ -527,7 +527,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Чек-листы ── */}
             <section id="checklists">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Экран чек-листов</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Экран чек-листов</h2>
               <p className="mt-4 text-sm leading-7">
                 Открывается со «Смены». Сверху — <Btn>Сводка</Btn> с тем, что
                 нужно пройти. Чек-лист с меткой <Btn>Блокирует смену</Btn> не даёт
@@ -552,7 +552,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Профиль ── */}
             <section id="cabinet">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Вкладка «Профиль»</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Вкладка «Профиль»</h2>
               <p className="mt-4 text-sm leading-7">Личные данные оператора, пять разделов.</p>
               <Table
                 head={['Раздел', 'Что показывает']}
@@ -569,7 +569,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Очередь ── */}
             <section id="queue">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Окно очереди отправки</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Окно очереди отправки</h2>
               <p className="mt-4 text-sm leading-7">
                 Открывается нажатием на счётчик вверху экрана. Пока интернета
                 нет, программа работает по кэшу, а продажи, возвраты, долги,
@@ -593,7 +593,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Настройки ── */}
             <section id="prefs">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Окно настроек</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Окно настроек</h2>
               <p className="mt-4 text-sm leading-7">
                 Кнопка <Btn>Настройки</Btn> рядом с вкладками. Меняет только вид
                 программы на этом компьютере, на учёт не влияет.
@@ -612,7 +612,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Обновление ── */}
             <section id="update">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Обновление программы</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Обновление программы</h2>
               <p className="mt-4 text-sm leading-7">
                 Когда выходит новая версия, справа внизу появляется карточка{' '}
                 <Btn>Обновление Orda Point</Btn> с текущей и новой версией.
@@ -632,7 +632,7 @@ export default async function OperatorManualPage() {
 
             {/* ── Если не работает ── */}
             <section id="stuck">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">Если что-то не работает</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">Если что-то не работает</h2>
               <Table
                 head={['Что видит оператор', 'Что делать']}
                 rows={[
@@ -648,7 +648,7 @@ export default async function OperatorManualPage() {
               />
               <p className="mt-4 text-sm leading-7">
                 Общее устройство системы, сайт и приложение описаны в{' '}
-                <Link href="/help" className="font-medium text-[#16a34a] hover:underline">
+                <Link href="/help" className="font-medium text-[#2563eb] hover:underline">
                   руководстве пользователя
                 </Link>
                 .

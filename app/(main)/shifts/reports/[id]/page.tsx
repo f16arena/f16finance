@@ -606,7 +606,7 @@ export default function ShiftReportDetailPage({
                       {inc.kind === 'violation' ? (
                         <ShieldAlert className="h-4 w-4 text-rose-400" />
                       ) : inc.kind === 'bonus' ? (
-                        <Sparkles className="h-4 w-4 text-emerald-400" />
+                        <Sparkles className="h-4 w-4 text-blue-400" />
                       ) : (
                         <StickyNote className="h-4 w-4 text-slate-400" />
                       )}
@@ -650,7 +650,7 @@ export default function ShiftReportDetailPage({
           {topItems.length > 0 && (
             <Card className="overflow-hidden border-border">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-white/5 px-4 py-2 text-sm font-medium text-foreground">
-                <Package className="h-4 w-4 text-emerald-400" />
+                <Package className="h-4 w-4 text-blue-400" />
                 Топ товаров за смену
                 <span className="ml-auto text-xs text-slate-400">по выручке</span>
               </div>
@@ -686,7 +686,7 @@ export default function ShiftReportDetailPage({
                   value={salesSearch}
                   onChange={(e) => setSalesSearch(e.target.value)}
                   placeholder="Поиск по товару, клиенту, оператору…"
-                  className="h-8 w-full sm:w-72 rounded-md border border-border bg-white dark:bg-white/[0.03] pl-7 pr-2 text-xs text-body outline-none placeholder:text-slate-500 focus:border-emerald-500/40"
+                  className="h-8 w-full sm:w-72 rounded-md border border-border bg-white dark:bg-white/[0.03] pl-7 pr-2 text-xs text-body outline-none placeholder:text-slate-500 focus:border-blue-500/40"
                 />
               </div>
             </div>
@@ -1263,7 +1263,7 @@ function ZReport({
     <Card className={`p-6 print:bg-white print:text-black ${
       isOpen
         ? 'border-amber-500/30 bg-gradient-to-br from-amber-50 via-white to-amber-50 dark:from-slate-950 dark:via-slate-950 dark:to-amber-950/10'
-        : 'border-emerald-500/20 bg-gradient-to-br from-white via-white to-slate-50 dark:from-slate-950 dark:via-slate-950 dark:to-emerald-950/10'
+        : 'border-blue-500/20 bg-gradient-to-br from-white via-white to-slate-50 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/10'
     }`}>
       <div className="flex items-start justify-between flex-wrap gap-4 mb-5 pb-4 border-b border-border">
         <div>

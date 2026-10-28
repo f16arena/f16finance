@@ -15,13 +15,13 @@
 const ACCENTS = {
   /** Смена, продажи, сканер, история, очередь — фирменный изумруд + синий */
   emerald: [
-    'bg-emerald-500/5 dark:bg-emerald-500/10',
+    'bg-blue-500/5 dark:bg-blue-500/10',
     'bg-blue-500/5 dark:bg-blue-500/10',
   ],
   /** Кабинет оператора — фиолетовый + изумруд (как было до унификации) */
   violet: [
     'bg-violet-500/5 dark:bg-violet-500/10',
-    'bg-emerald-500/5 dark:bg-emerald-500/10',
+    'bg-blue-500/5 dark:bg-blue-500/10',
   ],
   /** Возвраты — тёплый розовый + синий (как было до унификации) */
   rose: [

@@ -494,7 +494,7 @@ function ItemForm({
                 type="checkbox"
                 checked={form.requires_expiry}
                 onChange={(e) => onChange({ ...form, requires_expiry: e.target.checked })}
-                className="h-4 w-4 accent-emerald-500"
+                className="h-4 w-4 accent-blue-500"
               />
               <span className="text-muted-foreground">Требует срок годности</span>
               <span className="text-[11px] text-muted-foreground/70">(сними для бургеров/хотдогов)</span>
@@ -1583,7 +1583,7 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
                       <th className="w-8 px-2 py-2.5 text-center">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 cursor-pointer accent-emerald-500"
+                          className="h-4 w-4 cursor-pointer accent-blue-500"
                           checked={allOnPageSelected}
                           onChange={toggleSelectPage}
                           title="Выбрать все на странице"
@@ -1609,7 +1609,7 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
                           <td className="w-8 px-2 py-2.5 text-center">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 cursor-pointer accent-emerald-500"
+                              className="h-4 w-4 cursor-pointer accent-blue-500"
                               checked={selectedItemIds.has(item.id)}
                               onChange={(e) => toggleSelect(item.id, (e.nativeEvent as MouseEvent).shiftKey)}
                             />
@@ -1767,7 +1767,7 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
                               {canEdit && !item.is_active && (
                                 <button
                                   onClick={() => void restoreItem(item)}
-                                  className="p-1 rounded hover:bg-emerald-500/10 text-muted-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
+                                  className="p-1 rounded hover:bg-blue-500/10 text-muted-foreground transition-colors hover:text-blue-600 dark:hover:text-blue-400"
                                   title="Восстановить из удалённых"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />

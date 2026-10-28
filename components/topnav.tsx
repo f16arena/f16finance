@@ -299,12 +299,12 @@ function OrganizationMenu({
                   className={cn(
                     'flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition',
                     isActive
-                      ? 'border-emerald-500/20 bg-emerald-500/10'
+                      ? 'border-blue-500/20 bg-blue-500/10'
                       : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100 dark:border-white/5 dark:bg-white/[0.02] dark:hover:border-white/10 dark:hover:bg-white/[0.04]',
                     (disabled || isActive) && 'cursor-default',
                   )}
                 >
-                  <div className={cn('mt-0.5 h-2.5 w-2.5 rounded-full', isActive ? 'bg-emerald-400' : 'bg-slate-400 dark:bg-slate-600')} />
+                  <div className={cn('mt-0.5 h-2.5 w-2.5 rounded-full', isActive ? 'bg-blue-400' : 'bg-slate-400 dark:bg-slate-600')} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{organization.name}</p>
                     <p className="truncate text-xs text-slate-500">

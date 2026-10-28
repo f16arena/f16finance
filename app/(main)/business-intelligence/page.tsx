@@ -663,7 +663,7 @@ function CustomersCard({ data }: { data: BusinessIntelligenceResult }) {
   return (
     <Section
       id="customers"
-      icon={<Users className="h-4 w-4 text-emerald-500" />}
+      icon={<Users className="h-4 w-4 text-blue-500" />}
       title="Кто из клиентов уходит"
       subtitle="Постоянные клиенты, которые раньше приходили часто и тратили много, а сейчас давно не появлялись."
       link={{ href: '/customers', label: 'Клиенты' }}

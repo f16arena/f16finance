@@ -77,7 +77,7 @@ export default function CookiesPage() {
     <main className="min-h-screen bg-white text-[#475569]">
       <header className="border-b border-[#e2e8f0] bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#16a34a]">
+          <Link href="/" className="flex items-center gap-2.5 text-[#56657d] hover:text-[#2563eb]">
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm">К {SITE_NAME}</span>
           </Link>
@@ -91,7 +91,7 @@ export default function CookiesPage() {
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:items-start">
           <aside className="lg:sticky lg:top-8">
             <div className="rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#16a34a]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#2563eb]">
                 Содержание
               </div>
               <ul className="mt-3 space-y-1.5 text-sm">
@@ -99,7 +99,7 @@ export default function CookiesPage() {
                   <li key={s.id}>
                     <a
                       href={`#${s.id}`}
-                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#16a34a]/[0.07] hover:text-[#16a34a]"
+                      className="block rounded-lg px-2 py-1 text-[#56657d] transition hover:bg-[#2563eb]/[0.07] hover:text-[#2563eb]"
                     >
                       {s.title}
                     </a>
@@ -107,24 +107,24 @@ export default function CookiesPage() {
                 ))}
               </ul>
               <div className="mt-4 grid gap-1 text-xs text-[#5b6b82]">
-                <Link href="/offer" className="hover:text-[#16a34a]">→ Публичная оферта</Link>
-                <Link href="/privacy" className="hover:text-[#16a34a]">→ Политика конфиденциальности</Link>
-                <Link href="/terms" className="hover:text-[#16a34a]">→ Пользовательское соглашение</Link>
-                <Link href="/sla" className="hover:text-[#16a34a]">→ SLA</Link>
+                <Link href="/offer" className="hover:text-[#2563eb]">→ Публичная оферта</Link>
+                <Link href="/privacy" className="hover:text-[#2563eb]">→ Политика конфиденциальности</Link>
+                <Link href="/terms" className="hover:text-[#2563eb]">→ Пользовательское соглашение</Link>
+                <Link href="/sla" className="hover:text-[#2563eb]">→ SLA</Link>
               </div>
             </div>
           </aside>
 
           <article className="max-w-3xl space-y-8 text-[#475569]">
             <header>
-              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0f2038] sm:text-4xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-[#0b1f3b] sm:text-4xl">
                 Политика Cookies
               </h1>
               <p className="mt-4 text-sm leading-7 text-[#56657d]">
                 Настоящая Политика описывает использование файлов cookies, локального
                 хранилища браузера и аналогичных технологий в Сервисе «{PRODUCT_NAME}»,
                 предоставляемом {LEGAL_ENTITY.shortName}. Настоящая Политика дополняет
-                {' '}<Link href="/privacy" className="text-[#16a34a] hover:underline">Политику конфиденциальности</Link>.
+                {' '}<Link href="/privacy" className="text-[#2563eb] hover:underline">Политику конфиденциальности</Link>.
               </p>
               <p className="mt-3 text-sm leading-7 text-[#56657d]">
                 <strong>Дата вступления в силу:</strong> {LEGAL_EFFECTIVE_DATE}
@@ -134,19 +134,19 @@ export default function CookiesPage() {
             </header>
 
             <section id="overview">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">1. Что такое cookies</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">1. Что такое cookies</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Cookies — это небольшие текстовые файлы, сохраняемые в браузере пользователя при посещении сайта. Они позволяют сайту «запоминать» пользователя между сессиями: например, держать его авторизованным в Личном кабинете или сохранять выбранные настройки интерфейса.</p>
-                <p>Помимо cookies Сервис использует <strong className="text-[#0f2038]">localStorage</strong> и аналогичные технологии локального хранения, которые работают по схожему принципу, но не передаются на сервер автоматически с каждым запросом.</p>
+                <p>Помимо cookies Сервис использует <strong className="text-[#0b1f3b]">localStorage</strong> и аналогичные технологии локального хранения, которые работают по схожему принципу, но не передаются на сервер автоматически с каждым запросом.</p>
               </div>
             </section>
 
             <section id="list">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">2. Какие cookies использует Сервис</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">2. Какие cookies использует Сервис</h2>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#d6dde8] text-left text-xs uppercase tracking-wider text-[#16a34a]">
+                    <tr className="border-b border-[#d6dde8] text-left text-xs uppercase tracking-wider text-[#2563eb]">
                       <th className="py-2 pr-4">Имя / шаблон</th>
                       <th className="py-2 pr-4">Тип</th>
                       <th className="py-2 pr-4">Назначение</th>
@@ -156,7 +156,7 @@ export default function CookiesPage() {
                   <tbody>
                     {cookieTable.map((row) => (
                       <tr key={row.name} className="border-b border-[#e2e8f0] align-top">
-                        <td className="py-3 pr-4 font-mono text-xs text-[#0f2038]">{row.name}</td>
+                        <td className="py-3 pr-4 font-mono text-xs text-[#0b1f3b]">{row.name}</td>
                         <td className="py-3 pr-4 text-[#56657d]">{row.type}</td>
                         <td className="py-3 pr-4 text-[#56657d]">{row.purpose}</td>
                         <td className="py-3 text-[#56657d]">{row.retention}</td>
@@ -169,7 +169,7 @@ export default function CookiesPage() {
             </section>
 
             <section id="localstorage">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">3. Локальное хранилище браузера</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">3. Локальное хранилище браузера</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Сервис использует localStorage браузера для:</p>
                 <ul className="list-disc space-y-1 pl-6">
@@ -181,7 +181,7 @@ export default function CookiesPage() {
             </section>
 
             <section id="desktop">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">4. Локальное хранилище Operator Desktop</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">4. Локальное хранилище Operator Desktop</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Клиентское приложение Operator Desktop дополнительно использует встроенное в Electron локальное хранилище для:</p>
                 <ul className="list-disc space-y-1 pl-6">
@@ -193,15 +193,15 @@ export default function CookiesPage() {
             </section>
 
             <section id="analytics">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">5. Аналитика</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">5. Аналитика</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
-                <p>На веб-сайте {PRODUCT_SITE} используется сервис <strong className="text-[#0f2038]">Vercel Analytics</strong> для сбора обезличенной статистики посещений: количество просмотров, тип браузера, общая страна, среднее время загрузки страниц. Данные собираются без присвоения уникальных идентификаторов пользователю и без использования сторонних рекламных cookies.</p>
+                <p>На веб-сайте {PRODUCT_SITE} используется сервис <strong className="text-[#0b1f3b]">Vercel Analytics</strong> для сбора обезличенной статистики посещений: количество просмотров, тип браузера, общая страна, среднее время загрузки страниц. Данные собираются без присвоения уникальных идентификаторов пользователю и без использования сторонних рекламных cookies.</p>
                 <p>Сторонние рекламные и трекинговые cookies (Google Analytics, Facebook Pixel, рекламные сети) в Сервисе не используются.</p>
               </div>
             </section>
 
             <section id="manage">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">6. Как управлять cookies</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">6. Как управлять cookies</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>Пользователь может управлять cookies через настройки браузера:</p>
                 <ul className="list-disc space-y-1 pl-6">
@@ -215,7 +215,7 @@ export default function CookiesPage() {
             </section>
 
             <section id="consequences">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">7. Последствия отключения</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">7. Последствия отключения</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>При отключении технических cookies (Supabase Auth) аутентификация в Личном кабинете будет невозможна — вход в Сервис прекратится. При отключении функциональных хранилищ настройки интерфейса и отложенные кассовые чеки не будут сохраняться между сессиями.</p>
                 <p>Отключение аналитических cookies не влияет на работоспособность Сервиса.</p>
@@ -223,29 +223,29 @@ export default function CookiesPage() {
             </section>
 
             <section id="changes">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">8. Изменения политики</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">8. Изменения политики</h2>
               <div className="mt-4 space-y-3 text-sm leading-7">
                 <p>{LEGAL_ENTITY.shortName} вправе в одностороннем порядке вносить изменения в настоящую Политику. Новая редакция вступает в силу с момента её публикации по адресу {PRODUCT_SITE}/cookies.</p>
               </div>
             </section>
 
             <section id="contacts">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">9. Контакты</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">9. Контакты</h2>
               <div className="mt-4 rounded-2xl border border-[#d6dde8] bg-[#eef2f8] p-5 text-sm leading-7 shadow-[0_12px_34px_-16px_rgba(15,32,56,0.18)]">
                 <div className="grid gap-2 text-[#56657d]">
-                  <div><strong className="text-[#0f2038]">Оператор данных:</strong> {LEGAL_ENTITY.fullName}</div>
-                  <div><strong className="text-[#0f2038]">Email:</strong> {LEGAL_ENTITY.emailSupport}</div>
-                  <div><strong className="text-[#0f2038]">Телефон:</strong> {LEGAL_ENTITY.phone}</div>
+                  <div><strong className="text-[#0b1f3b]">Оператор данных:</strong> {LEGAL_ENTITY.fullName}</div>
+                  <div><strong className="text-[#0b1f3b]">Email:</strong> {LEGAL_ENTITY.emailSupport}</div>
+                  <div><strong className="text-[#0b1f3b]">Телефон:</strong> {LEGAL_ENTITY.phone}</div>
                 </div>
               </div>
             </section>
 
             <section id="history">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#0f2038]">10. История редакций</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[#0b1f3b]">10. История редакций</h2>
               <div className="mt-4 space-y-2 text-sm leading-7">
                 {LEGAL_HISTORY.map((entry) => (
                   <div key={entry.date} className="flex gap-3">
-                    <span className="shrink-0 font-mono text-xs text-[#16a34a]">{entry.date}</span>
+                    <span className="shrink-0 font-mono text-xs text-[#2563eb]">{entry.date}</span>
                     <span className="text-[#56657d]">{entry.note}</span>
                   </div>
                 ))}

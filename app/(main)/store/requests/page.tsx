@@ -345,7 +345,7 @@ function PendingRequestCard(props: {
         )}
         {props.canApprove && (
           <Button size="sm" disabled={saving} onClick={() => props.onDecide(true, true)}
-            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700">
+            className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700">
             {saving && !editing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
             Одобрить всё
           </Button>
@@ -1075,7 +1075,7 @@ function StoreRequestsPageContent({ embedded = false }: { embedded?: boolean }) 
           </div>
           <div className="flex flex-wrap gap-2">
             {canBulkApprove && bulkIdsFor('approve-full').length > 0 && (
-              <Button size="sm" onClick={() => runBulkAction('approve-full')} disabled={bulkSaving} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button size="sm" onClick={() => runBulkAction('approve-full')} disabled={bulkSaving} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
                 {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Одобрить ({bulkIdsFor('approve-full').length})
               </Button>

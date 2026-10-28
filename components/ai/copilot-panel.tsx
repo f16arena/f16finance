@@ -200,7 +200,7 @@ export function CopilotPanel({ currentPath, className, suggestedPrompts = DEFAUL
                         className={cn(
                           'rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
                           isPrimary
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
                             : isDanger
                               ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25'
                               : 'bg-slate-100 dark:bg-white/5 text-body border border-border hover:bg-slate-200 dark:hover:bg-white/10',

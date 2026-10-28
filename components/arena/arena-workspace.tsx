@@ -35,13 +35,13 @@ import { DateRangePicker } from '@/components/ui/date-range-picker'
  * Дальше правим только эти константы, а не тридцать мест по файлу.
  */
 const uiBtnPrimary =
-  'inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50'
+  'inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50'
 const uiBtnGhost =
   'inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-medium text-body transition hover:border-slate-400 hover:text-foreground disabled:opacity-50 dark:bg-slate-900/60 dark:hover:border-white/25'
 const uiBtnDanger =
   'inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
 const uiInput =
-  'rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none transition focus:border-emerald-400/60'
+  'rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none transition focus:border-blue-400/60'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -929,7 +929,7 @@ function MapEditor({ projectId, companyId, zones, stations, decorations, cellSiz
                       }
                       markDirty()
                     }}
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${onMap ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${onMap ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'}`}
                   >
                     {onMap ? 'Убрать' : 'На карту'}
                   </button>
@@ -972,7 +972,7 @@ function MapEditor({ projectId, companyId, zones, stations, decorations, cellSiz
                       }
                       markDirty()
                     }}
-                    className="shrink-0 rounded bg-emerald-500/20 px-1 py-0.5 text-[10px] text-emerald-400 hover:bg-emerald-500/30"
+                    className="shrink-0 rounded bg-blue-500/20 px-1 py-0.5 text-[10px] text-blue-400 hover:bg-blue-500/30"
                   >
                     +
                   </button>
@@ -3112,7 +3112,7 @@ export function ArenaWorkspace({ section }: { section: ArenaSection }) {
                     <div className="flex items-end gap-1" style={{ height: 80 }}>
                       {dailyData.map(d => (
                         <div key={d.date} className="flex flex-col items-center gap-1 flex-1 min-w-0" title={`${d.date}: ${formatPrice(d.revenue)} (${d.count} сес.)`}>
-                          <div className="w-full rounded-t bg-emerald-500/70 hover:bg-emerald-500 transition-colors cursor-default"
+                          <div className="w-full rounded-t bg-blue-500/70 hover:bg-blue-500 transition-colors cursor-default"
                             style={{ height: `${Math.max(2, (d.revenue / maxDailyRevenue) * 64)}px` }} />
                           {dailyData.length <= 14 && (
                             <span className="text-[8px] text-muted-foreground truncate w-full text-center">

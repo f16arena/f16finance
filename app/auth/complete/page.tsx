@@ -111,7 +111,7 @@ function CompleteContent() {
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
               <div className="flex items-center gap-2">
-                <MailCheck className="h-4 w-4 text-emerald-400" />
+                <MailCheck className="h-4 w-4 text-blue-400" />
                 {config.steps[0]}
               </div>
               <div className="flex items-center gap-2">

@@ -253,7 +253,7 @@ export function UserOverridesPanel({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Найти право или страницу…"
-                  className="w-full rounded-xl border border-border bg-white dark:bg-slate-950/50 py-2.5 pl-10 pr-3 text-sm text-foreground placeholder-slate-500 transition focus:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/15"
+                  className="w-full rounded-xl border border-border bg-white dark:bg-slate-950/50 py-2.5 pl-10 pr-3 text-sm text-foreground placeholder-slate-500 transition focus:border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
                 />
               </div>
 
@@ -287,8 +287,8 @@ export function UserOverridesPanel({
                               disabled={saving === c.id}
                               className={`rounded-lg border px-2.5 py-1 text-[11px] transition disabled:opacity-50 ${
                                 ov === true
-                                  ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-700 dark:text-emerald-200'
-                                  : 'border-border bg-slate-100 dark:bg-white/5 text-body hover:bg-emerald-500/10'
+                                  ? 'border-blue-400/50 bg-blue-500/20 text-blue-700 dark:text-blue-200'
+                                  : 'border-border bg-slate-100 dark:bg-white/5 text-body hover:bg-blue-500/10'
                               }`}
                             >
                               разрешить

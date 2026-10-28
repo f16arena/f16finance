@@ -371,7 +371,7 @@ export default function ProductCardModal({
                               type="button"
                               disabled={uploading}
                               onClick={() => void pickImage(url)}
-                              className="aspect-square overflow-hidden rounded-md border border-slate-200 bg-white transition hover:ring-2 hover:ring-emerald-500 dark:border-white/10 dark:bg-white/5"
+                              className="aspect-square overflow-hidden rounded-md border border-slate-200 bg-white transition hover:ring-2 hover:ring-blue-500 dark:border-white/10 dark:bg-white/5"
                               title="Поставить это фото"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -651,7 +651,7 @@ export default function ProductCardModal({
                     value={descDraft}
                     onChange={(e) => setDescDraft(e.target.value)}
                     rows={3}
-                    className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-400 dark:border-white/10 dark:bg-white/[0.02] dark:text-white"
+                    className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 dark:border-white/10 dark:bg-white/[0.02] dark:text-white"
                     placeholder="Заметки о товаре…"
                   />
                   <div className="flex justify-end gap-2">

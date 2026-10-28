@@ -41,7 +41,7 @@ export default function BillingPage() {
       {/* ── Отраслевые пакеты ──────────────────────────────────────── */}
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-300">
             <Package className="h-4 w-4" />
           </span>
           <div>

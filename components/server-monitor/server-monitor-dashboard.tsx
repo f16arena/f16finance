@@ -575,7 +575,7 @@ export function ServerMonitorDashboard() {
         <>
           <section className="flex flex-col gap-4 border-y border-border py-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-card"><Server className="h-6 w-6 text-emerald-500" /></div>
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-border bg-card"><Server className="h-6 w-6 text-blue-500" /></div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-xl font-semibold">{server.name}</h2><span className={cn('inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold', statusStyle.badge)}><span className={cn('h-2 w-2 rounded-full', statusStyle.dot)} />{statusStyle.label}</span></div>
                 <p className="mt-1 truncate text-sm text-muted-foreground">{current?.hostname || server.hostname || server.code} · {current?.windows_version || 'Ожидание первой телеметрии'}</p>

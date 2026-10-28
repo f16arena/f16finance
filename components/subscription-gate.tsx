@@ -64,7 +64,7 @@ export function SubscriptionGate() {
           </p>
           <a
             href="/upgrade"
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-700"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-base font-semibold text-white transition hover:bg-blue-700"
           >
             <CreditCard className="h-5 w-5" /> Оплатить и вернуть доступ
           </a>

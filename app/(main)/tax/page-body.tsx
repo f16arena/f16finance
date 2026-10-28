@@ -619,7 +619,7 @@ export default function TaxPage() {
                   onClick={() => selectHalfYear(period)}
                   className={`rounded-lg px-2.5 py-1 text-xs transition ${
                     activeHalfYear?.from === period.from
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                      ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -669,9 +669,9 @@ export default function TaxPage() {
           + (includeSelfSocial ? calc.social : 0)
           + (includeEmployees ? employeeCalc.monthlyTaxFromEmployees * calc.monthsInPeriod : 0)
         return (
-        <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-6 sm:p-8">
+        <div className="rounded-3xl border border-blue-500/30 bg-gradient-to-br from-blue-500/15 via-blue-500/5 to-transparent p-6 sm:p-8">
           <div className="text-xs uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300/80 mb-2">ИПН с дохода ({iknRate}%)</div>
-          <div className="text-5xl sm:text-6xl font-bold bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent leading-none">
+          <div className="text-5xl sm:text-6xl font-bold bg-gradient-to-r from-blue-300 to-teal-300 bg-clip-text text-transparent leading-none">
             {fmtCompact(grandTotal)}
           </div>
           <div className="mt-3 text-sm text-body">
@@ -688,7 +688,7 @@ export default function TaxPage() {
                 type="checkbox"
                 checked={includeSelfSocial}
                 onChange={(e) => { setIncludeSelfSocial(e.target.checked); localStorage.setItem('tax_include_self_social', e.target.checked ? '1' : '0') }}
-                className="h-4 w-4 accent-emerald-500"
+                className="h-4 w-4 accent-blue-500"
               />
               Учитывать соцплатежи «за себя» ({fmt(SOCIAL_FIXED_MONTHLY)}/мес)
             </label>
@@ -697,7 +697,7 @@ export default function TaxPage() {
                 type="checkbox"
                 checked={includeEmployees}
                 onChange={(e) => { setIncludeEmployees(e.target.checked); localStorage.setItem('tax_include_employees', e.target.checked ? '1' : '0') }}
-                className="h-4 w-4 accent-emerald-500"
+                className="h-4 w-4 accent-blue-500"
               />
               Учитывать налоги за работников
             </label>
@@ -707,7 +707,7 @@ export default function TaxPage() {
                   type="checkbox"
                   checked={includeExtra}
                   onChange={(e) => { setIncludeExtra(e.target.checked); saveTax({ includeExtra: e.target.checked }) }}
-                  className="h-4 w-4 accent-emerald-500"
+                  className="h-4 w-4 accent-blue-500"
                 />
                 Включать {extraCompany?.name} в налог
               </label>
@@ -733,7 +733,7 @@ export default function TaxPage() {
             onClick={() => changeTab(k)}
             className={`px-3 py-2 text-sm rounded-xl transition ${
               activeTab === k
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                 : 'text-muted-foreground hover:bg-slate-200 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -757,7 +757,7 @@ export default function TaxPage() {
                   disabled={!canEditTax}
                   className={`px-3 py-1.5 text-sm rounded-lg transition ${
                     iknRate === r
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                       : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -799,7 +799,7 @@ export default function TaxPage() {
           <p className="mt-2 text-xs text-slate-500">{fmt(SOCIAL_FIXED_MONTHLY)}/мес × {calc.monthsInPeriod} мес</p>
         </Card>
 
-        <Card className="p-5 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent">
+        <Card className="p-5 border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-transparent">
           <div className="text-xs uppercase tracking-wider text-emerald-400 mb-2">{includeSelfSocial ? 'Итого к уплате' : 'Только ИПН'}</div>
           <div className="text-2xl font-bold text-emerald-300">{fmtCompact(includeSelfSocial ? calc.total : calc.ipn)}</div>
           <p className="mt-2 text-xs text-emerald-400/80">
@@ -869,7 +869,7 @@ export default function TaxPage() {
                               checked={cfg[k] !== false}
                               disabled={!cid}
                               onChange={() => cid && toggleFilter(cid, k)}
-                              className="h-4 w-4 accent-emerald-500"
+                              className="h-4 w-4 accent-blue-500"
                             />
                             <span className="text-[9px] text-slate-500">{fmtCompact(v)}</span>
                           </label>
@@ -895,7 +895,7 @@ export default function TaxPage() {
               Сотрудники (налоги за работников)
             </h3>
             <p className="text-[11px] text-slate-500 mt-1">
-              Автоматически из <Link href="/staff" className="text-emerald-400 hover:underline">/staff</Link> · <Link href="/salary" className="text-emerald-400 hover:underline">/salary</Link>
+              Автоматически из <Link href="/staff" className="text-blue-400 hover:underline">/staff</Link> · <Link href="/salary" className="text-blue-400 hover:underline">/salary</Link>
               {staffFromDB.length > 0 ? <> · подтянуто {staffFromDB.length}</> : null}
               {excludedIds.size > 0 ? <> · скрыто {excludedIds.size}</> : null}
             </p>
@@ -933,7 +933,7 @@ export default function TaxPage() {
             <button
               type="button"
               onClick={addEmployee}
-              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+              className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-blue-500/20"
             >
               + Добавить вручную
             </button>
@@ -942,7 +942,7 @@ export default function TaxPage() {
 
         {employees.length === 0 ? (
           <p className="text-sm text-slate-500 italic">
-            Нет активных сотрудников с окладом в БД. Заведи их на странице <a href="/staff" className="text-emerald-400 hover:underline">/staff</a> или нажми «Добавить вручную».
+            Нет активных сотрудников с окладом в БД. Заведи их на странице <a href="/staff" className="text-blue-400 hover:underline">/staff</a> или нажми «Добавить вручную».
           </p>
         ) : (
           <div className="space-y-2">
@@ -960,7 +960,7 @@ export default function TaxPage() {
                       value={b.name}
                       onChange={(e) => updateEmployee(b.id, { name: e.target.value })}
                       placeholder="Например: Айгерим (повар)"
-                      className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/50"
+                      className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/50"
                     />
                   </div>
                   <div>
@@ -971,7 +971,7 @@ export default function TaxPage() {
                       type="number"
                       value={b.displayInput}
                       onChange={(e) => updateEmployee(b.id, { salary: Math.max(0, Number(e.target.value) || 0) })}
-                      className="w-36 rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/50"
+                      className="w-36 rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/50"
                     />
                     {salaryMode === 'net' ? (
                       <span className="block mt-1 text-[10px] text-blue-300">
@@ -1038,7 +1038,7 @@ export default function TaxPage() {
       )}
 
       {/* === ИТОГО ВСЕ НАЛОГИ === — sticky-bottom видно везде */}
-      <Card className="sticky bottom-2 z-30 p-5 border-emerald-500/40 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-white dark:to-slate-950/95 backdrop-blur-xl shadow-2xl shadow-emerald-500/20">
+      <Card className="sticky bottom-2 z-30 p-5 border-blue-500/40 bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-white dark:to-slate-950/95 backdrop-blur-xl shadow-2xl shadow-blue-500/20">
         <h3 className="text-sm font-semibold text-emerald-300 mb-4 flex items-center gap-2">
           <Landmark className="w-4 h-4" />
           ИТОГО ВСЕ НАЛОГИ за {calc.monthsInPeriod} мес
@@ -1092,7 +1092,7 @@ export default function TaxPage() {
                   URL.revokeObjectURL(url)
                 }
               }}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/25"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/15 px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-200 hover:bg-blue-500/25"
             >
               📄 Скачать форму 910.00 (Excel)
             </button>
@@ -1105,7 +1105,7 @@ export default function TaxPage() {
       {activeTab === 'calc' && chartData.length > 0 && (
         <Card className="p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-emerald-400" />
+            <Calculator className="w-4 h-4 text-blue-400" />
             Налог по месяцам
           </h3>
           <div className="h-72">
@@ -1239,7 +1239,7 @@ export default function TaxPage() {
       {activeTab === 'help' && (
         <Card className="p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Info className="w-4 h-4 text-emerald-400" />
+            <Info className="w-4 h-4 text-blue-400" />
             Настройки моего бизнеса
           </h3>
           <p className="text-[11px] text-slate-500 mb-4">Используется в шапке страницы и в форме 910.00. Сохраняется для всей организации.</p>
@@ -1251,7 +1251,7 @@ export default function TaxPage() {
                 value={bizSettings.companyFullName}
                 onChange={(e) => updateBizSettings({ companyFullName: e.target.value })}
                 placeholder="ИП Кенескан А.К."
-                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/50"
+                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/50"
               />
             </label>
             <label className="space-y-1">
@@ -1262,7 +1262,7 @@ export default function TaxPage() {
                 onChange={(e) => updateBizSettings({ bin: e.target.value.replace(/\D/g, '').slice(0, 12) })}
                 placeholder="123456789012"
                 maxLength={12}
-                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/50 font-mono"
+                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/50 font-mono"
               />
             </label>
             <label className="space-y-1">
@@ -1273,7 +1273,7 @@ export default function TaxPage() {
                 onChange={(e) => updateBizSettings({ oked: e.target.value.replace(/\D/g, '').slice(0, 5) })}
                 placeholder="93290"
                 maxLength={5}
-                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400/50 font-mono"
+                className="w-full rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground outline-none focus:border-blue-400/50 font-mono"
               />
               <p className="text-[10px] text-slate-500">93290 = «Прочая деятельность по организации отдыха и развлечений»</p>
             </label>
@@ -1422,7 +1422,7 @@ function CalendarSection({
       {/* Реквизиты */}
       <Card className="p-5">
         <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Landmark className="w-4 h-4 text-emerald-400" />
+          <Landmark className="w-4 h-4 text-blue-400" />
           Реквизиты для оплаты (КБК и КНП)
         </h3>
         <p className="text-[11px] text-slate-500 mb-3">Скопируй в Halyk Business / Kaspi Business → Платежи в бюджет</p>
@@ -1434,10 +1434,10 @@ function CalendarSection({
                 <div className="text-[10px] text-slate-500 mt-0.5">{r.deadline}</div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => copy(r.kbk)} className="rounded-lg bg-slate-100 dark:bg-slate-900/80 border border-border px-2 py-1 text-xs text-body hover:bg-emerald-500/20 hover:border-emerald-500/30">
+                <button onClick={() => copy(r.kbk)} className="rounded-lg bg-slate-100 dark:bg-slate-900/80 border border-border px-2 py-1 text-xs text-body hover:bg-blue-500/20 hover:border-blue-500/30">
                   КБК <span className="font-mono text-emerald-300">{r.kbk}</span>
                 </button>
-                <button onClick={() => copy(r.knp)} className="rounded-lg bg-slate-100 dark:bg-slate-900/80 border border-border px-2 py-1 text-xs text-body hover:bg-emerald-500/20 hover:border-emerald-500/30">
+                <button onClick={() => copy(r.knp)} className="rounded-lg bg-slate-100 dark:bg-slate-900/80 border border-border px-2 py-1 text-xs text-body hover:bg-blue-500/20 hover:border-blue-500/30">
                   КНП <span className="font-mono text-emerald-300">{r.knp}</span>
                 </button>
               </div>

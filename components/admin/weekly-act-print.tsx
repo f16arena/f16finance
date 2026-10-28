@@ -142,7 +142,7 @@ export function WeeklyActPrint({
             <button
               onClick={downloadPdf}
               disabled={loading || !!error || downloading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {downloading ? 'Готовим…' : 'Скачать PDF'}

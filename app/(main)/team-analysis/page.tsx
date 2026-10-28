@@ -57,7 +57,7 @@ const SEV: Record<Insight['severity'], { accent: string; chip: string; label: st
     accent: 'text-emerald-600 dark:text-emerald-400',
     chip: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     label: 'Звезда',
-    icon: <Star className="h-4 w-4 text-emerald-500" />,
+    icon: <Star className="h-4 w-4 text-blue-500" />,
   },
 }
 

@@ -242,10 +242,10 @@ export default function PosReturnsPage({ embedded = false }: { embedded?: boolea
 
       {/* Success Result */}
       {result && (
-        <Card className="mb-6 overflow-hidden border-emerald-500/30 bg-gradient-to-b from-emerald-500/[0.08] via-emerald-500/[0.03] to-transparent">
+        <Card className="mb-6 overflow-hidden border-blue-500/30 bg-gradient-to-b from-blue-500/[0.08] via-blue-500/[0.03] to-transparent">
           <CardContent className="p-8 sm:p-10">
             <div className="mx-auto flex max-w-md flex-col items-center text-center">
-              <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/15 ring-8 ring-emerald-500/[0.07]">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-blue-500/15 ring-8 ring-blue-500/[0.07]">
                 <CheckCircle className="h-8 w-8 text-emerald-500" />
               </div>
               <h2 className="mt-5 text-xl font-bold">Возврат оформлен</h2>
@@ -272,7 +272,7 @@ export default function PosReturnsPage({ embedded = false }: { embedded?: boolea
         <Card className="mb-6">
           <CardContent className="p-8 sm:p-10">
             <div className="mx-auto flex max-w-lg flex-col items-center text-center">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-500/10 text-blue-500">
                 <Search className="h-6 w-6" />
               </div>
               <h2 className="mt-4 text-lg font-bold">Найдите чек для возврата</h2>

@@ -814,7 +814,7 @@ export default function PerformancePage() {
       <Card className="p-5 bg-white dark:bg-gray-900/40 backdrop-blur-xl border-slate-200 dark:border-white/5">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Award className="w-4 h-4 text-emerald-400" />
+            <Award className="w-4 h-4 text-blue-400" />
             Основной рейтинг ({q ? `${viewQualifying.length} из ${qualifying.length}` : qualifying.length})
           </h3>
           {refreshing && <RefreshCw className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
@@ -845,7 +845,7 @@ export default function PerformancePage() {
                   onClick={() => setSelected(op)}
                   className={`w-full text-left rounded-xl border p-4 transition hover:bg-slate-100 dark:hover:bg-gray-900/80 ${
                     isCandidate
-                      ? 'border-emerald-400/50 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06] ring-1 ring-emerald-400/30'
+                      ? 'border-blue-400/50 bg-blue-500/[0.04] dark:bg-blue-500/[0.06] ring-1 ring-blue-400/30'
                       : 'border-border bg-slate-50 dark:bg-gray-900/60 hover:border-emerald-400/30'
                   }`}
                 >

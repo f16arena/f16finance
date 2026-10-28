@@ -154,7 +154,7 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
       >
         <Wallet className="h-3.5 w-3.5" /> Только с долгом
       </button>
-      <Button type="button" size="sm" className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => { setError(null); setAddOpen(true) }}>
+      <Button type="button" size="sm" className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setError(null); setAddOpen(true) }}>
         <Plus className="h-3.5 w-3.5" /> Добавить поставщика
       </Button>
     </div>
@@ -217,7 +217,7 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
               const hasDebt = s.open_debts_sum > 0
               return (
                 <Link key={s.id} href={`/store/suppliers/${s.id}`} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-semibold ${hasDebt ? 'bg-rose-500/10 text-rose-600 dark:text-rose-300' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'}`}>
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-semibold ${hasDebt ? 'bg-rose-500/10 text-rose-600 dark:text-rose-300' : 'bg-blue-500/10 text-blue-600 dark:text-blue-300'}`}>
                     {title.trim().charAt(0).toUpperCase() || '?'}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -267,7 +267,7 @@ export default function SuppliersListPage({ embedded = false }: { embedded?: boo
           <>
             <Button variant="outline" onClick={() => setAddOpen(false)} disabled={saving}>Отмена</Button>
             {can('store-suppliers.create') && (
-              <Button className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => void submitSupplier()} disabled={saving || !form.name.trim()}>
+              <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => void submitSupplier()} disabled={saving || !form.name.trim()}>
                 {saving ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Создаю…</> : 'Создать'}
               </Button>
             )}

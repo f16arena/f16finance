@@ -935,7 +935,7 @@ export default function IncomePage() {
       ],
       sections: [
         { type: 'bars', title: 'Доходы по компаниям', hint: 'топ по сумме', items: comps.slice(0, 6).map((c) => ({ label: c.name, amount: c.value, ratio: c.value / maxComp })) },
-        { type: 'split', title: 'Оплата: cash / безнал', parts: [{ label: 'Нал', pct: cashPct, amount: cashTotal, color: '#16a34a' }, { label: 'Безнал', pct: cashlessPct, amount: cashless, color: '#3b82f6' }], accent: { title: 'Акцент для руководителя', text: maxDay ? `Пиковый день: ${maxDay.date} — ${nf(maxDay.total)} тг` : '' } },
+        { type: 'split', title: 'Оплата: cash / безнал', parts: [{ label: 'Нал', pct: cashPct, amount: cashTotal, color: '#2563eb' }, { label: 'Безнал', pct: cashlessPct, amount: cashless, color: '#3b82f6' }], accent: { title: 'Акцент для руководителя', text: maxDay ? `Пиковый день: ${maxDay.date} — ${nf(maxDay.total)} тг` : '' } },
         { type: 'minichart', title: 'Динамика по дням', hint: 'активные даты периода', bars: daysAsc.map((d) => ({ ratio: d.total / maxDT, peak: maxDay && d.date === maxDay.date })), footer: `Топ-3 дня: ${top3.map((d) => `${d.date}: ${nf(d.total)}`).join('   ')}` },
         { type: 'previewTable', title: 'Сводка по дням', hint: 'preview · полная ниже', columns: [{ key: 'date', label: 'Дата' }, { key: 'count', label: 'Строк', align: 'right' }, { key: 'cash', label: 'Нал', align: 'right' }, { key: 'cashless', label: 'Безнал', align: 'right' }, { key: 'total', label: 'Итого', align: 'right' }], rows: days.slice(0, 3).map((d) => ({ date: d.date, count: d.count, cash: d.cash, cashless: d.cashless, total: d.total })), moreNote: days.length > 3 ? `+ ещё ${days.length - 3} дней в детализации` : '' },
       ],

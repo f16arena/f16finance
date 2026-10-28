@@ -146,7 +146,7 @@ export function ServicesTab() {
         <button
           type="button"
           onClick={() => setDraft(emptyDraft())}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" /> Добавить услугу
         </button>
@@ -215,7 +215,7 @@ export function ServicesTab() {
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Сохранить
             </button>
@@ -296,7 +296,7 @@ export function ServicesTab() {
               <button
                 type="button"
                 onClick={() => setDraft({ ...draft, variants: [...draft.variants, { key: newKey(), id: null, name: '', price: '', minutes: '' }] })}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-blue-700 hover:bg-blue-500/10 dark:text-blue-300"
               >
                 <Plus className="h-4 w-4" /> Ещё вариант
               </button>

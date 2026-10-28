@@ -572,13 +572,13 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
           <div className="flex gap-2 p-1 bg-white dark:bg-slate-800/50 rounded-xl w-fit border border-border">
             <button
               onClick={() => setActiveTab('debts')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'debts' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'debts' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
             >
               <Wallet className="w-4 h-4" /> Долги
             </button>
             <button
               onClick={() => setActiveTab('invoices')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'invoices' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'invoices' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-200' : 'text-muted-foreground hover:text-slate-900 dark:hover:text-white'}`}
             >
               <FileText className="w-4 h-4" /> Накладные
             </button>
@@ -757,12 +757,12 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
                         {debt.due_date ? <span>Срок: {fmtDate(debt.due_date)}</span> : null}
                         {debt.payment_paid_at ? <span>Оплачено: {fmtDate(debt.payment_paid_at)}</span> : null}
                         {debt.receipt?.invoice_file_url ? (
-                          <a href={debt.receipt.invoice_file_url} target="_blank" rel="noreferrer" className="text-emerald-600 dark:text-emerald-300 underline">
+                          <a href={debt.receipt.invoice_file_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-300 underline">
                             Накладная ↗
                           </a>
                         ) : null}
                         {debt.payment_receipt_file_url ? (
-                          <a href={debt.payment_receipt_file_url} target="_blank" rel="noreferrer" className="text-emerald-600 dark:text-emerald-300 underline">
+                          <a href={debt.payment_receipt_file_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-300 underline">
                             Чек об оплате ↗
                           </a>
                         ) : null}
@@ -849,7 +849,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />
+                            <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-300" />
                             <span className="font-semibold">{r.invoice_number || `#${(r.id || '').slice(0, 8)}`}</span>
                             <span className="text-muted-foreground">· {r.supplier?.organization_name || r.supplier?.name || '—'}</span>
                             {r.location?.name ? (
@@ -859,7 +859,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
                           <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-3">
                             <span>Позиций: {r.items?.length || 0}</span>
                             {r.invoice_file_url ? (
-                              <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-emerald-600 dark:text-emerald-300 underline">
+                              <a href={r.invoice_file_url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-300 underline">
                                 Накладная ↗
                               </a>
                             ) : null}
@@ -919,7 +919,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
             {uploadingReceipt ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
             {payReceiptUrl ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <a href={payReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
+                <a href={payReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 dark:text-blue-300 underline">
                   Чек загружен — открыть файл
                 </a>
                 {can('store-billing.parse_receipt') && (
@@ -1034,7 +1034,7 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
             />
             {bulkUploading ? <p className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Загрузка...</p> : null}
             {bulkReceiptUrl ? (
-              <a href={bulkReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-emerald-600 dark:text-emerald-300 underline">
+              <a href={bulkReceiptUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 dark:text-blue-300 underline">
                 Чек загружен — открыть файл
               </a>
             ) : null}

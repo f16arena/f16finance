@@ -275,9 +275,9 @@ type WeeklyOperator = {
 type SalaryData = { weekStart: string; weekEnd: string; companies: CompanyOption[]; operators: WeeklyOperator[]; totals: { netAmount: number; paidAmount: number; advanceAmount: number; remainingAmount: number; paidOperators: number; totalOperators: number } }
 type AdjustmentKind = 'bonus' | 'fine' | 'debt'
 
-const input = 'h-11 w-full rounded-xl border border-border bg-white dark:bg-white/5 px-3 text-sm text-foreground placeholder:text-slate-500 focus:border-emerald-400/40 focus:outline-none'
-const selectCls = 'h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-emerald-400/40 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]'
-const textarea = 'min-h-[96px] w-full rounded-2xl border border-border bg-white dark:bg-white/5 px-3 py-3 text-sm text-foreground placeholder:text-slate-500 focus:border-emerald-400/40 focus:outline-none'
+const input = 'h-11 w-full rounded-xl border border-border bg-white dark:bg-white/5 px-3 text-sm text-foreground placeholder:text-slate-500 focus:border-blue-400/40 focus:outline-none'
+const selectCls = 'h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-blue-400/40 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]'
+const textarea = 'min-h-[96px] w-full rounded-2xl border border-border bg-white dark:bg-white/5 px-3 py-3 text-sm text-foreground placeholder:text-slate-500 focus:border-blue-400/40 focus:outline-none'
 const money = formatMoney
 const parseMoney = (v: string) => { const n = Number(v.replace(',', '.').replace(/\s/g, '')); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0 }
 /**
@@ -1482,7 +1482,7 @@ export default function SalaryPage() {
                             <tr
                               key={item.operator.id}
                               onClick={() => selectRow(item.operator.id)}
-                              className={`cursor-pointer transition hover:bg-surface-muted ${active ? 'bg-emerald-500/[0.06]' : ''} ${item.operator.is_active ? '' : 'opacity-60'}`}
+                              className={`cursor-pointer transition hover:bg-surface-muted ${active ? 'bg-blue-500/[0.06]' : ''} ${item.operator.is_active ? '' : 'opacity-60'}`}
                             >
                               <td className="px-4 py-2.5 text-sm">
                                 <div className="flex items-center gap-2">
@@ -1613,7 +1613,7 @@ export default function SalaryPage() {
                     <Card className="overflow-hidden border-border bg-white dark:bg-white/[0.04]">
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4 sm:p-5">
                         <Link href={`/operators/${item.operator.id}/profile`} className="flex min-w-0 items-center gap-3">
-                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500">
+                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500">
                             {item.operator.photo_url ? (
                               <Image src={item.operator.photo_url} alt={title} width={44} height={44} className="h-full w-full object-cover" />
                             ) : (
@@ -1654,7 +1654,7 @@ export default function SalaryPage() {
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-9 rounded-xl border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                              className="h-9 rounded-xl border-blue-500/30 bg-blue-500/10 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 disabled:opacity-50"
                               disabled={markDebtSaving && markDebtId === item.operator.id}
                               onClick={() => void markDebtsPaid(item)}
                             >
@@ -1677,7 +1677,7 @@ export default function SalaryPage() {
                             Детали
                           </Link>
                           {canCreatePayment ? (
-                            <Button type="button" className="h-9 rounded-xl bg-emerald-500 text-xs text-white hover:bg-emerald-400 disabled:opacity-50" disabled={!canPay} onClick={() => setPayTarget(item)}>
+                            <Button type="button" className="h-9 rounded-xl bg-blue-500 text-xs text-white hover:bg-blue-400 disabled:opacity-50" disabled={!canPay} onClick={() => setPayTarget(item)}>
                               <Wallet className="mr-1.5 h-3.5 w-3.5" />Выплатить
                             </Button>
                           ) : null}
@@ -1959,7 +1959,7 @@ export default function SalaryPage() {
                       <p className="text-xs text-muted-foreground">Аванс выдаётся отдельной кнопкой «Аванс» — через корректировку он не создаётся.</p>
                       <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setOperatorAdjTarget(null)}>Отмена</Button>
-                        <Button type="submit" disabled={adjSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{adjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
+                        <Button type="submit" disabled={adjSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{adjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
                       </div>
                     </form>
                   </Modal>
@@ -2284,7 +2284,7 @@ export default function SalaryPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <select
-                        className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-emerald-400/40 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                        className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:border-blue-400/40 focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
                         value={staffMonth}
                         onChange={(e) => setStaffMonth(e.target.value)}
                         aria-label="Месяц"
@@ -2845,7 +2845,7 @@ export default function SalaryPage() {
             <div className="rounded-2xl border border-border bg-white dark:bg-white/[0.03] p-4 text-sm text-body">Итого аванс: <span className="font-semibold text-foreground">{money(parseMoney(advanceCash) + parseMoney(advanceKaspi))}</span></div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setAdvanceTarget(null)}>Отмена</Button>
-              <Button type="submit" disabled={advanceSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{advanceSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Выдать аванс'}</Button>
+              <Button type="submit" disabled={advanceSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{advanceSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Выдать аванс'}</Button>
             </div>
           </form>
         </Modal>
@@ -2912,7 +2912,7 @@ export default function SalaryPage() {
             })()}
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setPayTarget(null)}>Отмена</Button>
-              <Button type="submit" disabled={paySaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{paySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
+              <Button type="submit" disabled={paySaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{paySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
             </div>
           </form>
         </Modal>
@@ -2924,7 +2924,7 @@ export default function SalaryPage() {
             <input className={input} type="text" value={chatValue} onChange={(e) => setChatValue(e.target.value)} placeholder="Например: -1001234567890" />
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setChatTarget(null)}>Отмена</Button>
-              <Button type="submit" disabled={chatSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{chatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
+              <Button type="submit" disabled={chatSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{chatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
             </div>
           </form>
         </Modal>
@@ -2946,7 +2946,7 @@ export default function SalaryPage() {
             </div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setPayDebtModal(null)}>Отмена</Button>
-              <Button type="button" onClick={() => void confirmPayStaffDebt()} disabled={payDebtSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-50">
+              <Button type="button" onClick={() => void confirmPayStaffDebt()} disabled={payDebtSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-50">
                 {payDebtSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Wallet className="mr-1.5 h-4 w-4" />Оплатить долг</>}
               </Button>
             </div>
@@ -2993,7 +2993,7 @@ export default function SalaryPage() {
             ) : null}
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setStaffAdjModal(null)}>Отмена</Button>
-              <Button type="submit" disabled={staffAdjSaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{staffAdjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
+              <Button type="submit" disabled={staffAdjSaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{staffAdjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Сохранить'}</Button>
             </div>
           </form>
         </Modal>
@@ -3072,7 +3072,7 @@ export default function SalaryPage() {
             <div className="rounded-2xl border border-border bg-white dark:bg-white/[0.03] p-4 text-sm text-body">Итого: <span className="font-semibold text-foreground">{money(parseMoney(staffPayCash) + parseMoney(staffPayKaspi))}</span></div>
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" className="rounded-xl border-border bg-white dark:bg-white/5 text-body hover:bg-surface-hover" onClick={() => setStaffPayModal(null)}>Отмена</Button>
-              <Button type="submit" disabled={staffPaySaving} className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-60">{staffPaySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
+              <Button type="submit" disabled={staffPaySaving} className="rounded-xl bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60">{staffPaySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Провести выплату'}</Button>
             </div>
           </form>
         </Modal>

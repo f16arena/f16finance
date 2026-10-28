@@ -1,22 +1,23 @@
 /*
  * Касса v2 — «как Apple»: мягкие скруглённые карточки, стекло с размытием,
  * воздух, пружинящие нажатия. Системный шрифт (Segoe UI Variable на Windows).
- * Две темы: светлая (серый фон + белые карточки) и тёмная (чёрный + графит).
+ * Две темы: светлая (тёплый белый + белые карточки) и тёмная (глубокий navy). Бренд ORDA CONTROL: navy #0B1F3B, cobalt #2563EB.
  */
 
 .v2 {
-  --bg: #f2f2f7;
+  --bg: #fafaf8;
   --card: #ffffff;
-  --card-2: #f7f7fa;
+  --card-2: #f3f4f6;
   --glass: rgba(255, 255, 255, 0.72);
   --glass-line: rgba(0, 0, 0, 0.06);
-  --ink: #1c1c1e;
-  --ink-2: #3a3a3c;
-  --muted: #8e8e93;
-  --line: rgba(60, 60, 67, 0.12);
-  --fill: rgba(120, 120, 128, 0.12);
+  --ink: #0b1f3b;
+  --ink-2: #374151;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --fill: rgba(11, 31, 59, 0.07);
   --green: #34c759;
-  --blue: #0a84ff;
+  --blue: #2563eb;
+  --navy: #0b1f3b;
   --red: #ff3b30;
   --orange: #ff9500;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
@@ -31,22 +32,23 @@
 }
 
 .v2[data-theme='dark'] {
-  --bg: #000000;
-  --card: #1c1c1e;
-  --card-2: #2c2c2e;
-  --glass: rgba(28, 28, 30, 0.72);
+  --bg: #081a33;
+  --card: #0e2444;
+  --card-2: #14305a;
+  --glass: rgba(14, 36, 68, 0.72);
   --glass-line: rgba(255, 255, 255, 0.08);
-  --ink: #f5f5f7;
-  --ink-2: #d1d1d6;
-  --muted: #8e8e93;
-  --line: rgba(84, 84, 88, 0.45);
-  --fill: rgba(118, 118, 128, 0.24);
+  --ink: #fafaf8;
+  --ink-2: #d1d5db;
+  --muted: #9ca3af;
+  --line: rgba(148, 163, 184, 0.2);
+  --fill: rgba(148, 163, 184, 0.16);
   --green: #30d158;
-  --blue: #0a84ff;
+  --blue: #3b82f6;
+  --navy: #1d4ed8;
   --red: #ff453a;
   --orange: #ff9f0a;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-lift: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 8px 30px rgba(2, 10, 26, 0.6);
 }
 
 .v2 button { cursor: pointer; font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -72,10 +74,11 @@
 .v2 .t-red { color: var(--red); }
 .v2 .placeholder-muted::placeholder { color: var(--muted); }
 
-.v2 .btn-green { background: var(--green); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--green) 35%, transparent); }
-.v2 .btn-blue { background: var(--blue); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--blue) 35%, transparent); }
+/* Бренд: главные кнопки (оплата, открыть смену) — cobalt; вторичные .btn-blue — deep navy. Имя .btn-green осталось историческим. */
+.v2 .btn-green { background: var(--blue); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--blue) 35%, transparent); }
+.v2 .btn-blue { background: var(--navy); color: #fff; box-shadow: 0 8px 24px color-mix(in srgb, var(--navy) 35%, transparent); }
 .v2 .pill-active { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04); }
-.v2[data-theme='dark'] .pill-active { background: #636366; color: #fff; }
+.v2[data-theme='dark'] .pill-active { background: #1d3a66; color: #fff; }
 .v2 .badge { background: var(--blue); color: #fff; }
 
 /* Пружинящее нажатие */

@@ -116,7 +116,7 @@ export default function WelcomePage() {
     return (
       <div className="app-page flex min-h-[60vh] items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
           Подготавливаем ваш рабочий раздел…
         </div>
       </div>

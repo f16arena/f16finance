@@ -85,7 +85,7 @@ export default function PaymentProviderSettingsPage() {
       <AdminPageHeader
         title="Платёжный провайдер"
         description="Каждой компании можно назначить свой банк/провайдер. От этого зависят лейблы в интерфейсе (например «Kaspi POS» vs «Halyk POS»)."
-        icon={<CreditCard className="w-5 h-5 text-emerald-400" />}
+        icon={<CreditCard className="w-5 h-5 text-blue-400" />}
         accent="emerald"
         backHref="/settings"
       />
@@ -110,7 +110,7 @@ export default function PaymentProviderSettingsPage() {
                       value={c.payment_provider_id || ''}
                       onChange={(e) => void changeProvider(c.id, e.target.value || null)}
                       disabled={savingId === c.id || !can('settings.manage_companies')}
-                      className="w-full min-w-0 rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground focus:border-emerald-400 focus:outline-none sm:w-auto"
+                      className="w-full min-w-0 rounded-lg border border-border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-foreground focus:border-blue-400 focus:outline-none sm:w-auto"
                     >
                       <option value="">— не выбрано —</option>
                       {providers.map((p) => (

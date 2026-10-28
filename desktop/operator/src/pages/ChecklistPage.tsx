@@ -358,7 +358,7 @@ export default function ChecklistPage({
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
       <div className="pointer-events-none absolute -top-40 -right-40 h-80 w-80 rounded-full bg-amber-500/5 blur-3xl dark:bg-amber-500/10" />
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-emerald-500/5 blur-3xl dark:bg-emerald-500/10" />
+      <div className="pointer-events-none absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-500/10" />
       <div className="h-9 shrink-0 drag-region bg-white/80 backdrop-blur dark:bg-slate-900/80" />
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 bg-white/80 px-5 py-3 backdrop-blur-xl no-drag dark:border-slate-800/70 dark:bg-slate-900/80">
         <div className="flex items-center gap-3">
@@ -366,7 +366,7 @@ export default function ChecklistPage({
             <ArrowLeft className="mr-2 h-4 w-4" />
             К смене
           </Button>
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md shadow-emerald-500/30">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 text-white shadow-md shadow-blue-500/30">
             <ClipboardCheck className="h-5 w-5" />
           </div>
           <div>

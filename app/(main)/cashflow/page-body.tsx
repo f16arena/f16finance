@@ -397,7 +397,7 @@ export default function CashFlowPage() {
 
       {loading && !report ? (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-muted-foreground">
-          <Loader2 className="h-7 w-7 animate-spin text-emerald-500" />
+          <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
           <p className="text-sm">Считаем поступления и расходы…</p>
         </div>
       ) : report ? (
@@ -748,7 +748,7 @@ function PaymentsTab({ outlook, loading, onReload, onSetBalance }: { outlook: Ou
   if (loading && !outlook) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
         <p className="text-sm">Собираем платежи и прогноз…</p>
       </div>
     )

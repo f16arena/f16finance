@@ -56,7 +56,7 @@ function ModeButton({
       aria-current={active ? 'page' : undefined}
       className={`relative flex h-11 items-center gap-2 rounded-lg px-3.5 text-[15px] font-medium transition disabled:cursor-default ${
         active
-          ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+          ? 'bg-blue-500 text-white shadow-sm shadow-blue-500/30'
           : 'text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:opacity-40'
       }`}
     >

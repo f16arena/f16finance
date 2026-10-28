@@ -243,11 +243,11 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
         }}
       >
         <Card
-          className="w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto p-6 bg-gradient-to-br from-emerald-50 via-white to-white dark:from-emerald-950/80 dark:via-gray-900 dark:to-gray-900 border-emerald-500/30"
+          className="w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto p-6 bg-gradient-to-br from-blue-50 via-white to-white dark:from-blue-950/80 dark:via-gray-900 dark:to-gray-900 border-blue-500/30"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4 ring-4 ring-emerald-500/10">
+            <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 ring-4 ring-blue-500/10">
               <CheckCircle2 className="w-9 h-9 text-emerald-400" />
             </div>
             <h2 className="text-xl font-bold text-foreground mb-1">Сотрудник создан</h2>
@@ -269,7 +269,7 @@ export default function HireModal({ open, onClose, onCreated }: Props) {
                 setSuccess(null)
                 onClose()
               }}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white"
             >
               Готово
             </Button>

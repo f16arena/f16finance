@@ -281,7 +281,7 @@ export default function HrAnalytics() {
               </div>
               {data.issues.no_login.length === 0 ? (
                 <div className="text-xs text-gray-500 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" /> Все могут зайти в систему
+                  <UserCheck className="w-3.5 h-3.5 text-blue-400" /> Все могут зайти в систему
                 </div>
               ) : (
                 <ul className="space-y-1.5">
@@ -316,7 +316,7 @@ function BigStat({
 }) {
   const toneMap = {
     indigo: 'from-indigo-500/15 to-blue-500/5 border-indigo-500/30 text-indigo-300',
-    emerald: 'from-emerald-500/15 to-green-500/5 border-emerald-500/30 text-emerald-300',
+    emerald: 'from-blue-500/15 to-green-500/5 border-blue-500/30 text-blue-300',
     blue: 'from-blue-500/15 to-cyan-500/5 border-blue-500/30 text-blue-300',
     purple: 'from-purple-500/15 to-fuchsia-500/5 border-purple-500/30 text-purple-300',
   }

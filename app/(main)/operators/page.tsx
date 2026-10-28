@@ -487,7 +487,7 @@ export default function OperatorsPage() {
           `Есть email: ${list.filter((o) => o.email).length} · нет: ${list.filter((o) => !o.email).length}`,
           `Есть Telegram ID: ${withTg} · нет: ${total - withTg}`,
         ] },
-        { type: 'split', title: 'Активные / Архив', parts: [{ label: 'Активные', pct: activePct, amount: `${active}`, color: '#16a34a' }, { label: 'Архив', pct: 100 - activePct, amount: `${total - active}`, color: '#94a3b8' }], accent: { title: 'Ссылка для входа', text: 'ordaops.kz/login' } },
+        { type: 'split', title: 'Активные / Архив', parts: [{ label: 'Активные', pct: activePct, amount: `${active}`, color: '#2563eb' }, { label: 'Архив', pct: 100 - activePct, amount: `${total - active}`, color: '#94a3b8' }], accent: { title: 'Ссылка для входа', text: 'ordaops.kz/login' } },
         { type: 'previewTable', title: 'Требуют заполнения', hint: 'неполные данные', columns: [{ key: 'name', label: 'Оператор' }, { key: 'miss', label: 'Чего не хватает' }], rows: incomplete.slice(0, 7).map((o) => ({ name: o.name, miss: [!o.hasLogin && 'логин', !o.phone && 'телефон', !o.email && 'email', !o.tg && 'telegram'].filter(Boolean).join(', ') })), moreNote: incomplete.length === 0 ? 'все данные заполнены' : (incomplete.length > 7 ? `+ ещё ${incomplete.length - 7}` : '') },
         { type: 'previewTable', title: 'Без Telegram ID', hint: 'не получат уведомления', columns: [{ key: 'name', label: 'Оператор' }], rows: list.filter((o) => !o.tg).slice(0, 7).map((o) => ({ name: o.name })), moreNote: withTg === total ? 'у всех есть Telegram' : '' },
       ],
@@ -1141,7 +1141,7 @@ export default function OperatorsPage() {
             <Card className="p-3 sm:p-4 bg-white dark:bg-slate-900/40 backdrop-blur-xl border-slate-200 dark:border-white/5">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-emerald-500/20">
-                  <Users2 className="w-4 h-4 text-emerald-400" />
+                  <Users2 className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Всего операторов</p>

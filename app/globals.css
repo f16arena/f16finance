@@ -7,29 +7,29 @@
    next-themes ставит класс на <html>; defaultTheme=dark, так что портал
    по умолчанию рендерится тёмным как раньше. */
 :root {
-  --background: #f6f8fb;
-  --foreground: #0f2038;
+  --background: #fafaf8;
+  --foreground: #0b1f3b;
   --card: #ffffff;
-  --card-foreground: #0f2038;
+  --card-foreground: #0b1f3b;
   --popover: #ffffff;
-  --popover-foreground: #0f2038;
-  --primary: #16a34a;
+  --popover-foreground: #0b1f3b;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #eef2f8;
-  --secondary-foreground: #0f2038;
-  --muted: #eef2f8;
-  --muted-foreground: #64748b;
-  --accent: #16a34a;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #0b1f3b;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #2563eb;
   --accent-foreground: #ffffff;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: rgba(22, 163, 74, 0.45);
-  --chart-1: #16a34a;
-  --chart-2: #2563eb;
-  --chart-3: #0ea5e9;
-  --chart-4: #f97316;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: rgba(37, 99, 235, 0.45);
+  --chart-1: #2563eb;
+  --chart-2: #0b1f3b;
+  --chart-3: #16a34a;
+  --chart-4: #f59e0b;
   --chart-5: #e11d48;
   --radius: 1rem;
 
@@ -37,58 +37,58 @@
      БРЕНД-АКЦЕНТ — ЕДИНОЕ МЕСТО. Все классы amber-* по проекту берут цвет
      отсюда (переназначены в @theme ниже). Чтобы сменить акцент (напр.
      жёлтый → зелёный) — поменяйте ТОЛЬКО значения этого блока, код страниц
-     трогать НЕ нужно. Сейчас = стандартный amber (визуально без изменений).
-     Зелёный вариант (раскомментировать вместо amber): emerald-шкала.
+     трогать НЕ нужно.
+     Сейчас = кобальт ORDA CONTROL (#2563EB, редизайн 28.10.2026).
      ════════════════════════════════════════════════════════════════ */
-  --brand-50: #fffbeb;
-  --brand-100: #fef3c7;
-  --brand-200: #fde68a;
-  --brand-300: #fcd34d;
-  --brand-400: #fbbf24;
-  --brand-500: #f59e0b;
-  --brand-600: #d97706;
-  --brand-700: #b45309;
-  --brand-800: #92400e;
-  --brand-900: #78350f;
-  --brand-950: #451a03;
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
 
   /* 3D-тень карточек/панелей — ЕДИНОЕ МЕСТО. Меняешь тут → меняется у всех
      <Card> и .orda-panel по проекту. */
-  --card-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 16px 40px rgba(15, 23, 42, 0.10);
-  --card-shadow-hover: 0 6px 18px rgba(15, 23, 42, 0.08), 0 28px 60px rgba(15, 23, 42, 0.16);
+  --card-shadow: 0 1px 2px rgba(11, 31, 59, 0.05), 0 10px 30px rgba(11, 31, 59, 0.07);
+  --card-shadow-hover: 0 4px 12px rgba(11, 31, 59, 0.07), 0 20px 44px rgba(11, 31, 59, 0.11);
 
   /* Доп. семантические токены (свет). Меняешь тут → меняется по всему проекту. */
-  --body: #334155;          /* основной текст (был text-slate-700) */
-  --faint: #94a3b8;         /* едва заметный текст (был text-slate-400) */
-  --surface-muted: #f8fafc; /* приглушённая поверхность (был bg-slate-50) */
-  --surface-hover: #f1f5f9; /* фон на ховере (был bg-slate-100) */
+  --body: #374151;          /* основной текст (был text-slate-700) */
+  --faint: #9ca3af;         /* едва заметный текст (был text-slate-400) */
+  --surface-muted: #f5f6f4; /* приглушённая поверхность (был bg-slate-50) */
+  --surface-hover: #f0f1f3; /* фон на ховере (был bg-slate-100) */
 }
 
 .dark {
-  --background: #07101a;
-  --foreground: #f4f7fb;
-  --card: rgba(13, 22, 35, 0.82);
-  --card-foreground: #f4f7fb;
-  --popover: #0c141f; /* сплошной: сквозь всплывающие окна не должна просвечивать страница */
-  --popover-foreground: #f4f7fb;
-  --primary: #ffb36b;
-  --primary-foreground: #09111b;
-  --secondary: #121d2c;
-  --secondary-foreground: #f4f7fb;
-  --muted: #142131;
-  --muted-foreground: #93a4bb;
-  --accent: #5f8cff;
-  --accent-foreground: #f4f7fb;
+  --background: #081a33;
+  --foreground: #f5f7fa;
+  --card: rgba(16, 36, 66, 0.82);
+  --card-foreground: #f5f7fa;
+  --popover: #0e2444; /* сплошной: сквозь всплывающие окна не должна просвечивать страница */
+  --popover-foreground: #f5f7fa;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #11294b;
+  --secondary-foreground: #f5f7fa;
+  --muted: #12294a;
+  --muted-foreground: #9aa8bf;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.06);
-  --ring: rgba(255, 179, 107, 0.55);
-  --chart-1: #ffb36b;
-  --chart-2: #5f8cff;
-  --chart-3: #6fe6c7;
-  --chart-4: #f38fd6;
-  --chart-5: #f15f57;
+  --ring: rgba(59, 130, 246, 0.55);
+  --chart-1: #60a5fa;
+  --chart-2: #e5e7eb;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
   /* Тёмная тема: чёрная тень не видна на тёмном фоне → объём даёт СВЕТЛЫЙ блик по
      верхней кромке (inset, будто свет сверху) + глубокая тень снизу. Это и есть
      «вау» в тёмной теме. */
@@ -96,8 +96,8 @@
   --card-shadow-hover: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.45), 0 34px 70px rgba(0, 0, 0, 0.62);
 
   /* Доп. семантические токены (тёмная). */
-  --body: #cbd5e1;                       /* основной текст (был text-slate-300) */
-  --faint: #64748b;                      /* едва заметный (был text-slate-500) */
+  --body: #d1d5db;                       /* основной текст (был text-slate-300) */
+  --faint: #7b8aa3;                      /* едва заметный (был text-slate-500) */
   --surface-muted: rgba(255, 255, 255, 0.04); /* приглушённая поверхность */
   --surface-hover: rgba(255, 255, 255, 0.08); /* фон на ховере */
 }
@@ -213,10 +213,9 @@
   /* Тёмный «атмосферный» градиент — только в тёмной теме */
   .dark body {
     background-image:
-      radial-gradient(circle at top left, rgba(255, 179, 107, 0.16), transparent 26%),
-      radial-gradient(circle at top right, rgba(95, 140, 255, 0.14), transparent 24%),
-      radial-gradient(circle at bottom center, rgba(111, 230, 199, 0.08), transparent 28%),
-      linear-gradient(180deg, #07101a 0%, #09121d 42%, #081019 100%);
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 30%),
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 26%),
+      linear-gradient(180deg, #0b1f3b 0%, #091a33 45%, #08172d 100%);
   }
 
   /* Раскрытый список родного <select> в тёмной теме. Поле полупрозрачное,
@@ -229,7 +228,7 @@
 
   .dark select option,
   .dark select optgroup {
-    background-color: #0c141f;
+    background-color: #0e2444;
     color: var(--foreground);
   }
 
@@ -239,13 +238,11 @@
 
   /* Светлая тема — мягкая подложка */
   :root:not(.dark) body {
-    background-image:
-      radial-gradient(circle at top left, rgba(22, 163, 74, 0.05), transparent 24%),
-      radial-gradient(circle at top right, rgba(249, 115, 22, 0.04), transparent 22%);
+    background-image: radial-gradient(circle at top left, rgba(37, 99, 235, 0.05), transparent 26%);
   }
 
   ::selection {
-    background: rgba(22, 163, 74, 0.24);
+    background: rgba(37, 99, 235, 0.2);
   }
 }
 
@@ -396,7 +393,7 @@
   }
 
   [data-slot='card']:hover {
-    box-shadow: 0 18px 50px rgba(15, 32, 56, 0.12);
+    box-shadow: 0 18px 44px rgba(11, 31, 59, 0.11);
   }
 
   .dark [data-slot='card']:hover {
@@ -407,7 +404,7 @@
 
 /* Neon accent glow effect */
 .neon-glow {
-  box-shadow: 0 0 14px rgba(255, 179, 107, 0.18);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.18);
 }
 
 .neon-glow-strong {
@@ -416,8 +413,8 @@
 
 /* Neon border */
 .neon-border {
-  border-color: rgba(255, 179, 107, 0.4);
-  box-shadow: inset 0 0 16px rgba(255, 179, 107, 0.08);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: inset 0 0 16px rgba(59, 130, 246, 0.08);
 }
 
 .dark .app-shell::before {
@@ -540,7 +537,7 @@ html[data-nav-collapsed='1'] .app-side-nav {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(255, 179, 107, 0.55), rgba(95, 140, 255, 0.45));
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.55), rgba(37, 99, 235, 0.4));
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;

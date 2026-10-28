@@ -536,7 +536,7 @@ export default function AddIncomePage() {
                           onClick={() => setOperatorId(op.id)}
                           className={`px-4 py-2.5 rounded-xl text-sm font-medium border flex items-center gap-2 transition-all ${
                             active
-                              ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-transparent shadow-lg shadow-green-500/25'
+                              ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white border-transparent shadow-lg shadow-green-500/25'
                               : 'bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 dark:hover:border-gray-600 hover:text-slate-900 dark:hover:text-white'
                           }`}
                         >

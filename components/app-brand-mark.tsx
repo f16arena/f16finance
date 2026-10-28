@@ -1,4 +1,4 @@
-import { OrdaPointSymbol } from '@/components/brand/orda-point-symbol'
+import { OrdaControlMark } from '@/components/brand/orda-control-mark'
 import { getProductMark, HAS_CUSTOM_BRAND } from '@/lib/core/site'
 import { cn } from '@/lib/utils'
 
@@ -42,18 +42,8 @@ export function AppLogoMark({ className, size = 'md', logoUrl }: Props) {
   // остаются буквы: чужому клиенту наш знак ни к чему.
   if (!HAS_CUSTOM_BRAND) {
     return (
-      <div className={cn('relative shrink-0 group', className)}>
-        <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,#20C997,#0F7F6E)] blur-lg opacity-40 transition-opacity duration-500 group-hover:opacity-70 dark:opacity-50 dark:group-hover:opacity-80" />
-        <div
-          className={cn(
-            'relative flex items-center justify-center border shadow-lg',
-            'border-slate-200 bg-gradient-to-br from-white to-slate-100',
-            'dark:border-white/10 dark:from-slate-900 dark:to-slate-800 dark:shadow-2xl',
-            box,
-          )}
-        >
-          <OrdaPointSymbol size={size === 'lg' ? 34 : 28} title="" />
-        </div>
+      <div className={cn('relative shrink-0', className)}>
+        <OrdaControlMark size={size === 'lg' ? 56 : 48} className="rounded-2xl shadow-lg" />
       </div>
     )
   }

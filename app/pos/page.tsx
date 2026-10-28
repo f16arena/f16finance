@@ -133,7 +133,7 @@ function ReceiptModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="bg-emerald-600 px-6 py-4 text-white flex items-center justify-between shrink-0">
+        <div className="bg-blue-600 px-6 py-4 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
             <span className="font-semibold">Чек #{receiptData.sale_id?.slice(-6)}</span>
@@ -269,7 +269,7 @@ function ReceiptModal({
           </button>
           <button
             onClick={onNewSale}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
           >
             <ShoppingCart className="h-4 w-4" />
             Новая продажа
@@ -329,7 +329,7 @@ export default function PosPage() {
   if (role === 'checking') {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
-        <RefreshCw className="h-6 w-6 animate-spin text-emerald-400" />
+        <RefreshCw className="h-6 w-6 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -924,7 +924,7 @@ function AdminPosPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
         <div className="flex flex-col items-center gap-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-emerald-400" />
+          <RefreshCw className="h-8 w-8 animate-spin text-blue-400" />
           <p className="text-gray-400">Загрузка кассы...</p>
         </div>
       </div>
@@ -940,7 +940,7 @@ function AdminPosPage() {
           <p className="text-gray-400 text-sm">{error}</p>
           <button
             onClick={loadBootstrap}
-            className="mt-2 flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-medium hover:bg-emerald-700 transition-colors"
+            className="mt-2 flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
             Повторить
@@ -969,7 +969,7 @@ function AdminPosPage() {
         </button>
 
         <div className="flex items-center gap-2">
-          <Monitor className="h-5 w-5 text-emerald-400" />
+          <Monitor className="h-5 w-5 text-blue-400" />
           <span className="font-semibold text-white">Касса</span>
         </div>
 
@@ -981,7 +981,7 @@ function AdminPosPage() {
               setSelectedCompanyId(e.target.value)
               setSelectedLocationId('')
             }}
-            className="rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">— Компания —</option>
             {bootstrapData?.companies.map((c) => (
@@ -995,7 +995,7 @@ function AdminPosPage() {
           <select
             value={selectedLocationId}
             onChange={(e) => setSelectedLocationId(e.target.value)}
-            className="rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">— Точка —</option>
             {filteredLocations.map((l) => (
@@ -1083,7 +1083,7 @@ function AdminPosPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Поиск товара или штрихкод (Enter для сканера)"
-                className="w-full rounded-xl bg-white/10 border border-white/20 pl-10 pr-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl bg-white/10 border border-white/20 pl-10 pr-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -1095,7 +1095,7 @@ function AdminPosPage() {
                 onClick={() => setFilterCategory('all')}
                 className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                   filterCategory === 'all'
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
                 }`}
               >
@@ -1107,7 +1107,7 @@ function AdminPosPage() {
                   onClick={() => setFilterCategory(cat)}
                   className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                     filterCategory === cat
-                      ? 'bg-emerald-600 text-white'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
                   }`}
                 >
@@ -1139,7 +1139,7 @@ function AdminPosPage() {
                         outOfStock
                           ? 'border-red-900/50 bg-red-900/10 opacity-60 cursor-not-allowed'
                           : inCart
-                            ? 'border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20'
+                            ? 'border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20'
                             : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30'
                       }`}
                     >
@@ -1156,7 +1156,7 @@ function AdminPosPage() {
 
                       {/* In-cart badge */}
                       {inCart && (
-                        <span className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+                        <span className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                           {inCart.quantity}
                         </span>
                       )}
@@ -1182,7 +1182,7 @@ function AdminPosPage() {
         <div className="flex w-80 shrink-0 flex-col overflow-hidden bg-gray-900 lg:w-96">
           {/* Cart header */}
           <div className="shrink-0 flex items-center gap-2 border-b border-white/10 px-4 py-3">
-            <ShoppingCart className="h-5 w-5 text-emerald-400" />
+            <ShoppingCart className="h-5 w-5 text-blue-400" />
             <span className="font-semibold text-white">Корзина</span>
             {cart.length > 0 && (
               <span className="ml-auto rounded-full bg-emerald-600/20 px-2 py-0.5 text-xs text-emerald-400">
@@ -1498,7 +1498,7 @@ function AdminPosPage() {
                         }}
                         className={`rounded-xl py-2.5 text-xs font-medium transition-colors ${
                           paymentMethod === method
-                            ? 'bg-emerald-600 text-white'
+                            ? 'bg-blue-600 text-white'
                             : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
                         }`}
                       >
@@ -1527,7 +1527,7 @@ function AdminPosPage() {
                               }))
                             }
                             placeholder="0"
-                            className="mt-0.5 w-full rounded-lg bg-white/10 border border-white/20 px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="mt-0.5 w-full rounded-lg bg-white/10 border border-white/20 px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
                       )
@@ -1547,7 +1547,7 @@ function AdminPosPage() {
               <button
                 onClick={handleSubmitSale}
                 disabled={submitting || cart.length === 0 || !selectedCompanyId || !selectedLocationId}
-                className="w-full rounded-xl bg-emerald-600 py-4 text-base font-bold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-xl bg-blue-600 py-4 text-base font-bold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? (
                   <span className="flex items-center justify-center gap-2">

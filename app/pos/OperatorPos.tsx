@@ -611,7 +611,7 @@ export default function OperatorPos({
       <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4 text-white">
         <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-gray-900 p-6 shadow-2xl">
           <div className="mb-5 flex flex-col items-center text-center">
-            <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-600/20 text-emerald-400">
+            <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-blue-600/20 text-blue-400">
               <LockKeyhole className="h-7 w-7" />
             </div>
             <h1 className="text-lg font-bold">Открытие смены</h1>
@@ -624,7 +624,7 @@ export default function OperatorPos({
               <select
                 value={companyId}
                 onChange={(e) => onCompanyChange?.(e.target.value)}
-                className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {companies.map((c) => (
                   <option key={c.id} value={c.id} className="text-gray-900">{c.name}</option>
@@ -653,7 +653,7 @@ export default function OperatorPos({
             onChange={(e) => setOpeningCash(e.target.value)}
             inputMode="numeric"
             placeholder="0"
-            className="mb-3 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-emerald-500"
+            className="mb-3 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           {openError && (
@@ -663,7 +663,7 @@ export default function OperatorPos({
           <button
             onClick={handleOpenShift}
             disabled={opening}
-            className="w-full rounded-xl bg-emerald-600 py-3.5 text-base font-bold transition hover:bg-emerald-700 disabled:opacity-50"
+            className="w-full rounded-xl bg-blue-600 py-3.5 text-base font-bold transition hover:bg-blue-700 disabled:opacity-50"
           >
             {opening ? 'Открываем…' : 'Открыть смену'}
           </button>
@@ -689,13 +689,13 @@ export default function OperatorPos({
       {/* Top bar */}
       <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-gray-900 px-4 py-3">
         <div className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-emerald-400" />
+          <ShoppingCart className="h-5 w-5 text-blue-400" />
           <div className="leading-tight">
             {isOwner && companies.length > 0 ? (
               <select
                 value={companyId}
                 onChange={(e) => onCompanyChange?.(e.target.value)}
-                className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {companies.map((c) => (
                   <option key={c.id} value={c.id} className="text-gray-900">{c.name}</option>
@@ -739,7 +739,7 @@ export default function OperatorPos({
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={onSearchKey}
                   placeholder="Поиск или штрихкод (Enter)"
-                  className="w-full rounded-xl border border-white/20 bg-white/10 py-3 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-white/20 bg-white/10 py-3 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <button
@@ -756,7 +756,7 @@ export default function OperatorPos({
             <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/10 px-3 py-2">
               <button
                 onClick={() => setCategory('all')}
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium ${category === 'all' ? 'bg-emerald-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium ${category === 'all' ? 'bg-blue-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
               >
                 Все
               </button>
@@ -764,7 +764,7 @@ export default function OperatorPos({
                 <button
                   key={c}
                   onClick={() => setCategory(c)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium ${category === c ? 'bg-emerald-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
+                  className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium ${category === c ? 'bg-blue-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
                 >
                   {c}
                 </button>
@@ -794,7 +794,7 @@ export default function OperatorPos({
                       onClick={() => addItem(item)}
                       disabled={disabled}
                       className={`relative flex flex-col overflow-hidden rounded-xl border text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-                        inCart > 0 ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-white/10 hover:border-white/30'
+                        inCart > 0 ? 'border-blue-500/60 ring-1 ring-blue-500/30' : 'border-white/10 hover:border-white/30'
                       }`}
                     >
                       <div className="relative h-36 w-full overflow-hidden bg-white/5 sm:h-40">
@@ -807,7 +807,7 @@ export default function OperatorPos({
                           {disabled ? 'Нет' : item.display_qty}
                         </span>
                         {inCart > 0 && (
-                          <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-xs font-bold">{inCart}</span>
+                          <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-xs font-bold">{inCart}</span>
                         )}
                       </div>
                       <div className="flex flex-col p-2">
@@ -867,7 +867,7 @@ export default function OperatorPos({
                   <button
                     key={m}
                     onClick={() => setPayment(m)}
-                    className={`rounded-xl py-2.5 text-xs font-medium transition ${payment === m ? 'bg-emerald-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
+                    className={`rounded-xl py-2.5 text-xs font-medium transition ${payment === m ? 'bg-blue-600 text-white' : 'bg-white/10 text-gray-400 hover:text-white'}`}
                   >
                     {m === 'cash' ? '💵 Наличные' : m === 'kaspi' ? '📱 Безнал' : '🔀 Смешанная'}
                   </button>
@@ -888,7 +888,7 @@ export default function OperatorPos({
                       }}
                       inputMode="numeric"
                       placeholder="0"
-                      className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </label>
                   <label className="block">
@@ -904,7 +904,7 @@ export default function OperatorPos({
                       }}
                       inputMode="numeric"
                       placeholder="0"
-                      className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="mt-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </label>
                 </div>
@@ -947,7 +947,7 @@ export default function OperatorPos({
                           value={customerSearch}
                           onChange={(e) => setCustomerSearch(e.target.value)}
                           placeholder="Имя, телефон или карта"
-                          className="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         {customerResults.length > 0 && (
                           <div className="max-h-40 overflow-auto rounded-lg border border-white/10">
@@ -977,7 +977,7 @@ export default function OperatorPos({
                   onChange={(e) => setDiscountPct(e.target.value)}
                   inputMode="numeric"
                   placeholder="0"
-                  className="w-20 rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-sm tabular-nums outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-20 rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-sm tabular-nums outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {discountAmount > 0 && <span className="text-xs text-emerald-300">−{fmt(discountAmount)} ₸</span>}
               </div>
@@ -986,13 +986,13 @@ export default function OperatorPos({
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
                 placeholder="Комментарий (необязательно)"
-                className="w-full rounded-xl border border-white/20 bg-white/10 p-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-white/20 bg-white/10 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
               />
               {saleError && <div className="rounded-xl border border-red-500/30 bg-red-600/20 px-3 py-2 text-xs text-red-300">{saleError}</div>}
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full rounded-xl bg-emerald-600 py-4 text-base font-bold transition hover:bg-emerald-700 disabled:opacity-50"
+                className="w-full rounded-xl bg-blue-600 py-4 text-base font-bold transition hover:bg-blue-700 disabled:opacity-50"
               >
                 {submitting ? 'Проводим…' : `Оплатить · ${fmt(payable)} ₸`}
               </button>
@@ -1009,9 +1009,9 @@ export default function OperatorPos({
               <h3 className="font-semibold">Универсальный товар</h3>
               <button onClick={() => setShowUniversal(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
-            <input value={uniName} onChange={(e) => setUniName(e.target.value)} placeholder="Название" className="mb-2 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
-            <input value={uniPrice} onChange={(e) => setUniPrice(e.target.value)} inputMode="numeric" placeholder="Цена, ₸" className="mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
-            <button onClick={addUniversal} className="w-full rounded-xl bg-emerald-600 py-3 font-semibold hover:bg-emerald-700">Добавить в чек</button>
+            <input value={uniName} onChange={(e) => setUniName(e.target.value)} placeholder="Название" className="mb-2 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+            <input value={uniPrice} onChange={(e) => setUniPrice(e.target.value)} inputMode="numeric" placeholder="Цена, ₸" className="mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+            <button onClick={addUniversal} className="w-full rounded-xl bg-blue-600 py-3 font-semibold hover:bg-blue-700">Добавить в чек</button>
           </div>
         </div>
       )}
@@ -1025,9 +1025,9 @@ export default function OperatorPos({
               <button onClick={() => setShowClose(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <label className="mb-1 block text-xs text-gray-400">Наличные в кассе (₸)</label>
-            <input value={closeCash} onChange={(e) => setCloseCash(e.target.value)} inputMode="numeric" placeholder="0" className="mb-3 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input value={closeCash} onChange={(e) => setCloseCash(e.target.value)} inputMode="numeric" placeholder="0" className="mb-3 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
             <label className="mb-1 block text-xs text-gray-400">Безналичный за смену (₸)</label>
-            <input value={closeKaspi} onChange={(e) => setCloseKaspi(e.target.value)} inputMode="numeric" placeholder="0" className="mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input value={closeKaspi} onChange={(e) => setCloseKaspi(e.target.value)} inputMode="numeric" placeholder="0" className="mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
             {closeError && <div className="mb-3 rounded-xl border border-red-500/30 bg-red-600/20 px-3 py-2 text-xs text-red-300">{closeError}</div>}
             <button onClick={handleCloseShift} disabled={closing} className="w-full rounded-xl bg-amber-600 py-3 font-semibold hover:bg-amber-700 disabled:opacity-50">
               {closing ? 'Закрываем…' : 'Закрыть смену'}
@@ -1074,7 +1074,7 @@ export default function OperatorPos({
             ) : null}
             <div className="flex gap-2 border-t border-white/10 p-3">
               <button onClick={() => printReceipt(lastReceipt)} className="flex-1 rounded-xl border border-white/20 py-3 text-sm font-medium text-gray-200 hover:bg-white/10">🖨 Печать</button>
-              <button onClick={() => setLastReceipt(null)} className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-semibold hover:bg-emerald-700">Новая продажа</button>
+              <button onClick={() => setLastReceipt(null)} className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold hover:bg-blue-700">Новая продажа</button>
             </div>
           </div>
         </div>
@@ -1112,7 +1112,7 @@ export default function OperatorPos({
               <div className="mt-1 flex justify-between text-base font-bold text-emerald-400"><span>Итого выручка</span><span>{fmt(Math.round(shiftReport.total))} ₸</span></div>
             </div>
             <div className="flex gap-2 border-t border-white/10 p-3">
-              <button onClick={() => printShiftReport(shiftReport)} className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700">🖨 Печать</button>
+              <button onClick={() => printShiftReport(shiftReport)} className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700">🖨 Печать</button>
               <button onClick={() => setShiftReport(null)} className="flex-1 rounded-xl border border-white/20 py-3 text-sm font-medium text-gray-200 hover:bg-white/10">Закрыть</button>
             </div>
           </div>

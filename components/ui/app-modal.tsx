@@ -24,7 +24,7 @@ import { X } from 'lucide-react'
 type Tone = 'default' | 'danger' | 'warning' | 'success'
 
 const TONES: Record<Tone, { chip: string; line: string }> = {
-  default: { chip: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300', line: 'from-emerald-400/80' },
+  default: { chip: 'bg-blue-500/12 text-blue-700 dark:text-blue-300', line: 'from-blue-400/80' },
   danger: { chip: 'bg-rose-500/12 text-rose-700 dark:text-rose-300', line: 'from-rose-400/80' },
   warning: { chip: 'bg-amber-500/14 text-amber-700 dark:text-amber-300', line: 'from-amber-400/80' },
   success: { chip: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300', line: 'from-emerald-400/80' },
