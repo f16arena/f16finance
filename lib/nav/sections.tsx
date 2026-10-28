@@ -392,6 +392,15 @@ export const badgeColors: Record<NonNullable<NavItem['badgeColor']>, string> = {
   default: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
 }
 
+// ORDA CONTROL: у всех разделов один акцент (кобальт) — разделы различаются иконками, не цветом.
+const BRAND_SECTION_STYLE = {
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-600 dark:text-blue-300',
+    border: 'border-blue-500/20',
+    gradient: 'from-blue-500/15 to-sky-400/10',
+    activeRing: 'ring-blue-500/40',
+  }
+
 export const sectionStyles: Record<
   NavSection['accentColor'],
   {
@@ -402,46 +411,10 @@ export const sectionStyles: Record<
     activeRing: string
   }
 > = {
-  amber: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-400',
-    border: 'border-amber-500/20',
-    gradient: 'from-amber-500/20 to-orange-500/20',
-    activeRing: 'ring-amber-500/50',
-  },
-  emerald: {
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/20',
-    gradient: 'from-emerald-500/20 to-cyan-500/20',
-    activeRing: 'ring-emerald-500/50',
-  },
-  yellow: {
-    bg: 'bg-yellow-500/10',
-    text: 'text-yellow-400',
-    border: 'border-yellow-500/20',
-    gradient: 'from-yellow-500/20 to-amber-500/20',
-    activeRing: 'ring-yellow-500/50',
-  },
-  blue: {
-    bg: 'bg-blue-500/10',
-    text: 'text-blue-400',
-    border: 'border-blue-500/20',
-    gradient: 'from-blue-500/20 to-indigo-500/20',
-    activeRing: 'ring-blue-500/50',
-  },
-  fuchsia: {
-    bg: 'bg-fuchsia-500/10',
-    text: 'text-fuchsia-400',
-    border: 'border-fuchsia-500/20',
-    gradient: 'from-fuchsia-500/20 to-pink-500/20',
-    activeRing: 'ring-fuchsia-500/50',
-  },
-  slate: {
-    bg: 'bg-slate-500/10',
-    text: 'text-slate-400',
-    border: 'border-slate-500/20',
-    gradient: 'from-slate-500/20 to-slate-600/20',
-    activeRing: 'ring-slate-500/40',
-  },
+  amber: BRAND_SECTION_STYLE,
+  emerald: BRAND_SECTION_STYLE,
+  yellow: BRAND_SECTION_STYLE,
+  blue: BRAND_SECTION_STYLE,
+  fuchsia: BRAND_SECTION_STYLE,
+  slate: BRAND_SECTION_STYLE,
 }
