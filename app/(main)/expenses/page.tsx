@@ -8,6 +8,7 @@ import { usePersistentState } from '@/lib/client/use-persistent-state'
 import { deleteWithUndo } from '@/lib/client/undo-delete'
 import { MoneyInput } from '@/components/ui/money-input'
 import Link from 'next/link'
+import { DetailingExpenses, NicheSwitch } from '@/components/detailing/niche-pages'
 import { useRouter } from 'next/navigation'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useCashlessLabels } from '@/lib/client/use-cashless-labels'
@@ -322,7 +323,7 @@ async function logExpenseEvent(event: {
 // ================== MAIN COMPONENT ==================
 
 const PERIOD_PRESETS: { key: DateRangePreset; label: string }[] = [{ key: 'today', label: 'Сегодня' }, { key: 'week', label: '7 дней' }, { key: 'month', label: 'Месяц' }, { key: 'all', label: 'Всё время' }]
-export default function ExpensesPage() {
+function GeneralExpensesPage() {
   const cashLabels = useCashlessLabels()
   const router = useRouter()
   const [isClient, setIsClient] = useState(false)
@@ -2650,4 +2651,9 @@ function ExpenseRowCompact({ row, companyName, isExtra }: any) {
       </div>
     </div>
   )
+}
+
+/** У организации-детейлинга свои расходы: материалы против ушедшего в работы. */
+export default function ExpensesPage() {
+  return <NicheSwitch detailing={<DetailingExpenses />} fallback={<GeneralExpensesPage />} />
 }

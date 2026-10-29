@@ -151,6 +151,8 @@ const CAPABILITY_BY_ACTION: Record<string, string> = {
   update: 'detailing-bookings.edit',
   status: 'detailing-bookings.edit',
   cancel: 'detailing-bookings.delete',
+  pay: 'detailing-bookings.take_payment',
+  unpay: 'detailing-bookings.take_payment',
 }
 
 export async function POST(request: Request) {
@@ -243,12 +245,87 @@ export async function POST(request: Request) {
     // Остальные действия — над существующей записью своей точки.
     const id = String(body?.id || '').trim()
     const { data: current } = id
-      ? await ctx.supabase.from('detailing_bookings').select('id, company_id, box_id, start_date, days, status, price_total').eq('id', id).maybeSingle()
+      ? await ctx.supabase.from('detailing_bookings').select('id, company_id, box_id, start_date, days, status, price_total, customer:customers(name), car:customer_cars(plate, model)').eq('id', id).maybeSingle()
       : { data: null }
     const company = current ? pickCompany(ctx, current.company_id) : null
     if (!current || !company || company.id !== current.company_id) return json({ error: 'Запись не найдена' }, 404)
 
+    if (action === 'pay') {
+      const amount = Math.round(Number(body?.amount) * 100) / 100
+      const method = String(body?.method || '')
+      if (!(amount > 0)) return json({ error: 'Укажите сумму' }, 400)
+      if (!['cash', 'kaspi', 'card'].includes(method)) return json({ error: 'Выберите способ оплаты' }, 400)
+      if (current.status === 'cancelled' || current.status === 'requested') return json({ error: 'Сначала подтвердите запись' }, 400)
+      const paidOn = isIsoDate(body?.paid_on) ? body.paid_on : new Date().toISOString().slice(0, 10)
+      const { data: prev } = await ctx.supabase.from('detailing_payments').select('amount').eq('booking_id', id)
+      const paidBefore = ((prev || []) as any[]).reduce((s, p) => s + Number(p.amount || 0), 0)
+      const due = Math.max(0, Number(current.price_total) - paidBefore)
+      if (amount > due + 0.01) return json({ error: `Больше, чем осталось: осталось ${Math.round(due).toLocaleString('ru-RU')} ₸` }, 400)
+      // До выдачи машины первая оплата — предоплата.
+      const kind = current.status === 'booked' && paidBefore === 0 && amount < Number(current.price_total) ? 'prepayment' : 'payment'
+
+      // Строка в общем журнале доходов: по ней считают ОПиУ, Cash Flow, отчёты.
+      const car = (current as any).car
+      const label = [car?.model, car?.plate].filter(Boolean).join(' ') || 'машина'
+      const { data: income, error: incomeError } = await ctx.supabase
+        .from('incomes')
+        .insert({
+          date: paidOn,
+          company_id: company.id,
+          shift: 'day',
+          zone: 'other',
+          cash_amount: method === 'cash' ? amount : 0,
+          kaspi_amount: method === 'kaspi' ? amount : 0,
+          card_amount: method === 'card' ? amount : 0,
+          online_amount: 0,
+          comment: `Детейлинг: ${label}${kind === 'prepayment' ? ' (предоплата)' : ''}`,
+          created_by: actorUserId,
+          source: 'detailing',
+          meta: { detailing_booking_id: id },
+        })
+        .select('id')
+        .single()
+      if (incomeError) throw incomeError
+      const { data: payment, error } = await ctx.supabase
+        .from('detailing_payments')
+        .insert({
+          organization_id: ctx.orgId,
+          company_id: company.id,
+          booking_id: id,
+          paid_on: paidOn,
+          amount,
+          method,
+          kind,
+          income_id: income.id,
+          created_by: actorUserId,
+        })
+        .select('id')
+        .single()
+      if (error) {
+        await ctx.supabase.from('incomes').delete().eq('id', income.id)
+        throw error
+      }
+      await writeAuditLog(ctx.supabase, { actorUserId, entityType: 'detailing-payment', entityId: String(payment.id), action: 'create', payload: { booking_id: id, amount, method, kind, income_id: income.id } })
+      return json({ ok: true, data: { id: payment.id, kind } })
+    }
+
+    if (action === 'unpay') {
+      const paymentId = String(body?.payment_id || '')
+      const { data: payment } = await ctx.supabase.from('detailing_payments').select('id, income_id, amount, method').eq('id', paymentId).eq('booking_id', id).maybeSingle()
+      if (!payment) return json({ error: 'Оплата не найдена' }, 404)
+      if (payment.income_id) {
+        const { error: incErr } = await ctx.supabase.from('incomes').delete().eq('id', payment.income_id).eq('company_id', company.id)
+        if (incErr) throw incErr
+      }
+      const { error } = await ctx.supabase.from('detailing_payments').delete().eq('id', payment.id)
+      if (error) throw error
+      await writeAuditLog(ctx.supabase, { actorUserId, entityType: 'detailing-payment', entityId: String(payment.id), action: 'delete', payload: { booking_id: id, amount: payment.amount, method: payment.method } })
+      return json({ ok: true })
+    }
+
     if (action === 'cancel') {
+      const { count: paidCount } = await ctx.supabase.from('detailing_payments').select('id', { count: 'exact', head: true }).eq('booking_id', id)
+      if ((paidCount || 0) > 0) return json({ error: 'По записи есть оплаты. Сначала верните их.' }, 400)
       const { error } = await ctx.supabase.from('detailing_bookings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id)
       if (error) throw error
       await writeAuditLog(ctx.supabase, { actorUserId, entityType: 'detailing-booking', entityId: id, action: 'cancel', payload: {} })

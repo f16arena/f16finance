@@ -556,6 +556,8 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
           <p className="text-xs text-muted-foreground">Процент мастера считается с цены минус материалы. Если работали двое, делятся сами.</p>
         </div>
 
+        {b.status !== 'requested' ? <PaymentBlock booking={b} busy={busy} run={run} /> : null}
+
         {b.comment ? <div className="rounded-xl border border-border p-3 text-muted-foreground">{b.comment}</div> : null}
 
         <div className="flex flex-wrap justify-between gap-2">
@@ -566,5 +568,57 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
         </div>
       </div>
     </AppModal>
+  )
+}
+
+/* ── Оплата ───────────────────────────────────────────────────────────── */
+
+const METHODS: Array<{ id: 'cash' | 'kaspi' | 'card'; label: string }> = [
+  { id: 'kaspi', label: 'Kaspi' },
+  { id: 'cash', label: 'Наличные' },
+  { id: 'card', label: 'Карта' },
+]
+
+function PaymentBlock(props: { booking: Booking; busy: boolean; run: (body: Record<string, unknown>, done: string) => Promise<void> }) {
+  const b = props.booking
+  const [amount, setAmount] = useState(String(Math.round(b.due)))
+  const [method, setMethod] = useState<'cash' | 'kaspi' | 'card'>('kaspi')
+  useEffect(() => setAmount(String(Math.round(b.due))), [b.due])
+  const value = Number(amount) || 0
+  const prepay = b.status === 'booked' && b.paid === 0 && value > 0 && value < b.price_total
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border p-3">
+      {b.payments?.length ? (
+        <div className="space-y-1">
+          {b.payments.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">{p.kind === 'prepayment' ? 'Предоплата' : 'Оплата'} · {METHODS.find((m) => m.id === p.method)?.label} · {dayLabel(p.paid_on).short}</span>
+              <span className="flex items-center gap-2">
+                <b className="tabular-nums">{money(p.amount)}</b>
+                <button type="button" disabled={props.busy} onClick={() => props.run({ action: 'unpay', payment_id: p.id }, 'Оплата возвращена')} className="text-muted-foreground underline-offset-2 hover:text-rose-600 hover:underline">вернуть</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {b.due > 0 ? (
+        <>
+          <div className="font-medium">{prepay ? 'Принять предоплату' : 'Принять оплату'}</div>
+          <div className="flex flex-wrap gap-2">
+            <Input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" className="h-9 w-[130px] text-right tabular-nums" aria-label="Сумма" />
+            <div className="flex gap-1">
+              {METHODS.map((m) => (
+                <button key={m.id} type="button" onClick={() => setMethod(m.id)} className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${method === m.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-border hover:border-slate-400'}`}>{m.label}</button>
+              ))}
+            </div>
+            <Button size="sm" disabled={props.busy || value <= 0 || value > b.due} onClick={() => props.run({ action: 'pay', amount: value, method }, `${money(value)} принято, ушло в доходы`)}>
+              Принять {money(value)}
+            </Button>
+          </div>
+          {value > b.due ? <p className="text-xs text-rose-600">Больше, чем осталось ({money(b.due)})</p> : null}
+        </>
+      ) : <div className="text-sm font-medium text-emerald-600">Оплачено полностью</div>}
+    </div>
   )
 }

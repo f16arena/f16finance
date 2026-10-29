@@ -50,6 +50,7 @@ export type Booking = {
   customer: { id: string; name: string; phone: string | null } | null
   car: { id: string; plate: string; model: string | null } | null
   services: Array<{ id: string; service_id: string | null; name: string; price: number; materials: number; days: number }>
+  payments: Array<{ id: string; amount: number; method: 'cash' | 'kaspi' | 'card'; kind: 'prepayment' | 'payment'; paid_on: string }>
 }
 
 export const STATUS_LABEL: Record<BookingStatus, string> = {

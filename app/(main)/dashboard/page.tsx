@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
+import { DetailingDashboard, NicheSwitch } from '@/components/detailing/niche-pages'
 import Link from 'next/link'
 import {
   AlertTriangle,
@@ -286,7 +287,7 @@ function changeTone(current: number, previous: number, goodWhenUp: boolean) {
 
 // ==================== PAGE ====================
 
-export default function DashboardPage() {
+function GeneralDashboardPage() {
   const cashLabels = useCashlessLabels()
   const today = DateUtils.todayISO()
   const sameDayLastWeek = DateUtils.addDaysISO(today, -7)
@@ -1299,4 +1300,9 @@ function FeedCard({ feed, denied, href, wide }: { feed: FeedItem[]; denied: bool
       </div>
     </Card>
   )
+}
+
+/** У организации-детейлинга свой дашборд: машины, боксы, оплаты, долги. */
+export default function DashboardPage() {
+  return <NicheSwitch detailing={<DetailingDashboard />} fallback={<GeneralDashboardPage />} />
 }

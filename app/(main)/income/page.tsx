@@ -15,12 +15,14 @@
 import dynamicImport from 'next/dynamic'
 
 import { PageSkeleton } from '@/components/skeleton'
+import { DetailingIncome, NicheSwitch } from '@/components/detailing/niche-pages'
 
 const Body = dynamicImport(() => import('./page-body'), {
   ssr: false,
   loading: () => <PageSkeleton />,
 })
 
+// У организации-детейлинга доходы — оплаты за машины, а не смены операторов.
 export default function IncomePage() {
-  return <Body />
+  return <NicheSwitch detailing={<DetailingIncome />} fallback={<Body />} />
 }
