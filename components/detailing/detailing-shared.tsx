@@ -65,7 +65,8 @@ export const STATUS_LABEL: Record<BookingStatus, string> = {
 export const STATUS_TONE: Record<BookingStatus, string> = {
   requested: 'border border-dashed border-slate-400 bg-white text-slate-600 dark:bg-slate-900/60 dark:text-slate-300',
   booked: 'bg-blue-500/10 text-blue-700 dark:text-blue-200',
-  in_box: 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
+  // amber в проекте переназначен на бренд (синий), поэтому «в боксе» — orange.
+  in_box: 'bg-orange-500/15 text-orange-800 dark:text-orange-200',
   done: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200',
   no_show: 'bg-rose-500/10 text-rose-700 line-through decoration-rose-400/60 dark:text-rose-200',
   cancelled: 'bg-slate-100 text-slate-500 dark:bg-white/5',

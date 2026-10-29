@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/use-toast'
 import { StoreEmpty, storeCard } from '@/components/store/store-ui'
 import { Skeleton } from '@/components/skeleton'
 import { useApiCache } from '@/lib/client/use-api-cache'
+import { formatPhone } from '@/lib/core/format'
 import {
   type BodyClass,
   type Booking,
@@ -488,7 +489,7 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
           <Plate plate={b.car?.plate} />
           <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
         </div>
-        <div className="text-muted-foreground">{b.customer?.name} · {b.customer?.phone}</div>
+        <div className="text-muted-foreground">{b.customer?.name} · {formatPhone(b.customer?.phone || null)}</div>
 
         {b.status === 'requested' ? (
           <div className="space-y-2 rounded-xl border border-border p-3">

@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/use-toast'
 import { StoreEmpty, storeCard } from '@/components/store/store-ui'
 import { Skeleton } from '@/components/skeleton'
 import { useApiCache } from '@/lib/client/use-api-cache'
+import { formatPhone } from '@/lib/core/format'
 import {
   type BodyClass,
   type DetailingCompany,
@@ -105,7 +106,7 @@ export default function DetailingClientsPage() {
                   <tr key={c.id} onClick={() => setOpenId(c.id)} className="cursor-pointer border-b border-border last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.03]">
                     <td className="px-4 py-2.5">
                       <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.phone || '—'}</div>
+                      <div className="text-xs text-muted-foreground">{c.phone ? formatPhone(c.phone) : '—'}</div>
                     </td>
                     <td className="px-2 py-2.5">
                       <div className="flex flex-col gap-1">
@@ -135,10 +136,10 @@ export default function DetailingClientsPage() {
 function ClientModal(props: { client: Client; classes: BodyClass[]; companyId: string; onClose: () => void; onChanged: () => Promise<void> }) {
   const c = props.client
   const [name, setName] = useState(c.name)
-  const [phone, setPhone] = useState(c.phone || '')
+  const [phone, setPhone] = useState(formatPhone(c.phone))
   const [notes, setNotes] = useState(c.notes || '')
   const [newCar, setNewCar] = useState({ plate: '', model: '', body_class_id: '' })
-  const dirty = name !== c.name || phone !== (c.phone || '') || notes !== (c.notes || '')
+  const dirty = name !== c.name || phone !== formatPhone(c.phone) || notes !== (c.notes || '')
 
   const call = async (body: Record<string, unknown>, done: string) => {
     try {

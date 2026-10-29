@@ -952,6 +952,9 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       {
         id: 'settings',
         path: '/settings',
+        // Мастер новой точки — часть настроек. Без этого страница уходила в
+        // старую проверку путей, и владелец новой организации её не проходил.
+        extraPaths: ['/settings/new-point'],
         label: 'Общие настройки',
         capabilities: [
           { id: 'settings.view', label: 'Просмотр настроек', severity: 'low' },
