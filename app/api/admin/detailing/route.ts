@@ -279,7 +279,7 @@ export async function POST(request: Request) {
           card_amount: method === 'card' ? amount : 0,
           online_amount: 0,
           comment: `Детейлинг: ${label}${kind === 'prepayment' ? ' (предоплата)' : ''}`,
-          created_by: actorUserId,
+          // created_by в incomes ссылается не на auth.users — кто принял, видно в аудите.
           source: 'detailing',
           meta: { detailing_booking_id: id },
         })
