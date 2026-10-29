@@ -12,6 +12,7 @@ import {
   CreditCard,
   CalendarClock,
   CalendarDays,
+  CarFront,
   CalendarRange,
   History,
   Calculator,
@@ -109,6 +110,19 @@ const ARENA_ITEMS: NavItem[] = [
   { href: '/arena/kiosk', label: 'Киоск и брендинг', icon: Paintbrush, note: 'Оформление киоска и ключ подключения' },
 ]
 
+// Разделы ниши: показываются, только если в организации есть точка этой ниши
+// (companies.industry). Пакет при этом всё равно проверяется — по фиче раздела.
+const NICHE_PATH_PREFIXES: Array<{ prefix: string; industry: string }> = [
+  { prefix: '/detailing', industry: 'detailing' },
+]
+
+/** false — страница ниши, а точек этой ниши в организации нет. */
+export function nicheAllowsPath(href: string, orgIndustries: readonly string[], isSuperAdmin = false) {
+  const rule = NICHE_PATH_PREFIXES.find((r) => href === r.prefix || href.startsWith(r.prefix + '/'))
+  if (!rule) return true
+  return orgIndustries.includes(rule.industry) || (isSuperAdmin && orgIndustries.length === 0)
+}
+
 export const navSections: NavSection[] = [
   {
     id: 'command',
@@ -171,6 +185,20 @@ export const navSections: NavSection[] = [
       { href: '/store/insights', label: 'AI-разбор', icon: Sparkles, note: 'Что говорят цифры магазина и что с этим делать', badge: 'AI', badgeColor: 'purple' },
       { href: '/store/receipt-settings', label: 'Реквизиты чека ККМ', icon: Receipt, note: 'Налогоплательщик, ККМ, ОФД, НДС — приказ МФ РК №626' },
       { href: '/store/settings', label: 'Настройки магазина', icon: SettingsIcon, note: 'Какие точки работают как магазин' },
+    ],
+  },
+  {
+    id: 'detailing',
+    title: 'Детейлинг',
+    subtitle: 'Запись на боксы, клиенты и прайс',
+    accentColor: 'blue',
+    icon: CarFront,
+    homeHref: '/detailing',
+    feature: 'service.jobs',
+    items: [
+      { href: '/detailing', label: 'Запись · неделя', icon: CalendarDays, note: 'Боксы по дням: кто когда стоит' },
+      { href: '/detailing/clients', label: 'Клиенты и машины', icon: Users2, note: 'Поиск по телефону и госномеру' },
+      { href: '/detailing/prices', label: 'Прайс и боксы', icon: ListChecks, note: 'Цена и материалы по кузову' },
     ],
   },
   {
@@ -335,6 +363,9 @@ export function buildOwnerNavSections(): NavSection[] {
   if (financeSection) sections.push(financeSection)
   // «Магазин» — гейтится по shop.catalog (виден только если пакет/орг его даёт).
   if (storeSection) sections.push(storeSection)
+  // «Детейлинг» — только если в организации есть точка-детейлинг (nicheAllowsPath).
+  const detailingSection = getSectionById('detailing')
+  if (detailingSection) sections.push(detailingSection)
 
   if (teamSection) {
     // Раньше /pass («Доступы») вырезали у владельца — но это базовая страница

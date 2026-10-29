@@ -11,7 +11,7 @@
  * писать. Один topic = одна статья (knowledge_articles.topic_key).
  */
 
-export type IndustryCode = 'club' | 'ps_club' | 'shop' | 'food' | 'service' | 'other'
+export type IndustryCode = 'club' | 'ps_club' | 'shop' | 'food' | 'service' | 'detailing' | 'other'
 
 /** Источник фактов из БД, из которого тему можно собрать без участия человека. */
 export type TopicFactSource = 'catalog' | 'salary_rules' | 'checklists'
@@ -275,6 +275,30 @@ const INDUSTRIES: Industry[] = [
       { key: 'conflict', question: 'Типичный конфликт с клиентом и как его правильно решить?', topics: ['conflict_basics'] },
       { key: 'tone', question: 'Как сотрудник должен общаться с клиентом? Какие фразы недопустимы?', topics: ['communication_tone'] },
       { key: 'cash', question: 'Как устроена касса: старт, оплаты, что при расхождении?', topics: ['cash_discipline'] },
+    ],
+  },
+  {
+    code: 'detailing',
+    label: 'Детейлинг',
+    description: 'Запись на боксы, плёнка, керамика, химчистка',
+    topics: [
+      { key: 'detailing_intake', label: 'Приём машины', hint: 'Что осматривается и фиксируется при приёме, о чём предупредить клиента, что выдаётся.', severity: 'warning' },
+      {
+        key: 'detailing_pricing',
+        label: 'Прайс по кузову',
+        hint: 'Сколько стоят работы по классам кузова, что входит в пакеты, когда цену можно менять.',
+        factSource: 'catalog',
+      },
+      { key: 'detailing_handover', label: 'Выдача машины', hint: 'Что проверить перед выдачей, как принять остаток оплаты, что рассказать про уход.' },
+      { key: 'detailing_warranty', label: 'Гарантия на покрытие', hint: 'Срок гарантии на плёнку и керамику, что не покрывается, порядок при претензии.', severity: 'warning' },
+    ],
+    interview: [
+      { key: 'intake', question: 'Как принимается машина и что фиксируется?', topics: ['detailing_intake'] },
+      { key: 'pricing', question: 'Сколько стоят основные работы и от чего зависит цена?', topics: ['detailing_pricing'] },
+      { key: 'handover', question: 'Что проверяется перед выдачей машины?', topics: ['detailing_handover'] },
+      { key: 'warranty', question: 'Какая гарантия на плёнку и керамику и что делать при претензии?', topics: ['detailing_warranty'] },
+      { key: 'conflict', question: 'Типичный конфликт с клиентом и как его правильно решить?', topics: ['conflict_basics'] },
+      { key: 'cash', question: 'Как устроена касса: предоплата, оплата, что при расхождении?', topics: ['cash_discipline'] },
     ],
   },
   {

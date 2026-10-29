@@ -6,7 +6,7 @@ import { canAccessPath, type StaffRole, type SubscriptionFeature } from '@/lib/c
 import { findCapabilityPageByPath } from '@/lib/core/capabilities'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import type { SessionRoleInfo } from '@/lib/core/types'
-import { getPathFeature, type NavSection } from '@/lib/nav/sections'
+import { getPathFeature, nicheAllowsPath, type NavSection } from '@/lib/nav/sections'
 
 export type NavSession = {
   userEmail: string | null
@@ -24,6 +24,8 @@ export type NavSession = {
   rolePermissionOverrides: Array<{ path: string; enabled: boolean }>
   orgFeatures: string[]
   featuresAllAccess: boolean
+  /** Ниши действующих точек организации (companies.industry). */
+  orgIndustries: string[]
   isSwitchingOrganization: boolean
   /** Сессия загружена (session-role получен) — чтобы не мигать фолбэком бренда. */
   sessionReady: boolean
@@ -50,6 +52,7 @@ export function useNavSession(): NavSession {
   const [rolePermissionOverrides, setRolePermissionOverrides] = useState<Array<{ path: string; enabled: boolean }>>([])
   const [orgFeatures, setOrgFeatures] = useState<string[]>([])
   const [featuresAllAccess, setFeaturesAllAccess] = useState(true)
+  const [orgIndustries, setOrgIndustries] = useState<string[]>([])
   const [isSwitchingOrganization, setIsSwitchingOrganization] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
 
@@ -83,6 +86,7 @@ export function useNavSession(): NavSession {
         setRolePermissionOverrides(Array.isArray(json?.rolePermissionOverrides) ? json.rolePermissionOverrides : [])
         setOrgFeatures(Array.isArray(json?.orgFeatures) ? json.orgFeatures : [])
         setFeaturesAllAccess(json?.featuresAllAccess !== false)
+        setOrgIndustries(Array.isArray(json?.orgIndustries) ? json.orgIndustries : [])
       }
       if (!ignore) setSessionReady(true)
     }
@@ -136,6 +140,9 @@ export function useNavSession(): NavSession {
       // менеджеры имеют access.view, поэтому гейтим пункт явно по роли.
       if (item.href === '/access' && !(staffRole === 'owner' || isSuperAdmin)) return false
 
+      // Раздел ниши — только если в организации есть точка этой ниши.
+      if (!nicheAllowsPath(item.href, orgIndustries, isSuperAdmin)) return false
+
       // Гейтинг по фиче ПАКЕТА (пер-страничная). allAccess → не гейтим.
       // getPathFeature вернёт null для базовых страниц (всегда доступны).
       if (!featuresAllAccess) {
@@ -163,7 +170,7 @@ export function useNavSession(): NavSession {
         rolePermissionOverrides,
       })
     }),
-  }), [isLeadOperator, capsLoading, canDo, isStaff, isOperator, staffRole, isSuperAdmin, subscriptionFeatures, rolePermissionOverrides, orgFeatures, featuresAllAccess])
+  }), [isLeadOperator, capsLoading, canDo, isStaff, isOperator, staffRole, isSuperAdmin, subscriptionFeatures, rolePermissionOverrides, orgFeatures, featuresAllAccess, orgIndustries])
 
   return {
     userEmail,
@@ -182,6 +189,7 @@ export function useNavSession(): NavSession {
     rolePermissionOverrides,
     orgFeatures,
     featuresAllAccess,
+    orgIndustries,
     isSwitchingOrganization,
     handleLogout,
     handleSwitchOrganization,

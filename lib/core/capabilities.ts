@@ -637,6 +637,34 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
   },
 
   // ── Точки и оборудование ─────────────────────────────────────────────────
+  // ── Детейлинг ────────────────────────────────────────────────────────────
+  {
+    id: 'detailing',
+    label: 'Детейлинг',
+    pages: [
+      {
+        id: 'detailing-bookings',
+        path: '/detailing',
+        label: 'Запись · неделя',
+        capabilities: [
+          ...crud('detailing-bookings'),
+          { id: 'detailing-bookings.take_payment', label: 'Принять оплату', severity: 'medium' },
+        ],
+      },
+      {
+        id: 'detailing-clients',
+        path: '/detailing/clients',
+        label: 'Клиенты и машины',
+        capabilities: crud('detailing-clients'),
+      },
+      {
+        id: 'detailing-prices',
+        path: '/detailing/prices',
+        label: 'Прайс и боксы',
+        capabilities: crud('detailing-prices'),
+      },
+    ],
+  },
   {
     id: 'points',
     label: 'Точки и оборудование',

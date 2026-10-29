@@ -145,6 +145,8 @@ export const ADMIN_PATHS = [
   '/inventory/*',
   '/store',
   '/store/*',
+  '/detailing',
+  '/detailing/*',
   '/operator-dashboard',
   '/operator-dashboard/*',
   '/operator-lead',
@@ -196,6 +198,8 @@ const MANAGER_PATHS = [
   '/inventory/*',
   '/store',
   '/store/*',
+  '/detailing',
+  '/detailing/*',
   '/tax',
 ] as const
 
@@ -224,6 +228,8 @@ const OWNER_PATHS = [
   '/inventory/*',
   '/store',
   '/store/*',
+  '/detailing',
+  '/detailing/*',
   '/tax',
   '/profitability',
   '/goals',
@@ -448,6 +454,14 @@ export const ACCESS_PAGE_GROUPS: readonly AccessPageGroup[] = [
       { path: '/profitability', label: 'ОПиУ и EBITDA' },
       { path: '/customers', label: 'Клиенты' },
       { path: '/discounts', label: 'Скидки и промокоды' },
+    ],
+  },
+  {
+    group: 'Детейлинг',
+    pages: [
+      { path: '/detailing', label: 'Запись · неделя' },
+      { path: '/detailing/clients', label: 'Клиенты и машины' },
+      { path: '/detailing/prices', label: 'Прайс и боксы' },
     ],
   },
   {

@@ -31,6 +31,7 @@ import {
   buildOwnerNavSections,
   getPathFeature,
   navSections,
+  nicheAllowsPath,
   sectionStyles,
   type NavItem,
   type NavSection,
@@ -391,6 +392,7 @@ export function Sidebar({ desktopEnabled = true }: { desktopEnabled?: boolean } 
   const [subscriptionFeatures, setSubscriptionFeatures] = useState<Partial<Record<SubscriptionFeature, boolean>>>({})
   const [orgFeatures, setOrgFeatures] = useState<string[]>([])
   const [featuresAllAccess, setFeaturesAllAccess] = useState(true)
+  const [orgIndustries, setOrgIndustries] = useState<string[]>([])
   const [rolePermissionOverrides, setRolePermissionOverrides] = useState<
   Array<{ path: string; enabled: boolean }>
 >([])
@@ -447,6 +449,7 @@ export function Sidebar({ desktopEnabled = true }: { desktopEnabled?: boolean } 
         setRolePermissionOverrides(Array.isArray(json?.rolePermissionOverrides) ? json.rolePermissionOverrides : [])
         setOrgFeatures(Array.isArray(json?.orgFeatures) ? json.orgFeatures : [])
         setFeaturesAllAccess(json?.featuresAllAccess !== false)
+        setOrgIndustries(Array.isArray(json?.orgIndustries) ? json.orgIndustries : [])
         // Super admin sees all sections expanded
         if (superAdmin) {
           setOpenSections(Object.fromEntries(navSections.map((s) => [s.id, true])))
@@ -510,6 +513,9 @@ export function Sidebar({ desktopEnabled = true }: { desktopEnabled?: boolean } 
               return false
             }
 
+            // Раздел ниши — только если в организации есть точка этой ниши.
+            if (!nicheAllowsPath(item.href, orgIndustries, isSuperAdmin)) return false
+
             // Гейтинг по фиче ПАКЕТА (пер-страничная). allAccess → не гейтим.
             // getPathFeature вернёт null для базовых страниц (всегда доступны).
             if (!featuresAllAccess) {
@@ -549,7 +555,7 @@ export function Sidebar({ desktopEnabled = true }: { desktopEnabled?: boolean } 
         const sectionText = `${section.title} ${section.subtitle}`.toLowerCase()
         return sectionText.includes(query)
       })
-  }, [baseSections, isLeadOperator, isOperator, isStaff, isSuperAdmin, searchQuery, staffRole, subscriptionFeatures, rolePermissionOverrides, capsLoading, canDo, orgFeatures, featuresAllAccess])
+  }, [baseSections, isLeadOperator, isOperator, isStaff, isSuperAdmin, searchQuery, staffRole, subscriptionFeatures, rolePermissionOverrides, capsLoading, canDo, orgFeatures, featuresAllAccess, orgIndustries])
 
   useEffect(() => {
     if (!searchQuery.trim()) return

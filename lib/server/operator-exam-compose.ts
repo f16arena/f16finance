@@ -29,6 +29,7 @@ export const INDUSTRY_FACT_TOPICS: Record<IndustryCode, FactTopic[]> = {
   club: ['tariffs', 'hardware', 'stations'],
   ps_club: ['tariffs', 'stations'],
   service: [],
+  detailing: [],
   other: [],
 }
 

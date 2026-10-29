@@ -100,6 +100,19 @@ export async function GET(req: Request) {
     const orgFeatures = orgEnt.features
     const featuresAllAccess = orgEnt.allAccess
 
+    // Ниши действующих точек организации: по ним меню показывает разделы ниши
+    // («Детейлинг» — только там, где есть точка-детейлинг), даже при полном доступе.
+    let orgIndustries: string[] = []
+    const activeOrgId = access.activeOrganization?.id || null
+    if (activeOrgId) {
+      const { data: industryRows } = await adminSupabase
+        .from('companies')
+        .select('industry')
+        .eq('organization_id', activeOrgId)
+        .is('archived_at', null)
+      orgIndustries = [...new Set(((industryRows || []) as any[]).map((r) => String(r.industry || '')).filter(Boolean))]
+    }
+
     // Эффективные capabilities пользователя (тот же расчёт, что /access и requireCapability).
     // Суперадмин получает ['*'] — клиент трактует как «всё разрешено».
     const capabilities = await getEffectiveCapabilities(access).catch(() => [] as string[])
@@ -108,6 +121,7 @@ export async function GET(req: Request) {
       ok: true,
       orgFeatures,
       featuresAllAccess,
+      orgIndustries,
       userId: user.id,
       operatorId: operatorAuth ? String((operatorAuth as any).operator_id || '') : null,
       email: user.email || null,
