@@ -30,6 +30,7 @@ import { Skeleton } from '@/components/skeleton'
 import { StoreEmpty, StoreSection, StoreStat, StoreStatGrid, storeCard } from '@/components/store/store-ui'
 import { useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
+import { GarageToday } from '@/components/detailing/garage-today'
 import { type DetailingCompany, Plate, dayLabel, isoLocal, money, shiftIso } from '@/components/detailing/detailing-shared'
 
 /* ── Ниша организации ─────────────────────────────────────────────────── */
@@ -179,7 +180,7 @@ export function DetailingDashboard() {
 
   const header = (
     <AdminPageHeader
-      title="Дашборд"
+      title="Сегодня"
       description={`Детейлинг · ${range.label}`}
       icon={<LayoutDashboard className="h-5 w-5" />}
       backHref="/detailing"
@@ -210,6 +211,8 @@ export function DetailingDashboard() {
   return (
     <div className="space-y-4">
       {header}
+
+      <GarageToday />
 
       <StoreStatGrid cols={4}>
         <StoreStat label="В боксах сейчас" value={`${live.inBox.length}`} hint={`из ${data.load.boxes} боксов`} icon={<CarFront className="h-4 w-4" />} tone="sky" />
