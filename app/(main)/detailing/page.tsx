@@ -73,6 +73,17 @@ export default function DetailingWeekPage() {
   const masterName = (id: string | null) => data?.masters.find((m) => m.id === id)?.name || 'мастер не выбран'
   const open = bookings.find((b) => b.id === openId) || null
 
+  // «+ Записать машину» в меню ведёт сюда с ?new=1 — сразу открываем запись.
+  useEffect(() => {
+    if (!boxes.length || typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('new') !== '1') return
+    setDraft({ boxId: boxes[0].id, date: days.includes(today) ? today : weekStart })
+    params.delete('new')
+    const qs = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+  }, [boxes, days, today, weekStart])
+
   const header = (
     <AdminPageHeader
       title="Запись · неделя"
