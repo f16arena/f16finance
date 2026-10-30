@@ -7,6 +7,7 @@ import { requireAnyCapability, requireCapability } from '@/lib/server/capabiliti
 import { requireOrgFeature } from '@/lib/server/entitlements'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { createCompanyForOrganization } from '@/lib/server/company-create'
 
 /**
  * Детейлинг (миграция 20261029_detailing_core): точки с companies.industry =
@@ -54,18 +55,40 @@ export async function detailingContext(
     isSuperAdmin: access.isSuperAdmin,
     companyRestriction: access.companyRestriction,
   })
-  let q = supabase
-    .from('companies')
-    .select('id, name, code')
-    .eq('organization_id', orgId)
-    .eq('industry', 'detailing')
-    .is('archived_at', null)
-    .order('name')
-  if (scope.allowedCompanyIds) q = q.in('id', scope.allowedCompanyIds)
-  const { data, error } = await q
-  if (error) throw error
-  const companies = ((data || []) as any[]).map((c) => ({ id: String(c.id), name: String(c.name), code: c.code ?? null }))
+  const load = async () => {
+    let q = supabase
+      .from('companies')
+      .select('id, name, code')
+      .eq('organization_id', orgId)
+      .eq('industry', 'detailing')
+      .is('archived_at', null)
+      .order('name')
+    if (scope.allowedCompanyIds) q = q.in('id', scope.allowedCompanyIds)
+    const { data, error } = await q
+    if (error) throw error
+    return ((data || []) as any[]).map((c) => ({ id: String(c.id), name: String(c.name), code: c.code ?? null }))
+  }
+  let companies = await load()
+  // У детейлинга точку руками не заводят: нет ни одной — создаём сами.
+  if (!companies.length && !scope.allowedCompanyIds && (await ensureNichePoint(supabase, orgId))) companies = await load()
   return { access, supabase, orgId, companies }
+}
+
+/**
+ * Организация-детейлинг (settings.niche) без точек — заводим одну с именем
+ * организации. Ниша живёт в организации, точка для владельца невидима.
+ */
+export async function ensureNichePoint(supabase: any, orgId: string): Promise<boolean> {
+  const { data: org } = await supabase.from('organizations').select('name, settings').eq('id', orgId).maybeSingle()
+  if ((org as any)?.settings?.niche !== 'detailing') return false
+  const { count } = await supabase.from('companies').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).is('archived_at', null)
+  if ((count || 0) > 0) return false
+  const res = await createCompanyForOrganization(
+    supabase,
+    { activeOrganization: { id: orgId }, isSuperAdmin: true, companyRestriction: null },
+    { name: String((org as any).name || 'Детейлинг'), industry: 'detailing' },
+  )
+  return res.ok
 }
 
 /** Точка из запроса, если она детейлинг и доступна; иначе null. */

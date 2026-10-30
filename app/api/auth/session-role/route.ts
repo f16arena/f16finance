@@ -111,6 +111,12 @@ export async function GET(req: Request) {
         .eq('organization_id', activeOrgId)
         .is('archived_at', null)
       orgIndustries = [...new Set(((industryRows || []) as any[]).map((r) => String(r.industry || '')).filter(Boolean))]
+      // Точек ещё нет — ниша из настроек организации (детейлинг до первой точки).
+      if (!orgIndustries.length) {
+        const { data: orgRow } = await adminSupabase.from('organizations').select('settings').eq('id', activeOrgId).maybeSingle()
+        const niche = String((orgRow as any)?.settings?.niche || '')
+        if (niche) orgIndustries = [niche]
+      }
     }
 
     // Эффективные capabilities пользователя (тот же расчёт, что /access и requireCapability).

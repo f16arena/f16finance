@@ -45,6 +45,7 @@ export default function NewOrganizationPage() {
   const [trialDays, setTrialDays] = useState('14')
   const [packages, setPackages] = useState<Pkg[]>([])
   const [packageCode, setPackageCode] = useState('')
+  const [niche, setNiche] = useState<'' | 'detailing'>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createdOrg, setCreatedOrg] = useState<CreatedOrg | null>(null)
@@ -72,6 +73,7 @@ export default function NewOrganizationPage() {
           name: name.trim(),
           slug: slug.trim(),
           packageCode: packageCode || null,
+          niche: niche || null,
           trialDays: Number(trialDays) || 14,
           createPrimaryDomain: true,
           ownerFullName: ownerFullName.trim() || null,
@@ -280,6 +282,17 @@ export default function NewOrganizationPage() {
 
         {step === 2 && (
           <div className="space-y-4">
+            {/* Ниша: у детейлинга своя программа и точка без ручного создания */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-900/40">
+              <h2 className="text-sm font-semibold">Ниша</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Детейлинг открывается своей программой (гараж, запись, прайс), точка создаётся сама.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {([['', 'Обычная Orda'], ['detailing', 'Детейлинг']] as const).map(([code, label]) => (
+                  <button key={code || 'none'} type="button" onClick={() => setNiche(code)} className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${niche === code ? 'border-blue-500/50 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-slate-200 hover:border-slate-300 dark:border-white/10'}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+
             {/* Пакет — задаёт доступные страницы клиента */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-900/40">
               <h2 className="text-sm font-semibold">Пакет</h2>

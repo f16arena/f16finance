@@ -20,8 +20,11 @@ export async function GET(request: Request) {
     if ('response' in ctx) return ctx.response
     const company = pickCompany(ctx, new URL(request.url).searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null } })
-    const ref = await loadReference(ctx, company.id)
-    return json({ ok: true, data: { companies: ctx.companies, company, ...ref } })
+    const [ref, bookings] = await Promise.all([
+      loadReference(ctx, company.id),
+      ctx.supabase.from('detailing_bookings').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
+    ])
+    return json({ ok: true, data: { companies: ctx.companies, company, ...ref, bookingsCount: bookings.count || 0 } })
   } catch (error: any) {
     if (isMissingDetailingTable(error)) return json({ error: 'Детейлинг ещё не включён в базе — нужна миграция 20261029_detailing_core' }, 503)
     await writeSystemErrorLogSafe({ scope: 'server', area: 'admin-detailing-setup:get', message: error?.message || 'Detailing setup GET error' })

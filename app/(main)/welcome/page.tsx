@@ -22,6 +22,8 @@ import { AppLogoMark } from '@/components/app-brand-mark'
 import { CAPABILITY_GROUPS } from '@/lib/core/capabilities'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useNavSession } from '@/lib/nav/use-nav-session'
+import { useShellNiche } from '@/components/detailing/detailing-shell'
+import { DetailingWelcome } from '@/components/detailing/detailing-welcome'
 import { getPathFeature } from '@/lib/nav/sections'
 import type { StaffRole } from '@/lib/core/access'
 import { SITE_NAME } from '@/lib/core/site'
@@ -110,7 +112,12 @@ export default function WelcomePage() {
     }).filter((g) => g.accessiblePages.length > 0)
   }, [capsLoading, can, featuresAllAccess, orgFeatures])
 
+  const shellNiche = useShellNiche()
+
   const totalAccessible = accessibleGroups.reduce((acc, g) => acc + g.accessiblePages.length, 0)
+
+  // У детейлинга своя стартовая: шаги настройки, потом сразу «Сегодня».
+  if (shellNiche === 'detailing') return <DetailingWelcome />
 
   if (loading || capsLoading) {
     return (

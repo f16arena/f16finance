@@ -52,7 +52,7 @@ type OrgDetail = {
   companyCount: number
   memberCount: number
   branding: { productName: string; primaryColor: string; logoUrl: string }
-  settings: { timezone: string; currency: string; supportEmail: string; supportPhone: string }
+  settings: { timezone: string; currency: string; supportEmail: string; supportPhone: string; niche?: string | null }
   companies: Array<{ id: string; name: string; code: string | null }>
   entitlements?: Record<string, EntitlementState>
   legacyGrants?: number
@@ -845,6 +845,10 @@ export default function OrgDetailPage() {
                   <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                     <input type="checkbox" checked={tourEnabled} onChange={e => runSub({ onboardingTourEnabled: e.target.checked }, 'tour')} className="h-4 w-4 accent-blue-500" />
                     Онбординг-тур включён
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <input type="checkbox" checked={org.settings?.niche === 'detailing'} onChange={e => runSub({ niche: e.target.checked ? 'detailing' : null }, 'niche')} className="h-4 w-4 accent-blue-500" />
+                    Ниша «Детейлинг» — своя программа, точка создаётся сама
                   </label>
                   <button disabled={subBusy !== null} onClick={() => runSub({ resetOnboarding: true }, 'resetTour')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50">Запустить тур заново для всех</button>
                 </div>

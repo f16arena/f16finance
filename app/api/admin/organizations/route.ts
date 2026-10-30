@@ -6,6 +6,7 @@ import { PLATFORM_FEATURES, resolveFeatureState } from '@/lib/core/entitlements'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { isAdminEmail } from '@/lib/server/admin'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { ensureNichePoint } from '@/lib/server/detailing'
 
 // Панель суперадмина: организации, подписки, обзор платформы.
 // Только суперадмин (env ADMIN_EMAILS). Читаем/пишем admin-клиентом (минуя RLS).
@@ -278,6 +279,7 @@ async function loadPlatformData(supabase: any) {
         currency: settings.currency || 'KZT',
         supportEmail: settings.support_email || '',
         supportPhone: settings.support_phone || '',
+        niche: settings.niche || null,
       },
       companies,
       entitlements,
@@ -446,6 +448,8 @@ export async function POST(req: Request) {
     // есть у клиента. Без пакета орг получит полный доступ (allAccess) — поэтому
     // онбординг должен назначать пакет.
     const packageCode = String(body?.packageCode || '').trim()
+    // Ниша: у детейлинга своя программа, точка создаётся сама.
+    const niche = body?.niche === 'detailing' ? 'detailing' : null
     const trialDays = Math.max(0, Math.min(90, Number(body?.trialDays) || 0))
     const createPrimaryDomain = body?.createPrimaryDomain !== false
     const ownerEmail = String(body?.ownerEmail || '').trim().toLowerCase()
@@ -471,7 +475,7 @@ export async function POST(req: Request) {
         legal_name: name,
         status: orgStatus,
         branding: { product_name: name },
-        settings: {},
+        settings: niche ? { niche } : {},
       }])
       .select('id, name, slug')
       .single()
@@ -506,6 +510,8 @@ export async function POST(req: Request) {
         { onConflict: 'organization_id' },
       ).then(() => {}, () => {})
     }
+
+    if (niche) await ensureNichePoint(supabase, orgId).catch(() => false)
 
     if (createPrimaryDomain) {
       await supabase.from('tenant_domains').insert([{
@@ -722,6 +728,7 @@ export async function PATCH(req: Request) {
     if (body?.currency !== undefined) settingsPatch.currency = String(body.currency || '').trim() || null
     if (body?.supportEmail !== undefined) settingsPatch.support_email = String(body.supportEmail || '').trim() || null
     if (body?.supportPhone !== undefined) settingsPatch.support_phone = String(body.supportPhone || '').trim() || null
+    if (body?.niche !== undefined) settingsPatch.niche = body.niche === 'detailing' ? 'detailing' : null
 
     if (Object.keys(brandingPatch).length || Object.keys(settingsPatch).length) {
       const { data: cur } = await supabase.from('organizations').select('branding, settings').eq('id', organizationId).single()
@@ -733,6 +740,7 @@ export async function PATCH(req: Request) {
       const { error } = await supabase.from('organizations').update(orgPatch).eq('id', organizationId)
       if (error) throw error
     }
+    if (settingsPatch.niche === 'detailing') await ensureNichePoint(supabase, organizationId).catch(() => false)
 
     // Онбординг-тур: «Запустить заново» — сброс флага «пройдено» у всех членов орг.
     if (body?.resetOnboarding) {

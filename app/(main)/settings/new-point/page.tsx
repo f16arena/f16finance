@@ -103,6 +103,11 @@ export default function NewPointWizardPage() {
 
   const [name, setName] = useState('')
   const [industry, setIndustry] = useState('')
+  // ?industry=detailing — пришли со стартовой страницы ниши, ниша уже выбрана.
+  useEffect(() => {
+    const preset = new URLSearchParams(window.location.search).get('industry')
+    if (preset) setIndustry(preset)
+  }, [])
   const [address, setAddress] = useState('')
   const [excludeFromTotals, setExcludeFromTotals] = useState(false)
   const [storeEnabled, setStoreEnabled] = useState(false)
