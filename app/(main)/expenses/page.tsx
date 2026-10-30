@@ -287,6 +287,18 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 
 const rowTotal = (r: ExpenseRow) => (r.cash_amount || 0) + (r.kaspi_amount || 0)
 
+// Цвет категории по смыслу, чтобы в списке сразу различать зарплату, аренду, закуп.
+// amber в проекте = бренд-синий, поэтому тёплый тон — orange.
+const categoryTone = (name: string | null | undefined) => {
+  const n = (name || '').toLowerCase()
+  if (/зарплат|аванс|преми|бонус/.test(n)) return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30'
+  if (/аренд|коммун|свет|электр|вода|интернет|связь|охран/.test(n)) return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30'
+  if (/списан|брак|недостач|штраф/.test(n)) return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30'
+  if (/налог|ндс|ипн|соц/.test(n)) return 'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-500/20 dark:text-slate-200 dark:border-slate-500/30'
+  if (/реклам|маркет|smm|таргет/.test(n)) return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/15 dark:text-pink-300 dark:border-pink-500/30'
+  return 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/30'
+}
+
 const parseMoneyInput = (raw: string): number | null => {
   const cleaned = raw.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '')
   if (cleaned === '') return null
@@ -2199,8 +2211,8 @@ function ListTab({
   const totalsBar = totals && rows.length > 0 ? (
     <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur px-4 py-2.5 text-xs">
       <span className="text-muted-foreground">За период: {totals.count} операций</span>
-      <span className="font-mono text-amber-500">Нал {Formatters.moneyDetailed(totals.cash)}</span>
-      <span className="font-mono text-red-400">Безнал {Formatters.moneyDetailed(totals.kaspi)}</span>
+      <span className="font-mono text-orange-600 dark:text-orange-400">Нал {Formatters.moneyDetailed(totals.cash)}</span>
+      <span className="font-mono text-blue-600 dark:text-blue-400">Безнал {Formatters.moneyDetailed(totals.kaspi)}</span>
       <span className="ml-auto font-mono font-bold text-foreground">Итого {Formatters.moneyDetailed(totals.total)}</span>
     </div>
   ) : null
@@ -2266,7 +2278,7 @@ function ListTab({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700 truncate">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border truncate ${categoryTone(row.category)}`}>
                         {row.category || 'Общее'}
                       </span>
                       {isExtra && (
@@ -2301,13 +2313,13 @@ function ListTab({
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-gray-500">Нал</div>
-                    <div className={`font-mono ${row.cash_amount ? 'text-amber-400' : 'text-gray-500'}`}>
+                    <div className={`font-mono ${row.cash_amount ? 'text-orange-600 dark:text-orange-400' : 'text-gray-500'}`}>
                       {row.cash_amount ? Formatters.moneyDetailed(row.cash_amount) : '—'}
                     </div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-gray-500">{cashLabels.providerName}</div>
-                    <div className={`font-mono ${row.kaspi_amount ? 'text-red-400' : 'text-gray-500'}`}>
+                    <div className={`font-mono ${row.kaspi_amount ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`}>
                       {row.kaspi_amount ? Formatters.moneyDetailed(row.kaspi_amount) : '—'}
                     </div>
                   </div>
@@ -2398,8 +2410,8 @@ function ListTab({
               <SortableTh label="Компания" sortKey="company" sort={sort} onSort={toggle} className="px-4 py-3" />
               <SortableTh label="Категория" sortKey="category" sort={sort} onSort={toggle} className="px-4 py-3" />
               {showControlColumns ? <SortableTh label="Статус" sortKey="status" sort={sort} onSort={toggle} className="px-4 py-3" /> : null}
-              <SortableTh label="Нал" sortKey="cash" sort={sort} onSort={toggle} align="right" className="px-4 py-3 text-red-400" />
-              <SortableTh label={cashLabels.providerName} sortKey="kaspi" sort={sort} onSort={toggle} align="right" className="px-4 py-3 text-red-400" />
+              <SortableTh label="Нал" sortKey="cash" sort={sort} onSort={toggle} align="right" className="px-4 py-3 text-orange-600 dark:text-orange-400" />
+              <SortableTh label={cashLabels.providerName} sortKey="kaspi" sort={sort} onSort={toggle} align="right" className="px-4 py-3 text-blue-600 dark:text-blue-400" />
               <SortableTh label="Итого" sortKey="total" sort={sort} onSort={toggle} align="right" className="px-4 py-3 text-foreground" />
               {showControlColumns ? <SortableTh label="Документ" sortKey="document" sort={sort} onSort={toggle} className="px-4 py-3" /> : null}
               <SortableTh label="Комментарий" sortKey="comment" sort={sort} onSort={toggle} className="px-4 py-3" />
@@ -2481,7 +2493,7 @@ function ListTab({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${categoryTone(row.category)}`}>
                       {row.category || 'Общее'}
                     </span>
                     <div className="mt-1 text-[11px] text-gray-500">{operatorName(row.operator_id)}</div>
@@ -2499,10 +2511,10 @@ function ListTab({
                       </span>
                     </td>
                   ) : null}
-                  <td className={`px-4 py-3 text-right font-mono ${row.cash_amount ? 'text-amber-400' : 'text-gray-700'}`}>
+                  <td className={`px-4 py-3 text-right font-mono ${row.cash_amount ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>
                     {row.cash_amount ? Formatters.moneyDetailed(row.cash_amount) : '—'}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono ${row.kaspi_amount ? 'text-red-400' : 'text-gray-700'}`}>
+                  <td className={`px-4 py-3 text-right font-mono ${row.kaspi_amount ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
                     {row.kaspi_amount ? Formatters.moneyDetailed(row.kaspi_amount) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-red-500 font-mono bg-red-500/5">
@@ -2645,8 +2657,8 @@ function ExpenseRowCompact({ row, companyName, isExtra }: any) {
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4 text-xs">
-        {row.cash_amount > 0 && <span className="text-amber-400 font-mono">{Formatters.moneyDetailed(row.cash_amount)}</span>}
-        {row.kaspi_amount > 0 && <span className="text-red-400 font-mono">{Formatters.moneyDetailed(row.kaspi_amount)}</span>}
+        {row.cash_amount > 0 && <span className="text-orange-600 dark:text-orange-400 font-mono">{Formatters.moneyDetailed(row.cash_amount)}</span>}
+        {row.kaspi_amount > 0 && <span className="text-blue-600 dark:text-blue-400 font-mono">{Formatters.moneyDetailed(row.kaspi_amount)}</span>}
         <span className="text-sm font-bold text-red-500 font-mono min-w-[80px] text-right">{Formatters.moneyDetailed(total)}</span>
       </div>
     </div>

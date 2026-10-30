@@ -1870,7 +1870,7 @@ function AnalyticsTab({ analytics, dateFrom, dateTo }: any) {
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground flex items-center gap-2"><Sun className="w-4 h-4 text-amber-400" /> День</span>
+                <span className="text-muted-foreground flex items-center gap-2"><Sun className="w-4 h-4 text-orange-500" /> День</span>
                 <span className="text-foreground font-medium">{Formatters.moneyDetailed(analytics.dayTotal)}</span>
               </div>
               <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -1879,7 +1879,7 @@ function AnalyticsTab({ analytics, dateFrom, dateTo }: any) {
             </div>
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground flex items-center gap-2"><Moon className="w-4 h-4 text-blue-400" /> Ночь</span>
+                <span className="text-muted-foreground flex items-center gap-2"><Moon className="w-4 h-4 text-violet-500" /> Ночь</span>
                 <span className="text-foreground font-medium">{Formatters.moneyDetailed(analytics.nightTotal)}</span>
               </div>
               <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -2158,9 +2158,18 @@ function IncomeTableRow({
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{operatorName}</td>
       <td className="px-4 py-3 whitespace-nowrap">
+        {/* amber в проекте = бренд-синий, поэтому день — orange, ночь — violet */}
         <span className="inline-flex items-center gap-1.5 text-xs">
-          {isNight ? <Moon className="h-3.5 w-3.5 text-blue-400" /> : <Sun className="h-3.5 w-3.5 text-amber-400" />}
-          {isNight ? 'Ночь' : 'День'}
+          <span
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold ${
+              isNight
+                ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'
+                : 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'
+            }`}
+          >
+            {isNight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+            {isNight ? 'Ночь' : 'День'}
+          </span>
           {row.zone ? <span className="text-slate-400">· {row.zone}</span> : null}
         </span>
       </td>
@@ -2223,7 +2232,7 @@ function IncomeRowFull({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className={`p-2 rounded-lg ${row.shift === 'day' ? 'bg-amber-500/20' : 'bg-blue-500/20'}`}>
-            {row.shift === 'day' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
+            {row.shift === 'day' ? <Sun className="w-4 h-4 text-orange-500" /> : <Moon className="w-4 h-4 text-violet-500" />}
           </div>
           <div>
             <div className="flex items-center gap-2">
