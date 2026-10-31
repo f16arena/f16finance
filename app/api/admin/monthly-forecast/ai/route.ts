@@ -4,6 +4,7 @@ import { generateAiText } from '@/lib/ai/provider'
 import { requireAnyCapability } from '@/lib/server/capabilities'
 import { requireAddon } from '@/lib/server/entitlements'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 /**
  * AI-вывод по прогнозу /analysis. ИИ здесь не учится и не считает прогноз —
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
     const { text } = await generateAiText({
       model,
       messages: [
-        { role: 'system', content: system },
+        { role: 'system', content: [system, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
         { role: 'user', content: user },
       ],
       temperature: 0.4,

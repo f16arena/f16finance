@@ -8,6 +8,7 @@ import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { isStoreManager } from '@/lib/server/store-access'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     ].join('\n')
 
     const messages: AiMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: [systemPrompt, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
       {
         role: 'user',
         content:

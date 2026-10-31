@@ -8,6 +8,7 @@ import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { getAnalysisServerSnapshot, getReportsServerSnapshot, getCashFlowServerSnapshot } from '@/lib/ai/server-snapshots'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
 
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
       // gpt-5 тратит часть бюджета на рассуждение: при 1500 отчёт обрывался
       maxTokens: 4000,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: [systemPrompt, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
         {
           role: 'user',
           content: `Данные за период ${dateFrom} — ${dateTo}:\n\n${dataContext}\n\nСоставь полный еженедельный отчёт.`,

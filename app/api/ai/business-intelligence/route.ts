@@ -10,6 +10,7 @@ import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { requireCapability } from '@/lib/server/capabilities'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
       'Ты опытный управляющий точки продаж. По данным дай 3-5 КОНКРЕТНЫХ действий на сегодня в порядке важности: что заказать, что распродать или не брать, какой день выручки проверить, с кем из сотрудников разобраться по недостачам, кого из клиентов вернуть. Каждое действие — одна короткая строка с названием и цифрой. По-русски, простыми словами, без терминов. Не выдумывай — бери только из данных. Верни просто список строк, без нумерации и заголовков.'
 
     const messages: AiMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: [systemPrompt, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
       { role: 'user', content: lines.join('\n') },
     ]
 

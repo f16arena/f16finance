@@ -16,6 +16,7 @@ import { resolveCompanyScope } from '@/lib/server/organizations'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 // Финдиректор — разбор периода.
 // Цифры считает код (lib/analysis/cfo-review) так же, как /reports: Extra по
@@ -272,7 +273,7 @@ async function runAi(access: any, computed: any) {
   ].join('\n')
 
   const messages: AiMessage[] = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: [systemPrompt, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
     {
       role: 'user',
       content: `Разбор за ${computed.dateFrom} — ${computed.dateTo} против ${computed.prevFrom} — ${computed.prevTo}:\n\n${JSON.stringify(computed)}`,

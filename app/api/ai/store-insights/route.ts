@@ -9,6 +9,7 @@ import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { isStoreManager } from '@/lib/server/store-access'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { computeStoreInsights } from '@/lib/server/store-insights'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
       'Ты опытный товаровед-аналитик. По данным дай КОРОТКИЙ разбор: 1) что приносит деньги (1-2 фразы), 2) мёртвый груз — сколько ₸ заморожено и что распродать, 3) потери/аномалии, 4) 2-3 конкретных действия. По-русски, по делу, без воды. Не выдумывай цифры — бери только из данных. Деньги — целые ₸.'
 
     const messages: AiMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: [systemPrompt, await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
       { role: 'user', content: lines.join('\n') },
     ]
 

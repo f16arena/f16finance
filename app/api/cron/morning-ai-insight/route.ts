@@ -20,6 +20,7 @@ import { sendTelegramMessage } from '@/lib/telegram/send'
 import { generateAiText } from '@/lib/ai/provider'
 import { addDaysISO } from '@/lib/core/date'
 import { kzTodayISO } from '@/lib/server/forecast-inputs'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 export const runtime = 'nodejs'
 
@@ -242,24 +243,27 @@ export async function GET(req: Request) {
   // Изоляция: каждой организации — свой обзор (по её companyIds) в её чат.
   // Общий env-чат без скоупа убран: он получал сводку по всем арендаторам.
   const orgTargets = await listOrgReportTargets()
-  const targets = orgTargets.map((t) => ({ chatId: t.chatId, companyIds: t.companyIds as string[] | null }))
+  const targets = orgTargets.map((t) => ({ chatId: t.chatId, companyIds: t.companyIds as string[] | null, organizationId: t.organizationId }))
 
   if (targets.length === 0) {
     return NextResponse.json({ ok: true, skipped: 'no report target' })
   }
 
-  async function sendForTarget(chatId: string, companyIds: string[] | null) {
+  async function sendForTarget(chatId: string, companyIds: string[] | null, organizationId: string | null) {
     const insights = await collectInsights(supabase, companyIds)
     if (insights.yesterdayIncome === 0 && insights.weekAvgIncome === 0 && insights.yesterdayOperators.length === 0) {
       return { sent: false, reason: 'no data' }
     }
     const prompt = buildPrompt(insights)
     try {
+      const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
       const result = await generateAiText({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        maxTokens: 300,
+        model,
+        // Reasoning-модели (gpt-5*) тратят бюджет на размышление: с 300 на ответ
+        // ничего не оставалось — сводка не приходила.
+        maxTokens: model.startsWith('gpt-5') ? 2500 : 400,
         messages: [
-          { role: 'system', content: 'Ты — AI-ассистент владельца бизнеса. Пиши кратко, по делу, на русском.' },
+          { role: 'system', content: ['Ты — AI-ассистент владельца бизнеса. Пиши кратко, по делу, на русском.', await buildAiBusinessContext(organizationId)].filter(Boolean).join('\n\n') },
           { role: 'user', content: prompt },
         ],
       })
@@ -276,7 +280,7 @@ export async function GET(req: Request) {
   const results = []
   for (const t of targets) {
     try {
-      results.push(await sendForTarget(t.chatId, t.companyIds))
+      results.push(await sendForTarget(t.chatId, t.companyIds, t.organizationId))
     } catch (e: any) {
       results.push({ sent: false, error: e?.message })
     }

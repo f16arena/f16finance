@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server'
 import { requireCapability } from '@/lib/server/capabilities'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { generateAiText } from '@/lib/ai/provider'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 export const runtime = 'nodejs'
 
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
       // с лимитом 250 на сам ответ ничего не оставалось → «OpenAI не вернул текст».
       maxTokens: model.startsWith('gpt-5') ? 2500 : 300,
       messages: [
-        { role: 'system', content: 'Ты — финансовый ассистент владельца бизнеса в Казахстане. Пиши кратко, по делу, на русском.' },
+        { role: 'system', content: ['Ты — финансовый ассистент владельца бизнеса в Казахстане. Пиши кратко, по делу, на русском.', await buildAiBusinessContext(access.activeOrganization?.id || null)].filter(Boolean).join('\n\n') },
         { role: 'user', content: prompt },
       ],
     })
