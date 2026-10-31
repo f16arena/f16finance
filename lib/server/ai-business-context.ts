@@ -14,7 +14,11 @@ import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/se
  *
  * Только справочные факты, без денег: цифры ИИ получает отдельно, в DATA.
  */
-export async function buildAiBusinessContext(organizationId: string | null | undefined): Promise<string> {
+export async function buildAiBusinessContext(
+  organizationId: string | null | undefined,
+  // Выученная память содержит выручку точек — только тем, кому деньги видны.
+  options: { memory?: boolean } = {},
+): Promise<string> {
   if (!organizationId || !hasAdminSupabaseCredentials()) return ''
   const supabase = createAdminSupabaseClient()
   const [orgRes, companiesRes, ownersRes, settings, memory] = await Promise.all([
@@ -22,7 +26,7 @@ export async function buildAiBusinessContext(organizationId: string | null | und
     supabase.from('companies').select('name, industry').eq('organization_id', organizationId).is('archived_at', null).order('name'),
     supabase.from('staff').select('full_name, role').eq('organization_id', organizationId).eq('is_active', true).eq('role', 'owner'),
     getOrgSettings(organizationId),
-    loadAiMemoryBlock(supabase, organizationId).catch(() => ''),
+    options.memory === false ? Promise.resolve('') : loadAiMemoryBlock(supabase, organizationId).catch(() => ''),
   ])
 
   const orgName = String((orgRes.data as any)?.name || '').trim()

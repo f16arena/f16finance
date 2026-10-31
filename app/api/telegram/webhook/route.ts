@@ -2839,8 +2839,8 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
   history.push({ role: 'user', content: userText })
 
   const messages: any[] = [
-    // Память и нормы бизнеса — только руководству: оператору выручку точек не показываем.
-    { role: 'system', content: [systemPrompt, botUser?.organizationId && botUser.role !== 'operator' && botUser.role !== 'unknown' ? await buildAiBusinessContext(botUser.organizationId) : ''].filter(Boolean).join('\n\n') },
+    // Паспорт бизнеса — руководству; выученная память с выручкой точек — только владельцу.
+    { role: 'system', content: [systemPrompt, botUser?.organizationId && botUser.role !== 'operator' && botUser.role !== 'unknown' ? await buildAiBusinessContext(botUser.organizationId, { memory: botUser.role === 'owner' || botUser.role === 'super_admin' }) : ''].filter(Boolean).join('\n\n') },
     ...history,
   ]
 

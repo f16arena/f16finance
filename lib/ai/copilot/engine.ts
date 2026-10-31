@@ -817,7 +817,9 @@ async function runAgenticRead(
   const readTools = tools.filter((t) => isReadOnlyTool(t.name))
   const openaiTools = readTools.map((t) => toolToOpenAISchema(t, ctx))
 
-  const businessContext = await buildAiBusinessContext(ctx.organizationId)
+  const businessContext = await buildAiBusinessContext(ctx.organizationId, {
+    memory: ctx.isSuperAdmin || ctx.capabilities.has('income.view') || ctx.capabilities.has('reports.view'),
+  })
   const sys =
     'Ты — Orda, аналитик-управляющий бизнеса организации. У тебя есть инструменты ЧТЕНИЯ данных бизнеса. ' +
     'Чтобы ответить: вызывай нужные инструменты (можно несколько, последовательно), ЧИТАЙ их результаты, ' +

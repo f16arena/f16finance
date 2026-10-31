@@ -265,7 +265,8 @@ export async function POST(request: Request) {
 
   const supabase = hasAdminSupabaseCredentials() ? createAdminSupabaseClient() : access.supabase
   const role = detectRole(access)
-  const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null)
+  // Память с выручкой точек — только владельцу: оператору и маркетологу деньги запрещены.
+  const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null, { memory: role === 'owner' || role === 'super_admin' })
   const systemPrompt = [systemPromptFor(role), businessContext].filter(Boolean).join('\n\n')
 
   let snapshot: any[] = []
