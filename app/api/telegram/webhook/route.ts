@@ -44,6 +44,7 @@ import { mondayOfISO } from '@/lib/core/date'
 import { operatorPayPeriodFor } from '@/lib/domain/operator-pay-period'
 import { getOrgSettings } from '@/lib/server/org-settings'
 import { COUNTED_EXPENSE_FILTER } from '@/lib/domain/expense-status'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -2838,7 +2839,8 @@ async function handleAIChat(chatId: number, chatIdStr: string, userText: string,
   history.push({ role: 'user', content: userText })
 
   const messages: any[] = [
-    { role: 'system', content: systemPrompt },
+    // Память и нормы бизнеса — только руководству: оператору выручку точек не показываем.
+    { role: 'system', content: [systemPrompt, botUser?.organizationId && botUser.role !== 'operator' && botUser.role !== 'unknown' ? await buildAiBusinessContext(botUser.organizationId) : ''].filter(Boolean).join('\n\n') },
     ...history,
   ]
 

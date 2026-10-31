@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { runAssistant, streamAssistant } from '@/lib/ai/assistant'
 import type { AssistantRequest } from '@/lib/ai/types'
 import { logAiUsageSafe } from '@/lib/ai/usage-tracker'
+import { aiAudienceLine, buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
 import { requireAddon } from '@/lib/server/entitlements'
 import { resolveCompanyScope } from '@/lib/server/organizations'
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
       companyRestriction: access.companyRestriction,
     })
     const allowedCompanyIds = scope.allowedCompanyIds
+    // Паспорт бизнеса + выученная память + общие правила — как у остальных ИИ-разборов.
+    const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null).catch(() => '')
+    const audience = aiAudienceLine({ staffRole: access.staffRole, isSuperAdmin: access.isSuperAdmin })
 
     const wantsStream = request.headers.get('accept')?.includes('text/event-stream')
     if (wantsStream) {
@@ -51,6 +55,8 @@ export async function POST(request: Request) {
           supabase: access.supabase,
           currentSnapshot: body.snapshot || null,
           allowedCompanyIds,
+          businessContext,
+          audience,
         },
         {
           signal: request.signal,
@@ -85,6 +91,8 @@ export async function POST(request: Request) {
       supabase: access.supabase,
       currentSnapshot: body.snapshot || null,
       allowedCompanyIds,
+      businessContext,
+      audience,
     })
 
     if (result.error) {

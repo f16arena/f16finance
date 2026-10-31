@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto'
 
 import { generateAiText } from '@/lib/ai/provider'
 import type { ShiftExplanation } from '@/lib/domain/store-kpi'
+import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
 
 /**
  * Системный промпт модуля. Ограничения продублированы здесь, потому что модель
@@ -256,7 +257,7 @@ export async function runPostShiftReview(args: {
     const response = await generateAiText({
       maxTokens: 2000,
       messages: [
-        { role: 'system', content: STORE_KPI_SYSTEM_PROMPT },
+        { role: 'system', content: [STORE_KPI_SYSTEM_PROMPT, await buildAiBusinessContext(args.organizationId)].filter(Boolean).join('\n\n') },
         {
           role: 'user',
           content: `Разбери смену магазина и объясни результат.
@@ -368,7 +369,7 @@ export async function runMonthlyReview(args: {
     const response = await generateAiText({
       maxTokens: 2500,
       messages: [
-        { role: 'system', content: STORE_KPI_SYSTEM_PROMPT },
+        { role: 'system', content: [STORE_KPI_SYSTEM_PROMPT, await buildAiBusinessContext(args.organizationId)].filter(Boolean).join('\n\n') },
         {
           role: 'user',
           content: `Составь управленческий разбор месяца для владельца.
@@ -483,7 +484,7 @@ export async function runCashierReview(args: {
     const response = await generateAiText({
       maxTokens: 2200,
       messages: [
-        { role: 'system', content: STORE_KPI_SYSTEM_PROMPT },
+        { role: 'system', content: [STORE_KPI_SYSTEM_PROMPT, await buildAiBusinessContext(args.organizationId)].filter(Boolean).join('\n\n') },
         {
           role: 'user',
           content: `Разбери работу одного продавца за период и подскажи, как с ним говорить.

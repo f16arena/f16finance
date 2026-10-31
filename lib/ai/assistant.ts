@@ -12,7 +12,6 @@ import { createRequestSupabaseClient } from '@/lib/server/request-auth'
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
-const DEFAULT_DATE = '2026-03-15'
 
 type RequestSupabaseClient = ReturnType<typeof createRequestSupabaseClient>
 
@@ -21,6 +20,10 @@ type AssistantRunContext = {
   currentSnapshot?: PageSnapshot | null
   /** Изоляция арендатора: компании вызывающего (null → суперадмин / без фильтра). */
   allowedCompanyIds?: string[] | null
+  /** Паспорт бизнеса, выученная память и общие правила (buildAiBusinessContext). */
+  businessContext?: string
+  /** Кто спрашивает: должность (aiAudienceLine). */
+  audience?: string
 }
 
 type AssistantUsage = NonNullable<AssistantResponse['usage']>
@@ -44,8 +47,12 @@ function normalizeDateArgs(currentSnapshot?: PageSnapshot | null): NormalizedDat
   const snapshotStart = currentSnapshot?.period?.from
   const snapshotEnd = currentSnapshot?.period?.to
 
-  const dateFrom = isIsoDate(snapshotStart) ? snapshotStart : DEFAULT_DATE
-  const dateTo = isIsoDate(snapshotEnd) ? snapshotEnd : DEFAULT_DATE
+  // Период страницы не передан — текущий месяц по сегодня (Алматы, UTC+5).
+  // Раньше здесь стояла зашитая дата 2026-03-15, и общий помощник отвечал
+  // по мартовским цифрам.
+  const today = new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10)
+  const dateFrom = isIsoDate(snapshotStart) ? snapshotStart : `${today.slice(0, 7)}-01`
+  const dateTo = isIsoDate(snapshotEnd) ? snapshotEnd : today
 
   return dateFrom <= dateTo ? { dateFrom, dateTo } : { dateFrom: dateTo, dateTo: dateFrom }
 }
@@ -111,7 +118,7 @@ async function collectServerSnapshots(request: AssistantRequest, context: Assist
   return snapshots
 }
 
-function buildSystemPrompt(request: AssistantRequest, currentSnapshot: PageSnapshot | null | undefined, serverSnapshots: PageSnapshot[]) {
+function buildSystemPrompt(request: AssistantRequest, currentSnapshot: PageSnapshot | null | undefined, serverSnapshots: PageSnapshot[], context: AssistantRunContext) {
   const pageContext =
     SITE_CONTEXT.pages.find((page) => page.page === request.page) ||
     SITE_CONTEXT.pages.find((page) => page.page === 'global') ||
@@ -132,29 +139,30 @@ function buildSystemPrompt(request: AssistantRequest, currentSnapshot: PageSnaps
       : 'Дополнительные серверные срезы данных не были собраны.'
 
   return [
-    `Я — финансовый консультант Orda. 35 лет в финансах — работал в крупнейших банках Казахстана и с крупнейшими корпорациями СНГ. Сейчас помогаю владельцу бизнеса управлять бизнесом через систему Orda Control.`,
+    `Ты — помощник владельца в Orda: опытный финансист и управленец, который знает этот бизнес. Отвечаешь как живой коллега — прямо, по делу, без лести и канцелярита. Видишь риск — называешь; хорошо — говоришь честно, без лишних похвал.`,
+    context.audience || '',
     '',
-    `Я отвечаю как живой человек — опытный коллега, а не корпоративный шаблон. Говорю прямо: если вижу риск — называю его, если результат хороший — говорю честно без лишних похвал.`,
+    `Сейчас открыт раздел «${pageContext.title}» — ${pageContext.description}`,
+    `Цифры у тебя есть только по этому разделу (срезы ниже) и общий фон бизнеса (память и нормы ниже). Если спрашивают о том, чего в срезах нет (смены, зарплата, склад, долги, конкретный человек), — не выдумывай и не отвечай общими словами: скажи, что здесь этих данных нет, и назови страницу, где они есть («Смены», «Зарплата», «Склад»).`,
     '',
-    `ВАЖНО — я консультант ТОЛЬКО по разделу «${pageContext.title}». У меня под рукой данные исключительно по этой странице (срезы ниже). Если спрашивают про то, чего здесь НЕТ — смены, зарплату, склад, операторов, кадры, долги, инциденты, конкретную точку и т.п., — я НЕ выдумываю и НЕ отвечаю общими словами по памяти. Честно говорю: «Здесь у меня данные только по разделу "${pageContext.title}". Чтобы посмотреть это — откройте соответствующую страницу (например «Смены», «Зарплата», «Склад»).» Деловые советы НА ОСНОВЕ цифр этой страницы — даю свободно.`,
+    'Как отвечать:',
+    '- Цифры этого бизнеса — только из срезов, точно до тенге. Расчёт пиши рядом: «1 200 000 − 950 000 = 250 000 ₸».',
+    '- Сравнивай с обычным для этого бизнеса по памяти: «ниже обычной субботы на 18%». Память — фон; если расходится со срезом, верь срезу.',
+    '- Сначала ответ на вопрос и главное, потом объяснение. В конце — одно-два конкретных действия: что, кто, на какой точке.',
+    '- Просят по категориям или точкам — все строки полностью, без сокращений.',
+    '- Только русский, без английских слов (онлайн, наличные, выручка, прибыль, движение денег). **Жирный** — главное и цифры. Не начинай с «Конечно!» и «Отличный вопрос!», не повторяй вопрос.',
     '',
-    `Когда речь о финансовых данных этого бизнеса — использую ТОЛЬКО точные цифры из срезов ниже. Никаких "примерно" и округлений. Цифры — точные до тенге.`,
-    '',
-    `Стиль: русский язык, **жирный** для главного и цифр, *курсив* для пояснений. Структурирую заголовками когда нужно. Не начинаю с "Конечно!" и "Отличный вопрос!". Не повторяю вопрос. Заканчиваю конкретным действием.`,
-    '',
-    `Пишу ТОЛЬКО на русском. Никаких английских слов в ответе: online → онлайн, cash → наличные, revenue → выручка, profit → прибыль, cash flow → движение денег и т.п.`,
-    '',
-    `Когда просят по категориям или точкам — показываю ВСЕ строки полностью, не сокращаю.`,
-    '',
-    `📍 Раздел: ${pageContext.title} — ${pageContext.description}`,
+    context.businessContext || '',
     '',
     currentSnapshotBlock,
     '',
     serverSnapshotBlocks,
-  ].join('\n')
+  ]
+    .filter((line, i, all) => line !== '' || (i > 0 && all[i - 1] !== ''))
+    .join('\n')
 }
 
-function buildInput(request: AssistantRequest, currentSnapshot: PageSnapshot | null | undefined, serverSnapshots: PageSnapshot[]) {
+function buildInput(request: AssistantRequest, currentSnapshot: PageSnapshot | null | undefined, serverSnapshots: PageSnapshot[], context: AssistantRunContext) {
   const history = (request.history ?? []).slice(-8).map((message) => ({
     role: message.role,
     content: [
@@ -167,7 +175,7 @@ function buildInput(request: AssistantRequest, currentSnapshot: PageSnapshot | n
   return [
     {
       role: 'system',
-      content: [{ type: 'input_text', text: buildSystemPrompt(request, currentSnapshot, serverSnapshots) }],
+      content: [{ type: 'input_text', text: buildSystemPrompt(request, currentSnapshot, serverSnapshots, context) }],
     },
     ...history,
     {
@@ -242,7 +250,7 @@ async function requestOpenAI(payload: Record<string, unknown>) {
 
 async function buildMessages(request: AssistantRequest, context: AssistantRunContext) {
   const serverSnapshots = await collectServerSnapshots(request, context)
-  const input = buildInput(request, context.currentSnapshot, serverSnapshots)
+  const input = buildInput(request, context.currentSnapshot, serverSnapshots, context)
   return input.map((msg: any) => ({
     role: msg.role,
     content: Array.isArray(msg.content)
