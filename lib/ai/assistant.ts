@@ -9,6 +9,8 @@ import {
   getReportsServerSnapshot,
 } from '@/lib/ai/server-snapshots'
 import { createRequestSupabaseClient } from '@/lib/server/request-auth'
+import { answerWithReadTools } from '@/lib/ai/copilot'
+import type { CopilotContext } from '@/lib/ai/copilot/types'
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
@@ -24,6 +26,11 @@ type AssistantRunContext = {
   businessContext?: string
   /** Кто спрашивает: должность (aiAudienceLine). */
   audience?: string
+  /**
+   * Доступ к базе через инструменты чтения копилота (в пределах прав пользователя).
+   * Есть — помощник сам достаёт смены, склад, долги и прочее, чего нет на странице.
+   */
+  readContext?: CopilotContext | null
 }
 
 type AssistantUsage = NonNullable<AssistantResponse['usage']>
@@ -143,10 +150,13 @@ function buildSystemPrompt(request: AssistantRequest, currentSnapshot: PageSnaps
     context.audience || '',
     '',
     `Сейчас открыт раздел «${pageContext.title}» — ${pageContext.description}`,
-    `Цифры у тебя есть только по этому разделу (срезы ниже) и общий фон бизнеса (память и нормы ниже). Если спрашивают о том, чего в срезах нет (смены, зарплата, склад, долги, конкретный человек), — не выдумывай и не отвечай общими словами: скажи, что здесь этих данных нет, и назови страницу, где они есть («Смены», «Зарплата», «Склад»).`,
+    `Сегодня ${new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10)} (Казахстан).`,
+    context.readContext
+      ? `Цифры этого раздела — в срезах ниже. Чего в срезах нет (другой период, смены, зарплата, склад, долги, конкретный человек или товар) — достань инструментами: они читают базу этого бизнеса в пределах прав пользователя. Инструмент вернул ошибку или «нет прав» — так и скажи, не выдумывай. В ответе называй период точными датами.`
+      : `Цифры у тебя есть только по этому разделу (срезы ниже) и общий фон бизнеса (память и нормы ниже). Если спрашивают о том, чего в срезах нет (смены, зарплата, склад, долги, конкретный человек), — не выдумывай и не отвечай общими словами: скажи, что здесь этих данных нет, и назови страницу, где они есть («Смены», «Зарплата», «Склад»).`,
     '',
     'Как отвечать:',
-    '- Цифры этого бизнеса — только из срезов, точно до тенге. Расчёт пиши рядом: «1 200 000 − 950 000 = 250 000 ₸».',
+    '- Цифры этого бизнеса — только из срезов и инструментов, точно до тенге. Расчёт пиши рядом: «1 200 000 − 950 000 = 250 000 ₸».',
     '- Сравнивай с обычным для этого бизнеса по памяти: «ниже обычной субботы на 18%». Память — фон; если расходится со срезом, верь срезу.',
     '- Сначала ответ на вопрос и главное, потом объяснение. В конце — одно-два конкретных действия: что, кто, на какой точке.',
     '- Просят по категориям или точкам — все строки полностью, без сокращений.',
@@ -331,6 +341,16 @@ export function streamAssistant(
         }
 
         const messages = await buildMessages(request, context)
+        if (context.readContext) {
+          const answered = await answerWithReadTools({ ctx: context.readContext, messages }).catch(() => null)
+          if (answered) {
+            if (answered.usage) await options.onUsage?.(answered.usage as AssistantUsage)
+            controller.enqueue(encoder.encode(sse('delta', { text: answered.text })))
+            controller.enqueue(encoder.encode(sse('done', { ok: true })))
+            controller.close()
+            return
+          }
+        }
         const response = await fetch(OPENAI_API_URL, {
           method: 'POST',
           signal: options.signal,
@@ -378,6 +398,11 @@ export function streamAssistant(
 export async function runAssistant(request: AssistantRequest, context: AssistantRunContext): Promise<AssistantResponse> {
   try {
     const messages = await buildMessages(request, context)
+
+    if (context.readContext) {
+      const answered = await answerWithReadTools({ ctx: context.readContext, messages }).catch(() => null)
+      if (answered) return { text: answered.text, usage: answered.usage as AssistantUsage }
+    }
 
     const result = await requestOpenAI({
       model: OPENAI_MODEL,

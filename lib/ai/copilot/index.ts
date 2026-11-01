@@ -9,6 +9,7 @@ import 'server-only'
 
 import { initializeCopilotTools } from './tools'
 import { runCopilot, handleCallback } from './engine'
+export { answerWithReadTools } from './engine'
 import { copilotResponseToTelegram } from './adapters/telegram'
 import { loadUserCapabilities } from '@/lib/server/capabilities'
 import { createAdminSupabaseClient } from '@/lib/server/supabase'
@@ -94,6 +95,15 @@ export async function runCopilotForWeb(input: WebCopilotInput): Promise<CopilotR
   if (input.callbackData) return await handleCallback(input.callbackData, ctx)
   if (input.text) return await runCopilot(input.text, ctx)
   return { text: 'Не получил ввод.' }
+}
+
+/**
+ * Контекст только для чтения базы — для ИИ-чатов вне копилота (помощник на страницах).
+ * Те же права и та же проверка организации, что у копилота. null — доступа нет.
+ */
+export async function buildReadOnlyCopilotContext(input: Omit<WebCopilotInput, 'text' | 'callbackData'>): Promise<CopilotContext | null> {
+  if (await copilotAccessDenied(input)) return null
+  return buildContext({ ...input, source: 'web' })
 }
 
 /**

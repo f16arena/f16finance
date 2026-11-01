@@ -72,6 +72,8 @@ const COPILOT_SYSTEM_PROMPT = `Ты — Orda, толковый операцио�
 
 ПОСЛЕ ДАННЫХ: если в цифрах есть что-то важное (резкий рост/спад, аномалия, что стоит проверить) — добавь ОДНУ короткую дельную мысль. Нечего сказать ценного — просто отдай данные, без воды и общих фраз.
 
+ПАМЯТЬ: пользователь сообщил постоянный факт о бизнесе (кто за что отвечает, правило, особенность точки, «у нас так принято») или поправил тебя («это не выручка, это…», «Kaspi у нас считается как…») → вызови save_to_memory({fact: "<факт одной фразой>"}) и коротко подтверди. Разовые цифры и вопросы не запоминай.
+
 ЗНАНИЕ СИСТЕМЫ (вызывай инструменты, не выдумывай):
 - "что умеешь / что я могу / какие у меня права / список функций" → list_my_actions({})
 - "какие страницы есть / где смотреть X / как открыть Y / куда зайти чтобы…" → find_page({query: "<тема>"})
@@ -888,4 +890,62 @@ async function runAgenticRead(
   // Фолбэк: если синтез не получился — отдаём последний результат инструмента «как есть».
   const fallback = lastToolText || (await runReadTool(first.name, first.args, ctx))
   return { text: fallback.replace(/\nДАННЫЕ:[\s\S]*$/, '').trim() || 'Не удалось получить ответ.' }
+}
+
+/**
+ * Ответ с доступом к базе для любого ИИ-чата (помощник на страницах): модель сама
+ * вызывает инструменты ЧТЕНИЯ копилота — выручка, расходы, смены, склад, долги,
+ * зарплата — в пределах прав пользователя, читает результаты и пишет ответ.
+ * Ничего не меняет в данных. null — ИИ не настроен или ответа не вышло.
+ */
+export async function answerWithReadTools(params: {
+  ctx: CopilotContext
+  messages: Array<{ role: string; content: string }>
+  maxSteps?: number
+}): Promise<{ text: string; usage: Record<string, number> } | null> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return null
+  const { ctx } = params
+  const readTools = getToolsForUser(ctx).filter((t) => isReadOnlyTool(t.name))
+  const openaiTools = readTools.map((t) => toolToOpenAISchema(t, ctx))
+  const msgs: any[] = [...params.messages]
+  const usage: Record<string, number> = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+  const maxSteps = params.maxSteps ?? 4
+
+  for (let step = 0; step <= maxSteps; step++) {
+    // Последний шаг — без инструментов: модель обязана ответить тем, что собрала.
+    const withTools = step < maxSteps && openaiTools.length > 0
+    const res = await fetch(OPENAI_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODEL,
+        max_completion_tokens: MODEL.startsWith('gpt-5') ? 4000 : 2000,
+        ...(MODEL.startsWith('gpt-5') ? {} : { temperature: 0.3 }),
+        messages: msgs,
+        ...(withTools ? { tools: openaiTools, tool_choice: 'auto' } : {}),
+      }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      console.error('[copilot] answerWithReadTools error:', data)
+      return null
+    }
+    for (const k of Object.keys(usage)) usage[k] += Number(data?.usage?.[k] || 0)
+    const message = data?.choices?.[0]?.message
+    if (!message) return null
+    const tcs = message.tool_calls || []
+    if (!tcs.length) {
+      const text = String(message.content || '').trim()
+      return text ? { text, usage } : null
+    }
+    msgs.push({ role: 'assistant', content: message.content || null, tool_calls: tcs })
+    for (const tc of tcs) {
+      let args: Record<string, unknown> = {}
+      try { args = JSON.parse(tc.function?.arguments || '{}') } catch {}
+      const out = tc.function?.name ? await runReadTool(tc.function.name, args, ctx) : 'Пустой вызов.'
+      msgs.push({ role: 'tool', tool_call_id: tc.id, content: out })
+    }
+  }
+  return null
 }

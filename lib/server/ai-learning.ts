@@ -129,12 +129,18 @@ export async function learnOrganizationDay(supabase: any, orgId: string, day: st
 
 /** Блок памяти для системного промпта любого ИИ-разбора. Пусто — пока не учились. */
 export async function loadAiMemoryBlock(supabase: any, orgId: string): Promise<string> {
-  const { data, error } = await supabase.from('ai_business_memory').select('norms, facts, last_day, days_learned').eq('organization_id', orgId).maybeSingle()
+  const [{ data, error }, told] = await Promise.all([
+    supabase.from('ai_business_memory').select('norms, facts, last_day, days_learned').eq('organization_id', orgId).maybeSingle(),
+    loadToldFacts(supabase, orgId),
+  ])
+  const toldBlock = told.length
+    ? `ВЛАДЕЛЕЦ И КОМАНДА ПРОСИЛИ ЗАПОМНИТЬ (правила и особенности этого бизнеса — учитывай в ответах):\n${told.map((t) => `- ${t}`).join('\n')}`
+    : ''
   // Таблицы ещё нет (миграция не применена) — ИИ работает как раньше.
-  if (error || !data) return ''
+  if (error || !data) return toldBlock
   const companies = ((data.norms as any)?.companies || []) as CompanyNorm[]
   const facts = ((data.facts || []) as LearnedFact[]).filter((f) => f.confidence >= 0.5).slice(0, 12)
-  if (!companies.length && !facts.length) return ''
+  if (!companies.length && !facts.length) return toldBlock
   const normLines = companies
     .filter((n) => n.avgDay > 0)
     .map((n) => {
@@ -149,7 +155,19 @@ export async function loadAiMemoryBlock(supabase: any, orgId: string): Promise<s
     'Сравнивай цифры периода с этими нормами и говори «выше/ниже обычного», когда это важно.',
   ]
     .filter(Boolean)
-    .join('\n')
+    .join('\n') + (toldBlock ? `\n\n${toldBlock}` : '')
+}
+
+/** Факты, которые люди сами попросили копилот запомнить (ai_memory), — свежие первыми. */
+async function loadToldFacts(supabase: any, orgId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('ai_memory')
+    .select('value')
+    .eq('organization_id', orgId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (error || !data) return []
+  return (data as Array<{ value: unknown }>).map((r) => String(r.value || '').trim().slice(0, 300)).filter(Boolean)
 }
 
 export { computeNorms, describeDay, mergeFacts, type LearnedFact, type CompanyNorm, type BusinessMemory }

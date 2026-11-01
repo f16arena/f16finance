@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { runAssistant, streamAssistant } from '@/lib/ai/assistant'
 import type { AssistantRequest } from '@/lib/ai/types'
 import { logAiUsageSafe } from '@/lib/ai/usage-tracker'
+import { buildReadOnlyCopilotContext } from '@/lib/ai/copilot'
 import { aiAudienceLine, buildAiBusinessContext } from '@/lib/server/ai-business-context'
 import { requireAnyCapability } from '@/lib/server/capabilities'
 import { getRequestAccessContext } from '@/lib/server/request-auth'
@@ -49,6 +50,16 @@ export async function POST(request: Request) {
     const seesMoney = (await requireAnyCapability(access, ['income.view', 'reports.view'])) === null
     const businessContext = await buildAiBusinessContext(access.activeOrganization?.id || null, { memory: seesMoney }).catch(() => '')
     const audience = aiAudienceLine({ staffRole: access.staffRole, isSuperAdmin: access.isSuperAdmin })
+    // Доступ к базе — те же инструменты чтения и права, что у копилота.
+    const readContext = access.user && (access.isSuperAdmin || access.staffRole)
+      ? await buildReadOnlyCopilotContext({
+          userId: access.user.id,
+          role: access.staffRole || null,
+          isSuperAdmin: access.isSuperAdmin,
+          organizationId: access.activeOrganization?.id || null,
+          currentPath: body.snapshot?.route || undefined,
+        }).catch(() => null)
+      : null
 
     const wantsStream = request.headers.get('accept')?.includes('text/event-stream')
     if (wantsStream) {
@@ -60,6 +71,7 @@ export async function POST(request: Request) {
           allowedCompanyIds,
           businessContext,
           audience,
+          readContext,
         },
         {
           signal: request.signal,
@@ -96,6 +108,7 @@ export async function POST(request: Request) {
       allowedCompanyIds,
       businessContext,
       audience,
+      readContext,
     })
 
     if (result.error) {
