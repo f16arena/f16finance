@@ -24,7 +24,7 @@ export type CompanyNorm = {
 export type LearnedFact = {
   id: string
   text: string
-  kind: 'rhythm' | 'money' | 'expense' | 'risk' | 'other'
+  kind: 'rhythm' | 'money' | 'expense' | 'stock' | 'people' | 'risk' | 'other'
   confidence: number
   hits: number
   firstSeen: string
@@ -33,7 +33,7 @@ export type LearnedFact = {
 }
 
 export type BusinessMemory = {
-  norms: { companies: CompanyNorm[]; computedFor: string } | Record<string, never>
+  norms: { companies: CompanyNorm[]; products?: ProductNorm[]; stalled?: string[]; operators?: OperatorNorm[]; computedFor: string } | Record<string, never>
   facts: LearnedFact[]
   lastDay: string | null
   daysLearned: number
@@ -141,7 +141,7 @@ export function mergeFacts(
 ): LearnedFact[] {
   const confirm = new Set(answer.confirm || [])
   const refute = new Set(answer.refute || [])
-  const kinds = ['rhythm', 'money', 'expense', 'risk', 'other'] as const
+  const kinds = ['rhythm', 'money', 'expense', 'stock', 'people', 'risk', 'other'] as const
   const next = prev.map((f) => {
     if (confirm.has(f.id)) return { ...f, confidence: Math.min(1, f.confidence + 0.15), hits: f.hits + 1, lastSeen: day }
     if (refute.has(f.id)) return { ...f, confidence: f.confidence - 0.3 }
@@ -170,4 +170,144 @@ export function mergeFacts(
     .filter((f) => f.confidence >= 0.2)
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, MAX_FACTS)
+}
+
+// ─── Склад и люди ─────────────────────────────────────────────────────────
+
+export type SaleItemRow = { date: string; company_id: string; item_id: string; name: string; quantity: number; total: number }
+export type OperatorIncomeRow = IncomeRow & { operator_id: string | null; shift_id: string | null }
+
+export type ProductNorm = {
+  id: string
+  name: string
+  /** Штук в день в среднем за 28 дней (дни без продаж тоже считаются). */
+  perDay: number
+  revenue28: number
+  daysSold28: number
+  /** Остаток сейчас (склад + витрина), null — неизвестен. */
+  stock: number | null
+}
+
+export type OperatorNorm = {
+  id: string
+  name: string
+  /** Медиана выручки за смену за 28 дней. */
+  perShift: number
+  shifts28: number
+  revenue28: number
+}
+
+const TOP_PRODUCTS = 25
+const TOP_OPERATORS = 20
+
+/** Ходовые товары за 28 дней + то, что продавалось раньше и встало за последние 14 дней. */
+export function computeProductNorms(sales: SaleItemRow[], day: string, stock: Map<string, number> | null = null) {
+  const from28 = shiftIso(day, -27)
+  const from14 = shiftIso(day, -13)
+  const agg = new Map<string, { name: string; qty: number; revenue: number; days: Set<string>; before: number; last14: number }>()
+  for (const r of sales) {
+    if (r.date > day) continue
+    const cur = agg.get(r.item_id) || { name: r.name, qty: 0, revenue: 0, days: new Set<string>(), before: 0, last14: 0 }
+    if (r.date >= from28) {
+      cur.qty += num(r.quantity)
+      cur.revenue += num(r.total)
+      cur.days.add(r.date)
+    } else cur.before += num(r.quantity)
+    if (r.date >= from14) cur.last14 += num(r.quantity)
+    agg.set(r.item_id, cur)
+  }
+  const products: ProductNorm[] = [...agg]
+    .filter(([, a]) => a.qty > 0)
+    .map(([id, a]) => ({
+      id,
+      name: a.name,
+      perDay: Math.round((a.qty / 28) * 10) / 10,
+      revenue28: Math.round(a.revenue),
+      daysSold28: a.days.size,
+      stock: stock ? (stock.get(id) ?? 0) : null,
+    }))
+    .sort((a, b) => b.revenue28 - a.revenue28)
+    .slice(0, TOP_PRODUCTS)
+  // Продавался в прошлые 4 недели заметно, а последние 2 недели — ни штуки.
+  const stalled = [...agg]
+    .filter(([, a]) => a.before >= 10 && a.last14 === 0)
+    .sort((a, b) => b[1].before - a[1].before)
+    .slice(0, 5)
+    .map(([, a]) => `${a.name} (было ${Math.round(a.before)} шт за прошлые недели)`)
+  return { products, stalled }
+}
+
+const shiftKey = (r: OperatorIncomeRow) => r.shift_id || `${r.date}:${r.company_id}:${r.shift || ''}`
+
+/** Обычная выручка каждого оператора за смену (медиана) за 28 дней. */
+export function computeOperatorNorms(incomes: OperatorIncomeRow[], names: Map<string, string>, day: string): OperatorNorm[] {
+  const from28 = shiftIso(day, -27)
+  const byOp = new Map<string, Map<string, number>>()
+  for (const r of incomes) {
+    if (!r.operator_id || r.date < from28 || r.date > day) continue
+    const shifts = byOp.get(r.operator_id) || new Map<string, number>()
+    shifts.set(shiftKey(r), (shifts.get(shiftKey(r)) || 0) + incomeTotal(r))
+    byOp.set(r.operator_id, shifts)
+  }
+  return [...byOp]
+    .map(([id, shifts]) => {
+      const values = [...shifts.values()].filter((v) => v > 0)
+      return {
+        id,
+        name: names.get(id) || 'Оператор',
+        perShift: Math.round(median(values) || 0),
+        shifts28: values.length,
+        revenue28: Math.round(values.reduce((s, v) => s + v, 0)),
+      }
+    })
+    .filter((o) => o.shifts28 > 0)
+    .sort((a, b) => b.revenue28 - a.revenue28)
+    .slice(0, TOP_OPERATORS)
+}
+
+/** Вчера по товарам и людям против их норм (нормы — без самого дня). */
+export function describeStockAndPeople(
+  products: ProductNorm[],
+  operators: OperatorNorm[],
+  sales: SaleItemRow[],
+  incomes: OperatorIncomeRow[],
+  day: string,
+) {
+  const lines: string[] = []
+  const anomalies: string[] = []
+
+  const soldToday = new Map<string, number>()
+  for (const r of sales) if (r.date === day) soldToday.set(r.item_id, (soldToday.get(r.item_id) || 0) + num(r.quantity))
+  const top = products.slice(0, 10).map((p) => `${p.name} ${Math.round(soldToday.get(p.id) || 0)} шт (обычно ${p.perDay}/день)`)
+  if (top.length) lines.push(`Товары вчера: ${top.join(', ')}`)
+  for (const p of products) {
+    const q = soldToday.get(p.id) || 0
+    if (p.perDay >= 1 && q >= 5 && q >= p.perDay * 3) anomalies.push(`${p.name}: продано ${Math.round(q)} шт за день, обычно ${p.perDay} в день`)
+    if (p.stock != null && p.perDay >= 1) {
+      const daysLeft = p.stock / p.perDay
+      if (daysLeft < 3) anomalies.push(`${p.name}: осталось ${Math.max(0, Math.round(p.stock))} шт — хватит примерно на ${Math.max(0, Math.round(daysLeft * 10) / 10)} дн. (уходит ${p.perDay} в день)`)
+    }
+  }
+
+  const todayShifts = new Map<string, Map<string, number>>()
+  for (const r of incomes) {
+    if (r.date !== day || !r.operator_id) continue
+    const m = todayShifts.get(r.operator_id) || new Map<string, number>()
+    m.set(shiftKey(r), (m.get(shiftKey(r)) || 0) + incomeTotal(r))
+    todayShifts.set(r.operator_id, m)
+  }
+  const opLines: string[] = []
+  for (const [opId, shifts] of todayShifts) {
+    const norm = operators.find((o) => o.id === opId)
+    const rev = [...shifts.values()].reduce((s, v) => s + v, 0)
+    const perShift = shifts.size ? rev / shifts.size : 0
+    opLines.push(`${norm?.name || 'Оператор'} ${money(perShift)} за смену${norm ? ` (обычно ${money(norm.perShift)})` : ''}`)
+    // Меньше четырёх смен в истории — нормы ещё нет.
+    if (norm && norm.shifts28 >= 4 && norm.perShift > 0) {
+      const dev = (perShift - norm.perShift) / norm.perShift
+      if (Math.abs(dev) >= 0.3) anomalies.push(`${norm.name}: смена ${money(perShift)} — ${dev > 0 ? 'выше' : 'ниже'} его обычной на ${Math.round(Math.abs(dev) * 100)}% (${money(norm.perShift)})`)
+    }
+  }
+  if (opLines.length) lines.push(`Смены вчера: ${opLines.join(', ')}`)
+  return { lines, anomalies }
 }
