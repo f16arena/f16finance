@@ -5,7 +5,7 @@ import { downloadReportPdf } from '@/lib/client/download-pdf'
 import { useApiCache } from '@/lib/client/use-api-cache'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useStoreScope } from '@/components/store/store-scope'
-import { Package, PackageX, Pencil, Plus, Printer, Search, Trash2, Upload, Download, Check, X, ChevronLeft, ChevronRight, Coins, ShoppingCart, TrendingUp, Warehouse, Store, Tag, Loader2, AlertTriangle, MoreHorizontal, RotateCcw } from 'lucide-react'
+import { Package, PackageX, Pencil, Plus, Printer, Search, Trash2, Upload, Download, Check, X, ChevronLeft, ChevronRight, Coins, ShoppingCart, TrendingUp, Warehouse, Store, Tag, Loader2, AlertTriangle, MoreHorizontal, RotateCcw, PackageCheck, TrendingDown, FolderTree, Gem, Percent, Receipt } from 'lucide-react'
 
 import { StoreAttention, StoreStat, StoreStatGrid, plural } from '@/components/store/store-ui'
 import { formatMoney } from '@/lib/core/format'
@@ -814,6 +814,41 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
   const marginPct = totals.totalPurchase > 0 ? (totalMargin / totals.totalPurchase) * 100 : 0
   const zeroStockPct = totals.stockable > 0 ? Math.round((totals.zeroStock / totals.stockable) * 100) : 0
 
+  // Вторая и третья линия карточек — из того же отфильтрованного списка, что и сводка выше.
+  const extra = (() => {
+    const monthAgo = Date.now() - 30 * 86_400_000
+    let inStock = 0, low = 0, services = 0, noPurchase = 0, newItems = 0, priced = 0, priceSum = 0, belowCost = 0
+    let top: { name: string; value: number; qty: number; unit: string } | null = null
+    const byCategory = new Map<string, number>()
+    for (const item of baseFiltered) {
+      const qty = catalogQtyOf(item)
+      if (isService(item)) services++
+      else if (qty > 0) {
+        inStock++
+        if (item.low_stock_threshold != null && item.low_stock_threshold > 0 && qty <= item.low_stock_threshold) low++
+      }
+      if (!(item.default_purchase_price > 0) && !isService(item)) noPurchase++
+      if (item.sale_price > 0) { priced++; priceSum += item.sale_price }
+      if (item.sale_price > 0 && item.default_purchase_price > item.sale_price) belowCost++
+      if (item.created_at && Date.parse(item.created_at) >= monthAgo) newItems++
+      const value = Math.max(0, qty) * item.default_purchase_price
+      if (value > 0) {
+        const cat = item.category?.name || 'Без категории'
+        byCategory.set(cat, (byCategory.get(cat) || 0) + value)
+        if (!top || value > top.value) top = { name: item.name, value, qty, unit: item.unit || 'шт' }
+      }
+    }
+    const categories = new Set(baseFiltered.map((i) => i.category?.name || 'Без категории')).size
+    const topCategory = [...byCategory].sort((a, b) => b[1] - a[1])[0] || null
+    const stockValue = totals.totalPurchase
+    return {
+      inStock, low, services, noPurchase, newItems, belowCost, categories, top, topCategory,
+      avgPrice: priced ? priceSum / priced : 0,
+      topCategoryShare: topCategory && stockValue > 0 ? Math.round((topCategory[1] / stockValue) * 100) : 0,
+      avgUnitCost: totals.totalQty > 0 ? totals.totalPurchase / totals.totalQty : 0,
+    }
+  })()
+
   // Счётчик обнулился (позиции починили или сменили фильтры) — кнопка гаснет,
   // и снять фильтр кликом стало бы нечем. Снимаем сами, чтобы не залипнуть на пустом списке.
   useEffect(() => {
@@ -1335,6 +1370,36 @@ export function CatalogPageContent({ embedded = false }: { embedded?: boolean } 
             <StoreStat label="Потенциальная прибыль" tone={totalMargin > 0 ? 'emerald' : 'neutral'} icon={<Coins className="h-3.5 w-3.5" />}
               value={formatMoney(totalMargin)}
               hint={totals.totalPurchase > 0 ? `наценка ${marginPct.toFixed(1)}% · товар на ${formatMoney(totals.totalSale)}` : 'нет цен закупа'} />
+          </StoreStatGrid>
+
+          <StoreStatGrid cols={4}>
+            <StoreStat label="В наличии" tone="emerald" icon={<PackageCheck className="h-3.5 w-3.5" />}
+              value={`${extra.inStock.toLocaleString('ru-RU')} из ${totals.stockable.toLocaleString('ru-RU')}`}
+              hint={totals.zeroStock > 0 ? `пусто ${totals.zeroStock} · ${zeroStockPct}%` : 'всё есть в наличии'} />
+            <StoreStat label="Мало осталось" tone={extra.low > 0 ? 'amber' : 'neutral'} icon={<TrendingDown className="h-3.5 w-3.5" />}
+              value={extra.low.toLocaleString('ru-RU')}
+              hint="остаток на пороге или ниже — пора дозаказать" />
+            <StoreStat label="Всего единиц" icon={<Package className="h-3.5 w-3.5" />}
+              value={totals.totalQty.toLocaleString('ru-RU')}
+              hint={`подсобка ${totals.warehouseQty.toLocaleString('ru-RU')} · витрина ${totals.showcaseQty.toLocaleString('ru-RU')}`} />
+            <StoreStat label="Деньги в товаре" tone="sky" icon={<Coins className="h-3.5 w-3.5" />}
+              value={formatMoney(totals.totalPurchase)}
+              hint={extra.avgUnitCost > 0 ? `в среднем ${formatMoney(Math.round(extra.avgUnitCost))} за единицу` : 'по закупочным ценам'} />
+          </StoreStatGrid>
+
+          <StoreStatGrid cols={4}>
+            <StoreStat label="Категорий" tone="violet" icon={<FolderTree className="h-3.5 w-3.5" />}
+              value={extra.categories.toLocaleString('ru-RU')}
+              hint={extra.topCategory ? `больше всего денег: ${extra.topCategory[0]} — ${extra.topCategoryShare}%` : undefined} />
+            <StoreStat label="Самый дорогой запас" tone="violet" icon={<Gem className="h-3.5 w-3.5" />}
+              value={extra.top ? formatMoney(Math.round(extra.top.value)) : '—'}
+              hint={extra.top ? <span className="line-clamp-1" title={extra.top.name}>{extra.top.name} · {extra.top.qty.toLocaleString('ru-RU')} {extra.top.unit}</span> : 'нет остатков с ценой'} />
+            <StoreStat label="Средняя цена" icon={<Receipt className="h-3.5 w-3.5" />}
+              value={extra.avgPrice > 0 ? formatMoney(Math.round(extra.avgPrice)) : '—'}
+              hint={`новых за 30 дней: ${extra.newItems}${extra.services ? ` · услуг ${extra.services}` : ''}`} />
+            <StoreStat label="Без закупочной цены" tone={extra.noPurchase > 0 || extra.belowCost > 0 ? 'rose' : 'neutral'} icon={<Percent className="h-3.5 w-3.5" />}
+              value={extra.noPurchase.toLocaleString('ru-RU')}
+              hint={extra.belowCost > 0 ? `${extra.belowCost} ${plural(extra.belowCost, ['товар продаётся', 'товара продаются', 'товаров продаются'])} дешевле закупа` : 'прибыль по ним не считается'} />
           </StoreStatGrid>
         </>
       )}
