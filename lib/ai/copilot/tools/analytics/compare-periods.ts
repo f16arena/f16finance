@@ -53,8 +53,8 @@ export const comparePeriodsTool: CopilotTool = {
       required: true,
       description: 'Какой период сравнивать',
       getOptions: async () => [
-        { value: 'week', label: 'Неделя vs прошлая' },
-        { value: 'month', label: 'Месяц vs прошлый' },
+        { value: 'week', label: '7 дней vs предыдущие 7' },
+        { value: 'month', label: '30 дней vs предыдущие 30' },
       ],
     },
     {
@@ -97,7 +97,7 @@ export const comparePeriodsTool: CopilotTool = {
 
     return {
       ok: true,
-      message: `${arrow} ${period === 'month' ? 'Месяц' : 'Неделя'} vs прошлый${companyId ? ' (точка)' : ''}:
+      message: `${arrow} ${period === 'month' ? 'Последние 30 дней' : 'Последние 7 дней'} vs предыдущие${companyId ? ' (точка)' : ''}:
   Сейчас: ${fmt(current)} (${currentFrom} — ${currentTo})
   Раньше: ${fmt(previous)} (${prevFrom} — ${prevTo})
   Разница: ${sign}${fmt(diff)} (${sign}${pct.toFixed(1)}%)`,

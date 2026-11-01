@@ -9,9 +9,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Период: единая логика для всех инструментов. Пресет ИЛИ точные даты from/to.
 // ─────────────────────────────────────────────────────────────────────────
-export function todayISO(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+/** Сегодня по Казахстану (UTC+5): сервер живёт в UTC, и после 19:00 по Алматы у него ещё «вчера». */
+export function todayISO(now = new Date()): string {
+  return new Date(now.getTime() + 5 * 3_600_000).toISOString().slice(0, 10)
 }
 export function addDaysISO(iso: string, diff: number): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -37,16 +37,34 @@ export function resolveDateRange(
     return { from: inFrom, to: inTo, label: inFrom === inTo ? inFrom : `${inFrom} — ${inTo}` }
   }
   const period = String(input.period || opts?.defaultPeriod || 'today')
+  // В подписи всегда точные даты: иначе ИИ выдаёт «последние 30 дней» за «этот месяц».
+  const span = (from: string, to: string, name: string) => ({ from, to, label: `${name} (${from === to ? from : `${from} — ${to}`})` })
   switch (period) {
     case 'all': return { from: null, to: null, label: 'всё время' }
-    case 'yesterday': { const d = addDaysISO(today, -1); return { from: d, to: d, label: 'вчера' } }
-    case 'week': return { from: addDaysISO(today, -6), to: today, label: 'неделя' }
-    case 'month': return { from: addDaysISO(today, -29), to: today, label: 'месяц' }
-    case 'quarter': return { from: addDaysISO(today, -89), to: today, label: 'квартал' }
-    case 'year': return { from: addDaysISO(today, -364), to: today, label: 'год' }
-    default: return { from: today, to: today, label: 'сегодня' }
+    case 'today': return span(today, today, 'сегодня')
+    case 'yesterday': { const d = addDaysISO(today, -1); return span(d, d, 'вчера') }
+    case 'week': return span(addDaysISO(today, -6), today, 'последние 7 дней')
+    case 'this_month': return span(`${today.slice(0, 8)}01`, today, `${MONTHS[Number(today.slice(5, 7)) - 1]} с 1-го по сегодня`)
+    case 'last_month': {
+      const end = addDaysISO(`${today.slice(0, 8)}01`, -1)
+      return span(`${end.slice(0, 8)}01`, end, `${MONTHS[Number(end.slice(5, 7)) - 1]} целиком`)
+    }
+    case 'month': return span(addDaysISO(today, -29), today, 'последние 30 дней')
+    case 'quarter': return span(addDaysISO(today, -89), today, 'последние 90 дней')
+    case 'year': return span(addDaysISO(today, -364), today, 'последние 365 дней')
+    default: return span(today, today, 'сегодня')
   }
 }
+
+const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
+
+/** Варианты периода для select: календарный месяц отдельно от «последних 30 дней». */
+export const PERIOD_OPTIONS = [
+  { value: 'today', label: 'Сегодня' }, { value: 'yesterday', label: 'Вчера' },
+  { value: 'week', label: 'Последние 7 дней' },
+  { value: 'this_month', label: 'Этот месяц (с 1-го)' }, { value: 'last_month', label: 'Прошлый месяц' },
+  { value: 'month', label: 'Последние 30 дней' },
+]
 
 /**
  * Готовые параметры периода для инструмента (period + from + to).
@@ -58,9 +76,8 @@ export function dateRangeParams(): any[] {
       name: 'period', label: 'Период', type: 'select', required: false,
       description: 'Готовый период. ИЛИ используй точные даты from/to для конкретного диапазона.',
       getOptions: async () => [
-        { value: 'today', label: 'Сегодня' }, { value: 'yesterday', label: 'Вчера' },
-        { value: 'week', label: 'Неделя' }, { value: 'month', label: 'Месяц' },
-        { value: 'quarter', label: 'Квартал' }, { value: 'year', label: 'Год' }, { value: 'all', label: 'Всё время' },
+        ...PERIOD_OPTIONS,
+        { value: 'quarter', label: 'Последние 90 дней' }, { value: 'year', label: 'Последние 365 дней' }, { value: 'all', label: 'Всё время' },
       ],
     },
     { name: 'from', label: 'С даты', type: 'string', required: false, description: 'Начало периода YYYY-MM-DD (произвольный диапазон, напр. «за 15-21 июня»).' },

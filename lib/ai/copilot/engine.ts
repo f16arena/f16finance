@@ -33,6 +33,7 @@ import {
 } from './registry'
 import type { CopilotContext, CopilotResponse, CopilotTool, CopilotParam, CopilotSession } from './types'
 import { buildAiBusinessContext } from '@/lib/server/ai-business-context'
+import { todayISO } from './query-helpers'
 import { fuzzyFindBest } from './fuzzy'
 
 const OPENAI_API = 'https://api.openai.com/v1/chat/completions'
@@ -57,6 +58,8 @@ const COPILOT_SYSTEM_PROMPT = `Ты — Orda, толковый операцио�
 "выдай Айгерим аванс 50к" → give_advance({amount: 50000})  (имя не резолвим — система покажет выбор оператора)
 "оштрафуй за опоздание 2000" → add_fine({amount: 2000, reason: "опоздание"})
 "скок выручки за неделю" → query_revenue({period: "week"})
+"выручка в этом месяце" → query_revenue({period: "this_month"})  (с 1-го числа по сегодня; "month" — это последние 30 дней, НЕ этот месяц)
+"выручка за октябрь" / "в прошлом месяце" → query_revenue({from: "2026-10-01", to: "2026-10-31"}) или ({period: "last_month"})
 "расходы за 15-21 июня" → query_expenses({from: "2026-06-15", to: "2026-06-21"})  (КОНКРЕТНЫЕ даты → передавай from/to YYYY-MM-DD, а НЕ period)
 "кто сегодня" → get_today_shifts({})
 "покажи долги" → get_overdue_debts({})
@@ -64,6 +67,8 @@ const COPILOT_SYSTEM_PROMPT = `Ты — Orda, толковый операцио�
 "поставь задачу убрать в зале на завтра" → create_task({title: "Убрать в зале", due_date: "<завтра>"})
 "напомни через час позвонить поставщику" → schedule_reminder({text: "позвонить поставщику", remind_at: "<сейчас+1ч>"})
 "выдай Айгерим 30к и оштрафуй на 5к за опоздание" → give_advance({amount: 30000}) + add_fine({amount: 5000, reason: "опоздание"}) (оба сразу)
+
+ПЕРИОД В ОТВЕТЕ: всегда называй период точными датами из ответа инструмента («1 ноября», «3 окт — 1 ноя»), никогда не переименовывай его. Инструмент сказал «доходов не внесено» — так и скажи, не подставляй цифры за другой период. Пользователь говорит, что цифра не та — перепроверь вызовом инструмента, а не спорь.
 
 ПОСЛЕ ДАННЫХ: если в цифрах есть что-то важное (резкий рост/спад, аномалия, что стоит проверить) — добавь ОДНУ короткую дельную мысль. Нечего сказать ценного — просто отдай данные, без воды и общих фраз.
 
@@ -675,7 +680,7 @@ async function callLLM(
       `- /dashboard → общая аналитика (query_revenue, get_kpi_progress)\n` +
       `Например, на /expenses "удали последний" → delete_expense; на /salary "отмени" → void_adjustment.`
     : ''
-  const systemPrompt = `${COPILOT_SYSTEM_PROMPT}\n\n${toolsDesc}\n\nКонтекст пользователя:\nИсточник: ${ctx.source}\nСупер-админ: ${ctx.isSuperAdmin}${pageHint}${memoryHint}`
+  const systemPrompt = `${COPILOT_SYSTEM_PROMPT}\n\n${toolsDesc}\n\nСегодня: ${todayISO()} (Казахстан)\nКонтекст пользователя:\nИсточник: ${ctx.source}\nСупер-админ: ${ctx.isSuperAdmin}${pageHint}${memoryHint}`
 
   const messages = [
     { role: 'system', content: systemPrompt },

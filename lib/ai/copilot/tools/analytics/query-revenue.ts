@@ -4,19 +4,7 @@
  */
 
 import type { CopilotTool } from '../../types'
-import { companyOptions, scopedCompanyIds, fetchAllPages } from '../../query-helpers'
-
-function todayISO(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function addDaysISO(iso: string, diff: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(y, (m || 1) - 1, d || 1)
-  dt.setDate(dt.getDate() + diff)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}
+import { companyOptions, scopedCompanyIds, fetchAllPages, resolveDateRange, PERIOD_OPTIONS } from '../../query-helpers'
 
 export const queryRevenueTool: CopilotTool = {
   name: 'query_revenue',
@@ -31,12 +19,7 @@ export const queryRevenueTool: CopilotTool = {
       type: 'select',
       required: false,
       description: 'Готовый период. ИЛИ используй точные даты from/to для конкретного диапазона.',
-      getOptions: async () => [
-        { value: 'today', label: 'Сегодня' },
-        { value: 'yesterday', label: 'Вчера' },
-        { value: 'week', label: 'Эта неделя (7 дней)' },
-        { value: 'month', label: 'Этот месяц (30 дней)' },
-      ],
+      getOptions: async () => PERIOD_OPTIONS,
     },
     { name: 'from', label: 'С даты', type: 'string', required: false, description: 'Начало YYYY-MM-DD (для произвольного диапазона, напр. «за 15-21 июня»).' },
     { name: 'to', label: 'По дату', type: 'string', required: false, description: 'Конец YYYY-MM-DD.' },
@@ -50,25 +33,10 @@ export const queryRevenueTool: CopilotTool = {
     },
   ],
   handler: async (input, ctx) => {
-    const period = String(input.period || '')
     const companyId = String(input.company_id || '')
-    const today = todayISO()
-    const reIso = /^\d{4}-\d{2}-\d{2}$/
-
-    let from = today
-    let to = today
-    const inFrom = String(input.from || '').trim()
-    const inTo = String(input.to || '').trim()
-    if (reIso.test(inFrom) && reIso.test(inTo)) {
-      from = inFrom; to = inTo
-    } else if (period === 'yesterday') {
-      from = addDaysISO(today, -1)
-      to = from
-    } else if (period === 'week') {
-      from = addDaysISO(today, -6)
-    } else if (period === 'month') {
-      from = addDaysISO(today, -29)
-    }
+    const range = resolveDateRange(input)
+    const from = range.from as string
+    const to = range.to as string
 
     // «Все точки» = только точки своей организации (мультитенантный скоуп).
     // Скоуп организации считаем всегда: указанная точка не должна его отменять,
@@ -115,14 +83,7 @@ export const queryRevenueTool: CopilotTool = {
       const { data: c } = await ctx.supabase.from('companies').select('name').eq('id', companyId).single()
       companyLabel = c?.name ? ` (${c.name})` : ''
     }
-
-    const periodLabel: Record<string, string> = {
-      today: 'сегодня',
-      yesterday: 'вчера',
-      week: 'неделя',
-      month: 'месяц',
-    }
-    const label = reIso.test(inFrom) && reIso.test(inTo) ? (from === to ? from : `${from} — ${to}`) : (periodLabel[period] || 'сегодня')
+    const label = range.label
 
     return {
       ok: true,
@@ -132,8 +93,8 @@ export const queryRevenueTool: CopilotTool = {
   💳 Безналичный: ${fmtMoney(kaspi)}
   💸 Карта: ${fmtMoney(card)}
   🌐 Онлайн: ${fmtMoney(online)}
-Записей в incomes: ${rows.length}`,
-      data: { total, cash, kaspi, card, online, count: rows.length },
+Записей в incomes: ${rows.length}${rows.length ? '' : '\nЗа этот период доходов не внесено.'}`,
+      data: { from, to, total, cash, kaspi, card, online, count: rows.length },
     }
   },
 }

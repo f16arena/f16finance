@@ -87,7 +87,7 @@ export const compareCompaniesTool: CopilotTool = {
       description: 'За какой период сравнивать',
       getOptions: async () => [
         { value: 'week', label: 'Неделя' },
-        { value: 'month', label: 'Месяц' },
+        { value: 'month', label: 'Последние 30 дней' },
       ],
     },
   ],
