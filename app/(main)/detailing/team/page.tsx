@@ -22,9 +22,10 @@ import { useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
 import { postDetailing } from '@/components/detailing/detailing-shared'
 
-type Person = { id: string; name: string; role: string; roleLabel: string; email: string | null; phone: string | null; editable: boolean; me: boolean }
+type Person = { id: string; name: string; role: string; roleLabel: string; email: string | null; phone: string | null; editable: boolean; roleLocked?: boolean; me: boolean }
 type Role = { code: string; label: string; summary: string; can: string[]; cannot: string[] }
-type TeamData = { people: Person[]; roles: Role[] }
+type MasterRow = { id: string; name: string; hasLogin: boolean }
+type TeamData = { people: Person[]; roles: Role[]; masters?: MasterRow[] }
 type Access = { link: string | null; phone: string | null; name: string }
 
 const API = '/api/admin/detailing/team'
@@ -32,7 +33,7 @@ const initials = (name: string) => name.split(/\s+/).map((p) => p[0]).join('').s
 
 export default function DetailingTeamPage() {
   const { data, loading, error, refresh } = useApiCache<TeamData>(API, { ttl: 30_000 })
-  const [adding, setAdding] = useState<Role | null>(null)
+  const [adding, setAdding] = useState<{ role: Role; master?: MasterRow } | null>(null)
   const [access, setAccess] = useState<Access | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -47,6 +48,10 @@ export default function DetailingTeamPage() {
   if (loading && !data) return <div className="space-y-4">{header}<Skeleton className="h-[180px] w-full rounded-2xl" /><Skeleton className="h-[260px] w-full rounded-2xl" /></div>
   if (error && !data) return <div className="space-y-4">{header}<div className={`${storeCard} p-6 text-sm text-muted-foreground`}>Этот раздел открыт только владельцу.</div></div>
   if (!data) return null
+
+  const officeRoles = data.roles.filter((r) => r.code !== 'detailing_master')
+  const masterRole = data.roles.find((r) => r.code === 'detailing_master') || null
+  const masters = data.masters || []
 
   const run = async (id: string, body: Record<string, unknown>, done?: string) => {
     setBusy(id)
@@ -80,15 +85,19 @@ export default function DetailingTeamPage() {
               </div>
               {p.editable ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <NativeSelect
-                    value={p.role}
-                    disabled={busy === p.id}
-                    onChange={(e) => run(p.id, { action: 'role', role: e.target.value }, 'Роль изменена')}
-                    aria-label={`Роль: ${p.name}`}
-                    className="h-9 min-w-[150px]"
-                  >
-                    {data.roles.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
-                  </NativeSelect>
+                  {p.roleLocked ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-white/10 dark:text-slate-200">{p.roleLabel}</span>
+                  ) : (
+                    <NativeSelect
+                      value={p.role}
+                      disabled={busy === p.id}
+                      onChange={(e) => run(p.id, { action: 'role', role: e.target.value }, 'Роль изменена')}
+                      aria-label={`Роль: ${p.name}`}
+                      className="h-9 min-w-[150px]"
+                    >
+                      {officeRoles.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
+                    </NativeSelect>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -132,11 +141,11 @@ export default function DetailingTeamPage() {
         <p className="mt-1 text-sm text-muted-foreground">Имя, почта и роль. Вы получите ссылку — отправьте её в WhatsApp, пароль он придумает сам.</p>
       </div>
       <div className="grid gap-3.5 lg:grid-cols-3">
-        {data.roles.map((r) => (
+        {officeRoles.map((r) => (
           <button
             key={r.code}
             type="button"
-            onClick={() => setAdding(r)}
+            onClick={() => setAdding({ role: r })}
             className={`${storeCard} flex flex-col gap-2.5 p-4 text-left transition hover:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
           >
             <b className="text-base">{r.label}</b>
@@ -150,19 +159,31 @@ export default function DetailingTeamPage() {
         ))}
         <div className={`${storeCard} flex flex-col gap-2.5 p-4`}>
           <b className="text-base">Мастер</b>
-          <span className="text-[12.5px] text-muted-foreground">Работает в боксе, в программу не заходит</span>
-          <ul className="space-y-1 text-[13px]">
-            <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />Вы ставите его на машину в записи</li>
-            <li className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />Процент считается сам</li>
-            <li className="flex gap-2 text-muted-foreground"><X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />Своего входа пока нет</li>
-          </ul>
+          <span className="text-[12.5px] text-muted-foreground">Вход ему не обязателен. Дадите — увидит только свои машины и свой заработок.</span>
+          {masters.length ? (
+            <ul className="divide-y divide-border">
+              {masters.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <span className="truncate font-semibold">{m.name}</span>
+                  {m.hasLogin ? (
+                    <span className="shrink-0 text-xs font-medium text-emerald-600">вход есть</span>
+                  ) : masterRole ? (
+                    <Button size="xs" variant="outline" onClick={() => setAdding({ role: masterRole, master: m })}>Дать вход</Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-[13px] text-muted-foreground">Мастеров пока нет.</span>
+          )}
           <Link href="/detailing/masters" className="mt-1 self-start rounded-xl border border-border px-3 py-2 text-[13px] font-bold hover:border-slate-400">Открыть «Мастера»</Link>
         </div>
       </div>
 
       {adding ? (
         <AddPersonModal
-          role={adding}
+          role={adding.role}
+          master={adding.master}
           onClose={() => setAdding(null)}
           onAdded={async (res) => {
             setAdding(null)
@@ -176,8 +197,8 @@ export default function DetailingTeamPage() {
   )
 }
 
-function AddPersonModal(props: { role: Role; onClose: () => void; onAdded: (res: Access) => void }) {
-  const [name, setName] = useState('')
+function AddPersonModal(props: { role: Role; master?: MasterRow; onClose: () => void; onAdded: (res: Access) => void }) {
+  const [name, setName] = useState(props.master?.name || '')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
@@ -186,7 +207,7 @@ function AddPersonModal(props: { role: Role; onClose: () => void; onAdded: (res:
   const save = async () => {
     setSaving(true)
     try {
-      const res = await postDetailing<Access>(API, { action: 'add', name, email, phone, role: props.role.code })
+      const res = await postDetailing<Access>(API, { action: 'add', name, email, phone, role: props.role.code, operator_id: props.master?.id })
       props.onAdded(res)
     } catch (e: any) {
       toast({ title: 'Не получилось', description: e.message, variant: 'destructive' })
@@ -198,7 +219,7 @@ function AddPersonModal(props: { role: Role; onClose: () => void; onAdded: (res:
     <AppModal
       open
       onClose={props.onClose}
-      title={`Добавить: ${props.role.label.toLowerCase()}`}
+      title={props.master ? `Вход для мастера: ${props.master.name}` : `Добавить: ${props.role.label.toLowerCase()}`}
       description={props.role.summary}
       maxWidth="max-w-md"
       footer={<Button className="h-11 w-full" disabled={!ready || saving} onClick={save}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Добавить и получить ссылку</Button>}

@@ -10,6 +10,7 @@ import {
   listActiveOperatorLeadAssignments,
 } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { NICHE_ROLES, isNicheRole } from '@/lib/core/niche-roles'
 import { resolveHostNiche } from '@/lib/server/tenant-hosts'
 
 type RolePermissionOverride = {
@@ -171,7 +172,7 @@ export async function GET(req: Request) {
       // платформу или клубный кабинет — включая супер-админа.
       defaultPath:
         hostNiche?.niche && (isSuperAdmin || !!staffMember)
-          ? '/welcome'
+          ? isNicheRole(staffRole) ? NICHE_ROLES[staffRole].home : '/welcome'
           : getDefaultAppPath({
               isSuperAdmin,
               isStaff: isSuperAdmin || !!staffMember,

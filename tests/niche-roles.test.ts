@@ -37,3 +37,8 @@ test('обычные роли не считаются ролями ниши', ()
     assert.equal(nicheRoleCapabilities(role), null)
   }
 })
+
+test('мастер со своим входом видит только свой экран', () => {
+  assert.deepEqual(nicheRoleCapabilities('detailing_master'), ['detailing-my.view'])
+  assert.equal(NICHE_ROLES.detailing_master.home, '/detailing/my')
+})

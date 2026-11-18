@@ -7,6 +7,7 @@ import { AlertCircle, CheckCircle2, KeyRound, Loader2, Mail, ArrowRight } from '
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DetailingAuthFrame, authButton, authError, authField, authOk, useHostNiche } from '@/components/detailing/detailing-auth'
 import { getPublicAppUrl } from '@/lib/core/app-url'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -15,6 +16,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const host = useHostNiche()
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -23,7 +25,9 @@ export default function ForgotPasswordPage() {
     setSuccess(null)
 
     try {
-      const redirectTo = `${getPublicAppUrl(window.location.origin)}/auth/callback?next=${encodeURIComponent('/reset-password?mode=recovery')}`
+      // На адресе ниши ссылка из письма должна вернуть человека на этот же адрес.
+      const origin = host?.niche ? window.location.origin : getPublicAppUrl(window.location.origin)
+      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent('/reset-password?mode=recovery')}`
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
       if (resetError) throw resetError
 
@@ -34,6 +38,23 @@ export default function ForgotPasswordPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (host === undefined) return <div className="min-h-screen bg-[#f3f5f9]" />
+  if (host.niche === 'detailing') {
+    return (
+      <DetailingAuthFrame orgName={host.name || 'Детейлинг'} title="Забыли пароль" hint="Напишите почту, по которой входите. Пришлём ссылку, чтобы задать новый пароль.">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={authField} placeholder="name@example.com" aria-label="Почта" autoComplete="username" required />
+          {error ? <div role="alert" className={authError}>{error}</div> : null}
+          {success ? <div className={authOk}>{success} Откройте письмо и перейдите по ссылке.</div> : null}
+          <button type="submit" disabled={loading} className={authButton}>
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}Прислать ссылку
+          </button>
+        </form>
+        <Link href="/login" className="block text-center text-sm font-medium text-blue-600 hover:text-blue-700">Вернуться ко входу</Link>
+      </DetailingAuthFrame>
+    )
   }
 
   return (

@@ -45,6 +45,7 @@ const TITLES: Array<{ href: string; label: string }> = [
   { href: '/detailing/masters', label: 'Мастера' },
   { href: '/detailing/prices', label: 'Прайс' },
   { href: '/detailing/team', label: 'Команда' },
+  { href: '/detailing/my', label: 'Мои машины' },
   { href: '/detailing', label: 'Запись' },
   { href: '/income', label: 'Оплаты' },
   { href: '/expenses', label: 'Расходы' },
@@ -92,8 +93,11 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
   const isActive = (item: Item) => (item.exact ? pathname === item.href : under(item.href)) || !!item.also?.some(under)
   // Пока права грузятся — показываем всё, чтобы меню не прыгало; сервер всё равно не пустит.
   const isOwner = session.isSuperAdmin || session.staffRole === 'owner'
+  // Мастер со своим входом: один экран. Владельцу этот пункт не нужен.
+  const onlyMine = !capsLoading && can('detailing-my.view') && !can('detailing-bookings.view')
   const nav = [
-    ...NAV.filter((item) => capsLoading || can(item.cap)),
+    ...(onlyMine ? [{ href: '/detailing/my', label: 'Мои машины', icon: CarFront, cap: 'detailing-my.view' } as Item] : []),
+    ...NAV.filter((item) => (capsLoading && !onlyMine) || can(item.cap)),
     // «Команда» — только владельцу: кто заходит в программу и кем работает.
     ...(isOwner ? [{ href: '/detailing/team', label: 'Команда', icon: Users, cap: '' } as Item] : []),
   ]
@@ -101,7 +105,7 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
 
   const menu = (
     <div className="flex h-full flex-col gap-5 px-3.5 py-5">
-      <Link href="/dashboard" className="flex items-center gap-3 px-1.5">
+      <Link href={onlyMine ? '/detailing/my' : '/dashboard'} className="flex items-center gap-3 px-1.5">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
           <CarFront className="h-5 w-5" />
         </span>

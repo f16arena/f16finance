@@ -21,6 +21,8 @@ export type Service = {
   name: string
   package_note: string | null
   days: number
+  /** Через сколько месяцев напомнить клиенту; null — не напоминать. */
+  remind_months?: number | null
   sort_order: number
   is_active: boolean
   prices: ServicePrice[]
@@ -199,6 +201,8 @@ export const waText = {
     `${hello(b)} Ваша ${carName(b)} готова, можно забирать.${b.due > 0 ? ` К оплате ${money(b.due)}.` : ''}${sign(org)}`,
   debt: (b: WaCar & { due: number }, org: string) => `${hello(b)} Напоминаем про оплату ${money(b.due)} за ${carName(b)}.${sign(org)}`,
   hi: (b: WaCar, org: string) => `${hello(b)}${sign(org)}`,
+  remind: (b: WaCar & { service: string; months: number }, org: string) =>
+    `${hello(b)} ${b.months >= 12 && b.months % 12 === 0 ? (b.months === 12 ? 'Год' : `${b.months / 12} года`) : `${b.months} мес.`} назад делали вам «${b.service}». Пора обновить — записать вас?${sign(org)}`,
 }
 
 /** Ссылка wa.me с готовым текстом; null — телефона нет. */

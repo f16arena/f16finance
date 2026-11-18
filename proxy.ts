@@ -11,6 +11,7 @@ import { resolveOrgEntitlements } from '@/lib/server/entitlements'
 import { getPathFeature } from '@/lib/nav/sections'
 import { fetchLinkedCustomersForUser } from '@/lib/server/linked-customers'
 import { ensureRoleMatrixHydrated } from '@/lib/server/role-hydration'
+import { NICHE_ROLES, isNicheRole } from '@/lib/core/niche-roles'
 import { resolveHostNiche } from '@/lib/server/tenant-hosts'
 
 const AUTH_SELF_SERVICE_PATHS = [
@@ -199,7 +200,7 @@ export async function proxy(request: NextRequest) {
   // клубный кабинет. То же правило в /api/auth/session-role.
   if (isTenantHost && (isSuperAdmin || isStaff)) {
     const hostNiche = await resolveHostNiche(request.headers.get('host')).catch(() => null)
-    if (hostNiche?.niche) defaultPath = '/welcome'
+    if (hostNiche?.niche) defaultPath = isNicheRole(staffRole) ? NICHE_ROLES[staffRole].home : '/welcome'
   }
 
   if (AUTH_SELF_SERVICE_PATHS.some((path) => url.pathname.startsWith(path))) {

@@ -281,6 +281,7 @@ function ServiceModal(props: {
   const [name, setName] = useState(s?.name || '')
   const [note, setNote] = useState(s?.package_note || '')
   const [days, setDays] = useState(String(s?.days || 1))
+  const [remind, setRemind] = useState(s?.remind_months ? String(s.remind_months) : '')
   const [prices, setPrices] = useState<Record<string, { price: string; materials: string }>>(() =>
     Object.fromEntries(
       props.classes.map((c) => {
@@ -302,6 +303,7 @@ function ServiceModal(props: {
       name,
       package_note: note,
       days: Number(days) || 1,
+      remind_months: Number(remind) || 0,
       prices: props.classes
         .filter((c) => prices[c.id]?.price)
         .map((c) => ({ body_class_id: c.id, price: Number(prices[c.id].price), materials: Number(prices[c.id].materials || 0) })),
@@ -354,6 +356,12 @@ function ServiceModal(props: {
           ))}
         </div>
         {tooMuch ? <p className="font-medium text-rose-600">Материалы не могут быть дороже работы: {tooMuch.name}.</p> : null}
+        <label className="flex flex-wrap items-center gap-2">
+          <span>Напомнить клиенту через</span>
+          <Input value={remind} onChange={(e) => setRemind(num(e.target.value).slice(0, 2))} inputMode="numeric" placeholder="—" aria-label="Через сколько месяцев напомнить" className="h-9 w-16 text-right tabular-nums" />
+          <span>мес.</span>
+          <span className="text-xs text-muted-foreground">Керамике обычно 12. Пусто — не напоминать.</span>
+        </label>
         <p className="text-xs text-muted-foreground">Материалы — сколько уходит плёнки, химии, керамики на эту работу. Они вычитаются перед процентом мастера и в «Деньгах». Клиент их не видит.</p>
       </div>
     </AppModal>

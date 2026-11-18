@@ -7,11 +7,11 @@
  * (fail-open), а администратору детейлинга нельзя видеть прибыль ни при какой
  * ошибке в настройке. Поэтому у ролей ниши — закрытый список, без добавок.
  *
- * Мастер в программу не заходит (его заводят в «Мастерах» одним именем),
- * поэтому роли входа две.
+ * Мастеру вход не обязателен (его заводят в «Мастерах» одним именем). Если
+ * владелец даёт ему вход — он видит один экран: свои машины и свой заработок.
  */
 
-export type NicheRoleCode = 'detailing_admin' | 'detailing_accountant'
+export type NicheRoleCode = 'detailing_admin' | 'detailing_accountant' | 'detailing_master'
 
 export type NicheRole = {
   code: NicheRoleCode
@@ -24,6 +24,8 @@ export type NicheRole = {
   capabilities: string[]
   /** Страницы вне каталога прав, куда роль пускает прокси. */
   paths: string[]
+  /** Куда человек попадает после входа. */
+  home: string
 }
 
 const all = (page: string) => [`${page}.view`, `${page}.create`, `${page}.edit`, `${page}.delete`]
@@ -45,6 +47,7 @@ export const NICHE_ROLES: Record<NicheRoleCode, NicheRole> = {
       'expenses.create',
     ],
     paths: ['/dashboard', '/welcome', '/detailing', '/detailing/*'],
+    home: '/dashboard',
   },
   detailing_accountant: {
     code: 'detailing_accountant',
@@ -65,6 +68,17 @@ export const NICHE_ROLES: Record<NicheRoleCode, NicheRole> = {
       'expenses.create',
     ],
     paths: ['/dashboard', '/welcome', '/detailing', '/detailing/*', '/income', '/expenses'],
+    home: '/dashboard',
+  },
+  detailing_master: {
+    code: 'detailing_master',
+    label: 'Мастер',
+    summary: 'Видит только свои машины и свой заработок',
+    can: ['Свои машины на сегодня и ближайшие дни', 'Сколько заработал за месяц'],
+    cannot: ['Чужие машины и клиентов', 'Деньги детейлинга'],
+    capabilities: ['detailing-my.view'],
+    paths: ['/detailing/my'],
+    home: '/detailing/my',
   },
 }
 

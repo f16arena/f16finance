@@ -16,6 +16,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DetailingAuthFrame, authButton, authError, authField, useHostNiche } from '@/components/detailing/detailing-auth'
 import { supabase } from '@/lib/supabaseClient'
 
 function parseHashParams() {
@@ -41,6 +42,7 @@ function ResetPasswordContent() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [defaultPath, setDefaultPath] = useState('/')
+  const host = useHostNiche()
 
   const copy = useMemo(() => {
     if (isInviteFlow) {
@@ -162,6 +164,50 @@ function ResetPasswordContent() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // На адресе детейлинга — свой светлый экран с названием центра.
+  if (host === undefined) return <div className="min-h-screen bg-[#f3f5f9]" />
+  if (host.niche === 'detailing') {
+    const orgName = host.name || 'Детейлинг'
+    if (checking) {
+      return (
+        <DetailingAuthFrame orgName={orgName} title={isInviteFlow ? 'Придумайте пароль' : 'Новый пароль'}>
+          <div className="flex items-center gap-2 text-sm text-[#5b6b82]"><Loader2 className="h-4 w-4 animate-spin" />Проверяю ссылку…</div>
+        </DetailingAuthFrame>
+      )
+    }
+    if (!sessionReady) {
+      return (
+        <DetailingAuthFrame orgName={orgName} title="Ссылка не сработала" hint="Она одноразовая и действует один час. Попросите у владельца новую или запросите письмо сами.">
+          {error ? <div role="alert" className={authError}>{error}</div> : null}
+          <Link href="/forgot-password" className={authButton}>Запросить новую ссылку</Link>
+        </DetailingAuthFrame>
+      )
+    }
+    if (success) {
+      return (
+        <DetailingAuthFrame orgName={orgName} title="Пароль сохранён" hint="Дальше входите по своей почте и этому паролю.">
+          <button type="button" className={authButton} onClick={() => window.location.assign(defaultPath)}>Открыть программу</button>
+        </DetailingAuthFrame>
+      )
+    }
+    return (
+      <DetailingAuthFrame
+        orgName={orgName}
+        title={isInviteFlow ? 'Придумайте пароль' : 'Новый пароль'}
+        hint={isInviteFlow ? 'Это ваш первый вход. Пароль будете знать только вы.' : 'Придумайте новый пароль для входа.'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className={authField} placeholder="Пароль, не короче 6 символов" aria-label="Новый пароль" autoComplete="new-password" required />
+          <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={authField} placeholder="Ещё раз" aria-label="Повторите пароль" autoComplete="new-password" required />
+          {error ? <div role="alert" className={authError}>{error}</div> : null}
+          <button type="submit" disabled={loading} className={authButton}>
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}Сохранить пароль
+          </button>
+        </form>
+      </DetailingAuthFrame>
+    )
   }
 
   if (checking) {

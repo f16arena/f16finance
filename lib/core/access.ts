@@ -340,7 +340,7 @@ const STAFF_ROLE_MATRIX_FALLBACK: Record<string, RoleMatrixEntry> = {
 const NICHE_ROLE_MATRIX: Record<string, RoleMatrixEntry> = Object.fromEntries(
   Object.values(NICHE_ROLES).map((role) => [
     role.code,
-    { label: role.label, home: '/dashboard', paths: role.paths, capabilities: [], summary: role.summary, actions: [...role.can, ...role.cannot.map((x) => `Не видит: ${x}`)] },
+    { label: role.label, home: role.home, paths: role.paths, capabilities: [], summary: role.summary, actions: [...role.can, ...role.cannot.map((x) => `Не видит: ${x}`)] },
   ]),
 )
 

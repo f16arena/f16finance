@@ -253,7 +253,7 @@ export async function loadReference(ctx: Pick<DetailingCtx, 'supabase'>, company
     ctx.supabase.from('detailing_body_classes').select('id, name, sort_order, is_active').eq('company_id', companyId).order('sort_order').order('name'),
     ctx.supabase
       .from('detailing_services')
-      .select('id, name, package_note, days, sort_order, is_active, prices:detailing_service_prices(body_class_id, price, materials)')
+      .select('id, name, package_note, days, remind_months, sort_order, is_active, prices:detailing_service_prices(body_class_id, price, materials)')
       .eq('company_id', companyId)
       .order('sort_order')
       .order('name'),

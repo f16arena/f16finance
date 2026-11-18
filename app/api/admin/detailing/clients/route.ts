@@ -24,6 +24,46 @@ export async function GET(request: Request) {
     const company = pickCompanyForRead(ctx, url.searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null, clients: [] } })
 
+    // Пора напомнить: работа с услугой «напомнить через N месяцев» была давно,
+    // клиенту ещё не писали, и после неё он эту услугу не повторял.
+    if (url.searchParams.get('reminders') === '1') {
+      const { data: svc, error: sErr } = await ctx.supabase.from('detailing_services').select('id, name, remind_months').eq('company_id', company.id).gt('remind_months', 0)
+      if (sErr) throw sErr
+      const months = new Map(((svc || []) as any[]).map((s) => [String(s.id), Number(s.remind_months)]))
+      if (!months.size) return json({ ok: true, data: { reminders: [] } })
+      const { data: lines, error: lErr } = await ctx.supabase
+        .from('detailing_booking_services')
+        .select('id, service_id, name, reminded_at, booking:detailing_bookings!inner(id, company_id, customer_id, status, issued_at, start_date, customer:customers(id, name, phone), car:customer_cars(plate, model))')
+        .in('service_id', [...months.keys()])
+        .eq('booking.company_id', company.id)
+        .eq('booking.status', 'done')
+        .limit(1000)
+      if (lErr) throw lErr
+      // По паре клиент+услуга берём последнюю работу.
+      const latest = new Map<string, any>()
+      for (const l of (lines || []) as any[]) {
+        const when = String(l.booking.issued_at || l.booking.start_date).slice(0, 10)
+        const key = `${l.booking.customer_id}:${l.service_id}`
+        const prev = latest.get(key)
+        if (!prev || when > prev.when) latest.set(key, { ...l, when })
+      }
+      const today = new Date().toISOString().slice(0, 10)
+      const soon = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+      const reminders = [...latest.values()]
+        .filter((l) => !l.reminded_at)
+        .map((l) => {
+          const m = months.get(String(l.service_id)) || 0
+          const d = new Date(`${l.when}T00:00:00Z`)
+          d.setUTCMonth(d.getUTCMonth() + m)
+          return { id: String(l.id), service: String(l.name), months: m, done: l.when, due: d.toISOString().slice(0, 10), customer: l.booking.customer, car: l.booking.car }
+        })
+        .filter((r) => r.due <= soon && r.customer?.phone)
+        .sort((a, b) => a.due.localeCompare(b.due))
+        .slice(0, 30)
+        .map((r) => ({ ...r, overdue: r.due < today }))
+      return json({ ok: true, data: { reminders } })
+    }
+
     // История одного клиента: что делали, когда, сколько заплатил и должен.
     const historyOf = String(url.searchParams.get('history') || '').trim()
     if (historyOf) {
@@ -117,12 +157,26 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as any
   const action = String(body?.action || '')
   const capability = action === 'car.delete' ? 'detailing-clients.delete' : 'detailing-clients.edit'
-  if (!['customer.save', 'car.save', 'car.delete'].includes(action)) return json({ error: 'invalid-action' }, 400)
+  if (!['customer.save', 'car.save', 'car.delete', 'reminder.done'].includes(action)) return json({ error: 'invalid-action' }, 400)
   try {
     const ctx = await detailingContext(request, capability)
     if ('response' in ctx) return ctx.response
     const company = pickCompany(ctx, body?.company_id)
     if (!company) return json({ error: 'Точка не найдена' }, 404)
+
+    if (action === 'reminder.done') {
+      const lineId = String(body?.id || '')
+      const { data: line } = await ctx.supabase
+        .from('detailing_booking_services')
+        .select('id, booking:detailing_bookings!inner(company_id)')
+        .eq('id', lineId)
+        .eq('booking.company_id', company.id)
+        .maybeSingle()
+      if (!line) return json({ error: 'Не найдено' }, 404)
+      const { error } = await ctx.supabase.from('detailing_booking_services').update({ reminded_at: new Date().toISOString() }).eq('id', lineId)
+      if (error) throw error
+      return json({ ok: true })
+    }
     const actorUserId = ctx.access.user?.id || null
 
     const ownCustomer = async (id: string) => {

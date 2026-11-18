@@ -23,13 +23,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/skeleton'
+import { toast } from '@/components/ui/use-toast'
 import { StoreEmpty, StoreSection, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
 import { useApiCache } from '@/lib/client/use-api-cache'
 import { useCapabilities } from '@/lib/client/use-capabilities'
 import { formatPhone } from '@/lib/core/format'
 import { GarageToday } from '@/components/detailing/garage-today'
 import { ExpenseModal, TakePaymentModal } from '@/components/detailing/detailing-actions'
-import { type DetailingCompany, DetailingHeader, Plate, WaButton, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
+import { type DetailingCompany, DetailingHeader, Plate, WaButton, dayLabel, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
 
 /* ── Ниша организации ─────────────────────────────────────────────────── */
 
@@ -324,9 +325,50 @@ export function DetailingDashboard() {
         </StoreSection>
       </div>
 
+      <RemindersCard orgName={orgName} />
+
       {modal === 'pay' ? <TakePaymentModal cars={[...payable.values()]} onClose={() => setModal(null)} onSaved={done} /> : null}
       {modal === 'spend' ? <ExpenseModal companyId={companyId || data.companies[0]?.id || ''} onClose={() => setModal(null)} onSaved={done} /> : null}
     </div>
+  )
+}
+
+/* ── Пора напомнить ───────────────────────────────────────────────────── */
+
+type Reminder = { id: string; service: string; months: number; done: string; due: string; overdue: boolean; customer: { id: string; name: string; phone: string | null } | null; car: { plate: string; model: string | null } | null }
+
+function RemindersCard({ orgName }: { orgName: string }) {
+  const [companyId] = useDetailingCompanyId()
+  const url = `/api/admin/detailing/clients?reminders=1${companyId ? `&company_id=${companyId}` : ''}`
+  const { data, refresh } = useApiCache<{ reminders: Reminder[] }>(url, { ttl: 60_000 })
+  const list = data?.reminders || []
+  // Блок появляется, только когда есть кому писать.
+  if (!list.length) return null
+
+  const done = async (id: string) => {
+    try {
+      await postDetailing('/api/admin/detailing/clients', { action: 'reminder.done', id, company_id: companyId || undefined })
+      await refresh()
+    } catch (e: any) {
+      toast({ title: 'Не получилось', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  return (
+    <StoreSection title="Пора напомнить" subtitle="давно делали — самое время позвать снова" flush>
+      <div className="divide-y divide-border">
+        {list.map((r) => (
+          <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 truncate text-sm font-medium">{r.customer?.name || 'Клиент'} · {r.car?.model || 'машина'} <Plate plate={r.car?.plate} /></span>
+              <span className="block truncate text-[11px] text-muted-foreground">{r.service} · делали {shortDate(r.done)} {r.done.slice(0, 4)}</span>
+            </span>
+            <WaButton phone={r.customer?.phone} text={waText.remind({ customer: r.customer, car: r.car, service: r.service, months: r.months }, orgName)} label="Написать" />
+            <button type="button" onClick={() => done(r.id)} className="h-8 rounded-lg border border-border px-2.5 text-xs font-semibold hover:border-slate-400">Написал</button>
+          </div>
+        ))}
+      </div>
+    </StoreSection>
   )
 }
 

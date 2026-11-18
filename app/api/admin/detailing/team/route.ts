@@ -59,10 +59,28 @@ export async function GET(request: Request) {
       email: s.email || null,
       phone: s.phone || null,
       editable: isNicheRole(s.role),
+      roleLocked: s.role === 'detailing_master',
       me: !!s.email && String(s.email).toLowerCase() === myEmail,
     }))
     const roles = Object.values(NICHE_ROLES).map((r) => ({ code: r.code, label: r.label, summary: r.summary, can: r.can, cannot: r.cannot }))
-    return json({ ok: true, data: { people, roles } })
+
+    // Мастера точек и у кого из них уже есть вход.
+    const companyIds = ctx.companies.map((c) => c.id)
+    const { data: assigned } = companyIds.length
+      ? await ctx.supabase.from('operator_company_assignments').select('operator:operators(id, name, short_name, is_active)').in('company_id', companyIds).eq('is_active', true)
+      : { data: [] }
+    const masterRows = new Map<string, string>()
+    for (const row of (assigned || []) as any[]) {
+      if (row.operator && row.operator.is_active !== false) masterRows.set(String(row.operator.id), String(row.operator.short_name || row.operator.name || 'Мастер'))
+    }
+    const staffIds = people.map((p) => p.id)
+    const { data: links } = staffIds.length && masterRows.size
+      ? await ctx.supabase.from('operator_staff_links').select('operator_id, staff_id').in('staff_id', staffIds)
+      : { data: [] }
+    const linked = new Set(((links || []) as any[]).map((l) => String(l.operator_id)))
+    const masters = [...masterRows.entries()].map(([id, name]) => ({ id, name, hasLogin: linked.has(id) })).sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+
+    return json({ ok: true, data: { people, roles, masters } })
   } catch (error: any) {
     await writeSystemErrorLogSafe({ scope: 'server', area: 'admin-detailing-team:get', message: error?.message || 'Detailing team GET error' })
     return json({ error: 'Не удалось загрузить команду' }, 500)
@@ -89,6 +107,23 @@ export async function POST(request: Request) {
       if (!EMAIL_RE.test(email)) return json({ error: 'Проверьте почту — по ней человек будет входить' }, 400)
       if (!isNicheRole(role)) return json({ error: 'Выберите, кем работает' }, 400)
 
+      // Вход мастеру даётся существующему мастеру точки: по нему считаются его машины и процент.
+      const operatorId = role === 'detailing_master' ? String(body?.operator_id || '').trim() : ''
+      if (role === 'detailing_master') {
+        const companyIds = ctx.companies.map((c) => c.id)
+        const { data: own } = operatorId && companyIds.length
+          ? await ctx.supabase.from('operator_company_assignments').select('id').eq('operator_id', operatorId).in('company_id', companyIds).eq('is_active', true).limit(1).maybeSingle()
+          : { data: null }
+        if (!own) return json({ error: 'Сначала добавьте мастера в разделе «Мастера»' }, 400)
+        const { data: busy } = await ctx.supabase.from('operator_staff_links').select('id').eq('operator_id', operatorId).maybeSingle()
+        if (busy) return json({ error: 'У этого мастера вход уже есть' }, 409)
+      }
+      const linkMaster = async (staffId: string) => {
+        if (!operatorId) return
+        const { error: linkError } = await ctx.supabase.from('operator_staff_links').insert({ operator_id: operatorId, staff_id: staffId, assigned_role: role })
+        if (linkError) throw linkError
+      }
+
       // Человек связывается с учёткой по почте, поэтому одна почта — одна строка
       // сотрудника во всей базе, считая убранных. Убранного из этой же команды
       // возвращаем той же строкой, а не заводим вторую.
@@ -101,6 +136,8 @@ export async function POST(request: Request) {
         const { error: backError } = await ctx.supabase.from('staff').update({ full_name: name, short_name: name, role, phone, is_active: true }).eq('id', staffId)
         if (backError) throw backError
         await ctx.supabase.from('organization_members').update({ role, status: 'active' }).eq('staff_id', staffId).eq('organization_id', ctx.orgId)
+        await ctx.supabase.from('operator_staff_links').delete().eq('staff_id', staffId)
+        await linkMaster(staffId)
         invalidateCapabilitiesCache()
         await audit(staffId, 'return', { name, email, role })
         const link = await accessLink(ctx.supabase, ctx.orgId, email, staffId).catch(() => null)
@@ -138,7 +175,13 @@ export async function POST(request: Request) {
         await ctx.supabase.from('staff').delete().eq('id', staffId)
         throw memberError
       }
-      await audit(staffId, 'add', { name, email, role })
+      try {
+        await linkMaster(staffId)
+      } catch (linkError) {
+        await ctx.supabase.from('staff').delete().eq('id', staffId)
+        throw linkError
+      }
+      await audit(staffId, 'add', { name, email, role, operator_id: operatorId || null })
       // Человек уже добавлен; не вышла ссылка — её можно получить кнопкой ещё раз.
       const link = await accessLink(ctx.supabase, ctx.orgId, email, staffId).catch(() => null)
       return json({ ok: true, data: { id: staffId, link, phone, name } })
@@ -161,6 +204,8 @@ export async function POST(request: Request) {
     if (action === 'role') {
       const role = String(body?.role || '')
       if (!isNicheRole(role)) return json({ error: 'Выберите, кем работает' }, 400)
+      // Мастер привязан к своим машинам: его не «повышают» сменой роли, а добавляют заново.
+      if (role === 'detailing_master' || person.role === 'detailing_master') return json({ error: 'Роль мастера так не меняется. Уберите вход и добавьте человека заново.' }, 400)
       const { error } = await ctx.supabase.from('staff').update({ role }).eq('id', staffId)
       if (error) throw error
       await ctx.supabase.from('organization_members').update({ role }).eq('staff_id', staffId).eq('organization_id', ctx.orgId)
@@ -173,6 +218,8 @@ export async function POST(request: Request) {
     const { error } = await ctx.supabase.from('staff').update({ is_active: false }).eq('id', staffId)
     if (error) throw error
     await ctx.supabase.from('organization_members').update({ status: 'inactive' }).eq('staff_id', staffId).eq('organization_id', ctx.orgId)
+    // Сам мастер остаётся в «Мастерах» — убираем только его вход.
+    await ctx.supabase.from('operator_staff_links').delete().eq('staff_id', staffId)
     invalidateCapabilitiesCache()
     await audit(staffId, 'remove', { name: person.full_name, role: person.role })
     return json({ ok: true })

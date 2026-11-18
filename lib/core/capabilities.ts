@@ -664,6 +664,12 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
         capabilities: crud('detailing-prices'),
       },
       {
+        id: 'detailing-my',
+        path: '/detailing/my',
+        label: 'Мои машины (экран мастера)',
+        capabilities: [{ id: 'detailing-my.view', label: 'Видеть свои машины и заработок', severity: 'low' }],
+      },
+      {
         id: 'detailing-money',
         path: '/detailing/money',
         label: 'Деньги',
