@@ -17,6 +17,8 @@ export const PUBLIC_PATHS = [
   '/sla',
   '/cookies',
   '/login',
+  // Онлайн-запись детейлинга: клиент открывает ссылку без входа.
+  '/book',
   '/operator-login',
   '/unauthorized',
   '/setup-required',

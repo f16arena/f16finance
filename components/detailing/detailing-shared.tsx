@@ -10,6 +10,7 @@ import { CarFront } from 'lucide-react'
 
 import { NativeSelect } from '@/components/ui/native-select'
 import { StoreEmpty, storeCard } from '@/components/store/store-ui'
+import { useApiCache } from '@/lib/client/use-api-cache'
 
 export type DetailingCompany = { id: string; name: string; code: string | null }
 export type BodyClass = { id: string; name: string; sort_order: number; is_active: boolean }
@@ -170,4 +171,56 @@ export function dayLabel(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
   const wd = (new Date(y, m - 1, d).getDay() + 6) % 7
   return { weekday: WEEKDAYS[wd], day: d, month: MONTHS_GEN[m - 1], short: `${WEEKDAYS[wd]} ${d}` }
+}
+
+/* ── WhatsApp ───────────────────────────────────────────────────────────
+ * Без официального API: кнопка открывает WhatsApp с готовым текстом, человек
+ * сам нажимает «отправить». Работает и с телефона, и с компьютера. */
+
+/** Название детейлинга — подпись в сообщениях клиенту. */
+export function useOrgName() {
+  const { data } = useApiCache<{ activeOrganization?: { name?: string | null } | null }>('/api/auth/session-role', { ttl: 5 * 60_000 })
+  return String(data?.activeOrganization?.name || '').trim()
+}
+
+type WaCar = { customer: { name: string; phone: string | null } | null; car: { model: string | null; plate?: string | null } | null }
+
+const hello = (b: WaCar) => {
+  const name = String(b.customer?.name || '').trim()
+  return name && !/^Клиент /.test(name) ? `Здравствуйте, ${name}!` : 'Здравствуйте!'
+}
+const carName = (b: WaCar) => b.car?.model || 'машина'
+const sign = (org: string) => (org ? `\n${org}` : '')
+
+export const waText = {
+  confirm: (b: WaCar & { start_date: string; services: Array<{ name: string }> }, org: string) =>
+    `${hello(b)} Вы записаны на ${dayLabel(b.start_date).day} ${dayLabel(b.start_date).month}: ${b.services.map((s) => s.name).join(', ') || carName(b)}. Ждём вас.${sign(org)}`,
+  ready: (b: WaCar & { due: number }, org: string) =>
+    `${hello(b)} Ваша ${carName(b)} готова, можно забирать.${b.due > 0 ? ` К оплате ${money(b.due)}.` : ''}${sign(org)}`,
+  debt: (b: WaCar & { due: number }, org: string) => `${hello(b)} Напоминаем про оплату ${money(b.due)} за ${carName(b)}.${sign(org)}`,
+  hi: (b: WaCar, org: string) => `${hello(b)}${sign(org)}`,
+}
+
+/** Ссылка wa.me с готовым текстом; null — телефона нет. */
+export function waLink(phone: string | null | undefined, text: string) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (digits.length < 10) return null
+  const intl = digits.length === 10 ? `7${digits}` : digits.replace(/^8(?=\d{10}$)/, '7')
+  return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`
+}
+
+export function WaButton(props: { phone: string | null | undefined; text: string; label?: string; className?: string }) {
+  const href = waLink(props.phone, props.text)
+  if (!href) return null
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={props.className || 'inline-flex h-8 shrink-0 items-center rounded-lg bg-[#1fa855] px-2.5 text-xs font-bold text-white hover:brightness-105'}
+    >
+      {props.label || 'WhatsApp'}
+    </a>
+  )
 }

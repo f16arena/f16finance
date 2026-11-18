@@ -6,6 +6,7 @@ import { ListChecks, Loader2, Plus, Trash2 } from 'lucide-react'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { toast } from '@/components/ui/use-toast'
 import { StoreEmpty, StoreSection, storeCard } from '@/components/store/store-ui'
 import { Skeleton } from '@/components/skeleton'
@@ -27,6 +28,7 @@ type SetupData = {
   boxes: Box[]
   classes: BodyClass[]
   services: Service[]
+  onlineBooking?: boolean
 }
 
 const API = '/api/admin/detailing/setup'
@@ -92,6 +94,8 @@ export default function DetailingPricesPage() {
           />
         </div>
       ) : null}
+
+      {data.services.length ? <OnlineBookingCard on={data.onlineBooking === true} onToggle={(enabled) => call({ action: 'online.set', enabled }, enabled ? 'Онлайн-запись включена' : 'Онлайн-запись выключена')} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SimpleList
@@ -301,5 +305,45 @@ function AddServiceButton({ onAdd }: { onAdd: (name: string) => Promise<boolean>
       <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая услуга" className="h-8 w-[170px]" />
       <Button type="submit" size="sm" variant="outline" disabled={!name.trim()}><Plus className="h-4 w-4" />Добавить</Button>
     </form>
+  )
+}
+
+/* ── Онлайн-запись ────────────────────────────────────────────────────── */
+
+function OnlineBookingCard(props: { on: boolean; onToggle: (enabled: boolean) => void }) {
+  const [copied, setCopied] = useState(false)
+  const link = typeof window === 'undefined' ? '' : `${window.location.origin}/book`
+  return (
+    <section className={`${storeCard} flex flex-wrap items-center gap-3 p-4`}>
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold">Онлайн-запись для клиентов</div>
+        <div className="text-[12.5px] text-muted-foreground">
+          {props.on
+            ? 'Клиент сам выбирает услугу и день. Приходит заявкой — вы выбираете бокс и подтверждаете.'
+            : 'Выключена. Включите — и получите ссылку, которую можно дать клиентам или поставить в Instagram.'}
+        </div>
+        {props.on ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <code className="rounded-lg bg-slate-100 px-2 py-1 text-xs dark:bg-white/5">{link}</code>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(link)
+                  setCopied(true)
+                } catch {
+                  toast({ title: 'Не скопировалось', description: 'Выделите ссылку и скопируйте вручную.', variant: 'destructive' })
+                }
+              }}
+            >
+              {copied ? 'Скопировано' : 'Скопировать'}
+            </Button>
+            <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-600 hover:underline">Посмотреть</a>
+          </div>
+        ) : null}
+      </div>
+      <Switch checked={props.on} onCheckedChange={props.onToggle} aria-label="Онлайн-запись для клиентов" />
+    </section>
   )
 }

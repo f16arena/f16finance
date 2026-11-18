@@ -18,6 +18,8 @@ import {
 
 const HIDDEN_PATH_PREFIXES = [
   '/login',
+  // Онлайн-запись клиента детейлинга
+  '/book',
   '/forgot-password',
   '/reset-password',
   '/set-password',

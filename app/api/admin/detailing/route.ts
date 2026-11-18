@@ -14,6 +14,8 @@ import {
   pickCompany,
   priceLines,
   type BookingStatus,
+  upsertCar,
+  upsertCustomer,
   type DetailingCtx,
 } from '@/lib/server/detailing'
 
@@ -77,61 +79,6 @@ export async function GET(request: Request) {
     await writeSystemErrorLogSafe({ scope: 'server', area: 'admin-detailing:get', message: error?.message || 'Detailing GET error' })
     return json({ error: 'Не удалось загрузить запись' }, 500)
   }
-}
-
-async function upsertCustomer(ctx: DetailingCtx, companyId: string, phone: string, name: string | null) {
-  const { data: found } = await ctx.supabase.from('customers').select('id, name').eq('company_id', companyId).eq('phone', phone).maybeSingle()
-  if (found) {
-    if (name && (!found.name || /^Клиент /.test(found.name))) {
-      await ctx.supabase.from('customers').update({ name, updated_at: new Date().toISOString() }).eq('id', found.id)
-    }
-    return String(found.id)
-  }
-  const { data, error } = await ctx.supabase
-    .from('customers')
-    .insert({ company_id: companyId, phone, name: name || `Клиент ${phone.slice(-4)}` })
-    .select('id')
-    .single()
-  if (error) throw error
-  return String(data.id)
-}
-
-async function upsertCar(
-  ctx: DetailingCtx,
-  args: { companyId: string; customerId: string; plate: string; model: string | null; bodyClassId: string | null },
-) {
-  const plateNorm = normalizePlate(args.plate)
-  const { data: found } = await ctx.supabase
-    .from('customer_cars')
-    .select('id, customer_id, model, body_class_id')
-    .eq('company_id', args.companyId)
-    .eq('plate_norm', plateNorm)
-    .maybeSingle()
-  if (found) {
-    // Номер уже есть. Машина могла сменить владельца — ставим нового и
-    // дописываем модель/кузов, если раньше их не знали.
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    if (String(found.customer_id) !== args.customerId) patch.customer_id = args.customerId
-    if (args.model && !found.model) patch.model = args.model
-    if (args.bodyClassId && !found.body_class_id) patch.body_class_id = args.bodyClassId
-    await ctx.supabase.from('customer_cars').update(patch).eq('id', found.id)
-    return String(found.id)
-  }
-  const { data, error } = await ctx.supabase
-    .from('customer_cars')
-    .insert({
-      organization_id: ctx.orgId,
-      company_id: args.companyId,
-      customer_id: args.customerId,
-      plate: args.plate.trim().toUpperCase(),
-      plate_norm: plateNorm,
-      model: args.model,
-      body_class_id: args.bodyClassId,
-    })
-    .select('id')
-    .single()
-  if (error) throw error
-  return String(data.id)
 }
 
 async function ownBox(ctx: DetailingCtx, companyId: string, boxId: string | null) {

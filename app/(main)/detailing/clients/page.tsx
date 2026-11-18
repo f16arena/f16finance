@@ -19,10 +19,13 @@ import {
   CompanyPicker,
   NoDetailingPoint,
   Plate,
+  WaButton,
   dayLabel,
   money,
   postDetailing,
   useDetailingCompanyId,
+  useOrgName,
+  waText,
 } from '@/components/detailing/detailing-shared'
 
 type Car = { id: string; plate: string; model: string | null; body_class_id: string | null; note: string | null }
@@ -57,6 +60,7 @@ export default function DetailingClientsPage() {
   const { data: setup } = useApiCache<{ classes: BodyClass[] }>(data?.company ? `/api/admin/detailing/setup?company_id=${data.company.id}` : null, { ttl: 60_000 })
   const classes = (setup?.classes || []).filter((c) => c.is_active)
   const [openId, setOpenId] = useState<string | null>(null)
+  const orgName = useOrgName()
   const open = data?.clients.find((c) => c.id === openId) || null
 
   const header = (
@@ -90,7 +94,7 @@ export default function DetailingClientsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Клиент</th>
@@ -98,7 +102,8 @@ export default function DetailingClientsPage() {
                   <th className="px-2 py-2 text-right font-medium">Визитов</th>
                   <th className="px-2 py-2 text-right font-medium">Оплатил</th>
                   <th className="px-2 py-2 text-right font-medium">Долг</th>
-                  <th className="px-4 py-2 text-right font-medium">Последний раз</th>
+                  <th className="px-2 py-2 text-right font-medium">Последний раз</th>
+                  <th className="px-4 py-2" aria-label="Написать" />
                 </tr>
               </thead>
               <tbody>
@@ -118,7 +123,14 @@ export default function DetailingClientsPage() {
                     <td className="px-2 py-2.5 text-right tabular-nums">{c.visits}</td>
                     <td className="px-2 py-2.5 text-right tabular-nums">{money(c.spent)}</td>
                     <td className={`px-2 py-2.5 text-right tabular-nums ${c.debt > 0 ? 'font-semibold text-rose-600' : 'text-muted-foreground'}`}>{c.debt > 0 ? money(c.debt) : '—'}</td>
-                    <td className="px-4 py-2.5 text-right text-muted-foreground">{c.last ? `${dayLabel(c.last).day} ${dayLabel(c.last).month}` : '—'}</td>
+                    <td className="px-2 py-2.5 text-right text-muted-foreground">{c.last ? `${dayLabel(c.last).day} ${dayLabel(c.last).month}` : '—'}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <WaButton
+                        phone={c.phone}
+                        text={c.debt > 0 ? waText.debt({ customer: c, car: c.cars[0] || null, due: c.debt }, orgName) : waText.hi({ customer: c, car: null }, orgName)}
+                        label={c.debt > 0 ? 'Напомнить' : 'WhatsApp'}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

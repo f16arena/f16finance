@@ -13,7 +13,7 @@ import { CarFront, Check, Loader2, Plus } from 'lucide-react'
 import { toast } from '@/components/ui/use-toast'
 import { invalidateApiCache, useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
-import { type Booking, type Box, Plate, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId } from '@/components/detailing/detailing-shared'
+import { type Booking, type Box, Plate, WaButton, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
 
 type GarageData = { company: { id: string; name: string } | null; boxes: Box[]; bookings: Booking[]; masters: Array<{ id: string; name: string }> }
 
@@ -42,6 +42,7 @@ export function GarageToday() {
   const { data, refresh } = useApiCache<GarageData>(`${API}?${params}`, { ttl: 15_000 })
   const [busy, setBusy] = useState<string | null>(null)
   const [ready, setReady] = useState<string | null>(null)
+  const orgName = useOrgName()
 
   const boxes = (data?.boxes || []).filter((b) => b.is_active)
   if (!data?.company) return null
@@ -147,6 +148,7 @@ export function GarageToday() {
                 ) : ready === b.id ? (
                   b.due > 0 ? (
                     <div className="flex flex-col gap-1.5">
+                      <WaButton phone={b.customer?.phone} text={waText.ready(b, orgName)} label="Позвать клиента в WhatsApp" className="flex h-8 items-center justify-center rounded-lg bg-[#1fa855] text-xs font-bold text-white hover:brightness-110" />
                       <span className="text-[11px] text-slate-300">Принять {money(b.due)} и выдать:</span>
                       <div className="grid grid-cols-3 gap-1.5">
                         {PAY.map((m) => (
@@ -165,9 +167,12 @@ export function GarageToday() {
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => run(b, [{ action: 'status', status: 'done' }], 'Машина выдана')} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-500 py-2 text-sm font-bold hover:bg-emerald-400">
-                      <Check className="h-4 w-4" />Выдать
-                    </button>
+                    <div className="flex flex-col gap-1.5">
+                      <WaButton phone={b.customer?.phone} text={waText.ready(b, orgName)} label="Позвать клиента в WhatsApp" className="flex h-8 items-center justify-center rounded-lg bg-[#1fa855] text-xs font-bold text-white hover:brightness-110" />
+                      <button type="button" onClick={() => run(b, [{ action: 'status', status: 'done' }], 'Машина выдана')} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-500 py-2 text-sm font-bold hover:bg-emerald-400">
+                        <Check className="h-4 w-4" />Выдать
+                      </button>
+                    </div>
                   )
                 ) : (
                   <button type="button" onClick={() => setReady(b.id)} className="w-full rounded-lg bg-white/10 py-2 text-sm font-bold hover:bg-white/20">

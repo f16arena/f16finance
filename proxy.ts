@@ -206,6 +206,12 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
+  // Онлайн-запись клиента открыта всем, в том числе вошедшему владельцу,
+  // который хочет посмотреть, как её видит клиент.
+  if (url.pathname === '/book') {
+    return response
+  }
+
   // /platform — панель суперадмина: пускаем только суперадмина, остальных — на их home.
   // /select-organization пока отключён — уводим всех.
   const isPlatformPath = url.pathname === '/platform' || url.pathname.startsWith('/platform/')

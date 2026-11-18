@@ -3,6 +3,8 @@ import {
   DEFAULT_SETUP,
   detailingContext,
   isMissingDetailingTable,
+  isOnlineBookingOn,
+  setOnlineBooking,
   json,
   loadReference,
   pickCompany,
@@ -20,11 +22,12 @@ export async function GET(request: Request) {
     if ('response' in ctx) return ctx.response
     const company = pickCompany(ctx, new URL(request.url).searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null } })
-    const [ref, bookings] = await Promise.all([
+    const [ref, bookings, online] = await Promise.all([
       loadReference(ctx, company.id),
       ctx.supabase.from('detailing_bookings').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
+      isOnlineBookingOn(ctx.supabase, ctx.orgId),
     ])
-    return json({ ok: true, data: { companies: ctx.companies, company, ...ref, bookingsCount: bookings.count || 0 } })
+    return json({ ok: true, data: { companies: ctx.companies, company, ...ref, bookingsCount: bookings.count || 0, onlineBooking: online } })
   } catch (error: any) {
     if (isMissingDetailingTable(error)) return json({ error: 'Детейлинг ещё не включён в базе — нужна миграция 20261029_detailing_core' }, 503)
     await writeSystemErrorLogSafe({ scope: 'server', area: 'admin-detailing-setup:get', message: error?.message || 'Detailing setup GET error' })
@@ -33,6 +36,7 @@ export async function GET(request: Request) {
 }
 
 const CAPABILITY_BY_ACTION: Record<string, string> = {
+  'online.set': 'detailing-prices.edit',
   seed: 'detailing-prices.create',
   'box.save': 'detailing-prices.edit',
   'box.delete': 'detailing-prices.delete',
@@ -62,6 +66,13 @@ export async function POST(request: Request) {
     const base = { organization_id: ctx.orgId, company_id: company.id }
     const audit = (entityType: string, entityId: string, act: string, payload: Record<string, unknown>) =>
       writeAuditLog(ctx.supabase, { actorUserId, entityType, entityId, action: act, payload })
+
+    if (action === 'online.set') {
+      const enabled = body?.enabled === true
+      await setOnlineBooking(ctx.supabase, ctx.orgId, enabled)
+      await audit('detailing-setup', company.id, 'online-booking', { enabled })
+      return json({ ok: true, data: { onlineBooking: enabled } })
+    }
 
     if (action === 'seed') {
       // Только для пустой точки: второй раз примерный прайс не накатываем.

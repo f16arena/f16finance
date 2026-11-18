@@ -27,6 +27,7 @@ import {
   Plate,
   STATUS_LABEL,
   STATUS_TONE,
+  WaButton,
   dayLabel,
   daysBetween,
   isoLocal,
@@ -35,6 +36,8 @@ import {
   postDetailing,
   shiftIso,
   useDetailingCompanyId,
+  useOrgName,
+  waText,
 } from '@/components/detailing/detailing-shared'
 
 type WeekData = {
@@ -467,6 +470,7 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
   const b = props.booking
   const { data } = props
   const [busy, setBusy] = useState(false)
+  const orgName = useOrgName()
   const [materials, setMaterials] = useState(String(Math.round(b.materials_total)))
   const [boxId, setBoxId] = useState(b.box_id || data.boxes.find((x) => x.is_active)?.id || '')
   useEffect(() => setMaterials(String(Math.round(b.materials_total))), [b.materials_total])
@@ -570,6 +574,16 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
         </div>
 
         {b.status !== 'requested' ? <PaymentBlock booking={b} busy={busy} run={run} /> : null}
+
+        {b.customer?.phone && b.status !== 'no_show' ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">Написать клиенту:</span>
+            {b.status === 'booked' || b.status === 'requested' ? <WaButton phone={b.customer.phone} text={waText.confirm(b, orgName)} label="Подтвердить запись" /> : null}
+            {b.status === 'in_box' ? <WaButton phone={b.customer.phone} text={waText.ready(b, orgName)} label="Машина готова" /> : null}
+            {b.status === 'done' && b.due > 0 ? <WaButton phone={b.customer.phone} text={waText.debt(b, orgName)} label="Напомнить об оплате" /> : null}
+            {b.status === 'done' && b.due <= 0 ? <WaButton phone={b.customer.phone} text={waText.hi(b, orgName)} label="Написать" /> : null}
+          </div>
+        ) : null}
 
         {b.comment ? <div className="rounded-xl border border-border p-3 text-muted-foreground">{b.comment}</div> : null}
 

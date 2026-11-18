@@ -30,7 +30,7 @@ import { useCapabilities } from '@/lib/client/use-capabilities'
 import { formatPhone } from '@/lib/core/format'
 import { GarageToday } from '@/components/detailing/garage-today'
 import { ExpenseModal, TakePaymentModal } from '@/components/detailing/detailing-actions'
-import { type DetailingCompany, Plate, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId } from '@/components/detailing/detailing-shared'
+import { type DetailingCompany, Plate, WaButton, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
 
 /* ── Ниша организации ─────────────────────────────────────────────────── */
 
@@ -177,16 +177,19 @@ export function earned(d: MoneyData) {
   return { income: t.income, materials, masters, other, bought, left: t.income - materials - masters - other }
 }
 
-export function BookingLine({ b, right }: { b: MoneyBooking; right?: ReactNode }) {
+export function BookingLine({ b, right, wa }: { b: MoneyBooking; right?: ReactNode; wa?: string }) {
   return (
-    <Link href="/detailing" className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.03]">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-white/5"><CarFront className="h-4 w-4" /></span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 truncate text-sm font-medium">{carTitle(b)} <Plate plate={b.car?.plate} /></span>
-        <span className="block truncate text-[11px] text-muted-foreground">{b.services.map((s) => s.name).join(', ')}{b.master ? ` · ${b.master}` : ''}</span>
-      </span>
-      {right ? <span className="shrink-0 text-right text-sm">{right}</span> : null}
-    </Link>
+    <div className="flex items-center gap-2 pr-4 transition hover:bg-slate-50 dark:hover:bg-white/[0.03]">
+      <Link href="/detailing" className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-white/5"><CarFront className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 truncate text-sm font-medium">{carTitle(b)} <Plate plate={b.car?.plate} /></span>
+          <span className="block truncate text-[11px] text-muted-foreground">{b.services.map((s) => s.name).join(', ')}{b.master ? ` · ${b.master}` : ''}</span>
+        </span>
+        {right ? <span className="shrink-0 text-right text-sm">{right}</span> : null}
+      </Link>
+      {wa ? <WaButton phone={b.customer?.phone} text={wa} /> : null}
+    </div>
   )
 }
 
@@ -209,6 +212,7 @@ function ActionTile(props: { onClick?: () => void; href?: string; icon: ReactNod
 export function DetailingDashboard() {
   const { can } = useCapabilities()
   const [companyId] = useDetailingCompanyId()
+  const orgName = useOrgName()
   const { data, loading, error, refresh } = useMoney('month', '')
   const [modal, setModal] = useState<'pay' | 'spend' | null>(null)
   const [version, setVersion] = useState(0)
@@ -297,8 +301,8 @@ export function DetailingDashboard() {
             <div className="divide-y divide-border">
               {live.overdue.map((b) => <BookingLine key={`o${b.id}`} b={b} right={<span className="font-medium text-rose-600">стоит дольше записи</span>} />)}
               {live.requests.map((b) => <BookingLine key={`r${b.id}`} b={b} right={<span className="font-medium text-blue-600">заявка — подтвердить</span>} />)}
-              {live.handOver.map((b) => <BookingLine key={`h${b.id}`} b={b} right={b.due > 0 ? <span>выдать, взять <b className="text-rose-600">{money(b.due)}</b></span> : <span className="text-emerald-600">выдать, оплачено</span>} />)}
-              {data.debts.slice(0, 5).map((b) => <BookingLine key={`d${b.id}`} b={b} right={<span>должен <b className="text-rose-600">{money(b.due)}</b></span>} />)}
+              {live.handOver.map((b) => <BookingLine key={`h${b.id}`} b={b} wa={waText.ready(b, orgName)} right={b.due > 0 ? <span>выдать, взять <b className="text-rose-600">{money(b.due)}</b></span> : <span className="text-emerald-600">выдать, оплачено</span>} />)}
+              {data.debts.slice(0, 5).map((b) => <BookingLine key={`d${b.id}`} b={b} wa={waText.debt(b, orgName)} right={<span>должен <b className="text-rose-600">{money(b.due)}</b></span>} />)}
               {live.upcoming.slice(0, 4).map((b) => <BookingLine key={`u${b.id}`} b={b} right={<span className="text-muted-foreground">{shortDate(b.start_date)}</span>} />)}
             </div>
           )}
@@ -333,6 +337,7 @@ export function DetailingIncome() {
   const [period, setPeriod] = useState<Period>('month')
   const [companyId, setCompanyId] = useState('')
   const [method, setMethod] = useState<Method | 'all'>('all')
+  const orgName = useOrgName()
   const { data, loading, error, range } = useMoney(period, companyId)
 
   const header = (
@@ -453,7 +458,7 @@ export function DetailingIncome() {
           {data.debts.length ? (
             <div className="divide-y divide-border">
               {data.debts.map((b) => (
-                <BookingLine key={b.id} b={b} right={<><div className="font-semibold text-rose-600 tabular-nums">{money(b.due)}</div><div className="text-[11px] text-muted-foreground">{b.customer?.name}</div></>} />
+                <BookingLine key={b.id} b={b} wa={waText.debt(b, orgName)} right={<><div className="font-semibold text-rose-600 tabular-nums">{money(b.due)}</div><div className="text-[11px] text-muted-foreground">{b.customer?.name}</div></>} />
               ))}
             </div>
           ) : <StoreEmpty title="Долгов нет" hint="Все выданные машины оплачены полностью." />}

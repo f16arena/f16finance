@@ -257,3 +257,77 @@ export async function loadReference(ctx: Pick<DetailingCtx, 'supabase'>, company
     masters,
   }
 }
+
+/* ── Клиент и машина ─────────────────────────────────────────────────── */
+
+export async function upsertCustomer(ctx: Pick<DetailingCtx, 'supabase'>, companyId: string, phone: string, name: string | null) {
+  const { data: found } = await ctx.supabase.from('customers').select('id, name').eq('company_id', companyId).eq('phone', phone).maybeSingle()
+  if (found) {
+    if (name && (!found.name || /^Клиент /.test(found.name))) {
+      await ctx.supabase.from('customers').update({ name, updated_at: new Date().toISOString() }).eq('id', found.id)
+    }
+    return String(found.id)
+  }
+  const { data, error } = await ctx.supabase
+    .from('customers')
+    .insert({ company_id: companyId, phone, name: name || `Клиент ${phone.slice(-4)}` })
+    .select('id')
+    .single()
+  if (error) throw error
+  return String(data.id)
+}
+
+export async function upsertCar(
+  ctx: Pick<DetailingCtx, 'supabase' | 'orgId'>,
+  args: { companyId: string; customerId: string; plate: string; model: string | null; bodyClassId: string | null },
+) {
+  const plateNorm = normalizePlate(args.plate)
+  const { data: found } = await ctx.supabase
+    .from('customer_cars')
+    .select('id, customer_id, model, body_class_id')
+    .eq('company_id', args.companyId)
+    .eq('plate_norm', plateNorm)
+    .maybeSingle()
+  if (found) {
+    // Номер уже есть. Машина могла сменить владельца — ставим нового и
+    // дописываем модель/кузов, если раньше их не знали.
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (String(found.customer_id) !== args.customerId) patch.customer_id = args.customerId
+    if (args.model && !found.model) patch.model = args.model
+    if (args.bodyClassId && !found.body_class_id) patch.body_class_id = args.bodyClassId
+    await ctx.supabase.from('customer_cars').update(patch).eq('id', found.id)
+    return String(found.id)
+  }
+  const { data, error } = await ctx.supabase
+    .from('customer_cars')
+    .insert({
+      organization_id: ctx.orgId,
+      company_id: args.companyId,
+      customer_id: args.customerId,
+      plate: args.plate.trim().toUpperCase(),
+      plate_norm: plateNorm,
+      model: args.model,
+      body_class_id: args.bodyClassId,
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+  return String(data.id)
+}
+
+/* ── Онлайн-запись ───────────────────────────────────────────────────── */
+
+/** Включена ли страница записи для клиентов (<адрес>/book). По умолчанию выключена. */
+export async function isOnlineBookingOn(supabase: any, orgId: string) {
+  const { data } = await supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle()
+  return (data as any)?.settings?.detailing?.online_booking === true
+}
+
+export async function setOnlineBooking(supabase: any, orgId: string, enabled: boolean) {
+  const { data, error } = await supabase.from('organizations').select('settings').eq('id', orgId).maybeSingle()
+  if (error) throw error
+  const settings = ((data as any)?.settings || {}) as Record<string, any>
+  const next = { ...settings, detailing: { ...(settings.detailing || {}), online_booking: enabled } }
+  const { error: saveError } = await supabase.from('organizations').update({ settings: next }).eq('id', orgId)
+  if (saveError) throw saveError
+}
