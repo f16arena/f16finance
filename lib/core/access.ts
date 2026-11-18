@@ -1,4 +1,6 @@
-﻿export const PUBLIC_PATHS = [
+﻿import { NICHE_ROLES } from '@/lib/core/niche-roles'
+
+export const PUBLIC_PATHS = [
   '/',
   '/club-management-system',
   '/operator-salary-system',
@@ -331,6 +333,15 @@ const STAFF_ROLE_MATRIX_FALLBACK: Record<string, RoleMatrixEntry> = {
   },
 }
 
+// Роли ниш (детейлинг: администратор, бухгалтер). Читаются по имени, но в
+// перечислении ролей их нет — в списках должностей клуба и магазина они не нужны.
+const NICHE_ROLE_MATRIX: Record<string, RoleMatrixEntry> = Object.fromEntries(
+  Object.values(NICHE_ROLES).map((role) => [
+    role.code,
+    { label: role.label, home: '/dashboard', paths: role.paths, capabilities: [], summary: role.summary, actions: [...role.can, ...role.cannot.map((x) => `Не видит: ${x}`)] },
+  ]),
+)
+
 // Динамический оверлей. Заполняется hydrateStaffRoleMatrix() из БД на сервере.
 // Если роль есть в _DYNAMIC — она перекрывает FALLBACK.
 let _DYNAMIC_MATRIX: Record<string, RoleMatrixEntry> = {}
@@ -347,11 +358,11 @@ export const STAFF_ROLE_MATRIX: Record<string, RoleMatrixEntry> = new Proxy(
   {
     get(_target, prop: string): RoleMatrixEntry | undefined {
       if (typeof prop !== 'string') return undefined
-      return _DYNAMIC_MATRIX[prop] ?? STAFF_ROLE_MATRIX_FALLBACK[prop]
+      return _DYNAMIC_MATRIX[prop] ?? STAFF_ROLE_MATRIX_FALLBACK[prop] ?? NICHE_ROLE_MATRIX[prop]
     },
     has(_target, prop: string): boolean {
       if (typeof prop !== 'string') return false
-      return prop in _DYNAMIC_MATRIX || prop in STAFF_ROLE_MATRIX_FALLBACK
+      return prop in _DYNAMIC_MATRIX || prop in STAFF_ROLE_MATRIX_FALLBACK || prop in NICHE_ROLE_MATRIX
     },
     ownKeys() {
       const keys = new Set<string>([

@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { Check, Loader2 } from 'lucide-react'
 
 import { useApiCache } from '@/lib/client/use-api-cache'
+import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useNavSession } from '@/lib/nav/use-nav-session'
 
 type SetupData = {
@@ -58,11 +59,14 @@ export function DetailingWelcome() {
   const doneCount = steps.filter((s) => s.done).length
   const allDone = !!data && doneCount === steps.length
 
+  // Настройка — дело владельца. Администратор и бухгалтер сразу на «Сегодня».
+  const { can, isLoading: capsLoading } = useCapabilities()
+  const skip = allDone || (!capsLoading && !can('detailing-prices.edit'))
   useEffect(() => {
-    if (allDone) router.replace('/dashboard')
-  }, [allDone, router])
+    if (skip) router.replace('/dashboard')
+  }, [skip, router])
 
-  if ((loading && !data) || allDone) {
+  if ((loading && !data) || skip) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> Открываю…

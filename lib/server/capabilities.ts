@@ -26,6 +26,7 @@ import 'server-only'
 import { NextResponse } from 'next/server'
 
 import { DENY_BY_DEFAULT_CAPABILITIES, getAllCapabilityIds, isDenyByDefault } from '@/lib/core/capabilities'
+import { nicheRoleCapabilities } from '@/lib/core/niche-roles'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 
 type CapabilitiesCache = {
@@ -138,6 +139,16 @@ export async function loadUserCapabilities(
   const cached = cache.get(key)
   if (cached && Date.now() - cached.loadedAt < CACHE_TTL_MS) {
     return cached.capabilities
+  }
+
+  // Роль ниши (администратор/бухгалтер детейлинга) — закрытый набор из кода,
+  // без fail-open и без правок из таблиц: администратор не должен увидеть
+  // прибыль из-за чужой галочки или пропущенной строки.
+  const nicheSet = nicheRoleCapabilities(role)
+  if (nicheSet) {
+    const fixed = new Set<string>(nicheSet)
+    cache.set(key, { capabilities: fixed, loadedAt: Date.now() })
+    return fixed
   }
 
   const supabase = createAdminSupabaseClient()

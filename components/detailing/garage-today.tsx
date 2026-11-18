@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { CarFront, Check, Loader2, Plus } from 'lucide-react'
 
 import { toast } from '@/components/ui/use-toast'
-import { useApiCache } from '@/lib/client/use-api-cache'
+import { invalidateApiCache, useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
 import { type Booking, type Box, Plate, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId } from '@/components/detailing/detailing-shared'
 
@@ -44,7 +44,37 @@ export function GarageToday() {
   const [ready, setReady] = useState<string | null>(null)
 
   const boxes = (data?.boxes || []).filter((b) => b.is_active)
-  if (!data?.company || !boxes.length) return null
+  if (!data?.company) return null
+  // Боксов ещё нет — вместо пустого места предлагаем завести их одной кнопкой.
+  if (!boxes.length) {
+    const seed = async () => {
+      setBusy('seed')
+      try {
+        await postDetailing('/api/admin/detailing/setup', { action: 'seed', company_id: data.company!.id })
+        toast({ title: 'Готово: 4 бокса и примерный прайс', description: 'Цены поправьте в разделе «Прайс».' })
+        invalidateApiCache('/api/admin/detailing')
+        await refresh()
+      } catch (e: any) {
+        toast({ title: 'Не получилось', description: e.message, variant: 'destructive' })
+      } finally {
+        setBusy(null)
+      }
+    }
+    return (
+      <section className="rounded-2xl bg-[#0b1f3b] p-5 text-white">
+        <h2 className="font-[family-name:var(--font-manrope)] text-lg font-extrabold">Сначала боксы и прайс</h2>
+        <p className="mt-1 max-w-xl text-sm text-slate-300">
+          Здесь будет ваш гараж: кто в каком боксе, что готово, кому выдавать. Поставьте 4 бокса и примерный прайс одной кнопкой — названия и цены потом поправите под себя.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={seed} disabled={busy === 'seed'} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold hover:bg-blue-500 disabled:opacity-60">
+            {busy === 'seed' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Поставить 4 бокса и примерный прайс
+          </button>
+          <Link href="/detailing/prices" className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">Заполнить самому</Link>
+        </div>
+      </section>
+    )
+  }
   const bookings = data.bookings || []
   const master = (id: string | null) => data.masters.find((m) => m.id === id)?.name
 

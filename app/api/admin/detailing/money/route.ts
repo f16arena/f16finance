@@ -7,6 +7,7 @@ import {
   isMissingDetailingTable,
   json,
 } from '@/lib/server/detailing'
+import { hasCapability } from '@/lib/server/capabilities'
 import { loadMasterPay, loadPayoutExpenseIds } from '@/lib/server/detailing-masters'
 
 /**
@@ -61,8 +62,12 @@ export async function GET(request: Request) {
     const ids = companies.map((c) => c.id)
 
     const today = isIsoDate(url.searchParams.get('today')) ? String(url.searchParams.get('today')) : new Date().toISOString().slice(0, 10)
-    const from = isIsoDate(url.searchParams.get('from')) ? String(url.searchParams.get('from')) : `${today.slice(0, 7)}-01`
-    const to = isIsoDate(url.searchParams.get('to')) ? String(url.searchParams.get('to')) : today
+    // Без права «Деньги» (администратор) отдаём только сегодняшний день: ему
+    // нужна касса дня и долги, а итоги месяца и начисления мастерам — нет.
+    // Режем на сервере: спрятать цифру на экране недостаточно.
+    const seeMoney = await hasCapability(ctx.access, 'detailing-money.view')
+    const from = !seeMoney ? today : isIsoDate(url.searchParams.get('from')) ? String(url.searchParams.get('from')) : `${today.slice(0, 7)}-01`
+    const to = !seeMoney ? today : isIsoDate(url.searchParams.get('to')) ? String(url.searchParams.get('to')) : today
     const toExcl = addDays(to, 1)
 
     const [payRes, incRes, expRes, rangeRes, debtRes, nowRes, boxRes, mastersRes] = await Promise.all([
@@ -148,7 +153,7 @@ export async function GET(request: Request) {
     }))
 
     const [masterPay, payoutIds] = await Promise.all([
-      loadMasterPay(ctx.supabase, { companyIds: ids, month: `${from.slice(0, 7)}-01`, tolerant: true }),
+      seeMoney ? loadMasterPay(ctx.supabase, { companyIds: ids, month: `${from.slice(0, 7)}-01`, tolerant: true }) : { masters: [], migrationMissing: false },
       loadPayoutExpenseIds(ctx.supabase, { companyIds: ids, from, to }),
     ])
 
@@ -206,8 +211,8 @@ export async function GET(request: Request) {
         payments,
         otherIncome,
         expenses,
-        bookings: startedInRange.map((b) => ({ ...b, master: b.master_operator_id ? masterName.get(String(b.master_operator_id)) || null : null })),
-        materialsUsed: startedInRange.filter((b) => b.status === 'done' || b.status === 'in_box').reduce((s, b) => s + b.materials_total, 0),
+        bookings: (seeMoney ? startedInRange : []).map((b) => ({ ...b, master: b.master_operator_id ? masterName.get(String(b.master_operator_id)) || null : null })),
+        materialsUsed: (seeMoney ? startedInRange : []).filter((b) => b.status === 'done' || b.status === 'in_box').reduce((s, b) => s + b.materials_total, 0),
         load: { boxDaysBusy, boxDaysTotal: boxes.length * periodDays, boxes: boxes.length },
         debts,
         live,

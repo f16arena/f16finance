@@ -11,6 +11,7 @@ import {
   Menu,
   Plus,
   Tag,
+  Users,
   Wallet,
   Wrench,
   X,
@@ -60,7 +61,12 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
   const under = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const isActive = (item: Item) => (item.exact ? pathname === item.href : under(item.href)) || !!item.also?.some(under)
   // Пока права грузятся — показываем всё, чтобы меню не прыгало; сервер всё равно не пустит.
-  const nav = NAV.filter((item) => capsLoading || can(item.cap))
+  const isOwner = session.isSuperAdmin || session.staffRole === 'owner'
+  const nav = [
+    ...NAV.filter((item) => capsLoading || can(item.cap)),
+    // «Команда» — только владельцу: кто заходит в программу и кем работает.
+    ...(isOwner ? [{ href: '/detailing/team', label: 'Команда', icon: Users, cap: '' } as Item] : []),
+  ]
   const canBook = capsLoading || can('detailing-bookings.create')
 
   const menu = (
