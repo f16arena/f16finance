@@ -15,7 +15,7 @@ import { invalidateApiCache, useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
 import { type Booking, type Box, Plate, WaButton, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
 
-type GarageData = { company: { id: string; name: string } | null; boxes: Box[]; bookings: Booking[]; masters: Array<{ id: string; name: string }> }
+type GarageData = { company: { id: string; name: string } | null; boxes: Box[]; bookings: Booking[]; masters: Array<{ id: string; name: string }>; services?: Array<{ id: string }> }
 
 const API = '/api/admin/detailing'
 const PAY: Array<{ id: 'cash' | 'kaspi' | 'card'; label: string }> = [
@@ -48,11 +48,12 @@ export function GarageToday() {
   if (!data?.company) return null
   // Боксов ещё нет — вместо пустого места предлагаем завести их одной кнопкой.
   if (!boxes.length) {
+    const hasPrices = (data.services || []).length > 0
     const seed = async () => {
       setBusy('seed')
       try {
         await postDetailing('/api/admin/detailing/setup', { action: 'seed', company_id: data.company!.id })
-        toast({ title: 'Готово: 4 бокса и примерный прайс', description: 'Цены поправьте в разделе «Прайс».' })
+        toast(hasPrices ? { title: 'Готово: 4 бокса', description: 'Названия поправьте в разделе «Прайс».' } : { title: 'Готово: 4 бокса и примерный прайс', description: 'Цены поправьте в разделе «Прайс».' })
         invalidateApiCache('/api/admin/detailing')
         await refresh()
       } catch (e: any) {
@@ -63,13 +64,14 @@ export function GarageToday() {
     }
     return (
       <section className="rounded-2xl bg-[#0b1f3b] p-5 text-white">
-        <h2 className="font-[family-name:var(--font-manrope)] text-lg font-extrabold">Сначала боксы и прайс</h2>
+        <h2 className="font-[family-name:var(--font-manrope)] text-lg font-extrabold">{hasPrices ? 'Нет ни одного бокса' : 'Сначала боксы и прайс'}</h2>
         <p className="mt-1 max-w-xl text-sm text-slate-300">
-          Здесь будет ваш гараж: кто в каком боксе, что готово, кому выдавать. Поставьте 4 бокса и примерный прайс одной кнопкой — названия и цены потом поправите под себя.
+          Здесь будет ваш гараж: кто в каком боксе, что готово, кому выдавать.{' '}
+          {hasPrices ? 'Прайс уже есть — осталось поставить боксы. Названия потом поправите под себя.' : 'Поставьте 4 бокса и примерный прайс одной кнопкой — названия и цены потом поправите под себя.'}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={seed} disabled={busy === 'seed'} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold hover:bg-blue-500 disabled:opacity-60">
-            {busy === 'seed' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Поставить 4 бокса и примерный прайс
+            {busy === 'seed' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{hasPrices ? 'Поставить 4 бокса' : 'Поставить 4 бокса и примерный прайс'}
           </button>
           <Link href="/detailing/prices" className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">Заполнить самому</Link>
         </div>

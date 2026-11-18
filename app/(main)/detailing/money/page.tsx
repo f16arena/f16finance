@@ -19,7 +19,8 @@ import { Failed, Loading, METHOD_LABEL, type Period, carTitle, earned, shortDate
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
 function Step(props: { title: string; hint: string; amount: number; minus?: boolean; from: number; width: number; bar: string; total?: boolean; href?: string }) {
-  const amountCls = props.total ? (props.amount < 0 ? 'text-rose-600' : 'text-emerald-600') : props.minus ? 'text-rose-600' : ''
+  // Ноль — не убыток и не прибыль: без цвета.
+  const amountCls = !props.amount ? 'text-muted-foreground' : props.total ? (props.amount < 0 ? 'text-rose-600' : 'text-emerald-600') : props.minus ? 'text-rose-600' : ''
   return (
     <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 py-2.5 md:grid-cols-[minmax(0,1fr)_150px_minmax(0,1.6fr)] ${props.total ? 'mt-1.5 border-t-2 border-[#0b1f3b] pt-3.5 dark:border-white/60' : ''}`}>
       <div className="min-w-0">

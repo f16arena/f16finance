@@ -38,6 +38,20 @@ const NAV: Item[] = [
   { href: '/detailing/prices', label: 'Прайс', icon: Tag, cap: 'detailing-prices.view' },
 ]
 
+// Заголовки вкладки по адресу; длинные адреса выше коротких.
+const TITLES: Array<{ href: string; label: string }> = [
+  { href: '/detailing/clients', label: 'Клиенты' },
+  { href: '/detailing/money', label: 'Деньги' },
+  { href: '/detailing/masters', label: 'Мастера' },
+  { href: '/detailing/prices', label: 'Прайс' },
+  { href: '/detailing/team', label: 'Команда' },
+  { href: '/detailing', label: 'Запись' },
+  { href: '/income', label: 'Оплаты' },
+  { href: '/expenses', label: 'Расходы' },
+  { href: '/dashboard', label: 'Сегодня' },
+  { href: '/welcome', label: 'Начало' },
+]
+
 /**
  * Своя оболочка ниши «Детейлинг»: меню слева вместо общей шапки Orda.
  * Цвета Orda (navy + кобальт), раскладка своя.
@@ -49,6 +63,22 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  // Вкладка браузера: «Запись · Детейлинг1». Next ставит свой заголовок после
+  // перехода, поэтому возвращаем наш и при его изменении.
+  const pageLabel = TITLES.find((t) => pathname === t.href || pathname.startsWith(t.href + '/'))?.label || ''
+  const sessionOrg = session.activeOrganization?.name || session.organizations[0]?.name || ''
+  useEffect(() => {
+    if (!sessionOrg) return
+    const want = pageLabel ? `${pageLabel} · ${sessionOrg}` : sessionOrg
+    const apply = () => { if (document.title !== want) document.title = want }
+    apply()
+    const titleEl = document.querySelector('title')
+    if (!titleEl) return
+    const observer = new MutationObserver(apply)
+    observer.observe(titleEl, { childList: true })
+    return () => observer.disconnect()
+  }, [pageLabel, sessionOrg])
 
   const orgName = session.activeOrganization?.name || session.organizations[0]?.name || 'Детейлинг'
   const initials = (session.displayName || session.userEmail || '?')

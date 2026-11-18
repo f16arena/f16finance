@@ -24,6 +24,35 @@ export async function GET(request: Request) {
     const company = pickCompanyForRead(ctx, url.searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null, clients: [] } })
 
+    // История одного клиента: что делали, когда, сколько заплатил и должен.
+    const historyOf = String(url.searchParams.get('history') || '').trim()
+    if (historyOf) {
+      const { data: rows, error: hErr } = await ctx.supabase
+        .from('detailing_bookings')
+        .select('id, start_date, days, status, price_total, car:customer_cars(plate, model), services:detailing_booking_services(name, sort_order), payments:detailing_payments(amount)')
+        .eq('company_id', company.id)
+        .eq('customer_id', historyOf)
+        .neq('status', 'cancelled')
+        .order('start_date', { ascending: false })
+        .limit(50)
+      if (hErr) throw hErr
+      const history = ((rows || []) as any[]).map((b) => {
+        const paid = ((b.payments || []) as any[]).reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        const price = Number(b.price_total || 0)
+        return {
+          id: String(b.id),
+          date: String(b.start_date),
+          status: String(b.status),
+          car: b.car ? { plate: b.car.plate, model: b.car.model } : null,
+          services: ((b.services || []) as any[]).sort((x, y) => x.sort_order - y.sort_order).map((s) => String(s.name)),
+          price,
+          paid,
+          due: b.status === 'done' ? Math.max(0, price - paid) : 0,
+        }
+      })
+      return json({ ok: true, data: { history } })
+    }
+
     const q = String(url.searchParams.get('q') || '').trim()
     const plateQ = normalizePlate(q)
     const digits = q.replace(/\D/g, '')

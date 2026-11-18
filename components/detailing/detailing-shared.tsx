@@ -5,7 +5,7 @@
  * запрос к API. Страницы раздела собираются из них и из store-ui.
  */
 
-import { useCallback, useState } from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import { CarFront } from 'lucide-react'
 
 import { NativeSelect } from '@/components/ui/native-select'
@@ -222,5 +222,23 @@ export function WaButton(props: { phone: string | null | undefined; text: string
     >
       {props.label || 'WhatsApp'}
     </a>
+  )
+}
+
+/* ── Шапка страницы ───────────────────────────────────────────────────── */
+
+/** Одна шапка на все экраны детейлинга: заголовок, строка пояснения, действия справа. */
+export function DetailingHeader(props: { title: string; subtitle?: ReactNode; children?: ReactNode; toolbar?: ReactNode }) {
+  return (
+    <header className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-[family-name:var(--font-manrope)] text-[26px] font-extrabold leading-tight text-[#0b1f3b] dark:text-white">{props.title}</h1>
+          {props.subtitle ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{props.subtitle}</p> : null}
+        </div>
+        {props.children ? <div className="flex flex-wrap items-center gap-2">{props.children}</div> : null}
+      </div>
+      {props.toolbar}
+    </header>
   )
 }

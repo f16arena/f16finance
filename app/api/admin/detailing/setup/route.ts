@@ -76,13 +76,19 @@ export async function POST(request: Request) {
     }
 
     if (action === 'seed') {
-      // Только для пустой точки: второй раз примерный прайс не накатываем.
+      // Примерный прайс — только для пустой точки, второй раз не накатываем.
+      // Боксы ставим отдельно: их могли удалить при уже заполненном прайсе.
       const { count } = await ctx.supabase.from('detailing_services').select('id', { count: 'exact', head: true }).eq('company_id', company.id)
-      if ((count || 0) > 0) return json({ error: 'Прайс уже заполнен' }, 409)
-      const { data: boxRows } = await ctx.supabase.from('detailing_boxes').select('id').eq('company_id', company.id)
-      if (!(boxRows || []).length) {
+      const { data: boxRows } = await ctx.supabase.from('detailing_boxes').select('id').eq('company_id', company.id).eq('is_active', true)
+      const needBoxes = !(boxRows || []).length
+      if ((count || 0) > 0 && !needBoxes) return json({ error: 'Прайс уже заполнен' }, 409)
+      if (needBoxes) {
         const { error } = await ctx.supabase.from('detailing_boxes').insert(DEFAULT_SETUP.boxes.map((b, i) => ({ ...base, ...b, sort_order: i })))
         if (error) throw error
+      }
+      if ((count || 0) > 0) {
+        await audit('detailing-setup', company.id, 'seed-boxes', { boxes: DEFAULT_SETUP.boxes.length })
+        return json({ ok: true, data: { boxesOnly: true } })
       }
       let { data: classes } = await ctx.supabase.from('detailing_body_classes').select('id, name').eq('company_id', company.id).order('sort_order')
       if (!(classes || []).length) {

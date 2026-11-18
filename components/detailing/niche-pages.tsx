@@ -20,7 +20,6 @@ import {
   TrendingUp,
 } from 'lucide-react'
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/skeleton'
@@ -30,7 +29,7 @@ import { useCapabilities } from '@/lib/client/use-capabilities'
 import { formatPhone } from '@/lib/core/format'
 import { GarageToday } from '@/components/detailing/garage-today'
 import { ExpenseModal, TakePaymentModal } from '@/components/detailing/detailing-actions'
-import { type DetailingCompany, Plate, WaButton, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
+import { type DetailingCompany, DetailingHeader, Plate, WaButton, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
 
 /* ── Ниша организации ─────────────────────────────────────────────────── */
 
@@ -341,13 +340,12 @@ export function DetailingIncome() {
   const { data, loading, error, range } = useMoney(period, companyId)
 
   const header = (
-    <AdminPageHeader
-      title="Доходы"
-      description={`Оплаты за машины · ${range.label}`}
-      icon={<TrendingUp className="h-5 w-5" />}
-      backHref="/detailing/money"
-      toolbar={<PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />}
-    />
+    <DetailingHeader
+      title="Оплаты"
+      subtitle={<><Link href="/detailing/money" className="font-medium text-blue-600 hover:underline">← Деньги</Link> · оплаты за машины, {range.label}</>}
+    >
+      <PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />
+    </DetailingHeader>
   )
   const rows = useMemo(() => {
     if (!data || data.empty) return []
@@ -479,15 +477,13 @@ export function DetailingExpenses() {
   const { data, loading, error, range, refresh } = useMoney(period, companyId)
 
   const header = (
-    <AdminPageHeader
+    <DetailingHeader
       title="Расходы"
-      description={`Детейлинг · ${range.label}`}
-      icon={<TrendingDown className="h-5 w-5" />}
-      accent="amber"
-      backHref="/detailing/money"
-      actions={<Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Расход</Button>}
-      toolbar={<PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />}
-    />
+      subtitle={<><Link href="/detailing/money" className="font-medium text-blue-600 hover:underline">← Деньги</Link> · {range.label}</>}
+    >
+      <PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />
+      <Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Расход</Button>
+    </DetailingHeader>
   )
   if (loading && !data) return <Loading header={header} />
   if (error && !data) return <Failed header={header} error={error} />

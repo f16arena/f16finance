@@ -2,9 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -23,6 +22,7 @@ import {
   type Master,
   type Service,
   CompanyPicker,
+  DetailingHeader,
   NoDetailingPoint,
   Plate,
   STATUS_LABEL,
@@ -90,21 +90,16 @@ export default function DetailingWeekPage() {
   }, [boxes, days, today, weekStart])
 
   const header = (
-    <AdminPageHeader
-      title="Запись · неделя"
-      description={data?.company ? `${data.company.name} · ${inBox ? `${inBox} в боксах сейчас` : 'боксы по дням'}` : 'Боксы по дням: кто когда стоит'}
-      icon={<CalendarDays className="h-5 w-5" />}
-      backHref="/dashboard"
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          {data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
-          <Button variant="outline" size="icon-sm" aria-label="Прошлая неделя" onClick={() => setWeekStart(shiftIso(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" onClick={() => setWeekStart(mondayOf(new Date()))}>Сегодня</Button>
-          <Button variant="outline" size="icon-sm" aria-label="Следующая неделя" onClick={() => setWeekStart(shiftIso(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
-          {boxes.length ? <Button size="sm" onClick={() => setDraft({ boxId: boxes[0].id, date: days.includes(today) ? today : weekStart })}><Plus className="h-4 w-4" />Записать</Button> : null}
-        </div>
-      }
-    />
+    <DetailingHeader
+      title="Запись"
+      subtitle={inBox ? `Неделя по боксам · сейчас в боксах: ${inBox}. Нажмите на пустую клетку, чтобы записать.` : 'Неделя по боксам. Нажмите на пустую клетку, чтобы записать.'}
+    >
+      {data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
+      <Button variant="outline" size="icon-sm" aria-label="Прошлая неделя" onClick={() => setWeekStart(shiftIso(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
+      <Button variant="outline" size="sm" onClick={() => setWeekStart(mondayOf(new Date()))}>Эта неделя</Button>
+      <Button variant="outline" size="icon-sm" aria-label="Следующая неделя" onClick={() => setWeekStart(shiftIso(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
+      {boxes.length ? <Button size="sm" onClick={() => setDraft({ boxId: boxes[0].id, date: days.includes(today) ? today : weekStart })}><Plus className="h-4 w-4" />Записать</Button> : null}
+    </DetailingHeader>
   )
 
   if (loading && !data) {
@@ -121,9 +116,9 @@ export default function DetailingWeekPage() {
         {header}
         <div className={storeCard}>
           <StoreEmpty
-            title="Сначала боксы и прайс"
-            hint="Запись идёт по боксам, а цена берётся из прайса по кузову. Заполните их — или поставьте примерный прайс и поправьте под себя."
-            action={<Link href="/detailing/prices" className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Открыть «Прайс и боксы»</Link>}
+            title={!boxes.length && data.services.length ? 'Нет ни одного бокса' : 'Сначала боксы и прайс'}
+            hint={!boxes.length && data.services.length ? 'Запись идёт по боксам. Добавьте боксы — хотя бы один.' : 'Запись идёт по боксам, а цена берётся из прайса по кузову. Заполните их — или поставьте примерный прайс и поправьте под себя.'}
+            action={<Link href="/detailing/prices" className="rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Открыть «Прайс»</Link>}
           />
         </div>
       </div>
@@ -263,6 +258,8 @@ function NewBookingModal(props: {
   const { data } = props
   const classes = data.classes.filter((c) => c.is_active)
   const services = data.services.filter((s) => s.is_active)
+  const boxes = data.boxes.filter((b) => b.is_active)
+  const today = isoLocal(new Date())
   const [phone, setPhone] = useState('')
   const [plate, setPlate] = useState('')
   const [name, setName] = useState('')
@@ -271,7 +268,7 @@ function NewBookingModal(props: {
   const [picked, setPicked] = useState<string[]>([])
   const [date, setDate] = useState(props.initial.date)
   const [boxId, setBoxId] = useState(props.initial.boxId)
-  const [masterId, setMasterId] = useState(data.masters[0]?.id || '')
+  const [masterId, setMasterId] = useState('')
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [known, setKnown] = useState<KnownClient | null>(null)
@@ -296,11 +293,24 @@ function NewBookingModal(props: {
     }
   }, [digits, data.company])
 
+  const applyCar = (car: KnownClient['cars'][number]) => {
+    setPlate(car.plate)
+    setModel(car.model || '')
+    if (car.body_class_id && classes.some((c) => c.id === car.body_class_id)) setClassId(car.body_class_id)
+    if (known) setName(known.name)
+  }
+  // Нашли клиента с одной машиной — подставляем сразу, как в блокноте «тот же, что в прошлый раз».
+  useEffect(() => {
+    if (known && known.cars.length === 1 && !plate.trim()) applyCar(known.cars[0])
+    else if (known && !name.trim()) setName(known.name)
+  }, [known]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const priceOf = (s: Service) => s.prices.find((p) => p.body_class_id === classId) || null
-  const lines = services.filter((s) => picked.includes(s.id))
+  const lines = services.filter((s) => picked.includes(s.id) && priceOf(s))
   const total = lines.reduce((sum, s) => sum + (priceOf(s)?.price || 0), 0)
   const daysNeeded = Math.max(1, lines.reduce((sum, s) => sum + s.days, 0))
 
+  // Занятость считаем по записям загруженной недели; для дней за её пределами сервер проверит сам.
   const busyBox = (id: string) => {
     const start = daysBetween(props.days[0], date)
     return data.bookings.some((b) => {
@@ -309,9 +319,12 @@ function NewBookingModal(props: {
       return from < start + daysNeeded && start < from + b.days
     })
   }
-  const conflict = picked.length > 0 && busyBox(boxId)
-  const noPrice = lines.filter((s) => !priceOf(s))
-  const ready = digits.length >= 10 && plate.trim() && picked.length && classId && !conflict && !noPrice.length
+  const conflict = lines.length > 0 && busyBox(boxId)
+  const ready = digits.length >= 10 && plate.trim() && lines.length && classId && !conflict
+
+  // Ближайшие дни кнопками; остальное — через календарь.
+  const quickDays = Array.from({ length: 6 }, (_, i) => shiftIso(today, i))
+  const dayName = (iso: string, i: number) => (i === 0 ? 'сегодня' : i === 1 ? 'завтра' : dayLabel(iso).short.toLowerCase())
 
   const save = async () => {
     setSaving(true)
@@ -324,7 +337,7 @@ function NewBookingModal(props: {
         client_name: name,
         model,
         body_class_id: classId,
-        service_ids: picked,
+        service_ids: lines.map((s) => s.id),
         start_date: date,
         box_id: boxId,
         master_operator_id: masterId || null,
@@ -339,126 +352,120 @@ function NewBookingModal(props: {
     }
   }
 
+  const label = 'text-[11px] font-bold uppercase tracking-wider text-muted-foreground'
+  const pill = (on: boolean, off = false) =>
+    `min-h-10 rounded-xl border-[1.5px] px-3 py-2 text-left text-sm font-semibold transition ${
+      on ? 'border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-200' : off ? 'border-border text-muted-foreground opacity-50' : 'border-border hover:border-slate-400'
+    }`
+
   return (
     <AppModal
       open
       onClose={props.onClose}
-      title="Новая запись"
-      description="Обязательны только телефон и госномер. Остальное можно дописать потом."
+      title="Записать машину"
       maxWidth="max-w-xl"
       footer={
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-sm">
-            <span className="text-muted-foreground">{daysNeeded} дн в боксе · </span>
-            <b className="tabular-nums">{money(total)}</b>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5 dark:bg-white/[0.03]">
+            <span className="text-sm text-muted-foreground">
+              {lines.length ? `По прайсу · ${daysNeeded} ${daysNeeded === 1 ? 'день' : daysNeeded < 5 ? 'дня' : 'дней'} в боксе` : 'Выберите услугу'}
+            </span>
+            <b className="font-[family-name:var(--font-manrope)] text-xl tabular-nums">{money(total)}</b>
           </div>
-          <Button onClick={save} disabled={!ready || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Записать</Button>
+          <Button className="h-11 w-full text-[15px]" onClick={save} disabled={!ready || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Записать</Button>
         </div>
       }
     >
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm"><span className="text-muted-foreground">Телефон *</span><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="+7 701 555 12 40" /></label>
-          <label className="space-y-1 text-sm"><span className="text-muted-foreground">Госномер *</span><Input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="777 ABC 02" /></label>
+          <label className="space-y-1.5"><span className={label}>Телефон</span><Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="+7 701 555 12 40" autoFocus className="h-11" /></label>
+          <label className="space-y-1.5"><span className={label}>Госномер</span><Input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="777 ABC 02" className="h-11 uppercase" /></label>
         </div>
 
         {known ? (
-          <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 text-sm">
-            <div>Уже был: <b>{known.name}</b></div>
-            {known.cars.length ? (
+          <div className="rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+            {known.name} уже был у вас{known.cars.length > 1 ? ' — выберите машину:' : known.cars.length === 1 ? ' — машина подставлена.' : '.'}
+            {known.cars.length > 1 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {known.cars.map((car) => (
-                  <button
-                    key={car.id}
-                    type="button"
-                    onClick={() => {
-                      setPlate(car.plate)
-                      setModel(car.model || '')
-                      if (car.body_class_id && classes.some((c) => c.id === car.body_class_id)) setClassId(car.body_class_id)
-                      setName(known.name)
-                    }}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-white px-2 py-1 text-xs hover:border-blue-400 dark:bg-slate-900/60"
-                  >
+                  <button key={car.id} type="button" onClick={() => applyCar(car)} className="flex items-center gap-2 rounded-lg border border-emerald-600/30 bg-white px-2 py-1 text-xs text-foreground hover:border-emerald-600 dark:bg-slate-900/60">
                     {car.model || 'Машина'} <Plate plate={car.plate} />
                   </button>
                 ))}
               </div>
-            ) : (
-              <Button variant="outline" size="xs" className="mt-2" onClick={() => setName(known.name)}>Подставить имя</Button>
-            )}
+            ) : null}
           </div>
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm"><span className="text-muted-foreground">Имя</span><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="можно потом" /></label>
-          <label className="space-y-1 text-sm"><span className="text-muted-foreground">Машина</span><Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Toyota Camry 70" /></label>
+          <label className="space-y-1.5"><span className={label}>Машина</span><Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Toyota Camry 70" /></label>
+          <label className="space-y-1.5"><span className={label}>Имя — можно потом</span><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Арман" /></label>
         </div>
 
-        <div className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Кузов</span>
-          <div className="flex flex-wrap gap-2">
-            {classes.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setClassId(c.id)}
-                className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition ${classId === c.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-border hover:border-slate-400'}`}
-              >
-                {c.name}
-              </button>
-            ))}
+        <div className="space-y-1.5">
+          <div className={label}>Кузов</div>
+          <div className="flex flex-wrap gap-1.5">
+            {classes.map((c) => <button key={c.id} type="button" aria-pressed={classId === c.id} onClick={() => setClassId(c.id)} className={pill(classId === c.id)}>{c.name}</button>)}
           </div>
         </div>
 
-        <div className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Услуги — цена уже по кузову</span>
-          <div className="space-y-1.5">
+        <div className="space-y-1.5">
+          <div className={label}>Что делаем</div>
+          <div className="flex flex-wrap gap-1.5">
             {services.map((s) => {
               const p = priceOf(s)
-              const on = picked.includes(s.id)
+              const on = picked.includes(s.id) && !!p
               return (
-                <label key={s.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition ${on ? 'border-blue-500 bg-blue-500/5' : 'border-border'} ${p ? '' : 'opacity-50'}`}>
-                  <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={on} disabled={!p} onChange={(e) => setPicked(e.target.checked ? [...picked, s.id] : picked.filter((x) => x !== s.id))} />
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium">{s.name}</span>
-                    {s.package_note ? <span className="block text-xs text-muted-foreground">пакет: {s.package_note}</span> : null}
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{s.days} дн · {p ? money(p.price) : 'нет цены'}</span>
-                </label>
+                <button
+                  key={s.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!p}
+                  title={p ? undefined : 'Для этого кузова цены нет'}
+                  onClick={() => setPicked(on ? picked.filter((x) => x !== s.id) : [...picked, s.id])}
+                  className={pill(on, !p)}
+                >
+                  <span className="block">{s.name}</span>
+                  <span className="block text-xs font-medium text-muted-foreground">{p ? money(p.price) : 'нет цены'}{s.days > 1 ? ` · ${s.days} дн` : ''}</span>
+                </button>
               )
             })}
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">День</span>
-            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Бокс</span>
-            <NativeSelect value={boxId} onChange={(e) => setBoxId(e.target.value)}>
-              {data.boxes.filter((b) => b.is_active).map((b) => (
-                <option key={b.id} value={b.id}>{b.name}{picked.length && busyBox(b.id) ? ' — занят' : ''}</option>
-              ))}
-            </NativeSelect>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Мастер</span>
-            <NativeSelect value={masterId} onChange={(e) => setMasterId(e.target.value)}>
-              <option value="">Потом</option>
-              {data.masters.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </NativeSelect>
-          </label>
+        <div className="space-y-1.5">
+          <div className={label}>Когда</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {quickDays.map((d, i) => <button key={d} type="button" aria-pressed={date === d} onClick={() => setDate(d)} className={pill(date === d)}>{dayName(d, i)}</button>)}
+            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Другой день" className="h-10 w-[150px]" />
+          </div>
         </div>
-        {!data.masters.length ? (
-          <p className="text-xs text-muted-foreground">Мастеров пока нет: добавьте их в разделе «Мастера» — достаточно имени.</p>
+
+        <div className="space-y-1.5">
+          <div className={label}>Бокс</div>
+          <div className="flex flex-wrap gap-1.5">
+            {boxes.map((b) => {
+              const busy = lines.length > 0 && busyBox(b.id)
+              return (
+                <button key={b.id} type="button" aria-pressed={boxId === b.id} onClick={() => setBoxId(b.id)} className={pill(boxId === b.id, busy && boxId !== b.id)}>
+                  {b.name}{busy ? <span className="block text-xs font-medium text-rose-600">занят</span> : null}
+                </button>
+              )
+            })}
+          </div>
+          {conflict ? <p className="text-sm font-medium text-rose-600">Этот бокс занят в эти дни. Выберите другой бокс или день.</p> : null}
+        </div>
+
+        {data.masters.length ? (
+          <div className="space-y-1.5">
+            <div className={label}>Мастер — можно потом</div>
+            <div className="flex flex-wrap gap-1.5">
+              {data.masters.map((m) => <button key={m.id} type="button" aria-pressed={masterId === m.id} onClick={() => setMasterId(masterId === m.id ? '' : m.id)} className={pill(masterId === m.id)}>{m.name}</button>)}
+            </div>
+          </div>
         ) : null}
 
-        <label className="block space-y-1 text-sm"><span className="text-muted-foreground">Комментарий</span><Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Скол на капоте, клиент привезёт к 10:00" /></label>
-
-        {conflict ? <p className="text-sm font-medium text-rose-600">Этот бокс занят в эти дни. Выберите другой бокс или день.</p> : null}
-        {noPrice.length ? <p className="text-sm font-medium text-rose-600">Нет цены для этого кузова: {noPrice.map((s) => s.name).join(', ')}</p> : null}
+        <label className="block space-y-1.5"><span className={label}>Комментарий — по желанию</span><Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Скол на капоте, привезёт к 10:00" /></label>
       </div>
     </AppModal>
   )

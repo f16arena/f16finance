@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ListChecks, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { AppModal } from '@/components/ui/app-modal'
 import { Button } from '@/components/ui/button'
 import { confirmDialog } from '@/components/ui/confirm-dialog'
@@ -19,6 +18,7 @@ import {
   type DetailingCompany,
   type Service,
   CompanyPicker,
+  DetailingHeader,
   NoDetailingPoint,
   postDetailing,
   useDetailingCompanyId,
@@ -58,13 +58,9 @@ export default function DetailingPricesPage() {
   }
 
   const header = (
-    <AdminPageHeader
-      title="Прайс и боксы"
-      description="Что вы делаете и сколько это стоит. Цена зависит от кузова."
-      icon={<ListChecks className="h-5 w-5" />}
-      backHref="/detailing"
-      actions={data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
-    />
+    <DetailingHeader title="Прайс" subtitle="Что вы делаете и сколько это стоит. Цена зависит от кузова.">
+      {data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
+    </DetailingHeader>
   )
 
   if (loading && !data) return <div className="space-y-4">{header}<Skeleton className="h-[420px] w-full rounded-2xl" /></div>
@@ -103,7 +99,7 @@ export default function DetailingPricesPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <SimpleList
           title="Боксы"
-          subtitle="Строки недели. Бокс с записями не удаляется, а прячется."
+          subtitle="Строки в «Записи» и гараж на «Сегодня»."
           items={data.boxes.filter((b) => b.is_active).map((b) => ({ id: b.id, name: b.name, note: b.note }))}
           withNote
           notePlaceholder="плёнка, полный кузов"
@@ -113,7 +109,7 @@ export default function DetailingPricesPage() {
         />
         <SimpleList
           title="Классы кузова"
-          subtitle="Колонки прайса. От класса зависит цена."
+          subtitle="От кузова зависит цена."
           items={classes.map((c) => ({ id: c.id, name: c.name }))}
           addLabel="Класс"
           onSave={(item) => call({ action: 'class.save', id: item.id, name: item.name }, 'Класс сохранён')}
@@ -198,61 +194,77 @@ function SimpleList(props: {
   onSave: (item: { id?: string; name: string; note?: string }) => Promise<boolean>
   onDelete: (id: string) => Promise<boolean>
 }) {
-  const [name, setName] = useState('')
-  const [note, setNote] = useState('')
+  // Строки только читаются; правка и удаление — в окне, чтобы случайно не задеть.
+  const [editing, setEditing] = useState<{ id?: string; name: string; note: string } | null>(null)
+  const [saving, setSaving] = useState(false)
   return (
-    <StoreSection title={props.title} subtitle={props.subtitle} flush>
-      <div className="divide-y divide-border">
-        {props.items.map((item) => (
-          <ListRow key={item.id} item={item} withNote={props.withNote} onSave={props.onSave} onDelete={props.onDelete} />
-        ))}
-        <form
-          className="flex flex-wrap items-center gap-2 px-4 py-3"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            if (!name.trim()) return
-            if (await props.onSave({ name, note })) {
-              setName('')
-              setNote('')
-            }
-          }}
-        >
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${props.addLabel}: название`} className="h-9 flex-1 min-w-[140px]" />
-          {props.withNote ? <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={props.notePlaceholder} className="h-9 flex-1 min-w-[140px]" /> : null}
-          <Button type="submit" size="sm" variant="outline" disabled={!name.trim()}><Plus className="h-4 w-4" />Добавить</Button>
-        </form>
-      </div>
-    </StoreSection>
-  )
-}
+    <StoreSection
+      title={props.title}
+      subtitle={props.subtitle}
+      flush
+      action={<Button size="sm" variant="outline" onClick={() => setEditing({ name: '', note: '' })}><Plus className="h-4 w-4" />{props.addLabel}</Button>}
+    >
+      {props.items.length ? (
+        <div className="divide-y divide-border">
+          {props.items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setEditing({ id: item.id, name: item.name, note: item.note || '' })}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
+            >
+              <span className="font-bold">{item.name}</span>
+              {item.note ? <span className="truncate text-sm text-muted-foreground">{item.note}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <StoreEmpty title="Пока пусто" hint={`Нажмите «${props.addLabel}», чтобы добавить.`} />
+      )}
 
-function ListRow(props: {
-  item: { id: string; name: string; note?: string | null }
-  withNote?: boolean
-  onSave: (item: { id?: string; name: string; note?: string }) => Promise<boolean>
-  onDelete: (id: string) => Promise<boolean>
-}) {
-  const [name, setName] = useState(props.item.name)
-  const [note, setNote] = useState(props.item.note || '')
-  const dirty = name !== props.item.name || note !== (props.item.note || '')
-  return (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-      <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9 flex-1 min-w-[120px]" aria-label="Название" />
-      {props.withNote ? <Input value={note} onChange={(e) => setNote(e.target.value)} className="h-9 flex-1 min-w-[120px]" aria-label="Подпись" /> : null}
-      {dirty ? <Button size="sm" onClick={() => props.onSave({ id: props.item.id, name, note })}>Сохранить</Button> : null}
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        aria-label={`Удалить: ${props.item.name}`}
-        onClick={async () => {
-          // Корзина стоит рядом с полем — без вопроса её легко задеть.
-          const ok = await confirmDialog({ title: `Удалить «${props.item.name}»?`, description: 'Если по нему уже есть записи, он не удалится, а скроется.', confirmLabel: 'Удалить', destructive: true })
-          if (ok) await props.onDelete(props.item.id)
-        }}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </div>
+      {editing ? (
+        <AppModal
+          open
+          onClose={() => setEditing(null)}
+          title={editing.id ? props.items.find((x) => x.id === editing.id)?.name || props.addLabel : `Новый: ${props.addLabel.toLowerCase()}`}
+          maxWidth="max-w-md"
+          footer={
+            <div className="flex items-center justify-between gap-2">
+              {editing.id ? (
+                <Button
+                  variant="ghost"
+                  className="text-rose-600 hover:text-rose-700"
+                  onClick={async () => {
+                    const ok = await confirmDialog({ title: `Удалить «${editing.name}»?`, description: 'Если по нему уже есть записи, он не удалится, а скроется.', confirmLabel: 'Удалить', destructive: true })
+                    if (ok && (await props.onDelete(editing.id!))) setEditing(null)
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />Удалить
+                </Button>
+              ) : <span />}
+              <Button
+                disabled={saving || editing.name.trim().length < 1}
+                onClick={async () => {
+                  setSaving(true)
+                  const ok = await props.onSave({ id: editing.id, name: editing.name, note: editing.note })
+                  setSaving(false)
+                  if (ok) setEditing(null)
+                }}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Сохранить
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-sm">
+            <label className="block space-y-1.5"><span className="text-muted-foreground">Название</span><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} autoFocus maxLength={40} /></label>
+            {props.withNote ? (
+              <label className="block space-y-1.5"><span className="text-muted-foreground">Для чего — по желанию</span><Input value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} placeholder={props.notePlaceholder} maxLength={80} /></label>
+            ) : null}
+          </div>
+        </AppModal>
+      ) : null}
+    </StoreSection>
   )
 }
 

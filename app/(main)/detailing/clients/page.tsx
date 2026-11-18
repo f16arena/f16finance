@@ -1,9 +1,8 @@
 'use client'
 
 import { useDeferredValue, useEffect, useState } from 'react'
-import { Plus, Search, Trash2, Users2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -15,10 +14,13 @@ import { useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
 import {
   type BodyClass,
+  type BookingStatus,
   type DetailingCompany,
   CompanyPicker,
+  DetailingHeader,
   NoDetailingPoint,
   Plate,
+  STATUS_LABEL,
   WaButton,
   dayLabel,
   money,
@@ -40,6 +42,7 @@ type Client = {
   debt: number
   last: string | null
 }
+type Visit = { id: string; date: string; status: string; car: { plate: string; model: string | null } | null; services: string[]; price: number; paid: number; due: number }
 type ClientsData = { companies: DetailingCompany[]; company: DetailingCompany | null; clients: Client[]; limited: boolean }
 
 const API = '/api/admin/detailing/clients'
@@ -64,19 +67,18 @@ export default function DetailingClientsPage() {
   const open = data?.clients.find((c) => c.id === openId) || null
 
   const header = (
-    <AdminPageHeader
-      title="Клиенты и машины"
-      description="Кто приезжал, на чём, сколько заплатил и сколько должен"
-      icon={<Users2 className="h-5 w-5" />}
-      backHref="/detailing"
-      actions={data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
+    <DetailingHeader
+      title="Клиенты"
+      subtitle="Кто приезжал, на чём, сколько заплатил и сколько должен."
       toolbar={
         <div className="relative max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Телефон, госномер или имя" className="pl-9" aria-label="Поиск клиента" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Телефон, госномер или имя" className="h-11 bg-white pl-9 dark:bg-slate-900/60" aria-label="Поиск клиента" />
         </div>
       }
-    />
+    >
+      {data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
+    </DetailingHeader>
   )
 
   if (loading && !data) return <div className="space-y-4">{header}<Skeleton className="h-[360px] w-full rounded-2xl" /></div>
@@ -152,6 +154,7 @@ function ClientModal(props: { client: Client; classes: BodyClass[]; companyId: s
   const [notes, setNotes] = useState(c.notes || '')
   const [newCar, setNewCar] = useState({ plate: '', model: '', body_class_id: '' })
   const dirty = name !== c.name || phone !== formatPhone(c.phone) || notes !== (c.notes || '')
+  const { data: hist, loading: histLoading } = useApiCache<{ history: Visit[] }>(`${API}?company_id=${props.companyId}&history=${c.id}`, { ttl: 30_000 })
 
   const call = async (body: Record<string, unknown>, done: string) => {
     try {
@@ -182,7 +185,28 @@ function ClientModal(props: { client: Client; classes: BodyClass[]; companyId: s
         <label className="block space-y-1"><span className="text-muted-foreground">Заметка</span><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Предпочитает забирать после 18:00" /></label>
 
         <div className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Машины</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Что делали</div>
+          {histLoading && !hist ? <Skeleton className="h-16 w-full rounded-xl" /> : hist?.history.length ? (
+            <div className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+              {hist.history.map((v) => (
+                <div key={v.id} className="flex items-center gap-3 px-3 py-2">
+                  <span className="w-[58px] shrink-0 text-xs text-muted-foreground">{dayLabel(v.date).day} {dayLabel(v.date).month.slice(0, 3)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{v.services.join(', ') || 'без услуг'}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{v.car?.model || 'Машина'}{v.status !== 'done' ? ` · ${STATUS_LABEL[v.status as BookingStatus]?.toLowerCase() || ''}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <b className="block tabular-nums">{money(v.price)}</b>
+                    {v.due > 0 ? <span className="block text-xs font-semibold text-rose-600">долг {money(v.due)}</span> : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <p className="text-muted-foreground">Записей пока не было.</p>}
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Машины</div>
           {c.cars.map((car) => (
             <div key={car.id} className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
               <span className="flex min-w-0 items-center gap-2">
