@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { ListChecks, Loader2, Plus, Trash2 } from 'lucide-react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
+import { AppModal } from '@/components/ui/app-modal'
 import { Button } from '@/components/ui/button'
+import { confirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { toast } from '@/components/ui/use-toast'
@@ -41,6 +43,7 @@ export default function DetailingPricesPage() {
     if (data?.company && data.company.id !== companyId) setCompanyId(data.company.id)
   }, [data?.company, companyId, setCompanyId])
   const [seeding, setSeeding] = useState(false)
+  const [editing, setEditing] = useState<string | 'new' | null>(null)
 
   const call = async (body: Record<string, unknown>, done?: string) => {
     try {
@@ -57,7 +60,7 @@ export default function DetailingPricesPage() {
   const header = (
     <AdminPageHeader
       title="Прайс и боксы"
-      description="Цена и материалы по классу кузова. Материалы вычитаются перед процентом мастера."
+      description="Что вы делаете и сколько это стоит. Цена зависит от кузова."
       icon={<ListChecks className="h-5 w-5" />}
       backHref="/detailing"
       actions={data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
@@ -120,28 +123,49 @@ export default function DetailingPricesPage() {
 
       <StoreSection
         title="Услуги"
-        subtitle="Цена / материалы по каждому кузову. Пустая цена — эта услуга для кузова не делается."
+        subtitle="Цена зависит от кузова. Нажмите на услугу, чтобы поправить."
         flush
-        action={classes.length ? <AddServiceButton onAdd={(name) => call({ action: 'service.save', name, days: 1, prices: [] }, 'Услуга добавлена')} /> : null}
+        action={classes.length ? <Button size="sm" onClick={() => setEditing('new')}><Plus className="h-4 w-4" />Услуга</Button> : null}
       >
         {!classes.length ? (
           <StoreEmpty title="Сначала классы кузова" hint="Добавьте хотя бы один класс — например, «Седан»." />
+        ) : !data.services.length ? (
+          <StoreEmpty title="Услуг пока нет" hint="Добавьте первую — название и цена по кузову." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Услуга</th>
-                  <th className="px-2 py-2 text-right font-medium">Дней</th>
-                  {classes.map((c) => (
-                    <th key={c.id} className="px-2 py-2 text-right font-medium">{c.name}<div className="normal-case tracking-normal">цена / материалы</div></th>
-                  ))}
-                  <th className="px-2 py-2" />
+                  <th className="px-4 py-2.5 font-bold">Услуга</th>
+                  <th className="px-3 py-2.5 text-right font-bold">Дней</th>
+                  {classes.map((c) => <th key={c.id} className="px-3 py-2.5 text-right font-bold last:pr-4">{c.name}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {data.services.map((s) => (
-                  <ServiceRow key={s.id} service={s} classes={classes} onSave={(body) => call({ action: 'service.save', id: s.id, ...body }, 'Услуга сохранена')} onDelete={() => call({ action: 'service.delete', id: s.id }, 'Услуга удалена')} />
+                  <tr
+                    key={s.id}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Изменить: ${s.name}`}
+                    onClick={() => setEditing(s.id)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setEditing(s.id))}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-bold">{s.name}</div>
+                      {s.package_note ? <div className="text-xs text-muted-foreground">{s.package_note}</div> : null}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">{s.days}</td>
+                    {classes.map((c) => {
+                      const price = s.prices.find((x) => x.body_class_id === c.id)
+                      return (
+                        <td key={c.id} className="px-3 py-3 text-right font-bold tabular-nums last:pr-4">
+                          {price ? Math.round(price.price).toLocaleString('ru-RU') : <span className="font-normal text-muted-foreground">—</span>}
+                        </td>
+                      )
+                    })}
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -149,6 +173,17 @@ export default function DetailingPricesPage() {
         )}
       </StoreSection>
       <p className="text-xs text-muted-foreground">Правка прайса не меняет уже записанные и выданные машины: у записи своя цена на момент записи.</p>
+
+      {editing ? (
+        <ServiceModal
+          key={editing}
+          service={editing === 'new' ? null : data.services.find((x) => x.id === editing) || null}
+          classes={classes}
+          onClose={() => setEditing(null)}
+          onSave={(body) => call({ action: 'service.save', ...(editing === 'new' ? {} : { id: editing }), ...body }, editing === 'new' ? 'Услуга добавлена' : 'Услуга сохранена')}
+          onDelete={editing === 'new' ? undefined : () => call({ action: 'service.delete', id: editing }, 'Услуга удалена')}
+        />
+      ) : null}
     </div>
   )
 }
@@ -205,106 +240,111 @@ function ListRow(props: {
       <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9 flex-1 min-w-[120px]" aria-label="Название" />
       {props.withNote ? <Input value={note} onChange={(e) => setNote(e.target.value)} className="h-9 flex-1 min-w-[120px]" aria-label="Подпись" /> : null}
       {dirty ? <Button size="sm" onClick={() => props.onSave({ id: props.item.id, name, note })}>Сохранить</Button> : null}
-      <Button size="icon-sm" variant="ghost" aria-label="Удалить" onClick={() => props.onDelete(props.item.id)}><Trash2 className="h-4 w-4" /></Button>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        aria-label={`Удалить: ${props.item.name}`}
+        onClick={async () => {
+          // Корзина стоит рядом с полем — без вопроса её легко задеть.
+          const ok = await confirmDialog({ title: `Удалить «${props.item.name}»?`, description: 'Если по нему уже есть записи, он не удалится, а скроется.', confirmLabel: 'Удалить', destructive: true })
+          if (ok) await props.onDelete(props.item.id)
+        }}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   )
 }
 
-function ServiceRow(props: {
-  service: Service
+/* ── Услуга: правка в окне ────────────────────────────────────────────── */
+
+function ServiceModal(props: {
+  service: Service | null
   classes: BodyClass[]
+  onClose: () => void
   onSave: (body: Record<string, unknown>) => Promise<boolean>
-  onDelete: () => Promise<boolean>
+  onDelete?: () => Promise<boolean>
 }) {
   const s = props.service
-  const initial = () => ({
-    name: s.name,
-    package_note: s.package_note || '',
-    days: String(s.days),
-    prices: Object.fromEntries(
+  const [name, setName] = useState(s?.name || '')
+  const [note, setNote] = useState(s?.package_note || '')
+  const [days, setDays] = useState(String(s?.days || 1))
+  const [prices, setPrices] = useState<Record<string, { price: string; materials: string }>>(() =>
+    Object.fromEntries(
       props.classes.map((c) => {
-        const p = s.prices.find((x) => x.body_class_id === c.id)
-        return [c.id, { price: p ? String(Math.round(p.price)) : '', materials: p ? String(Math.round(p.materials)) : '' }]
+        const p = s?.prices.find((x) => x.body_class_id === c.id)
+        return [c.id, { price: p ? String(Math.round(p.price)) : '', materials: p && p.materials ? String(Math.round(p.materials)) : '' }]
       }),
-    ) as Record<string, { price: string; materials: string }>,
-  })
-  const [form, setForm] = useState(initial)
+    ),
+  )
   const [saving, setSaving] = useState(false)
-  useEffect(() => setForm(initial()), [s, props.classes]) // eslint-disable-line react-hooks/exhaustive-deps
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial())
-  const num = (v: string) => v.replace(/[^\d]/g, '')
+  const num = (v: string) => v.replace(/[^\d]/g, '').slice(0, 9)
+  const shown = (v: string) => (v ? Number(v).toLocaleString('ru-RU') : '')
+  const set = (classId: string, key: 'price' | 'materials', value: string) => setPrices({ ...prices, [classId]: { ...prices[classId], [key]: num(value) } })
+  const tooMuch = props.classes.find((c) => Number(prices[c.id]?.materials || 0) > Number(prices[c.id]?.price || 0))
+  const ready = name.trim().length >= 2 && props.classes.some((c) => prices[c.id]?.price) && !tooMuch
+
+  const save = async () => {
+    setSaving(true)
+    const ok = await props.onSave({
+      name,
+      package_note: note,
+      days: Number(days) || 1,
+      prices: props.classes
+        .filter((c) => prices[c.id]?.price)
+        .map((c) => ({ body_class_id: c.id, price: Number(prices[c.id].price), materials: Number(prices[c.id].materials || 0) })),
+    })
+    setSaving(false)
+    if (ok) props.onClose()
+  }
 
   return (
-    <tr className="border-b border-border align-top last:border-0">
-      <td className="px-4 py-2">
-        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-8 font-medium" aria-label="Название услуги" />
-        <Input value={form.package_note} onChange={(e) => setForm({ ...form, package_note: e.target.value })} placeholder="что входит (необязательно)" className="mt-1 h-7 text-xs" aria-label="Что входит" />
-      </td>
-      <td className="px-2 py-2">
-        <Input value={form.days} onChange={(e) => setForm({ ...form, days: num(e.target.value) })} inputMode="numeric" className="h-8 w-14 text-right tabular-nums" aria-label="Дней в боксе" />
-      </td>
-      {props.classes.map((c) => (
-        <td key={c.id} className="px-2 py-2">
-          <Input
-            value={form.prices[c.id]?.price ?? ''}
-            onChange={(e) => setForm({ ...form, prices: { ...form.prices, [c.id]: { ...form.prices[c.id], price: num(e.target.value) } } })}
-            inputMode="numeric"
-            placeholder="цена"
-            className="h-8 w-[110px] text-right tabular-nums"
-            aria-label={`${s.name}, ${c.name}, цена`}
-          />
-          <Input
-            value={form.prices[c.id]?.materials ?? ''}
-            onChange={(e) => setForm({ ...form, prices: { ...form.prices, [c.id]: { ...form.prices[c.id], materials: num(e.target.value) } } })}
-            inputMode="numeric"
-            placeholder="материалы"
-            className="mt-1 h-7 w-[110px] text-right text-xs tabular-nums"
-            aria-label={`${s.name}, ${c.name}, материалы`}
-          />
-        </td>
-      ))}
-      <td className="px-2 py-2">
-        <div className="flex items-center gap-1">
-          {dirty ? (
+    <AppModal
+      open
+      onClose={props.onClose}
+      title={s ? s.name : 'Новая услуга'}
+      description="Цена зависит от кузова. Пустая цена — для этого кузова услугу не делаете."
+      maxWidth="max-w-lg"
+      footer={
+        <div className="flex items-center justify-between gap-2">
+          {props.onDelete ? (
             <Button
-              size="sm"
-              disabled={saving}
+              variant="ghost"
+              className="text-rose-600 hover:text-rose-700"
               onClick={async () => {
-                setSaving(true)
-                await props.onSave({
-                  name: form.name,
-                  package_note: form.package_note,
-                  days: Number(form.days) || 1,
-                  prices: props.classes
-                    .filter((c) => form.prices[c.id]?.price)
-                    .map((c) => ({ body_class_id: c.id, price: Number(form.prices[c.id].price), materials: Number(form.prices[c.id].materials || 0) })),
-                })
-                setSaving(false)
+                if (await props.onDelete!()) props.onClose()
               }}
             >
-              Сохранить
+              <Trash2 className="h-4 w-4" />Удалить
             </Button>
-          ) : null}
-          <Button size="icon-sm" variant="ghost" aria-label="Удалить услугу" onClick={props.onDelete}><Trash2 className="h-4 w-4" /></Button>
+          ) : <span />}
+          <Button disabled={!ready || saving} onClick={save}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Сохранить</Button>
         </div>
-      </td>
-    </tr>
-  )
-}
-
-function AddServiceButton({ onAdd }: { onAdd: (name: string) => Promise<boolean> }) {
-  const [name, setName] = useState('')
-  return (
-    <form
-      className="flex items-center gap-2"
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (name.trim() && (await onAdd(name.trim()))) setName('')
-      }}
+      }
     >
-      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая услуга" className="h-8 w-[170px]" />
-      <Button type="submit" size="sm" variant="outline" disabled={!name.trim()}><Plus className="h-4 w-4" />Добавить</Button>
-    </form>
+      <div className="space-y-4 text-sm">
+        <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
+          <label className="space-y-1.5"><span className="text-muted-foreground">Название</span><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Полировка кузова" autoFocus={!s} maxLength={80} /></label>
+          <label className="space-y-1.5"><span className="text-muted-foreground">Дней в боксе</span><Input value={days} onChange={(e) => setDays(num(e.target.value).slice(0, 2))} inputMode="numeric" className="text-right tabular-nums" /></label>
+        </div>
+        <label className="block space-y-1.5"><span className="text-muted-foreground">Что входит — по желанию</span><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="капот, бампер, фары, зеркала" maxLength={160} /></label>
+
+        <div className="overflow-hidden rounded-xl border border-border">
+          <div className="grid grid-cols-[minmax(0,1fr)_120px_120px] gap-2 border-b border-border bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:bg-white/[0.03]">
+            <span>Кузов</span><span className="text-right">Цена, ₸</span><span className="text-right">Материалы, ₸</span>
+          </div>
+          {props.classes.map((c) => (
+            <div key={c.id} className="grid grid-cols-[minmax(0,1fr)_120px_120px] items-center gap-2 border-b border-border px-3 py-2 last:border-0">
+              <span className="truncate font-medium">{c.name}</span>
+              <Input value={shown(prices[c.id]?.price || '')} onChange={(e) => set(c.id, 'price', e.target.value)} inputMode="numeric" placeholder="—" aria-label={`${c.name}, цена`} className="h-9 text-right tabular-nums" />
+              <Input value={shown(prices[c.id]?.materials || '')} onChange={(e) => set(c.id, 'materials', e.target.value)} inputMode="numeric" placeholder="0" aria-label={`${c.name}, материалы`} className="h-9 text-right tabular-nums" />
+            </div>
+          ))}
+        </div>
+        {tooMuch ? <p className="font-medium text-rose-600">Материалы не могут быть дороже работы: {tooMuch.name}.</p> : null}
+        <p className="text-xs text-muted-foreground">Материалы — сколько уходит плёнки, химии, керамики на эту работу. Они вычитаются перед процентом мастера и в «Деньгах». Клиент их не видит.</p>
+      </div>
+    </AppModal>
   )
 }
 
