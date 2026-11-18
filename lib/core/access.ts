@@ -462,6 +462,8 @@ export const ACCESS_PAGE_GROUPS: readonly AccessPageGroup[] = [
       { path: '/detailing', label: 'Запись · неделя' },
       { path: '/detailing/clients', label: 'Клиенты и машины' },
       { path: '/detailing/prices', label: 'Прайс и боксы' },
+      { path: '/detailing/money', label: 'Деньги' },
+      { path: '/detailing/masters', label: 'Мастера' },
     ],
   },
   {

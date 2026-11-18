@@ -7,6 +7,7 @@ import {
   isMissingDetailingTable,
   json,
 } from '@/lib/server/detailing'
+import { loadMasterPay, loadPayoutExpenseIds } from '@/lib/server/detailing-masters'
 
 /**
  * Деньги детейлинга за период: для дашборда, «Доходов» и «Расходов» ниши.
@@ -14,13 +15,16 @@ import {
  * Доход — оплаты за машины (detailing_payments) плюс ручные строки журнала
  * доходов этих точек. Расход — общий журнал расходов. Долги клиентов —
  * выданные машины, оплаченные не полностью, за всё время.
+ * Мастерам — начислено за месяц, с которого начинается период (оклад, бонус,
+ * процент); выплаты мастерам в расходах помечены payout, чтобы не посчитать
+ * их дважды.
  * Точка: company_id или все детейлинги, доступные сотруднику.
  */
 
 const BOOKING_FIELDS =
   'id, company_id, box_id, start_date, days, status, price_total, materials_total, master_operator_id, ' +
   'customer:customers(id, name, phone), car:customer_cars(plate, model), ' +
-  'services:detailing_booking_services(name, price, sort_order), payments:detailing_payments(amount)'
+  'services:detailing_booking_services(name, price, materials, sort_order), payments:detailing_payments(amount)'
 
 function paidOf(b: any) {
   return ((b.payments || []) as any[]).reduce((s, p) => s + Number(p.amount || 0), 0)
@@ -40,7 +44,7 @@ function shape(b: any) {
     master_operator_id: b.master_operator_id,
     customer: b.customer,
     car: b.car,
-    services: ((b.services || []) as any[]).sort((x, y) => x.sort_order - y.sort_order).map((s) => ({ name: s.name, price: Number(s.price || 0) })),
+    services: ((b.services || []) as any[]).sort((x, y) => x.sort_order - y.sort_order).map((s) => ({ name: s.name, price: Number(s.price || 0), materials: Number(s.materials || 0) })),
     paid,
     due: Math.max(0, Number(b.price_total || 0) - paid),
   }
@@ -143,8 +147,14 @@ export async function GET(request: Request) {
       card: Number(r.card_amount || 0),
     }))
 
+    const [masterPay, payoutIds] = await Promise.all([
+      loadMasterPay(ctx.supabase, { companyIds: ids, month: `${from.slice(0, 7)}-01`, tolerant: true }),
+      loadPayoutExpenseIds(ctx.supabase, { companyIds: ids, from, to }),
+    ])
+
     const expenses = ((expRes.data || []) as any[]).map((e) => ({
       id: e.id,
+      payout: payoutIds.has(String(e.id)),
       date: e.date,
       category: e.category || 'Без категории',
       comment: e.comment,
@@ -201,6 +211,13 @@ export async function GET(request: Request) {
         load: { boxDaysBusy, boxDaysTotal: boxes.length * periodDays, boxes: boxes.length },
         debts,
         live,
+        masters: {
+          month: `${from.slice(0, 7)}-01`,
+          accrued: masterPay.masters.reduce((s, m) => s + m.accrued, 0),
+          paid: masterPay.masters.reduce((s, m) => s + m.paid, 0),
+          due: masterPay.masters.reduce((s, m) => s + m.due, 0),
+          count: masterPay.masters.length,
+        },
       },
     })
   } catch (error: any) {

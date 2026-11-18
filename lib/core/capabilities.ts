@@ -663,6 +663,21 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
         label: 'Прайс и боксы',
         capabilities: crud('detailing-prices'),
       },
+      {
+        id: 'detailing-money',
+        path: '/detailing/money',
+        label: 'Деньги',
+        capabilities: [{ id: 'detailing-money.view', label: 'Видеть, сколько заработали', severity: 'medium' }],
+      },
+      {
+        id: 'detailing-masters',
+        path: '/detailing/masters',
+        label: 'Мастера',
+        capabilities: [
+          ...crud('detailing-masters'),
+          { id: 'detailing-masters.pay', label: 'Выплатить мастеру', severity: 'high' },
+        ],
+      },
     ],
   },
   {

@@ -11,6 +11,7 @@ import { resolveOrgEntitlements } from '@/lib/server/entitlements'
 import { getPathFeature } from '@/lib/nav/sections'
 import { fetchLinkedCustomersForUser } from '@/lib/server/linked-customers'
 import { ensureRoleMatrixHydrated } from '@/lib/server/role-hydration'
+import { resolveHostNiche } from '@/lib/server/tenant-hosts'
 
 const AUTH_SELF_SERVICE_PATHS = [
   '/forgot-password',
@@ -119,6 +120,15 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!user) {
+    // На адресе ниши (детейлинг) лендинга Orda нет: человек пришёл в свою
+    // программу, поэтому с главной сразу ведём на её вход.
+    if (isTenantHost && url.pathname === '/') {
+      const hostNiche = await resolveHostNiche(request.headers.get('host')).catch(() => null)
+      if (hostNiche?.niche) {
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+      }
+    }
     if (isPublicPath(url.pathname)) {
       return response
     }

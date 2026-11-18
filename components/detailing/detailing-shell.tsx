@@ -10,29 +10,30 @@ import {
   LogOut,
   Menu,
   Plus,
-  Receipt,
-  Settings,
   Tag,
   Wallet,
+  Wrench,
   X,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { useCapabilities } from '@/lib/client/use-capabilities'
 import { useNavSession } from '@/lib/nav/use-nav-session'
 
-type Item = { href: string; label: string; icon: typeof House; exact?: boolean }
+type Item = { href: string; label: string; icon: typeof House; exact?: boolean; cap: string; also?: string[] }
 
 /**
  * Меню программы детейлинга. Адреса общие с Orda (/dashboard, /income…),
  * но на этих адресах у ниши свои экраны (NicheSwitch в страницах).
  */
+// Только свои экраны: ни один пункт не ведёт в клубные разделы Orda.
+// cap — право на просмотр; без него пункта в меню нет (администратор не видит «Деньги»).
 const NAV: Item[] = [
-  { href: '/dashboard', label: 'Сегодня', icon: House },
-  { href: '/detailing', label: 'Запись', icon: CalendarDays, exact: true },
-  { href: '/detailing/clients', label: 'Клиенты', icon: CarFront },
-  { href: '/income', label: 'Доходы', icon: Wallet },
-  { href: '/expenses', label: 'Расходы', icon: Receipt },
-  { href: '/detailing/prices', label: 'Прайс', icon: Tag },
-  { href: '/settings', label: 'Настройки', icon: Settings },
+  { href: '/dashboard', label: 'Сегодня', icon: House, cap: 'detailing-bookings.view' },
+  { href: '/detailing', label: 'Запись', icon: CalendarDays, exact: true, cap: 'detailing-bookings.view' },
+  { href: '/detailing/clients', label: 'Клиенты', icon: CarFront, cap: 'detailing-clients.view' },
+  { href: '/detailing/money', label: 'Деньги', icon: Wallet, cap: 'detailing-money.view', also: ['/income', '/expenses'] },
+  { href: '/detailing/masters', label: 'Мастера', icon: Wrench, cap: 'detailing-masters.view' },
+  { href: '/detailing/prices', label: 'Прайс', icon: Tag, cap: 'detailing-prices.view' },
 ]
 
 /**
@@ -42,6 +43,7 @@ const NAV: Item[] = [
 export function DetailingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const session = useNavSession()
+  const { can, isLoading: capsLoading } = useCapabilities()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => { setMobileOpen(false) }, [pathname])
@@ -54,8 +56,11 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
     .slice(0, 2)
     .toUpperCase()
 
-  const isActive = (item: Item) =>
-    item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/')
+  const under = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const isActive = (item: Item) => (item.exact ? pathname === item.href : under(item.href)) || !!item.also?.some(under)
+  // Пока права грузятся — показываем всё, чтобы меню не прыгало; сервер всё равно не пустит.
+  const nav = NAV.filter((item) => capsLoading || can(item.cap))
+  const canBook = capsLoading || can('detailing-bookings.create')
 
   const menu = (
     <div className="flex h-full flex-col gap-5 px-3.5 py-5">
@@ -69,15 +74,17 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
         </span>
       </Link>
 
-      <Link
-        href="/detailing?new=1"
-        className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-500"
-      >
-        <Plus className="h-4 w-4" /> Записать машину
-      </Link>
+      {canBook ? (
+        <Link
+          href="/detailing?new=1"
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-500"
+        >
+          <Plus className="h-4 w-4" /> Записать машину
+        </Link>
+      ) : null}
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active = isActive(item)
           const Icon = item.icon
           return (

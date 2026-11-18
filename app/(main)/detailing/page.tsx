@@ -449,7 +449,7 @@ function NewBookingModal(props: {
           </label>
         </div>
         {!data.masters.length ? (
-          <p className="text-xs text-muted-foreground">Мастеров пока нет: добавьте сотрудников и назначьте их на эту точку в разделе «Операторы».</p>
+          <p className="text-xs text-muted-foreground">Мастеров пока нет: добавьте их в разделе «Мастера» — достаточно имени.</p>
         ) : null}
 
         <label className="block space-y-1 text-sm"><span className="text-muted-foreground">Комментарий</span><Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Скол на капоте, клиент привезёт к 10:00" /></label>

@@ -11,27 +11,26 @@
 import Link from 'next/link'
 import { useMemo, useState, type ReactNode } from 'react'
 import {
-  AlertTriangle,
+  ArrowDownToLine,
   ArrowRight,
-  CalendarDays,
+  ArrowUpFromLine,
   CarFront,
-  Clock,
-  LayoutDashboard,
   Plus,
   TrendingDown,
   TrendingUp,
-  Wallet,
 } from 'lucide-react'
 
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/skeleton'
-import { StoreEmpty, StoreSection, StoreStat, StoreStatGrid, storeCard } from '@/components/store/store-ui'
+import { StoreEmpty, StoreSection, StoreStat, StoreStatGrid, plural, storeCard } from '@/components/store/store-ui'
 import { useApiCache } from '@/lib/client/use-api-cache'
+import { useCapabilities } from '@/lib/client/use-capabilities'
 import { formatPhone } from '@/lib/core/format'
 import { GarageToday } from '@/components/detailing/garage-today'
-import { type DetailingCompany, Plate, dayLabel, isoLocal, money, shiftIso } from '@/components/detailing/detailing-shared'
+import { ExpenseModal, TakePaymentModal } from '@/components/detailing/detailing-actions'
+import { type DetailingCompany, Plate, dayLabel, isoLocal, money, shiftIso, useDetailingCompanyId } from '@/components/detailing/detailing-shared'
 
 /* ── Ниша организации ─────────────────────────────────────────────────── */
 
@@ -46,7 +45,7 @@ export function useOrgNiche(): { niche: 'detailing' | null; ready: boolean } {
 /* ── Данные ──────────────────────────────────────────────────────────── */
 
 type Method = 'cash' | 'kaspi' | 'card'
-type MoneyBooking = {
+export type MoneyBooking = {
   id: string
   company_id: string
   start_date: string
@@ -56,12 +55,12 @@ type MoneyBooking = {
   materials_total: number
   customer: { id: string; name: string; phone: string | null } | null
   car: { plate: string; model: string | null } | null
-  services: Array<{ name: string; price: number }>
+  services: Array<{ name: string; price: number; materials?: number }>
   paid: number
   due: number
   master?: string | null
 }
-type MoneyData = {
+export type MoneyData = {
   companies: DetailingCompany[]
   empty?: boolean
   from: string
@@ -69,18 +68,19 @@ type MoneyData = {
   today: string
   payments: Array<{ id: string; paid_on: string; amount: number; method: Method; kind: 'prepayment' | 'payment'; booking: MoneyBooking | null }>
   otherIncome: Array<{ id: string; date: string; comment: string | null; cash: number; kaspi: number; card: number }>
-  expenses: Array<{ id: string; date: string; category: string; comment: string | null; cash: number; cashless: number; amount: number }>
+  expenses: Array<{ id: string; date: string; category: string; comment: string | null; cash: number; cashless: number; amount: number; payout?: boolean }>
   bookings: MoneyBooking[]
   materialsUsed: number
   load: { boxDaysBusy: number; boxDaysTotal: number; boxes: number }
   debts: MoneyBooking[]
+  masters?: { month: string; accrued: number; paid: number; due: number; count: number }
   live: Record<'inBox' | 'arriving' | 'handOver' | 'overdue' | 'requests' | 'upcoming', MoneyBooking[]>
 }
 
-const METHOD_LABEL: Record<Method, string> = { cash: 'Наличные', kaspi: 'Kaspi', card: 'Карта' }
+export const METHOD_LABEL: Record<Method, string> = { cash: 'Наличные', kaspi: 'Kaspi', card: 'Карта' }
 const METHOD_COLOR: Record<Method, string> = { cash: 'bg-orange-400', kaspi: 'bg-blue-600', card: 'bg-violet-500' }
 
-type Period = 'week' | 'month' | 'prev'
+export type Period = 'week' | 'month' | 'prev'
 
 function periodRange(p: Period) {
   const now = new Date()
@@ -97,7 +97,7 @@ function periodRange(p: Period) {
   return { from: `${today.slice(0, 7)}-01`, to: today, label: 'этот месяц' }
 }
 
-function useMoney(period: Period, companyId: string) {
+export function useMoney(period: Period, companyId: string) {
   const range = periodRange(period)
   const params = new URLSearchParams({ from: range.from, to: range.to, today: isoLocal(new Date()) })
   if (companyId) params.set('company_id', companyId)
@@ -105,7 +105,7 @@ function useMoney(period: Period, companyId: string) {
   return { ...res, range }
 }
 
-function PeriodTabs(props: { value: Period; onChange: (p: Period) => void; companies?: DetailingCompany[]; companyId: string; onCompany: (id: string) => void }) {
+export function PeriodTabs(props: { value: Period; onChange: (p: Period) => void; companies?: DetailingCompany[]; companyId: string; onCompany: (id: string) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {(['week', 'month', 'prev'] as Period[]).map((p) => (
@@ -123,7 +123,7 @@ function PeriodTabs(props: { value: Period; onChange: (p: Period) => void; compa
   )
 }
 
-function Loading({ header }: { header: ReactNode }) {
+export function Loading({ header }: { header: ReactNode }) {
   return (
     <div className="space-y-4">
       {header}
@@ -133,14 +133,14 @@ function Loading({ header }: { header: ReactNode }) {
   )
 }
 
-function Failed({ header, error }: { header: ReactNode; error: string }) {
+export function Failed({ header, error }: { header: ReactNode; error: string }) {
   return <div className="space-y-4">{header}<div className={`${storeCard} p-6 text-sm text-rose-600`}>{error}</div></div>
 }
 
-const carTitle = (b: MoneyBooking | null) => (b ? b.car?.model || b.customer?.name || 'Машина' : 'Машина')
-const shortDate = (iso: string) => `${dayLabel(iso).day} ${dayLabel(iso).month.slice(0, 3)}`
+export const carTitle = (b: MoneyBooking | null) => (b ? b.car?.model || b.customer?.name || 'Машина' : 'Машина')
+export const shortDate = (iso: string) => `${dayLabel(iso).day} ${dayLabel(iso).month.slice(0, 3)}`
 
-function totals(d: MoneyData) {
+export function totals(d: MoneyData) {
   const by: Record<Method, number> = { cash: 0, kaspi: 0, card: 0 }
   for (const p of d.payments) by[p.method] += p.amount
   for (const r of d.otherIncome) {
@@ -158,7 +158,26 @@ function totals(d: MoneyData) {
   return { by, income, prepay, expense, debt, jobs, avg, load, profit: income - expense }
 }
 
-function BookingLine({ b, right }: { b: MoneyBooking; right?: ReactNode }) {
+/**
+ * Сколько осталось владельцу за период — одна формула для «Сегодня» и «Денег»:
+ * клиенты заплатили − материалы в работах − начислено мастерам − прочие расходы.
+ *
+ * Закуп материалов (статьи «Химия», «Плёнка», «Материалы») из прочих расходов
+ * вынут: материалы уже посчитаны по работам, дважды их не вычитаем. Выплаты
+ * мастерам тоже вынуты — вместо них стоит начисленное.
+ */
+export const isMaterialsCategory = (c: string) => /материал|пл[её]нк|хими|керамик|расходник/i.test(c)
+
+export function earned(d: MoneyData) {
+  const t = totals(d)
+  const materials = d.materialsUsed
+  const masters = d.masters?.accrued || 0
+  const other = d.expenses.filter((e) => !e.payout && !isMaterialsCategory(e.category)).reduce((s, e) => s + e.amount, 0)
+  const bought = d.expenses.filter((e) => isMaterialsCategory(e.category)).reduce((s, e) => s + e.amount, 0)
+  return { income: t.income, materials, masters, other, bought, left: t.income - materials - masters - other }
+}
+
+export function BookingLine({ b, right }: { b: MoneyBooking; right?: ReactNode }) {
   return (
     <Link href="/detailing" className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.03]">
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-white/5"><CarFront className="h-4 w-4" /></span>
@@ -171,104 +190,139 @@ function BookingLine({ b, right }: { b: MoneyBooking; right?: ReactNode }) {
   )
 }
 
-/* ── Дашборд ──────────────────────────────────────────────────────────── */
+/* ── Сегодня ──────────────────────────────────────────────────────────── */
+
+const WEEKDAY_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
+
+function ActionTile(props: { onClick?: () => void; href?: string; icon: ReactNode; chip: string; title: string; hint: string }) {
+  const cls = `${storeCard} flex min-h-[112px] flex-col gap-1.5 p-4 text-left transition hover:border-blue-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`
+  const body = (
+    <>
+      <span className={`grid h-10 w-10 place-items-center rounded-xl ${props.chip}`}>{props.icon}</span>
+      <b className="text-base font-extrabold">{props.title}</b>
+      <span className="text-[12.5px] text-muted-foreground">{props.hint}</span>
+    </>
+  )
+  return props.href ? <Link href={props.href} className={cls}>{body}</Link> : <button type="button" onClick={props.onClick} className={cls}>{body}</button>
+}
 
 export function DetailingDashboard() {
-  const [period, setPeriod] = useState<Period>('month')
-  const [companyId, setCompanyId] = useState('')
-  const { data, loading, error, range } = useMoney(period, companyId)
+  const { can } = useCapabilities()
+  const [companyId] = useDetailingCompanyId()
+  const { data, loading, error, refresh } = useMoney('month', '')
+  const [modal, setModal] = useState<'pay' | 'spend' | null>(null)
+  const [version, setVersion] = useState(0)
 
-  const header = (
-    <AdminPageHeader
-      title="Сегодня"
-      description={`Детейлинг · ${range.label}`}
-      icon={<LayoutDashboard className="h-5 w-5" />}
-      backHref="/detailing"
-      actions={<Link href="/detailing" className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><CalendarDays className="h-4 w-4" />Запись · неделя</Link>}
-      toolbar={<PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />}
-    />
+  const now = new Date()
+  const title = (
+    <header>
+      <h1 className="font-[family-name:var(--font-manrope)] text-[26px] font-extrabold leading-tight text-[#0b1f3b] dark:text-white">Сегодня</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {WEEKDAY_FULL[now.getDay()]}, {dayLabel(isoLocal(now)).day} {dayLabel(isoLocal(now)).month}
+      </p>
+    </header>
   )
-  if (loading && !data) return <Loading header={header} />
-  if (error && !data) return <Failed header={header} error={error} />
-  if (!data || data.empty) return <div className="space-y-4">{header}<div className={storeCard}><StoreEmpty title="Нет точки-детейлинга" hint="Выберите у точки нишу «Детейлинг» в настройках." /></div></div>
+  if (loading && !data) return <Loading header={title} />
+  if (error && !data) return <Failed header={title} error={error} />
+  if (!data || data.empty) return <div className="space-y-4">{title}<div className={storeCard}><StoreEmpty title="Детейлинг ещё не настроен" hint="Обновите страницу через минуту. Если не помогло — напишите в поддержку." /></div></div>
 
   const t = totals(data)
-  const { live } = data
-  const attention = [
-    live.overdue.length ? { tone: 'rose', text: `${live.overdue.length} машин${live.overdue.length === 1 ? 'а' : 'ы'} стоят дольше записи — проверьте, выданы ли` } : null,
-    live.requests.length ? { tone: 'amber', text: `${live.requests.length} заявк${live.requests.length === 1 ? 'а' : 'и'} с сайта ждут подтверждения` } : null,
-    t.debt > 0 ? { tone: 'rose', text: `Клиенты должны ${money(t.debt)} за выданные машины` } : null,
-  ].filter(Boolean) as Array<{ tone: string; text: string }>
+  const { live, today } = data
+  const seeMoney = can('detailing-money.view')
+  const canBook = can('detailing-bookings.create')
+  const canPay = can('detailing-bookings.take_payment')
+  const canSpend = can('expenses.create')
 
-  // Выручка по дням периода — столбики.
-  const days: string[] = []
-  for (let d = data.from; d <= data.to && days.length < 62; d = shiftIso(d, 1)) days.push(d)
-  const perDay = new Map<string, number>()
-  for (const p of data.payments) perDay.set(p.paid_on, (perDay.get(p.paid_on) || 0) + p.amount)
-  for (const r of data.otherIncome) perDay.set(r.date, (perDay.get(r.date) || 0) + r.cash + r.kaspi + r.card)
-  const maxDay = Math.max(1, ...days.map((d) => perDay.get(d) || 0))
+  // Сегодняшние деньги: оплаты за машины, прочие доходы и расходы — одной лентой.
+  const feed = [
+    ...data.payments.filter((p) => p.paid_on === today).map((p) => ({ key: `p${p.id}`, in: true, what: `${carTitle(p.booking)} — ${p.kind === 'prepayment' ? 'предоплата' : 'оплата'}`, how: METHOD_LABEL[p.method], amount: p.amount })),
+    ...data.otherIncome.filter((r) => r.date === today).map((r) => ({ key: `i${r.id}`, in: true, what: r.comment || 'Прочий доход', how: '', amount: r.cash + r.kaspi + r.card })),
+    ...data.expenses.filter((e) => e.date === today).map((e) => ({ key: `e${e.id}`, in: false, what: e.comment ? `${e.category}: ${e.comment}` : e.category, how: e.cash > 0 ? 'наличные' : 'безнал', amount: e.amount })),
+  ]
+  const spends = feed.filter((f) => !f.in)
+  const cameIn = feed.filter((f) => f.in).reduce((s, f) => s + f.amount, 0)
+  const wentOut = spends.reduce((s, f) => s + f.amount, 0)
+  const cashIn =
+    data.payments.filter((p) => p.paid_on === today && p.method === 'cash').reduce((s, p) => s + p.amount, 0) +
+    data.otherIncome.filter((r) => r.date === today).reduce((s, r) => s + r.cash, 0)
+  // «Осталось вам» за месяц — та же формула, что на странице «Деньги».
+  const month = earned(data)
+
+  // Кто может заплатить: стоит в боксе, записан, или уехал с долгом.
+  const payable = new Map<string, MoneyBooking>()
+  for (const b of [...live.inBox, ...live.arriving, ...live.upcoming, ...data.debts]) if (b.due > 0) payable.set(b.id, b)
+
+  const done = async () => {
+    setModal(null)
+    setVersion((v) => v + 1)
+    await refresh()
+  }
+
+  const strip = [
+    { label: 'Пришло сегодня', value: money(cameIn), hint: cameIn ? `наличные ${money(cashIn)} · безнал ${money(cameIn - cashIn)}` : 'оплат пока не было', tone: '' },
+    { label: 'Ушло сегодня', value: money(wentOut), hint: wentOut ? `${spends.length} ${plural(spends.length, ['расход', 'расхода', 'расходов'])}` : 'расходов не было', tone: '' },
+    seeMoney
+      ? { label: 'Осталось за день', value: money(cameIn - wentOut), hint: `за месяц вам осталось ${money(month.left)}`, tone: cameIn - wentOut < 0 ? 'text-rose-300' : 'text-emerald-300' }
+      : { label: 'Машин сегодня', value: `${live.inBox.length + live.arriving.length}`, hint: `выдать ${live.handOver.length} · приедет ${live.arriving.length}`, tone: '' },
+    { label: 'Ещё должны', value: money(t.debt), hint: t.debt ? `${data.debts.length} ${plural(data.debts.length, ['машина выдана', 'машины выданы', 'машин выдано'])} в долг` : 'долгов нет', tone: t.debt ? 'text-rose-300' : '' },
+  ]
+
+  const calm = !(live.overdue.length || live.requests.length || live.handOver.length || data.debts.length || live.upcoming.length)
 
   return (
     <div className="space-y-4">
-      {header}
+      {title}
 
-      <GarageToday />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {canBook ? <ActionTile href="/detailing?new=1" icon={<Plus className="h-5 w-5" />} chip="bg-blue-600 text-white" title="Записать машину" hint="Телефон, номер, услуга — и всё" /> : null}
+        {canPay ? <ActionTile onClick={() => setModal('pay')} icon={<ArrowDownToLine className="h-5 w-5" />} chip="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" title="Принять деньги" hint="Выберите машину — сумма подставится" /> : null}
+        {canSpend ? <ActionTile onClick={() => setModal('spend')} icon={<ArrowUpFromLine className="h-5 w-5" />} chip="bg-rose-500/15 text-rose-700 dark:text-rose-300" title="Записать расход" hint="Сумма и на что. Больше ничего" /> : null}
+      </div>
 
-      <StoreStatGrid cols={4}>
-        <StoreStat label="В боксах сейчас" value={`${live.inBox.length}`} hint={`из ${data.load.boxes} боксов`} icon={<CarFront className="h-4 w-4" />} tone="sky" />
-        <StoreStat label="Приедут сегодня" value={`${live.arriving.length}`} hint={live.handOver.length ? `выдать сегодня: ${live.handOver.length}` : 'выдач сегодня нет'} icon={<Clock className="h-4 w-4" />} />
-        <StoreStat label="Принято денег" value={money(t.income)} hint={`прибыль ${money(t.profit)} после расходов`} icon={<TrendingUp className="h-4 w-4" />} tone="emerald" href="/income" />
-        <StoreStat label="Загрузка боксов" value={`${t.load}%`} hint={`${data.load.boxDaysBusy} из ${data.load.boxDaysTotal} бокс-дней`} icon={<CalendarDays className="h-4 w-4" />} />
-      </StoreStatGrid>
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10 lg:grid-cols-4">
+        {strip.map((s) => (
+          <div key={s.label} className="bg-[#0b1f3b] px-4 py-4 text-white dark:bg-[#030b18]">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{s.label}</div>
+            <div className={`mt-0.5 font-[family-name:var(--font-manrope)] text-2xl font-extrabold tabular-nums ${s.tone}`}>{s.value}</div>
+            <div className="truncate text-xs text-slate-400">{s.hint}</div>
+          </div>
+        ))}
+      </div>
 
-      {attention.length ? (
-        <div className={`${storeCard} divide-y divide-border`}>
-          {attention.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-              <AlertTriangle className={`h-4 w-4 shrink-0 ${a.tone === 'rose' ? 'text-rose-500' : 'text-orange-500'}`} />
-              {a.text}
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <GarageToday key={version} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <StoreSection title="Сейчас в боксах" subtitle={live.inBox.length ? 'нажмите, чтобы открыть неделю' : undefined} flush>
-          {live.inBox.length ? (
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <StoreSection title="На что обратить внимание" flush action={<Link href="/detailing" className="text-xs font-medium text-blue-600 hover:underline">Вся неделя</Link>}>
+          {calm ? <StoreEmpty title="Всё спокойно" hint="Выдавать сегодня некого, долгов и заявок нет." /> : (
             <div className="divide-y divide-border">
-              {live.inBox.map((b) => <BookingLine key={b.id} b={b} right={b.due > 0 ? <span className="text-muted-foreground">осталось {money(b.due)}</span> : <span className="text-emerald-600">оплачено</span>} />)}
+              {live.overdue.map((b) => <BookingLine key={`o${b.id}`} b={b} right={<span className="font-medium text-rose-600">стоит дольше записи</span>} />)}
+              {live.requests.map((b) => <BookingLine key={`r${b.id}`} b={b} right={<span className="font-medium text-blue-600">заявка — подтвердить</span>} />)}
+              {live.handOver.map((b) => <BookingLine key={`h${b.id}`} b={b} right={b.due > 0 ? <span>выдать, взять <b className="text-rose-600">{money(b.due)}</b></span> : <span className="text-emerald-600">выдать, оплачено</span>} />)}
+              {data.debts.slice(0, 5).map((b) => <BookingLine key={`d${b.id}`} b={b} right={<span>должен <b className="text-rose-600">{money(b.due)}</b></span>} />)}
+              {live.upcoming.slice(0, 4).map((b) => <BookingLine key={`u${b.id}`} b={b} right={<span className="text-muted-foreground">{shortDate(b.start_date)}</span>} />)}
             </div>
-          ) : <StoreEmpty title="Боксы свободны" hint="Машины появятся здесь, когда их отметят «В боксе»." />}
+          )}
         </StoreSection>
-        <StoreSection title="Ближайшие записи" flush action={<Link href="/detailing" className="text-xs font-medium text-blue-600 hover:underline">Вся неделя</Link>}>
-          {[...live.arriving, ...live.upcoming].length ? (
+
+        <StoreSection title="Деньги за сегодня" subtitle="всё, что записали" flush>
+          {feed.length ? (
             <div className="divide-y divide-border">
-              {[...live.arriving, ...live.upcoming].slice(0, 8).map((b) => <BookingLine key={b.id} b={b} right={<span className="text-muted-foreground">{b.start_date === data.today ? 'сегодня' : shortDate(b.start_date)}</span>} />)}
+              {feed.map((f) => (
+                <div key={f.key} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{f.what}</span>
+                    {f.how ? <span className="block text-[11px] text-muted-foreground">{f.how}</span> : null}
+                  </span>
+                  <b className={`shrink-0 tabular-nums ${f.in ? 'text-emerald-600' : 'text-rose-600'}`}>{f.in ? '+' : '−'}{money(f.amount)}</b>
+                </div>
+              ))}
             </div>
-          ) : <StoreEmpty title="Записей нет" hint="Запишите машину на неделе." />}
+          ) : <StoreEmpty title="Сегодня денег ещё не было" hint="Оплата и расход появятся здесь сразу, как их запишут." />}
         </StoreSection>
       </div>
 
-      <StoreSection title="Выручка по дням" subtitle={`${money(t.income)} за ${range.label}`}>
-        <div className="flex h-36 items-end gap-[3px]">
-          {days.map((d) => {
-            const v = perDay.get(d) || 0
-            return (
-              <div key={d} className="group relative flex h-full min-w-0 flex-1 flex-col justify-end">
-                <div className={`rounded-t ${d === data.today ? 'bg-blue-600' : 'bg-blue-500/40'} ${v ? '' : 'opacity-30'}`} style={{ height: `${Math.max(v ? 4 : 2, (v / maxDay) * 100)}%` }} />
-                <span className="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[10px] text-white group-hover:block">{shortDate(d)}: {money(v)}</span>
-              </div>
-            )
-          })}
-        </div>
-        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>{shortDate(data.from)}</span><span>{shortDate(data.to)}</span></div>
-      </StoreSection>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <StoreStat label="Расходы" value={money(t.expense)} hint={`материалы в работах: ${money(data.materialsUsed)}`} icon={<TrendingDown className="h-4 w-4" />} tone="rose" href="/expenses" />
-        <StoreStat label="Должны клиенты" value={money(t.debt)} hint={`${data.debts.length} выданных машин без полной оплаты`} icon={<Wallet className="h-4 w-4" />} tone={t.debt > 0 ? 'rose' : 'neutral'} href="/income" />
-        <StoreStat label="Средний чек" value={money(t.avg)} hint={`${t.jobs.length} машин в работе и выдано`} icon={<CarFront className="h-4 w-4" />} />
-      </div>
+      {modal === 'pay' ? <TakePaymentModal cars={[...payable.values()]} onClose={() => setModal(null)} onSaved={done} /> : null}
+      {modal === 'spend' ? <ExpenseModal companyId={companyId || data.companies[0]?.id || ''} onClose={() => setModal(null)} onSaved={done} /> : null}
     </div>
   )
 }
@@ -286,8 +340,7 @@ export function DetailingIncome() {
       title="Доходы"
       description={`Оплаты за машины · ${range.label}`}
       icon={<TrendingUp className="h-5 w-5" />}
-      backHref="/dashboard"
-      actions={<Link href="/income/add" className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:border-slate-400"><Plus className="h-4 w-4" />Прочий доход</Link>}
+      backHref="/detailing/money"
       toolbar={<PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />}
     />
   )
@@ -416,7 +469,9 @@ export function DetailingExpenses() {
   const [period, setPeriod] = useState<Period>('month')
   const [companyId, setCompanyId] = useState('')
   const [category, setCategory] = useState<string>('all')
-  const { data, loading, error, range } = useMoney(period, companyId)
+  const [adding, setAdding] = useState(false)
+  const [savedCompanyId] = useDetailingCompanyId()
+  const { data, loading, error, range, refresh } = useMoney(period, companyId)
 
   const header = (
     <AdminPageHeader
@@ -424,8 +479,8 @@ export function DetailingExpenses() {
       description={`Детейлинг · ${range.label}`}
       icon={<TrendingDown className="h-5 w-5" />}
       accent="amber"
-      backHref="/dashboard"
-      actions={<Link href="/expenses/add" className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Расход</Link>}
+      backHref="/detailing/money"
+      actions={<Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Расход</Button>}
       toolbar={<PeriodTabs value={period} onChange={setPeriod} companies={data?.companies} companyId={companyId} onCompany={setCompanyId} />}
     />
   )
@@ -438,9 +493,7 @@ export function DetailingExpenses() {
   for (const e of data.expenses) cats.set(e.category, (cats.get(e.category) || 0) + e.amount)
   const catList = [...cats.entries()].sort((a, b) => b[1] - a[1])
   const maxCat = Math.max(1, ...catList.map((c) => c[1]))
-  // Закуп материалов — статьи, где в названии есть «материал», «плёнк», «хими».
-  const isMaterials = (c: string) => /материал|пл[её]нк|хими|керамик|расходник/i.test(c)
-  const bought = data.expenses.filter((e) => isMaterials(e.category)).reduce((s, e) => s + e.amount, 0)
+  const bought = earned(data).bought
   const list = data.expenses.filter((e) => category === 'all' || e.category === category)
 
   return (
@@ -450,7 +503,7 @@ export function DetailingExpenses() {
         <StoreStat label="Расходы" value={money(t.expense)} hint={`${data.expenses.length} записей в журнале`} tone="rose" icon={<TrendingDown className="h-4 w-4" />} />
         <StoreStat label="Материалы ушли в работы" value={money(data.materialsUsed)} hint="по прайсу и правкам в записях" />
         <StoreStat label="Принято денег" value={money(t.income)} hint="оплаты за машины" tone="emerald" href="/income" />
-        <StoreStat label="Прибыль" value={money(t.profit)} hint="принято минус расходы" tone={t.profit < 0 ? 'rose' : 'emerald'} />
+        <StoreStat label="Выплачено мастерам" value={money(data.expenses.filter((e) => e.payout).reduce((s, e) => s + e.amount, 0))} hint="сколько осталось вам — в «Деньгах»" href="/detailing/money" />
       </StoreStatGrid>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -521,11 +574,12 @@ export function DetailingExpenses() {
           <StoreEmpty
             title="Расходов нет"
             hint="Внесите закуп плёнки и химии со статьёй «Материалы», аренду, рекламу."
-            action={<Link href="/expenses/add" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">Добавить расход <ArrowRight className="h-4 w-4" /></Link>}
+            action={<button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">Добавить расход <ArrowRight className="h-4 w-4" /></button>}
           />
         )}
       </StoreSection>
-      <p className="text-xs text-muted-foreground">Зарплата мастеров (оклад, бонус, процент с цены минус материалы) появится здесь отдельной строкой на следующем этапе.</p>
+      <p className="text-xs text-muted-foreground">Выплаты мастерам попадают сюда сами — статьёй «Зарплата», когда вы платите в разделе «Мастера».</p>
+      {adding ? <ExpenseModal companyId={companyId || savedCompanyId || data.companies[0]?.id || ''} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await refresh() }} /> : null}
     </div>
   )
 }

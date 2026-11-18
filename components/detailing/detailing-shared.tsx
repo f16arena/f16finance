@@ -5,7 +5,6 @@
  * запрос к API. Страницы раздела собираются из них и из store-ui.
  */
 
-import Link from 'next/link'
 import { useCallback, useState } from 'react'
 import { CarFront } from 'lucide-react'
 
@@ -119,13 +118,7 @@ export function NoDetailingPoint() {
       <StoreEmpty
         icon={<CarFront className="h-5 w-5" />}
         title="Нет точки-детейлинга"
-        hint="Откройте «Настройки системы», у нужной точки в поле «Чем занимается» выберите «Детейлинг». Или создайте новую точку."
-        action={
-          <div className="flex flex-wrap justify-center gap-2">
-            <Link href="/settings" className="rounded-xl border border-border px-3 py-1.5 text-xs font-medium hover:border-slate-400">Настройки системы</Link>
-            <Link href="/settings/new-point" className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Новая точка</Link>
-          </div>
-        }
+        hint="Обновите страницу через минуту. Если не помогло — напишите в поддержку."
       />
     </div>
   )

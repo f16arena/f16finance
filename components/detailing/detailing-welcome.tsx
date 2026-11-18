@@ -43,7 +43,7 @@ export function DetailingWelcome() {
       done: hasPoint && (data?.masters?.length || 0) > 0,
       doneText: `${data?.masters?.length || 0} мастер(а)`,
       hint: 'кто работает в боксах — их выбирают в записи',
-      href: '/operators',
+      href: '/detailing/masters',
       action: 'Добавить',
     },
     {

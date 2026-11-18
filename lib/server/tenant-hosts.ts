@@ -117,3 +117,41 @@ export async function resolveOrganizationByHost(hostHeader: string | null | unde
   hostCache.set(slug, { value: result, expiresAt: Date.now() + HOST_CACHE_TTL_MS })
   return result
 }
+
+export type HostNiche = { org: NonNullable<HostOrganization>; niche: 'detailing' | null }
+
+const nicheCache = new Map<string, { value: 'detailing' | null; expiresAt: number }>()
+
+/**
+ * Чья это дверь: организация поддомена и её ниша. Только для <slug>.ordaops.kz —
+ * на основном домене (apex, www) вход общий, там null.
+ *
+ * Ниша считается так же, как в session-role: все действующие точки —
+ * детейлинг, а пока точек нет — settings.niche организации. По ней страница
+ * входа показывает человеку его программу ещё до пароля.
+ */
+export async function resolveHostNiche(hostHeader: string | null | undefined): Promise<HostNiche | null> {
+  const normalized = normalizeRequestHost(hostHeader)
+  const baseHost = getTenantBaseHost().toLowerCase()
+  if (!normalized || normalized === baseHost || normalized === `www.${baseHost}`) return null
+
+  const org = await resolveOrganizationByHost(hostHeader)
+  if (!org) return null
+
+  const cached = nicheCache.get(org.id)
+  if (cached && cached.expiresAt > Date.now()) return { org, niche: cached.value }
+
+  const supabase = createServiceSupabaseClient()
+  if (!supabase) return { org, niche: null }
+
+  const { data: rows } = await supabase.from('companies').select('industry').eq('organization_id', org.id).is('archived_at', null)
+  let industries = [...new Set(((rows || []) as any[]).map((r) => String(r.industry || '')).filter(Boolean))]
+  if (!industries.length) {
+    const { data: orgRow } = await supabase.from('organizations').select('settings').eq('id', org.id).maybeSingle()
+    const fromSettings = String((orgRow as any)?.settings?.niche || '')
+    if (fromSettings) industries = [fromSettings]
+  }
+  const niche = industries.length > 0 && industries.every((i) => i === 'detailing') ? 'detailing' : null
+  nicheCache.set(org.id, { value: niche, expiresAt: Date.now() + HOST_CACHE_TTL_MS })
+  return { org, niche }
+}
