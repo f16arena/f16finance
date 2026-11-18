@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { AppModal } from '@/components/ui/app-modal'
 import { toast } from '@/components/ui/use-toast'
-import { StoreEmpty, storeCard } from '@/components/store/store-ui'
+import { StoreEmpty, plural, storeCard } from '@/components/store/store-ui'
 import { Skeleton } from '@/components/skeleton'
 import { useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
@@ -173,7 +173,7 @@ function ClientModal(props: { client: Client; classes: BodyClass[]; companyId: s
       open
       onClose={props.onClose}
       title={c.name}
-      description={`${c.visits} визитов · оплатил ${money(c.spent)}${c.debt > 0 ? ` · долг ${money(c.debt)}` : ''}`}
+      description={`${c.visits} ${plural(c.visits, ['визит', 'визита', 'визитов'])} · оплатил ${money(c.spent)}${c.debt > 0 ? ` · долг ${money(c.debt)}` : ''}`}
       maxWidth="max-w-lg"
       footer={dirty ? <div className="flex justify-end"><Button onClick={() => call({ action: 'customer.save', id: c.id, name, phone, notes }, 'Клиент сохранён')}>Сохранить</Button></div> : undefined}
     >
