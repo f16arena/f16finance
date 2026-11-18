@@ -198,12 +198,12 @@ export function BookingLine({ b, right, wa }: { b: MoneyBooking; right?: ReactNo
 const WEEKDAY_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
 
 function ActionTile(props: { onClick?: () => void; href?: string; icon: ReactNode; chip: string; title: string; hint: string }) {
-  const cls = `${storeCard} flex min-h-[112px] flex-col gap-1.5 p-4 text-left transition hover:border-blue-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`
+  const cls = `${storeCard} flex min-w-0 flex-col items-center gap-1.5 p-3 text-center transition hover:border-blue-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:min-h-[112px] sm:items-start sm:p-4 sm:text-left`
   const body = (
     <>
       <span className={`grid h-10 w-10 place-items-center rounded-xl ${props.chip}`}>{props.icon}</span>
-      <b className="text-base font-extrabold">{props.title}</b>
-      <span className="text-[12.5px] text-muted-foreground">{props.hint}</span>
+      <b className="text-[13px] font-extrabold leading-tight sm:text-base">{props.title}</b>
+      <span className="hidden text-[12.5px] text-muted-foreground sm:block">{props.hint}</span>
     </>
   )
   return props.href ? <Link href={props.href} className={cls}>{body}</Link> : <button type="button" onClick={props.onClick} className={cls}>{body}</button>
@@ -271,13 +271,13 @@ export function DetailingDashboard() {
     { label: 'Ещё должны', value: money(t.debt), hint: t.debt ? `${data.debts.length} ${plural(data.debts.length, ['машина выдана', 'машины выданы', 'машин выдано'])} в долг` : 'долгов нет', tone: t.debt ? 'text-rose-300' : '' },
   ]
 
-  const calm = !(live.overdue.length || live.requests.length || live.handOver.length || data.debts.length || live.upcoming.length)
+  const calm = !(live.overdue.length || live.requests.length || live.arriving.length || live.handOver.length || data.debts.length || live.upcoming.length)
 
   return (
     <div className="space-y-4">
       {title}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {canBook ? <ActionTile href="/detailing?new=1" icon={<Plus className="h-5 w-5" />} chip="bg-blue-600 text-white" title="Записать машину" hint="Телефон, номер, услуга — и всё" /> : null}
         {canPay ? <ActionTile onClick={() => setModal('pay')} icon={<ArrowDownToLine className="h-5 w-5" />} chip="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" title="Принять деньги" hint="Выберите машину — сумма подставится" /> : null}
         {canSpend ? <ActionTile onClick={() => setModal('spend')} icon={<ArrowUpFromLine className="h-5 w-5" />} chip="bg-rose-500/15 text-rose-700 dark:text-rose-300" title="Записать расход" hint="Сумма и на что. Больше ничего" /> : null}
@@ -293,7 +293,7 @@ export function DetailingDashboard() {
         ))}
       </div>
 
-      <GarageToday key={version} />
+      <GarageToday key={version} onChanged={refresh} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <StoreSection title="На что обратить внимание" flush action={<Link href="/detailing" className="text-xs font-medium text-blue-600 hover:underline">Вся неделя</Link>}>
@@ -301,6 +301,7 @@ export function DetailingDashboard() {
             <div className="divide-y divide-border">
               {live.overdue.map((b) => <BookingLine key={`o${b.id}`} b={b} right={<span className="font-medium text-rose-600">стоит дольше записи</span>} />)}
               {live.requests.map((b) => <BookingLine key={`r${b.id}`} b={b} right={<span className="font-medium text-blue-600">заявка — подтвердить</span>} />)}
+              {live.arriving.map((b) => <BookingLine key={`a${b.id}`} b={b} wa={waText.confirm(b, orgName)} right={<span className="font-medium text-blue-600">приедет сегодня</span>} />)}
               {live.handOver.map((b) => <BookingLine key={`h${b.id}`} b={b} wa={waText.ready(b, orgName)} right={b.due > 0 ? <span>выдать, взять <b className="text-rose-600">{money(b.due)}</b></span> : <span className="text-emerald-600">выдать, оплачено</span>} />)}
               {data.debts.slice(0, 5).map((b) => <BookingLine key={`d${b.id}`} b={b} wa={waText.debt(b, orgName)} right={<span>должен <b className="text-rose-600">{money(b.due)}</b></span>} />)}
               {live.upcoming.slice(0, 4).map((b) => <BookingLine key={`u${b.id}`} b={b} right={<span className="text-muted-foreground">{shortDate(b.start_date)}</span>} />)}

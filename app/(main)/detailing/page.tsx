@@ -141,7 +141,44 @@ export default function DetailingWeekPage() {
         </div>
       ) : null}
 
-      <div className={`${storeCard} overflow-x-auto`}>
+      {/* Телефон: неделя списком по дням — таблицу 7×4 пальцем не пролистать. */}
+      <div className="space-y-3 md:hidden">
+        {days.map((d) => {
+          const l = dayLabel(d)
+          const list = bookings.filter((b) => {
+            if (b.status === 'requested' || !b.box_id) return false
+            const from = daysBetween(d, b.start_date)
+            return b.status === 'no_show' ? from === 0 : from <= 0 && 0 < from + b.days
+          })
+          const freeBox = boxes.find((box) => !list.some((b) => b.box_id === box.id && b.status !== 'no_show'))
+          return (
+            <section key={d} className={`${storeCard} overflow-hidden`}>
+              <div className={`flex items-center justify-between px-3.5 py-2 ${d === today ? 'bg-blue-600 text-white' : 'bg-slate-50 dark:bg-white/[0.03]'}`}>
+                <b className="text-sm">{l.weekday} {l.day} {l.month}{d === today ? ' · сегодня' : ''}</b>
+                <span className={`text-xs ${d === today ? 'text-white/80' : 'text-muted-foreground'}`}>занято {list.filter((b) => b.status !== 'no_show').length} из {boxes.length}</span>
+              </div>
+              <div className="divide-y divide-border">
+                {list.map((b) => (
+                  <button key={b.id} type="button" onClick={() => setOpenId(b.id)} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left">
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">{b.car?.model || b.customer?.name || 'Машина'} <Plate plate={b.car?.plate} /></span>
+                      <span className="block truncate text-xs text-muted-foreground">{boxes.find((x) => x.id === b.box_id)?.name} · {b.services.map((x) => x.name).join(', ')}</span>
+                    </span>
+                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
+                  </button>
+                ))}
+                {freeBox ? (
+                  <button type="button" onClick={() => setDraft({ boxId: freeBox.id, date: d })} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-sm font-medium text-blue-600">
+                    <Plus className="h-4 w-4" />Записать на этот день
+                  </button>
+                ) : <div className="px-3.5 py-2.5 text-sm text-muted-foreground">Все боксы заняты</div>}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+
+      <div className={`${storeCard} hidden overflow-x-auto md:block`}>
         <div className="grid min-w-[860px]" style={{ gridTemplateColumns: '120px repeat(7, minmax(0, 1fr))' }}>
           <div className="border-b border-border bg-slate-50 dark:bg-white/[0.03]" />
           {days.map((d) => {
@@ -211,7 +248,7 @@ export default function DetailingWeekPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="hidden flex-wrap items-center gap-2 text-xs text-muted-foreground md:flex">
         {(['booked', 'in_box', 'done', 'no_show'] as BookingStatus[]).map((s) => (
           <span key={s} className={`rounded-md px-2 py-0.5 font-medium ${STATUS_TONE[s]}`}>{STATUS_LABEL[s]}</span>
         ))}

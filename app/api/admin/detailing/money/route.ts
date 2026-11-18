@@ -196,7 +196,8 @@ export async function GET(request: Request) {
     const live = {
       inBox: now.filter((b) => b.status === 'in_box'),
       arriving: now.filter((b) => b.status === 'booked' && b.start_date === today),
-      handOver: now.filter((b) => (b.status === 'in_box' || b.status === 'booked') && lastDay(b) === today),
+      // «Выдать сегодня» — только те, кто уже стоит в боксе; записанные на сегодня идут в arriving.
+      handOver: now.filter((b) => b.status === 'in_box' && lastDay(b) === today),
       overdue: now.filter((b) => b.status === 'in_box' && lastDay(b) < today),
       requests: now.filter((b) => b.status === 'requested'),
       upcoming: now.filter((b) => b.status === 'booked' && b.start_date > today).sort((a, b) => a.start_date.localeCompare(b.start_date)).slice(0, 8),

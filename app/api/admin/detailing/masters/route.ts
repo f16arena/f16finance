@@ -12,6 +12,7 @@ import { assertOrganizationLimitAvailable } from '@/lib/server/organizations'
  * чтобы владельцу не ходить в клубный раздел «Операторы».
  */
 
+const MONTH_NAMES = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 const NEED_MIGRATION = 'Раздел «Мастера» ещё не включён в базе — нужна миграция 20261118_detailing_masters'
 
 export async function GET(request: Request) {
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
           category,
           cash_amount: method === 'cash' ? amount : 0,
           kaspi_amount: method === 'cash' ? 0 : amount,
-          comment: `Мастеру ${masterName} за ${month.slice(0, 7)}`,
+          comment: `Мастеру ${masterName} за ${MONTH_NAMES[Number(month.slice(5, 7)) - 1]}`,
           status: 'confirmed',
         })
         .select('id')

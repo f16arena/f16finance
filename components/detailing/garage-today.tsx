@@ -34,7 +34,7 @@ function carOfBox(bookings: Booking[], boxId: string, today: string) {
   )
 }
 
-export function GarageToday() {
+export function GarageToday({ onChanged }: { onChanged?: () => void | Promise<void> } = {}) {
   const [companyId] = useDetailingCompanyId()
   const today = isoLocal(new Date())
   const params = new URLSearchParams({ from: today })
@@ -87,7 +87,9 @@ export function GarageToday() {
       for (const s of steps) await postDetailing(API, { id: b.id, ...s })
       toast({ title: done })
       setReady(null)
-      await refresh()
+      // Деньги и списки на «Сегодня» лежат в другом кэше — сбрасываем его тоже.
+      invalidateApiCache('/api/admin/detailing')
+      await Promise.all([refresh(), onChanged?.()])
     } catch (e: any) {
       toast({ title: 'Не получилось', description: e.message, variant: 'destructive' })
     } finally {

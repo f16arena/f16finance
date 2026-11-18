@@ -127,7 +127,7 @@ export default function DetailingMastersPage() {
           <p className="text-sm text-muted-foreground">
             В {MONTHS_PREP[monthIndex]} к выплате всем: <b className="tabular-nums text-foreground">{money(totalDue)}</b>. Процент считается с выданных машин — с цены минус материалы.
           </p>
-          <div className="grid items-start gap-3.5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-2">
             {data.masters.map((m) => (
               <MasterCard
                 key={m.id}
@@ -213,7 +213,7 @@ function MasterCard(props: {
   ]
 
   return (
-    <section className={`${storeCard} flex flex-col gap-3 p-4`}>
+    <section className={`${storeCard} flex min-w-0 flex-col gap-3 p-4`}>
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#0b1f3b] text-sm font-extrabold text-white dark:bg-white/10">{initials(m.name)}</span>
         <div className="min-w-0 flex-1">
@@ -232,7 +232,7 @@ function MasterCard(props: {
         {rows.map((r) => {
           const on = terms[r.on]
           return (
-            <div key={r.on} className="flex items-center justify-between gap-2.5 border-t border-border py-2.5">
+            <div key={r.on} className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1.5 border-t border-border py-2.5">
               <div className="min-w-0">
                 <div className="font-semibold">{r.title}</div>
                 {r.hint ? <div className="truncate text-[12.5px] text-muted-foreground">{r.hint}</div> : null}
@@ -250,7 +250,7 @@ function MasterCard(props: {
                     inputMode="numeric"
                     placeholder="0"
                     aria-label={r.title}
-                    className="h-9 w-[112px] pr-7 text-right font-mono font-bold tabular-nums"
+                    className="h-9 w-[104px] pr-7 text-right font-mono font-bold tabular-nums"
                   />
                   <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{r.suffix}</span>
                 </div>
