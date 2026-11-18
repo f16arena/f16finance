@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useCapabilities } from '@/lib/client/use-capabilities'
+import { getTenantBaseHost } from '@/lib/core/tenant-domain'
 import { useNavSession } from '@/lib/nav/use-nav-session'
 
 type Item = { href: string; label: string; icon: typeof House; exact?: boolean; cap: string; also?: string[] }
@@ -113,6 +114,9 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
             <span className="block truncate text-[11.5px] text-slate-400">{session.roleLabel}</span>
           </span>
         </div>
+        {session.isSuperAdmin ? (
+          <a href="https://ordaops.kz/platform" className="text-[11.5px] text-slate-400 underline-offset-2 hover:text-white hover:underline">← в платформу Orda</a>
+        ) : null}
         <div className="flex gap-2">
           <ThemeToggle className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 hover:text-white" />
           <button
@@ -163,12 +167,21 @@ export function DetailingShell({ children }: { children: React.ReactNode }) {
   )
 }
 
+function onTenantHost() {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname.replace(/^www\./i, '').toLowerCase()
+  const base = getTenantBaseHost().replace(/^www\./i, '').toLowerCase()
+  return !!host && host !== base && host.endsWith(`.${base}`)
+}
+
 /** Ниша организации для выбора оболочки: детейлинг, если все точки — детейлинг.
  *  undefined — сессия ещё не пришла. */
 export function useShellNiche(): 'detailing' | null | undefined {
   const session = useNavSession()
   if (!session.sessionReady) return undefined
   const industries = session.orgIndustries || []
-  if (session.isSuperAdmin && !session.isTenantContext) return null
+  // Супер-админ на основном домене работает в платформе; на адресе самой
+  // организации он видит её программу такой же, как её владелец.
+  if (session.isSuperAdmin && !session.isTenantContext && !onTenantHost()) return null
   return industries.length > 0 && industries.every((i) => i === 'detailing') ? 'detailing' : null
 }

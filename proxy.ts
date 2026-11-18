@@ -187,7 +187,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const defaultPath = getDefaultAppPath({
+  let defaultPath = getDefaultAppPath({
     isSuperAdmin,
     isStaff,
     isOperator,
@@ -195,6 +195,12 @@ export async function proxy(request: NextRequest) {
     staffRole,
     rolePermissionOverrides,
   })
+  // На адресе ниши (детейлинг) стартовая — её программа, а не платформа и не
+  // клубный кабинет. То же правило в /api/auth/session-role.
+  if (isTenantHost && (isSuperAdmin || isStaff)) {
+    const hostNiche = await resolveHostNiche(request.headers.get('host')).catch(() => null)
+    if (hostNiche?.niche) defaultPath = '/welcome'
+  }
 
   if (AUTH_SELF_SERVICE_PATHS.some((path) => url.pathname.startsWith(path))) {
     return response

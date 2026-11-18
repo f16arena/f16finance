@@ -10,6 +10,7 @@ import {
   listActiveOperatorLeadAssignments,
 } from '@/lib/server/request-auth'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
+import { resolveHostNiche } from '@/lib/server/tenant-hosts'
 
 type RolePermissionOverride = {
   path: string
@@ -122,6 +123,7 @@ export async function GET(req: Request) {
     // Эффективные capabilities пользователя (тот же расчёт, что /access и requireCapability).
     // Суперадмин получает ['*'] — клиент трактует как «всё разрешено».
     const capabilities = await getEffectiveCapabilities(access).catch(() => [] as string[])
+    const hostNiche = await resolveHostNiche(req.headers.get('host')).catch(() => null)
 
     return NextResponse.json({
       ok: true,
@@ -165,14 +167,19 @@ export async function GET(req: Request) {
       activeOrganization: access.activeOrganization,
       activeSubscription: access.activeSubscription,
       rolePermissionOverrides,
-      defaultPath: getDefaultAppPath({
-        isSuperAdmin,
-        isStaff: isSuperAdmin || !!staffMember,
-        isOperator,
-        isCustomer,
-        staffRole,
-        rolePermissionOverrides,
-      }),
+      // На адресе ниши все, кто работает в программе, попадают в неё, а не в
+      // платформу или клубный кабинет — включая супер-админа.
+      defaultPath:
+        hostNiche?.niche && (isSuperAdmin || !!staffMember)
+          ? '/welcome'
+          : getDefaultAppPath({
+              isSuperAdmin,
+              isStaff: isSuperAdmin || !!staffMember,
+              isOperator,
+              isCustomer,
+              staffRole,
+              rolePermissionOverrides,
+            }),
     })
   } catch (error: any) {
     console.error('Session role route error', error)
