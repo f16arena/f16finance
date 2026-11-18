@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
-import { addDays, isIsoDate, isOnlineBookingOn, normalizePhone, normalizePlate, priceLines, upsertCar, upsertCustomer } from '@/lib/server/detailing'
+import { addDays, isIsoDate, isOnlineBookingOn, normalizePhone, normalizePlate, normalizeTime, priceLines, upsertCar, upsertCustomer } from '@/lib/server/detailing'
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { resolveHostNiche } from '@/lib/server/tenant-hosts'
@@ -137,6 +137,7 @@ export async function POST(request: Request) {
         car_id: carId,
         body_class_id: bodyClassId,
         start_date: body.date,
+        start_time: normalizeTime(body?.time),
         days: Math.min(60, Math.max(1, lines.reduce((s, l) => s + l.days, 0))),
         status: 'requested',
         price_total: lines.reduce((s, l) => s + l.price, 0),

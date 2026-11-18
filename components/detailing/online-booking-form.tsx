@@ -32,6 +32,7 @@ export function OnlineBookingForm({ orgName }: { orgName: string }) {
   const [classId, setClassId] = useState('')
   const [picked, setPicked] = useState<string[]>([])
   const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
   const [form, setForm] = useState({ name: '', phone: '', plate: '', model: '', comment: '', website: '' })
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export function OnlineBookingForm({ orgName }: { orgName: string }) {
       const res = await fetch('/api/public/detailing/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, body_class_id: classId, service_ids: chosen.map((s) => s.id), date }),
+        body: JSON.stringify({ ...form, body_class_id: classId, service_ids: chosen.map((s) => s.id), date, time }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'Не получилось отправить заявку')
@@ -158,6 +159,15 @@ export function OnlineBookingForm({ orgName }: { orgName: string }) {
               </button>
             )
           })}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <div className={label}>Во сколько удобно — по желанию</div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'].map((t) => (
+            <button key={t} type="button" aria-pressed={time === t} onClick={() => setTime(time === t ? '' : t)} className={`${pill(time === t)} shrink-0`}>{t}</button>
+          ))}
         </div>
       </section>
 

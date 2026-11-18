@@ -6,6 +6,7 @@ import {
   isIsoDate,
   isMissingDetailingTable,
   json,
+  normalizeTime,
 } from '@/lib/server/detailing'
 import { hasCapability } from '@/lib/server/capabilities'
 import { loadMasterPay, loadPayoutExpenseIds } from '@/lib/server/detailing-masters'
@@ -23,7 +24,7 @@ import { loadMasterPay, loadPayoutExpenseIds } from '@/lib/server/detailing-mast
  */
 
 const BOOKING_FIELDS =
-  'id, company_id, box_id, start_date, days, status, price_total, materials_total, master_operator_id, ' +
+  'id, company_id, box_id, start_date, start_time, days, status, price_total, materials_total, master_operator_id, ' +
   'customer:customers(id, name, phone), car:customer_cars(plate, model), ' +
   'services:detailing_booking_services(name, price, materials, sort_order), payments:detailing_payments(amount)'
 
@@ -38,6 +39,7 @@ function shape(b: any) {
     company_id: b.company_id,
     box_id: b.box_id,
     start_date: b.start_date,
+    start_time: normalizeTime(b.start_time),
     days: Number(b.days),
     status: b.status,
     price_total: Number(b.price_total || 0),
@@ -195,12 +197,12 @@ export async function GET(request: Request) {
     const lastDay = (b: { start_date: string; days: number }) => addDays(b.start_date, b.days - 1)
     const live = {
       inBox: now.filter((b) => b.status === 'in_box'),
-      arriving: now.filter((b) => b.status === 'booked' && b.start_date === today),
+      arriving: now.filter((b) => b.status === 'booked' && b.start_date === today).sort((a, b) => String(a.start_time || '99').localeCompare(String(b.start_time || '99'))),
       // «Выдать сегодня» — только те, кто уже стоит в боксе; записанные на сегодня идут в arriving.
       handOver: now.filter((b) => b.status === 'in_box' && lastDay(b) === today),
       overdue: now.filter((b) => b.status === 'in_box' && lastDay(b) < today),
       requests: now.filter((b) => b.status === 'requested'),
-      upcoming: now.filter((b) => b.status === 'booked' && b.start_date > today).sort((a, b) => a.start_date.localeCompare(b.start_date)).slice(0, 8),
+      upcoming: now.filter((b) => b.status === 'booked' && b.start_date > today).sort((a, b) => `${a.start_date} ${a.start_time || '99'}`.localeCompare(`${b.start_date} ${b.start_time || '99'}`)).slice(0, 8),
     }
 
     return json({

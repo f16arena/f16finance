@@ -11,6 +11,7 @@ import {
   loadReference,
   normalizePhone,
   normalizePlate,
+  normalizeTime,
   pickCompany,
   pickCompanyForRead,
   priceLines,
@@ -29,7 +30,7 @@ import {
  */
 
 const BOOKING_SELECT =
-  'id, company_id, box_id, customer_id, car_id, body_class_id, master_operator_id, start_date, days, status, price_total, materials_total, materials_manual, comment, source, issued_at, created_at, ' +
+  'id, company_id, box_id, customer_id, car_id, body_class_id, master_operator_id, start_date, start_time, days, status, price_total, materials_total, materials_manual, comment, source, issued_at, created_at, ' +
   'customer:customers(id, name, phone), car:customer_cars(id, plate, model), ' +
   'services:detailing_booking_services(id, service_id, name, price, materials, days, sort_order), ' +
   'payments:detailing_payments(id, amount, method, kind, paid_on)'
@@ -38,6 +39,7 @@ function shapeBooking(b: any) {
   const paid = ((b.payments || []) as any[]).reduce((s, p) => s + Number(p.amount || 0), 0)
   return {
     ...b,
+    start_time: normalizeTime(b.start_time),
     price_total: Number(b.price_total || 0),
     materials_total: Number(b.materials_total || 0),
     paid,
@@ -69,6 +71,7 @@ export async function GET(request: Request) {
       .gte('start_date', addDays(weekStart, -60))
       .neq('status', 'cancelled')
       .order('start_date')
+      .order('start_time', { nullsFirst: false })
     if (error) throw error
     const bookings = ((rows || []) as any[])
       .filter((b) => b.status === 'requested' || addDays(String(b.start_date), Number(b.days)) > weekStart)
@@ -162,6 +165,7 @@ export async function POST(request: Request) {
           body_class_id: bodyClassId,
           master_operator_id: masterId,
           start_date: body.start_date,
+          start_time: normalizeTime(body?.start_time),
           days,
           status: 'booked',
           price_total: lines.reduce((s, l) => s + l.price, 0),
@@ -310,6 +314,7 @@ export async function POST(request: Request) {
       patch.box_id = boxId
       patch.start_date = startDate
     }
+    if ('start_time' in body) patch.start_time = normalizeTime(body.start_time)
     if ('master_operator_id' in body) {
       const masterId = String(body.master_operator_id || '') || null
       const own = await ownMaster(ctx, company.id, masterId)

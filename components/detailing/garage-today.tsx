@@ -129,7 +129,7 @@ export function GarageToday({ onChanged }: { onChanged?: () => void | Promise<vo
             <div key={box.id} className={`flex min-h-[170px] flex-col gap-2 rounded-xl p-3.5 ${inBox ? 'bg-blue-600/25 ring-1 ring-blue-400/40' : 'bg-white/[0.06] ring-1 ring-white/10'}`}>
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
                 <span className="text-slate-300">{box.name}</span>
-                <span className={inBox ? 'text-blue-300' : 'text-orange-300'}>{inBox ? (endDay <= today ? 'сдать сегодня' : 'в работе') : 'приедет сегодня'}</span>
+                <span className={inBox ? 'text-blue-300' : 'text-orange-300'}>{inBox ? (endDay <= today ? 'сдать сегодня' : 'в работе') : b.start_time ? `приедет в ${b.start_time}` : 'приедет сегодня'}</span>
               </div>
               <Link href="/detailing" className="min-w-0">
                 <div className="flex items-center gap-2 truncate font-semibold"><CarFront className="h-4 w-4 shrink-0 text-slate-400" />{b.car?.model || 'Машина'} <Plate plate={b.car?.plate} /></div>

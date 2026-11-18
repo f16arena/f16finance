@@ -1,5 +1,5 @@
 import { writeSystemErrorLogSafe } from '@/lib/server/audit'
-import { addDays, detailingContext, json } from '@/lib/server/detailing'
+import { addDays, detailingContext, json, normalizeTime } from '@/lib/server/detailing'
 import { isMissingMastersTable, loadMasterPay, monthStart } from '@/lib/server/detailing-masters'
 
 /**
@@ -26,12 +26,13 @@ export async function GET(request: Request) {
     const [carsRes, pay, boxesRes] = await Promise.all([
       ctx.supabase
         .from('detailing_bookings')
-        .select('id, box_id, start_date, days, status, price_total, materials_total, comment, car:customer_cars(plate, model), services:detailing_booking_services(name, sort_order)')
+        .select('id, box_id, start_date, start_time, days, status, price_total, materials_total, comment, car:customer_cars(plate, model), services:detailing_booking_services(name, sort_order)')
         .in('company_id', companyIds)
         .eq('master_operator_id', operatorId)
         .in('status', ['booked', 'in_box'])
         .lte('start_date', addDays(today, 7))
         .order('start_date')
+        .order('start_time', { nullsFirst: false })
         .limit(50),
       loadMasterPay(ctx.supabase, { companyIds, month, tolerant: true }),
       ctx.supabase.from('detailing_boxes').select('id, name').in('company_id', companyIds),
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
           id: String(b.id),
           box: b.box_id ? boxName.get(String(b.box_id)) || null : null,
           start_date: String(b.start_date),
+          start_time: normalizeTime(b.start_time),
           days: Number(b.days),
           status: String(b.status),
           car: b.car ? { plate: b.car.plate, model: b.car.model } : null,

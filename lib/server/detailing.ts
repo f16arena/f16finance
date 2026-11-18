@@ -136,6 +136,16 @@ export function addDays(isoDate: string, days: number) {
   return d.toISOString().slice(0, 10)
 }
 
+/** «15:00», «9:30», «15:00:00» → «15:00»; мусор и пусто → null (время не назначено). */
+export function normalizeTime(value: unknown): string | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(value || '').trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h > 23 || min > 59) return null
+  return `${String(h).padStart(2, '0')}:${m[2]}`
+}
+
 export function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
 }

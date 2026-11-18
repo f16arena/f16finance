@@ -49,6 +49,7 @@ export type MoneyBooking = {
   id: string
   company_id: string
   start_date: string
+  start_time?: string | null
   days: number
   status: string
   price_total: number
@@ -301,10 +302,10 @@ export function DetailingDashboard() {
             <div className="divide-y divide-border">
               {live.overdue.map((b) => <BookingLine key={`o${b.id}`} b={b} right={<span className="font-medium text-rose-600">стоит дольше записи</span>} />)}
               {live.requests.map((b) => <BookingLine key={`r${b.id}`} b={b} right={<span className="font-medium text-blue-600">заявка — подтвердить</span>} />)}
-              {live.arriving.map((b) => <BookingLine key={`a${b.id}`} b={b} wa={waText.confirm(b, orgName)} right={<span className="font-medium text-blue-600">приедет сегодня</span>} />)}
+              {live.arriving.map((b) => <BookingLine key={`a${b.id}`} b={b} wa={waText.confirm(b, orgName)} right={<span className="font-medium text-blue-600">{b.start_time ? `приедет в ${b.start_time}` : 'приедет сегодня'}</span>} />)}
               {live.handOver.map((b) => <BookingLine key={`h${b.id}`} b={b} wa={waText.ready(b, orgName)} right={b.due > 0 ? <span>выдать, взять <b className="text-rose-600">{money(b.due)}</b></span> : <span className="text-emerald-600">выдать, оплачено</span>} />)}
               {data.debts.slice(0, 5).map((b) => <BookingLine key={`d${b.id}`} b={b} wa={waText.debt(b, orgName)} right={<span>должен <b className="text-rose-600">{money(b.due)}</b></span>} />)}
-              {live.upcoming.slice(0, 4).map((b) => <BookingLine key={`u${b.id}`} b={b} right={<span className="text-muted-foreground">{shortDate(b.start_date)}</span>} />)}
+              {live.upcoming.slice(0, 4).map((b) => <BookingLine key={`u${b.id}`} b={b} right={<span className="text-muted-foreground">{shortDate(b.start_date)}{b.start_time ? `, ${b.start_time}` : ''}</span>} />)}
             </div>
           )}
         </StoreSection>

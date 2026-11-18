@@ -40,6 +40,8 @@ export type Booking = {
   body_class_id: string | null
   master_operator_id: string | null
   start_date: string
+  /** «15:00» или null — время не назначено. */
+  start_time?: string | null
   days: number
   status: BookingStatus
   price_total: number
@@ -175,6 +177,9 @@ export function dayLabel(iso: string) {
   return { weekday: WEEKDAYS[wd], day: d, month: MONTHS_GEN[m - 1], short: `${WEEKDAYS[wd]} ${d}` }
 }
 
+/** Часы для кнопок выбора времени: рабочий день с шагом в час. */
+export const QUICK_TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+
 /* ── WhatsApp ───────────────────────────────────────────────────────────
  * Без официального API: кнопка открывает WhatsApp с готовым текстом, человек
  * сам нажимает «отправить». Работает и с телефона, и с компьютера. */
@@ -195,8 +200,8 @@ const carName = (b: WaCar) => b.car?.model || 'машина'
 const sign = (org: string) => (org ? `\n${org}` : '')
 
 export const waText = {
-  confirm: (b: WaCar & { start_date: string; services: Array<{ name: string }> }, org: string) =>
-    `${hello(b)} Вы записаны на ${dayLabel(b.start_date).day} ${dayLabel(b.start_date).month}: ${b.services.map((s) => s.name).join(', ') || carName(b)}. Ждём вас.${sign(org)}`,
+  confirm: (b: WaCar & { start_date: string; start_time?: string | null; services: Array<{ name: string }> }, org: string) =>
+    `${hello(b)} Вы записаны на ${dayLabel(b.start_date).day} ${dayLabel(b.start_date).month}${b.start_time ? ` в ${b.start_time}` : ''}: ${b.services.map((s) => s.name).join(', ') || carName(b)}. Ждём вас.${sign(org)}`,
   ready: (b: WaCar & { due: number }, org: string) =>
     `${hello(b)} Ваша ${carName(b)} готова, можно забирать.${b.due > 0 ? ` К оплате ${money(b.due)}.` : ''}${sign(org)}`,
   debt: (b: WaCar & { due: number }, org: string) => `${hello(b)} Напоминаем про оплату ${money(b.due)} за ${carName(b)}.${sign(org)}`,

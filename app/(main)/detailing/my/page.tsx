@@ -11,7 +11,7 @@ import { StoreEmpty, StoreSection, plural, storeCard } from '@/components/store/
 import { useApiCache } from '@/lib/client/use-api-cache'
 import { DetailingHeader, Plate, dayLabel, money, shiftIso } from '@/components/detailing/detailing-shared'
 
-type MyCar = { id: string; box: string | null; start_date: string; days: number; status: string; car: { plate: string; model: string | null } | null; services: string[]; comment: string | null; base: number }
+type MyCar = { id: string; box: string | null; start_date: string; start_time?: string | null; days: number; status: string; car: { plate: string; model: string | null } | null; services: string[]; comment: string | null; base: number }
 type MyData = {
   linked: boolean
   name?: string
@@ -45,7 +45,7 @@ export default function DetailingMyPage() {
 
   const row = (c: MyCar) => {
     const last = shiftIso(c.start_date, c.days - 1)
-    const when = c.status === 'in_box' ? (last <= today ? 'сдать сегодня' : `до ${dayLabel(last).day} ${dayLabel(last).month}`) : c.start_date === today ? 'приедет сегодня' : `${dayLabel(c.start_date).short.toLowerCase()} ${dayLabel(c.start_date).month}`
+    const when = c.status === 'in_box' ? (last <= today ? 'сдать сегодня' : `до ${dayLabel(last).day} ${dayLabel(last).month}`) : c.start_date === today ? (c.start_time ? `приедет в ${c.start_time}` : 'приедет сегодня') : `${dayLabel(c.start_date).short.toLowerCase()} ${dayLabel(c.start_date).month}${c.start_time ? `, ${c.start_time}` : ''}`
     return (
       <div key={c.id} className="flex items-center gap-3 px-4 py-3">
         <span className="min-w-0 flex-1">

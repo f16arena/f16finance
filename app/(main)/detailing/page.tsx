@@ -25,6 +25,7 @@ import {
   DetailingHeader,
   NoDetailingPoint,
   Plate,
+  QUICK_TIMES,
   STATUS_LABEL,
   STATUS_TONE,
   WaButton,
@@ -134,7 +135,7 @@ export default function DetailingWeekPage() {
           <b>Клиенты записались сами: {requests.length}</b>
           {requests.map((r) => (
             <Button key={r.id} variant="outline" size="xs" onClick={() => setOpenId(r.id)}>
-              {r.car?.model || r.car?.plate || 'Машина'} · {dayLabel(r.start_date).short} · {r.customer?.name}
+              {r.car?.model || r.car?.plate || 'Машина'} · {dayLabel(r.start_date).short}{r.start_time ? `, ${r.start_time}` : ''} · {r.customer?.name}
             </Button>
           ))}
           <span className="text-xs text-muted-foreground">выберите бокс и подтвердите</span>
@@ -161,7 +162,7 @@ export default function DetailingWeekPage() {
                 {list.map((b) => (
                   <button key={b.id} type="button" onClick={() => setOpenId(b.id)} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left">
                     <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">{b.car?.model || b.customer?.name || 'Машина'} <Plate plate={b.car?.plate} /></span>
+                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">{b.start_time && b.start_date === d ? <span className="font-mono text-[13px]">{b.start_time}</span> : null}{b.car?.model || b.customer?.name || 'Машина'} <Plate plate={b.car?.plate} /></span>
                       <span className="block truncate text-xs text-muted-foreground">{boxes.find((x) => x.id === b.box_id)?.name} · {b.services.map((x) => x.name).join(', ')}</span>
                     </span>
                     <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
@@ -232,7 +233,7 @@ export default function DetailingWeekPage() {
                         style={{ gridColumn: `${from + 1} / ${to + 1}`, gridRow: 1 }}
                         className={`m-1 flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-xl px-2.5 py-2 text-left transition hover:ring-2 hover:ring-blue-400/50 ${STATUS_TONE[b.status]}`}
                       >
-                        <span className="truncate text-[13px] font-semibold text-foreground">{b.car?.model || b.customer?.name || 'Машина'}</span>
+                        <span className="truncate text-[13px] font-semibold text-foreground">{b.start_time ? <span className="font-mono text-[12px]">{b.start_time} </span> : null}{b.car?.model || b.customer?.name || 'Машина'}</span>
                         <span><Plate plate={b.car?.plate} /></span>
                         <span className="truncate text-[11px] text-muted-foreground">{b.services.map((s) => s.name).join(', ')}</span>
                         <span className="truncate text-[11px] text-muted-foreground">
@@ -304,6 +305,7 @@ function NewBookingModal(props: {
   const [classId, setClassId] = useState(classes[0]?.id || '')
   const [picked, setPicked] = useState<string[]>([])
   const [date, setDate] = useState(props.initial.date)
+  const [time, setTime] = useState('')
   const [boxId, setBoxId] = useState(props.initial.boxId)
   const [masterId, setMasterId] = useState('')
   const [comment, setComment] = useState('')
@@ -376,11 +378,12 @@ function NewBookingModal(props: {
         body_class_id: classId,
         service_ids: lines.map((s) => s.id),
         start_date: date,
+        start_time: time || null,
         box_id: boxId,
         master_operator_id: masterId || null,
         comment,
       })
-      toast({ title: 'Записано', description: `${plate.toUpperCase()} · ${dayLabel(date).short}` })
+      toast({ title: 'Записано', description: `${plate.toUpperCase()} · ${dayLabel(date).short}${time ? `, ${time}` : ''}` })
       props.onSaved(res.id)
     } catch (e: any) {
       toast({ title: 'Не записалось', description: e.message, variant: 'destructive' })
@@ -479,6 +482,15 @@ function NewBookingModal(props: {
         </div>
 
         <div className="space-y-1.5">
+          <div className={label}>Во сколько приедет</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {QUICK_TIMES.map((t) => <button key={t} type="button" aria-pressed={time === t} onClick={() => setTime(time === t ? '' : t)} className={pill(time === t)}>{t}</button>)}
+            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Другое время" className="h-10 w-[120px]" />
+          </div>
+          {!time ? <p className="text-xs text-muted-foreground">Не выбрали — запись будет на день без времени.</p> : null}
+        </div>
+
+        <div className="space-y-1.5">
           <div className={label}>Бокс</div>
           <div className="flex flex-wrap gap-1.5">
             {boxes.map((b) => {
@@ -516,6 +528,8 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
   const [busy, setBusy] = useState(false)
   const orgName = useOrgName()
   const [materials, setMaterials] = useState(String(Math.round(b.materials_total)))
+  const [time, setTime] = useState(b.start_time || '')
+  useEffect(() => setTime(b.start_time || ''), [b.start_time])
   const [boxId, setBoxId] = useState(b.box_id || data.boxes.find((x) => x.is_active)?.id || '')
   useEffect(() => setMaterials(String(Math.round(b.materials_total))), [b.materials_total])
 
@@ -542,7 +556,7 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
       open
       onClose={props.onClose}
       title={b.car?.model || 'Машина'}
-      description={`${box ? `${box.name} · ` : ''}${range}`}
+      description={`${box ? `${box.name} · ` : ''}${range}${b.start_time ? `, ${b.start_time}` : ''}`}
       maxWidth="max-w-lg"
     >
       <div className="space-y-4 text-sm">
@@ -596,6 +610,17 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
         </div>
 
         <div className="space-y-2 rounded-xl bg-slate-50 p-3 dark:bg-white/[0.03]">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Во сколько приедет</span>
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              onBlur={() => time !== (b.start_time || '') && run({ action: 'update', start_time: time || null }, time ? `Время: ${time}` : 'Время убрано')}
+              aria-label="Во сколько приедет"
+              className="h-8 w-[120px]"
+            />
+          </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Мастер</span>
             <NativeSelect value={b.master_operator_id || ''} onChange={(e) => run({ action: 'update', master_operator_id: e.target.value || null }, 'Мастер сохранён')} className="h-8 max-w-[180px]">
