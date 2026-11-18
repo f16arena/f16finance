@@ -177,7 +177,11 @@ function onTenantHost() {
 /** Ниша организации для выбора оболочки: детейлинг, если все точки — детейлинг.
  *  undefined — сессия ещё не пришла. */
 export function useShellNiche(): 'detailing' | null | undefined {
-  const session = useNavSession()
+  return shellNicheOf(useNavSession())
+}
+
+/** То же по уже загруженной сессии — чтобы не запрашивать её второй раз. */
+export function shellNicheOf(session: ReturnType<typeof useNavSession>): 'detailing' | null | undefined {
   if (!session.sessionReady) return undefined
   const industries = session.orgIndustries || []
   // Супер-админ на основном домене работает в платформе; на адресе самой

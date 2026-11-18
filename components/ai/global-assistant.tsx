@@ -5,6 +5,7 @@ import { Sparkles } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
 import { CopilotPanel } from '@/components/ai/copilot-panel'
+import { shellNicheOf } from '@/components/detailing/detailing-shell'
 import { useNavSession } from '@/lib/nav/use-nav-session'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,11 +60,16 @@ export function GlobalAssistant() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   // Прячем кнопку, если у организации нет аддона AI (в режиме энфорсмента).
-  const { orgFeatures, featuresAllAccess } = useNavSession()
+  const session = useNavSession()
+  const { orgFeatures, featuresAllAccess } = session
   const noAiAddon = !featuresAllAccess && !orgFeatures.includes('addon.ai')
+  // У ниши своя программа без ассистента. Пока сессия не пришла, кнопку тоже
+  // не показываем — иначе она мигнёт и исчезнет.
+  const niche = shellNicheOf(session)
 
   const shouldHide =
     noAiAddon ||
+    niche !== null ||
     isOperatorCabinetPath(pathname || '') ||
     HIDDEN_EXACT_PATHS.has(pathname || '') ||
     HIDDEN_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + '/'))
