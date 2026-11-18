@@ -57,7 +57,9 @@ export async function GET(request: Request) {
     if ('response' in ctx) return ctx.response
     const url = new URL(request.url)
     const requested = String(url.searchParams.get('company_id') || '').trim()
-    const companies = requested ? ctx.companies.filter((c) => c.id === requested) : ctx.companies
+    // Незнакомая точка (браузер запомнил закрытую) — показываем все доступные.
+    const picked = requested ? ctx.companies.filter((c) => c.id === requested) : []
+    const companies = picked.length ? picked : ctx.companies
     if (!companies.length) return json({ ok: true, data: { companies: ctx.companies, empty: true } })
     const ids = companies.map((c) => c.id)
 

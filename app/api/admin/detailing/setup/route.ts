@@ -8,6 +8,7 @@ import {
   json,
   loadReference,
   pickCompany,
+  pickCompanyForRead,
 } from '@/lib/server/detailing'
 
 /**
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
   try {
     const ctx = await detailingContext(request, ['detailing-prices.view', 'detailing-bookings.view'])
     if ('response' in ctx) return ctx.response
-    const company = pickCompany(ctx, new URL(request.url).searchParams.get('company_id'))
+    const company = pickCompanyForRead(ctx, new URL(request.url).searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null } })
     const [ref, bookings, online] = await Promise.all([
       loadReference(ctx, company.id),

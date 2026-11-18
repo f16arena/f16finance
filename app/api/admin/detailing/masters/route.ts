@@ -1,5 +1,5 @@
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
-import { detailingContext, isIsoDate, json, pickCompany } from '@/lib/server/detailing'
+import { detailingContext, isIsoDate, json, pickCompany, pickCompanyForRead } from '@/lib/server/detailing'
 import { ensureExpenseCategory } from '@/lib/server/detailing-expenses'
 import { isMissingMastersTable, loadMasterPay, monthStart } from '@/lib/server/detailing-masters'
 import { assertOrganizationLimitAvailable } from '@/lib/server/organizations'
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const ctx = await detailingContext(request, 'detailing-masters.view')
     if ('response' in ctx) return ctx.response
     const url = new URL(request.url)
-    const company = pickCompany(ctx, url.searchParams.get('company_id'))
+    const company = pickCompanyForRead(ctx, url.searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null } })
     const today = new Date().toISOString().slice(0, 10)
     const month = monthStart(url.searchParams.get('month'), today)

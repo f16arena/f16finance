@@ -6,6 +6,7 @@ import {
   normalizePhone,
   normalizePlate,
   pickCompany,
+  pickCompanyForRead,
 } from '@/lib/server/detailing'
 
 /**
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const ctx = await detailingContext(request, ['detailing-clients.view', 'detailing-bookings.view'])
     if ('response' in ctx) return ctx.response
     const url = new URL(request.url)
-    const company = pickCompany(ctx, url.searchParams.get('company_id'))
+    const company = pickCompanyForRead(ctx, url.searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null, clients: [] } })
 
     const q = String(url.searchParams.get('q') || '').trim()

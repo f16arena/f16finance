@@ -12,6 +12,7 @@ import {
   normalizePhone,
   normalizePlate,
   pickCompany,
+  pickCompanyForRead,
   priceLines,
   type BookingStatus,
   upsertCar,
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
     const ctx = await detailingContext(request, 'detailing-bookings.view')
     if ('response' in ctx) return ctx.response
     const url = new URL(request.url)
-    const company = pickCompany(ctx, url.searchParams.get('company_id'))
+    const company = pickCompanyForRead(ctx, url.searchParams.get('company_id'))
     if (!company) return json({ ok: true, data: { companies: ctx.companies, company: null } })
 
     const from = url.searchParams.get('from')

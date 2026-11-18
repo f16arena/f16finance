@@ -91,11 +91,24 @@ export async function ensureNichePoint(supabase: any, orgId: string): Promise<bo
   return res.ok
 }
 
-/** Точка из запроса, если она детейлинг и доступна; иначе null. */
+/**
+ * Точка для записи: из запроса, если она детейлинг и доступна; иначе null.
+ * Если точка у организации одна, берём её при любом присланном id: браузер
+ * мог запомнить точку, которой уже нет, а ошибиться тут не в чем.
+ */
 export function pickCompany(ctx: DetailingCtx, requested: string | null | undefined): DetailingCompany | null {
   const id = String(requested || '').trim()
-  if (!id) return ctx.companies[0] || null
+  if (!id || ctx.companies.length === 1) return ctx.companies[0] || null
   return ctx.companies.find((c) => c.id === id) || null
+}
+
+/**
+ * Точка для чтения: запрошенная, а если её нет среди доступных — первая.
+ * Страница запоминает выбранную точку в браузере; точку могли закрыть или
+ * пересоздать, и тогда вместо «нет точки» показываем действующую.
+ */
+export function pickCompanyForRead(ctx: DetailingCtx, requested: string | null | undefined): DetailingCompany | null {
+  return pickCompany(ctx, requested) || ctx.companies[0] || null
 }
 
 export function isMissingDetailingTable(error: any) {
