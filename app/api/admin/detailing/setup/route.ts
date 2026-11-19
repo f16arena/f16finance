@@ -1,3 +1,4 @@
+import { normalizeDuration } from '@/lib/core/detailing-slots'
 import { writeAuditLog, writeSystemErrorLogSafe } from '@/lib/server/audit'
 import {
   DEFAULT_SETUP,
@@ -168,6 +169,11 @@ export async function POST(request: Request) {
     if (kind === 'service') {
       row.package_note = String(body?.package_note || '').trim().slice(0, 160) || null
       row.days = Math.min(30, Math.max(1, Math.round(Number(body?.days) || 1)))
+      if (body?.duration_minutes !== undefined) {
+        row.duration_minutes = normalizeDuration(body.duration_minutes)
+        // Быстрая услуга занимает часы, а не дни.
+        if (row.duration_minutes) row.days = 1
+      }
       if (body?.remind_months !== undefined) row.remind_months = Math.min(60, Math.max(0, Math.round(Number(body.remind_months) || 0))) || null
       row.updated_at = new Date().toISOString()
     }

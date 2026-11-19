@@ -23,6 +23,7 @@ import {
   postDetailing,
   useDetailingCompanyId,
 } from '@/components/detailing/detailing-shared'
+import { DURATION_CHOICES, durationLabel } from '@/lib/core/detailing-slots'
 
 type SetupData = {
   companies: DetailingCompany[]
@@ -133,7 +134,7 @@ export default function DetailingPricesPage() {
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-2.5 font-bold">Услуга</th>
-                  <th className="px-3 py-2.5 text-right font-bold">Дней</th>
+                  <th className="px-3 py-2.5 text-right font-bold">В боксе</th>
                   {classes.map((c) => <th key={c.id} className="px-3 py-2.5 text-right font-bold last:pr-4">{c.name}</th>)}
                 </tr>
               </thead>
@@ -152,7 +153,7 @@ export default function DetailingPricesPage() {
                       <div className="font-bold">{s.name}</div>
                       {s.package_note ? <div className="text-xs text-muted-foreground">{s.package_note}</div> : null}
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums">{s.days}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{s.duration_minutes ? durationLabel(s.duration_minutes) : `${s.days} дн`}</td>
                     {classes.map((c) => {
                       const price = s.prices.find((x) => x.body_class_id === c.id)
                       return (
@@ -281,6 +282,8 @@ function ServiceModal(props: {
   const [name, setName] = useState(s?.name || '')
   const [note, setNote] = useState(s?.package_note || '')
   const [days, setDays] = useState(String(s?.days || 1))
+  // 0 — услуга занимает дни; иначе минуты быстрой работы.
+  const [minutes, setMinutes] = useState(s?.duration_minutes || 0)
   const [remind, setRemind] = useState(s?.remind_months ? String(s.remind_months) : '')
   const [prices, setPrices] = useState<Record<string, { price: string; materials: string }>>(() =>
     Object.fromEntries(
@@ -302,7 +305,8 @@ function ServiceModal(props: {
     const ok = await props.onSave({
       name,
       package_note: note,
-      days: Number(days) || 1,
+      days: minutes ? 1 : Number(days) || 1,
+      duration_minutes: minutes,
       remind_months: Number(remind) || 0,
       prices: props.classes
         .filter((c) => prices[c.id]?.price)
@@ -337,9 +341,25 @@ function ServiceModal(props: {
       }
     >
       <div className="space-y-4 text-sm">
-        <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
-          <label className="space-y-1.5"><span className="text-muted-foreground">Название</span><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Полировка кузова" autoFocus={!s} maxLength={80} /></label>
-          <label className="space-y-1.5"><span className="text-muted-foreground">Дней в боксе</span><Input value={days} onChange={(e) => setDays(num(e.target.value).slice(0, 2))} inputMode="numeric" className="text-right tabular-nums" /></label>
+        <label className="block space-y-1.5"><span className="text-muted-foreground">Название</span><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Полировка кузова" autoFocus={!s} maxLength={80} /></label>
+        <div className="space-y-1.5">
+          <span className="text-muted-foreground">Сколько занимает бокс</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[0, ...new Set([...DURATION_CHOICES, ...(minutes ? [minutes] : [])])].sort((a, b) => a - b).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={minutes === m}
+                onClick={() => setMinutes(m)}
+                className={`min-h-9 rounded-xl border-[1.5px] px-3 py-1.5 text-sm font-semibold transition ${minutes === m ? 'border-blue-600 bg-blue-600/10 text-blue-700 dark:text-blue-200' : 'border-border hover:border-slate-400'}`}
+              >
+                {m ? durationLabel(m) : 'Дни'}
+              </button>
+            ))}
+            {!minutes ? <Input value={days} onChange={(e) => setDays(num(e.target.value).slice(0, 2))} inputMode="numeric" aria-label="Дней в боксе" className="h-9 w-[64px] text-right tabular-nums" /> : null}
+            {!minutes ? <span className="text-muted-foreground">дн.</span> : null}
+          </div>
+          <p className="text-xs text-muted-foreground">{minutes ? 'Быстрая работа: в один бокс за день можно записать несколько таких машин по времени.' : 'Машина занимает бокс целыми днями.'}</p>
         </div>
         <label className="block space-y-1.5"><span className="text-muted-foreground">Что входит — по желанию</span><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="капот, бампер, фары, зеркала" maxLength={160} /></label>
 

@@ -21,6 +21,8 @@ export type Service = {
   name: string
   package_note: string | null
   days: number
+  /** Быстрая услуга: сколько минут занимает бокс; null — занимает дни. */
+  duration_minutes?: number | null
   /** Через сколько месяцев напомнить клиенту; null — не напоминать. */
   remind_months?: number | null
   sort_order: number
@@ -42,6 +44,8 @@ export type Booking = {
   start_date: string
   /** «15:00» или null — время не назначено. */
   start_time?: string | null
+  /** Быстрая работа: сколько минут держит бокс с start_time; null — весь день. */
+  duration_minutes?: number | null
   days: number
   status: BookingStatus
   price_total: number

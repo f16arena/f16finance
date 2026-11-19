@@ -20,6 +20,7 @@ import {
   upsertCustomer,
   type DetailingCtx,
 } from '@/lib/server/detailing'
+import { normalizeDuration } from '@/lib/core/detailing-slots'
 
 /**
  * Запись · неделя. GET — всё для недельного календаря точки: боксы, классы
@@ -30,7 +31,7 @@ import {
  */
 
 const BOOKING_SELECT =
-  'id, company_id, box_id, customer_id, car_id, body_class_id, master_operator_id, start_date, start_time, days, status, price_total, materials_total, materials_manual, comment, source, issued_at, created_at, ' +
+  'id, company_id, box_id, customer_id, car_id, body_class_id, master_operator_id, start_date, start_time, duration_minutes, days, status, price_total, materials_total, materials_manual, comment, source, issued_at, created_at, ' +
   'customer:customers(id, name, phone), car:customer_cars(id, plate, model), ' +
   'services:detailing_booking_services(id, service_id, name, price, materials, days, sort_order), ' +
   'payments:detailing_payments(id, amount, method, kind, paid_on)'
@@ -134,14 +135,19 @@ export async function POST(request: Request) {
         : { data: null }
       if (!cls) return json({ error: 'Выберите кузов' }, 400)
 
-      const { lines, missing } = await priceLines(ctx.supabase, { companyId: company.id, serviceIds, bodyClassId })
+      const { lines, missing, plan } = await priceLines(ctx.supabase, { companyId: company.id, serviceIds, bodyClassId })
       if (missing.length) return json({ error: `Нет цены для этого кузова: ${missing.join(', ')}` }, 400)
 
       const boxId = await ownBox(ctx, company.id, String(body?.box_id || '') || null)
       if (!boxId) return json({ error: 'Выберите бокс' }, 400)
-      const days = Math.min(60, Math.max(1, Number(body?.days) || lines.reduce((s, l) => s + l.days, 0) || 1))
-      const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId, startDate: body.start_date, days })
-      if (conflict) return json({ error: 'Бокс занят в эти дни. Выберите другой бокс или день.' }, 409)
+      const days = Math.min(60, Math.max(1, Number(body?.days) || plan.days))
+      const startTime = normalizeTime(body?.start_time)
+      // Быстрая работа: длительность прислали с экрана или она следует из услуг.
+      // Без времени или на несколько дней — бокс занят целиком.
+      const wanted = 'duration_minutes' in (body || {}) ? normalizeDuration(body.duration_minutes) : plan.minutes
+      const duration = days === 1 && startTime ? wanted : null
+      const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId, startDate: body.start_date, days, startTime, durationMinutes: duration })
+      if (conflict) return json({ error: duration ? 'В это время бокс занят. Выберите другое время или бокс.' : 'Бокс занят в эти дни. Выберите другой бокс или день.' }, 409)
 
       const masterId = await ownMaster(ctx, company.id, String(body?.master_operator_id || '') || null)
       const name = String(body?.client_name || '').trim().slice(0, 120) || null
@@ -165,7 +171,8 @@ export async function POST(request: Request) {
           body_class_id: bodyClassId,
           master_operator_id: masterId,
           start_date: body.start_date,
-          start_time: normalizeTime(body?.start_time),
+          start_time: startTime,
+          duration_minutes: duration,
           days,
           status: 'booked',
           price_total: lines.reduce((s, l) => s + l.price, 0),
@@ -197,7 +204,7 @@ export async function POST(request: Request) {
     // Остальные действия — над существующей записью своей точки.
     const id = String(body?.id || '').trim()
     const { data: current } = id
-      ? await ctx.supabase.from('detailing_bookings').select('id, company_id, box_id, start_date, days, status, price_total, customer:customers(name), car:customer_cars(plate, model)').eq('id', id).maybeSingle()
+      ? await ctx.supabase.from('detailing_bookings').select('id, company_id, box_id, start_date, start_time, duration_minutes, days, status, price_total, customer:customers(name), car:customer_cars(plate, model)').eq('id', id).maybeSingle()
       : { data: null }
     const company = current ? pickCompany(ctx, current.company_id) : null
     if (!current || !company || company.id !== current.company_id) return json({ error: 'Запись не найдена' }, 404)
@@ -293,7 +300,7 @@ export async function POST(request: Request) {
       // Вернули «не приехал» в работу — бокс мог за это время занять другой.
       if ((current.status === 'no_show' || current.status === 'requested') && ['booked', 'in_box', 'done'].includes(status)) {
         if (!current.box_id) return json({ error: 'Сначала выберите бокс' }, 400)
-        const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId: current.box_id, startDate: current.start_date, days: current.days, ignoreId: id })
+        const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId: current.box_id, startDate: current.start_date, days: current.days, startTime: normalizeTime(current.start_time), durationMinutes: current.duration_minutes, ignoreId: id })
         if (conflict) return json({ error: 'Бокс уже занят другой машиной' }, 409)
       }
       const { error } = await ctx.supabase.from('detailing_bookings').update(patch).eq('id', id)
@@ -304,17 +311,28 @@ export async function POST(request: Request) {
 
     // update: бокс/день, мастер, материалы, комментарий.
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    if ('box_id' in body || 'start_date' in body) {
+    // Бокс, день, время и длительность вместе решают, занят ли бокс — проверяем разом.
+    if ('box_id' in body || 'start_date' in body || 'start_time' in body || 'duration_minutes' in body) {
       const boxId = 'box_id' in body ? await ownBox(ctx, company.id, String(body.box_id || '') || null) : current.box_id
       const startDate = 'start_date' in body ? body.start_date : current.start_date
-      if (!boxId) return json({ error: 'Выберите бокс' }, 400)
-      if (!isIsoDate(startDate)) return json({ error: 'Укажите день' }, 400)
-      const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId, startDate, days: current.days, ignoreId: id })
-      if (conflict) return json({ error: 'Бокс занят в эти дни' }, 409)
-      patch.box_id = boxId
-      patch.start_date = startDate
+      const startTime = 'start_time' in body ? normalizeTime(body.start_time) : normalizeTime(current.start_time)
+      const duration = Number(current.days) === 1 ? ('duration_minutes' in body ? normalizeDuration(body.duration_minutes) : current.duration_minutes) : null
+      if ('box_id' in body || 'start_date' in body) {
+        if (!boxId) return json({ error: 'Выберите бокс' }, 400)
+        if (!isIsoDate(startDate)) return json({ error: 'Укажите день' }, 400)
+      }
+      // Заявка без бокса и «не приехал» бокс не держат — им время меняем свободно.
+      if (boxId && current.status !== 'no_show') {
+        const conflict = await findBoxConflict(ctx.supabase, { companyId: company.id, boxId, startDate, days: current.days, startTime, durationMinutes: duration, ignoreId: id })
+        if (conflict) return json({ error: duration && startTime ? 'В это время бокс занят другой машиной' : 'Бокс занят в эти дни' }, 409)
+      }
+      if ('box_id' in body || 'start_date' in body) {
+        patch.box_id = boxId
+        patch.start_date = startDate
+      }
+      if ('start_time' in body) patch.start_time = startTime
+      if ('duration_minutes' in body) patch.duration_minutes = duration
     }
-    if ('start_time' in body) patch.start_time = normalizeTime(body.start_time)
     if ('master_operator_id' in body) {
       const masterId = String(body.master_operator_id || '') || null
       const own = await ownMaster(ctx, company.id, masterId)

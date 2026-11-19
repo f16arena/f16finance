@@ -9,10 +9,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CarFront, Check, Loader2 } from 'lucide-react'
 
+import { durationLabel } from '@/lib/core/detailing-slots'
+
 type Info = {
   name: string
   classes: Array<{ id: string; name: string }>
-  services: Array<{ id: string; name: string; note: string | null; days: number; prices: Array<{ body_class_id: string; price: number }> }>
+  services: Array<{ id: string; name: string; note: string | null; days: number; minutes?: number | null; prices: Array<{ body_class_id: string; price: number }> }>
   horizonDays: number
 }
 
@@ -138,7 +140,7 @@ export function OnlineBookingForm({ orgName }: { orgName: string }) {
                 <input type="checkbox" className="h-5 w-5 shrink-0 accent-blue-600" checked={on} onChange={(e) => setPicked(e.target.checked ? [...picked, s.id] : picked.filter((x) => x !== s.id))} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{s.name}</span>
-                  <span className="block text-xs text-[#5b6b82]">{s.note ? `${s.note} · ` : ''}{s.days > 1 ? `${s.days} дн.` : '1 день'}</span>
+                  <span className="block text-xs text-[#5b6b82]">{s.note ? `${s.note} · ` : ''}{s.minutes ? `около ${durationLabel(s.minutes)}` : s.days > 1 ? `${s.days} дн.` : '1 день'}</span>
                 </span>
                 <b className="shrink-0 tabular-nums">{money(priceOf(s) || 0)}</b>
               </label>

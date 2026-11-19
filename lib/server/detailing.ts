@@ -8,6 +8,7 @@ import { requireOrgFeature } from '@/lib/server/entitlements'
 import { resolveCompanyScope } from '@/lib/server/organizations'
 import { createAdminSupabaseClient, hasAdminSupabaseCredentials } from '@/lib/server/supabase'
 import { createCompanyForOrganization } from '@/lib/server/company-create'
+import { MAX_DURATION, normalizeDuration, slotsOverlap } from '@/lib/core/detailing-slots'
 
 /**
  * Детейлинг (миграция 20261029_detailing_core): точки с companies.industry =
@@ -159,17 +160,20 @@ export const OCCUPYING_STATUSES: BookingStatus[] = ['booked', 'in_box', 'done']
 /**
  * Занят ли бокс в дни [start, start+days). Выданная машина тоже держит свои
  * дни: иначе на прошедшую неделю можно было бы записать поверх.
+ *
+ * Быстрая работа (один день, время и длительность) занимает только свои часы —
+ * правило пересечения в lib/core/detailing-slots.
  */
 export async function findBoxConflict(
   supabase: any,
-  args: { companyId: string; boxId: string; startDate: string; days: number; ignoreId?: string | null },
+  args: { companyId: string; boxId: string; startDate: string; days: number; startTime?: string | null; durationMinutes?: number | null; ignoreId?: string | null },
 ) {
   const end = addDays(args.startDate, args.days) // не включительно
   // Брони, начавшиеся до конца нашего окна; пересечение досчитываем здесь —
   // в PostgREST нельзя сравнить start_date + days с датой.
   let q = supabase
     .from('detailing_bookings')
-    .select('id, start_date, days')
+    .select('id, start_date, days, start_time, duration_minutes')
     .eq('company_id', args.companyId)
     .eq('box_id', args.boxId)
     .in('status', OCCUPYING_STATUSES)
@@ -178,7 +182,12 @@ export async function findBoxConflict(
   if (args.ignoreId) q = q.neq('id', args.ignoreId)
   const { data, error } = await q
   if (error) throw error
-  return ((data || []) as any[]).find((b) => addDays(String(b.start_date), Number(b.days)) > args.startDate) || null
+  const mine = { start_date: args.startDate, days: args.days, start_time: args.startTime, duration_minutes: args.durationMinutes }
+  return (
+    ((data || []) as any[]).find((b) =>
+      slotsOverlap(mine, { start_date: String(b.start_date), days: Number(b.days), start_time: b.start_time, duration_minutes: b.duration_minutes }),
+    ) || null
+  )
 }
 
 export type PriceRow = { service_id: string; body_class_id: string; price: number; materials: number }
@@ -188,16 +197,17 @@ export async function priceLines(
   supabase: any,
   args: { companyId: string; serviceIds: string[]; bodyClassId: string | null },
 ) {
-  if (!args.serviceIds.length) return { lines: [], missing: [] as string[] }
+  if (!args.serviceIds.length) return { lines: [], missing: [] as string[], plan: { days: 1, minutes: null as number | null } }
   const { data: services, error } = await supabase
     .from('detailing_services')
-    .select('id, name, days, sort_order, prices:detailing_service_prices(body_class_id, price, materials)')
+    .select('id, name, days, duration_minutes, sort_order, prices:detailing_service_prices(body_class_id, price, materials)')
     .eq('company_id', args.companyId)
     .in('id', args.serviceIds)
   if (error) throw error
   const byId = new Map(((services || []) as any[]).map((s) => [String(s.id), s]))
   const lines: Array<{ service_id: string; name: string; price: number; materials: number; days: number; sort_order: number }> = []
   const missing: string[] = []
+  const minutes: Array<number | null> = []
   args.serviceIds.forEach((id, index) => {
     const s = byId.get(id)
     if (!s) {
@@ -217,8 +227,15 @@ export async function priceLines(
       days: Number(s.days || 1),
       sort_order: index,
     })
+    minutes.push(normalizeDuration(s.duration_minutes))
   })
-  return { lines, missing }
+  // Сколько запись займёт бокс. Все услуги быстрые — один день и сумма их минут.
+  // Есть хоть одна «дневная» — дни считаем по дневным, быстрые делаются заодно.
+  const allQuick = minutes.length > 0 && minutes.every((m) => m !== null)
+  const plan = allQuick
+    ? { days: 1, minutes: Math.min(MAX_DURATION, minutes.reduce((s: number, m) => s + (m || 0), 0)) as number | null }
+    : { days: Math.max(1, lines.reduce((s, l, i) => s + (minutes[i] === null ? l.days : 0), 0)), minutes: null as number | null }
+  return { lines, missing, plan }
 }
 
 /** Мастера точки: активные сотрудники, назначенные на неё. */
@@ -263,7 +280,7 @@ export async function loadReference(ctx: Pick<DetailingCtx, 'supabase'>, company
     ctx.supabase.from('detailing_body_classes').select('id, name, sort_order, is_active').eq('company_id', companyId).order('sort_order').order('name'),
     ctx.supabase
       .from('detailing_services')
-      .select('id, name, package_note, days, remind_months, sort_order, is_active, prices:detailing_service_prices(body_class_id, price, materials)')
+      .select('id, name, package_note, days, duration_minutes, remind_months, sort_order, is_active, prices:detailing_service_prices(body_class_id, price, materials)')
       .eq('company_id', companyId)
       .order('sort_order')
       .order('name'),

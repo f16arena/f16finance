@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       ctx.supabase.from('detailing_body_classes').select('id, name, sort_order').eq('company_id', ctx.companyId).eq('is_active', true).order('sort_order'),
       ctx.supabase
         .from('detailing_services')
-        .select('id, name, package_note, days, sort_order, prices:detailing_service_prices(body_class_id, price)')
+        .select('id, name, package_note, days, duration_minutes, sort_order, prices:detailing_service_prices(body_class_id, price)')
         .eq('company_id', ctx.companyId)
         .eq('is_active', true)
         .order('sort_order'),
@@ -66,6 +66,7 @@ export async function GET(request: Request) {
             name: String(s.name),
             note: s.package_note || null,
             days: Number(s.days || 1),
+            minutes: s.duration_minutes ? Number(s.duration_minutes) : null,
             prices: ((s.prices || []) as any[]).map((p) => ({ body_class_id: String(p.body_class_id), price: Number(p.price || 0) })),
           }))
           .filter((s) => s.prices.length),
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
 
     const { data: cls } = await ctx.supabase.from('detailing_body_classes').select('id').eq('id', bodyClassId).eq('company_id', ctx.companyId).eq('is_active', true).maybeSingle()
     if (!cls) return json({ error: 'Выберите кузов' }, 400)
-    const { lines, missing } = await priceLines(ctx.supabase, { companyId: ctx.companyId, serviceIds, bodyClassId })
+    const { lines, missing, plan } = await priceLines(ctx.supabase, { companyId: ctx.companyId, serviceIds, bodyClassId })
     if (missing.length || !lines.length) return json({ error: 'Для этого кузова часть услуг не делается. Выберите другие.' }, 400)
 
     // Не плодим одинаковые заявки: одна необработанная на телефон.
@@ -138,7 +139,9 @@ export async function POST(request: Request) {
         body_class_id: bodyClassId,
         start_date: body.date,
         start_time: normalizeTime(body?.time),
-        days: Math.min(60, Math.max(1, lines.reduce((s, l) => s + l.days, 0))),
+        // Быстрые услуги со временем занимают часы — администратор поставит их в бокс рядом с другими.
+        duration_minutes: normalizeTime(body?.time) ? plan.minutes : null,
+        days: Math.min(60, plan.days),
         status: 'requested',
         price_total: lines.reduce((s, l) => s + l.price, 0),
         materials_total: lines.reduce((s, l) => s + l.materials, 0),

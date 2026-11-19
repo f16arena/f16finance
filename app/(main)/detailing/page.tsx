@@ -40,6 +40,7 @@ import {
   useOrgName,
   waText,
 } from '@/components/detailing/detailing-shared'
+import { DURATION_CHOICES, durationLabel, hourRange, slotTimeLabel, slotsOverlap } from '@/lib/core/detailing-slots'
 
 type WeekData = {
   companies: DetailingCompany[]
@@ -93,7 +94,7 @@ export default function DetailingWeekPage() {
   const header = (
     <DetailingHeader
       title="Запись"
-      subtitle={inBox ? `Неделя по боксам · сейчас в боксах: ${inBox}. Нажмите на пустую клетку, чтобы записать.` : 'Неделя по боксам. Нажмите на пустую клетку, чтобы записать.'}
+      subtitle={inBox ? `Неделя по боксам · сейчас в боксах: ${inBox}. Нажмите на пустую клетку, чтобы записать.` : 'Неделя по боксам. Нажмите на пустую клетку, чтобы записать. Быстрые работы по часам встают в один бокс друг за другом.'}
     >
       {data ? <CompanyPicker companies={data.companies} value={data.company?.id || ''} onChange={setCompanyId} /> : null}
       <Button variant="outline" size="icon-sm" aria-label="Прошлая неделя" onClick={() => setWeekStart(shiftIso(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
@@ -151,18 +152,20 @@ export default function DetailingWeekPage() {
             const from = daysBetween(d, b.start_date)
             return b.status === 'no_show' ? from === 0 : from <= 0 && 0 < from + b.days
           })
-          const freeBox = boxes.find((box) => !list.some((b) => b.box_id === box.id && b.status !== 'no_show'))
+          const held = list.filter((b) => b.status !== 'no_show')
+          // Сначала совсем пустой бокс, потом тот, где стоят только быстрые работы по часам.
+          const freeBox = boxes.find((box) => !held.some((b) => b.box_id === box.id)) || boxes.find((box) => !held.some((b) => b.box_id === box.id && !hourRange(b)))
           return (
             <section key={d} className={`${storeCard} overflow-hidden`}>
               <div className={`flex items-center justify-between px-3.5 py-2 ${d === today ? 'bg-blue-600 text-white' : 'bg-slate-50 dark:bg-white/[0.03]'}`}>
                 <b className="text-sm">{l.weekday} {l.day} {l.month}{d === today ? ' · сегодня' : ''}</b>
-                <span className={`text-xs ${d === today ? 'text-white/80' : 'text-muted-foreground'}`}>занято {list.filter((b) => b.status !== 'no_show').length} из {boxes.length}</span>
+                <span className={`text-xs ${d === today ? 'text-white/80' : 'text-muted-foreground'}`}>занято {new Set(held.map((b) => b.box_id)).size} из {boxes.length}</span>
               </div>
               <div className="divide-y divide-border">
                 {list.map((b) => (
                   <button key={b.id} type="button" onClick={() => setOpenId(b.id)} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left">
                     <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">{b.start_time && b.start_date === d ? <span className="font-mono text-[13px]">{b.start_time}</span> : null}{b.car?.model || b.customer?.name || 'Машина'} <Plate plate={b.car?.plate} /></span>
+                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">{b.start_time && b.start_date === d ? <span className="font-mono text-[13px]">{slotTimeLabel(b)}</span> : null}{b.car?.model || b.customer?.name || 'Машина'} <Plate plate={b.car?.plate} /></span>
                       <span className="block truncate text-xs text-muted-foreground">{boxes.find((x) => x.id === b.box_id)?.name} · {b.services.map((x) => x.name).join(', ')}</span>
                     </span>
                     <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[b.status]}`}>{STATUS_LABEL[b.status]}</span>
@@ -194,7 +197,10 @@ export default function DetailingWeekPage() {
           })}
 
           {boxes.map((box) => {
-            const list = bookings.filter((b) => b.box_id === box.id && b.status !== 'requested')
+            const mine = bookings.filter((b) => b.box_id === box.id && b.status !== 'requested')
+            // Быстрые работы по часам идут столбиком в клетке дня, остальные — полосой на свои дни.
+            const quick = mine.filter((b) => hourRange(b))
+            const list = mine.filter((b) => !hourRange(b))
             const busyDay = (i: number) =>
               list.some((b) => {
                 const from = daysBetween(weekStart, b.start_date)
@@ -207,8 +213,36 @@ export default function DetailingWeekPage() {
                   {box.note ? <div className="text-[11px] text-muted-foreground">{box.note}</div> : null}
                 </div>
                 <div className="col-span-7 grid min-h-[92px] border-t border-border" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
-                  {days.map((d, i) =>
-                    busyDay(i) ? null : (
+                  {days.map((d, i) => {
+                    if (busyDay(i)) return null
+                    const stack = quick.filter((b) => b.start_date === d)
+                    if (stack.length) {
+                      return (
+                        <div key={d} style={{ gridColumn: `${i + 1}`, gridRow: 1 }} className="m-1 flex min-w-0 flex-col gap-1">
+                          {stack.map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => setOpenId(b.id)}
+                              className={`flex min-w-0 flex-col rounded-lg px-2 py-1 text-left transition hover:ring-2 hover:ring-blue-400/50 ${STATUS_TONE[b.status]}`}
+                            >
+                              <span className="font-mono text-[11px] font-semibold">{slotTimeLabel(b)}</span>
+                              <span className="truncate text-[12px] font-semibold text-foreground">{b.car?.model || b.customer?.name || 'Машина'}</span>
+                              <span className="truncate text-[11px] text-muted-foreground">{b.services.map((s) => s.name).join(', ')}</span>
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setDraft({ boxId: box.id, date: d })}
+                            aria-label={`Записать ещё в ${box.name}, ${dayLabel(d).short}`}
+                            className="rounded-lg border border-dashed border-border py-1 text-[11px] font-medium text-muted-foreground transition hover:border-slate-400 hover:text-foreground"
+                          >
+                            + ещё
+                          </button>
+                        </div>
+                      )
+                    }
+                    return (
                       <button
                         key={d}
                         type="button"
@@ -219,8 +253,8 @@ export default function DetailingWeekPage() {
                       >
                         + записать
                       </button>
-                    ),
-                  )}
+                    )
+                  })}
                   {list.map((b) => {
                     const from = Math.max(0, daysBetween(weekStart, b.start_date))
                     const to = Math.min(7, daysBetween(weekStart, b.start_date) + b.days)
@@ -306,6 +340,8 @@ function NewBookingModal(props: {
   const [picked, setPicked] = useState<string[]>([])
   const [date, setDate] = useState(props.initial.date)
   const [time, setTime] = useState('')
+  // undefined — длительность берём из услуг; null — весь день; число — выбрали сами.
+  const [durPick, setDurPick] = useState<number | null | undefined>(undefined)
   const [boxId, setBoxId] = useState(props.initial.boxId)
   const [masterId, setMasterId] = useState('')
   const [comment, setComment] = useState('')
@@ -347,17 +383,19 @@ function NewBookingModal(props: {
   const priceOf = (s: Service) => s.prices.find((p) => p.body_class_id === classId) || null
   const lines = services.filter((s) => picked.includes(s.id) && priceOf(s))
   const total = lines.reduce((sum, s) => sum + (priceOf(s)?.price || 0), 0)
-  const daysNeeded = Math.max(1, lines.reduce((sum, s) => sum + s.days, 0))
+  // Все услуги быстрые — запись на часы; есть «дневная» — дни считаем по дневным.
+  const quickSum = lines.length && lines.every((s) => s.duration_minutes) ? lines.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) : null
+  const daysNeeded = quickSum ? 1 : Math.max(1, lines.filter((s) => !s.duration_minutes).reduce((sum, s) => sum + s.days, 0))
+  const duration = daysNeeded === 1 ? (durPick === undefined ? quickSum : durPick) : null
+  const durations = [...new Set([...DURATION_CHOICES, ...(quickSum ? [quickSum] : [])])].sort((a, b) => a - b)
+  const slot = { start_date: date, days: daysNeeded, start_time: time || null, duration_minutes: duration }
+  const byHours = !!hourRange(slot)
 
   // Занятость считаем по записям загруженной недели; для дней за её пределами сервер проверит сам.
-  const busyBox = (id: string) => {
-    const start = daysBetween(props.days[0], date)
-    return data.bookings.some((b) => {
-      if (b.box_id !== id || !['booked', 'in_box', 'done'].includes(b.status)) return false
-      const from = daysBetween(props.days[0], b.start_date)
-      return from < start + daysNeeded && start < from + b.days
-    })
-  }
+  const holds = (b: Booking) => ['booked', 'in_box', 'done'].includes(b.status)
+  const busyBox = (id: string) => data.bookings.some((b) => b.box_id === id && holds(b) && slotsOverlap(slot, b))
+  // Кто уже стоит по часам в выбранном боксе в этот день — чтобы видеть свободное время.
+  const neighbours = data.bookings.filter((b) => b.box_id === boxId && holds(b) && b.start_date === date && hourRange(b))
   const conflict = lines.length > 0 && busyBox(boxId)
   const ready = digits.length >= 10 && plate.trim() && lines.length && classId && !conflict
 
@@ -379,6 +417,7 @@ function NewBookingModal(props: {
         service_ids: lines.map((s) => s.id),
         start_date: date,
         start_time: time || null,
+        duration_minutes: duration,
         box_id: boxId,
         master_operator_id: masterId || null,
         comment,
@@ -408,7 +447,7 @@ function NewBookingModal(props: {
         <div className="space-y-2">
           <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5 dark:bg-white/[0.03]">
             <span className="text-sm text-muted-foreground">
-              {lines.length ? `По прайсу · ${daysNeeded} ${daysNeeded === 1 ? 'день' : daysNeeded < 5 ? 'дня' : 'дней'} в боксе` : 'Выберите услугу'}
+              {!lines.length ? 'Выберите услугу' : byHours && duration ? `По прайсу · ${durationLabel(duration)} в боксе` : `По прайсу · ${daysNeeded} ${daysNeeded === 1 ? 'день' : daysNeeded < 5 ? 'дня' : 'дней'} в боксе`}
             </span>
             <b className="font-[family-name:var(--font-manrope)] text-xl tabular-nums">{money(total)}</b>
           </div>
@@ -466,7 +505,7 @@ function NewBookingModal(props: {
                   className={pill(on, !p)}
                 >
                   <span className="block">{s.name}</span>
-                  <span className="block text-xs font-medium text-muted-foreground">{p ? money(p.price) : 'нет цены'}{s.days > 1 ? ` · ${s.days} дн` : ''}</span>
+                  <span className="block text-xs font-medium text-muted-foreground">{p ? money(p.price) : 'нет цены'}{s.duration_minutes ? ` · ${durationLabel(s.duration_minutes)}` : s.days > 1 ? ` · ${s.days} дн` : ''}</span>
                 </button>
               )
             })}
@@ -487,8 +526,19 @@ function NewBookingModal(props: {
             {QUICK_TIMES.map((t) => <button key={t} type="button" aria-pressed={time === t} onClick={() => setTime(time === t ? '' : t)} className={pill(time === t)}>{t}</button>)}
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Другое время" className="h-10 w-[120px]" />
           </div>
-          {!time ? <p className="text-xs text-muted-foreground">Не выбрали — запись будет на день без времени.</p> : null}
+          {!time ? <p className="text-xs text-muted-foreground">{duration ? 'Выберите время — без него бокс будет занят весь день.' : 'Не выбрали — запись будет на день без времени.'}</p> : null}
         </div>
+
+        {daysNeeded === 1 ? (
+          <div className="space-y-1.5">
+            <div className={label}>Сколько займёт</div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button type="button" aria-pressed={!duration} onClick={() => setDurPick(null)} className={pill(!duration)}>Весь день</button>
+              {durations.map((m) => <button key={m} type="button" aria-pressed={duration === m} onClick={() => setDurPick(m)} className={pill(duration === m)}>{durationLabel(m)}</button>)}
+            </div>
+            <p className="text-xs text-muted-foreground">Быстрая работа занимает бокс только на свои часы — в этот же день в него можно записать ещё машину.</p>
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <div className={label}>Бокс</div>
@@ -502,7 +552,12 @@ function NewBookingModal(props: {
               )
             })}
           </div>
-          {conflict ? <p className="text-sm font-medium text-rose-600">Этот бокс занят в эти дни. Выберите другой бокс или день.</p> : null}
+          {neighbours.length ? (
+            <p className="text-xs text-muted-foreground">
+              В этом боксе в этот день уже: {neighbours.map((b) => `${slotTimeLabel(b)} ${b.car?.model || b.car?.plate || 'машина'}`).join(' · ')}
+            </p>
+          ) : null}
+          {conflict ? <p className="text-sm font-medium text-rose-600">{byHours ? 'В это время бокс занят. Выберите другое время или бокс.' : 'Этот бокс занят в эти дни. Выберите другой бокс или день.'}</p> : null}
         </div>
 
         {data.masters.length ? (
@@ -556,7 +611,7 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
       open
       onClose={props.onClose}
       title={b.car?.model || 'Машина'}
-      description={`${box ? `${box.name} · ` : ''}${range}${b.start_time ? `, ${b.start_time}` : ''}`}
+      description={`${box ? `${box.name} · ` : ''}${range}${b.start_time ? `, ${slotTimeLabel(b)}` : ''}`}
       maxWidth="max-w-lg"
     >
       <div className="space-y-4 text-sm">
@@ -621,6 +676,20 @@ function BookingModal(props: { booking: Booking; data: WeekData; onClose: () => 
               className="h-8 w-[120px]"
             />
           </div>
+          {b.days === 1 ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Сколько займёт{b.duration_minutes && !b.start_time ? ' — нужно время' : ''}</span>
+              <NativeSelect
+                value={String(b.duration_minutes || '')}
+                onChange={(e) => run({ action: 'update', duration_minutes: Number(e.target.value) || null }, e.target.value ? `Займёт ${durationLabel(Number(e.target.value))}` : 'Бокс занят на весь день')}
+                aria-label="Сколько займёт"
+                className="h-8 max-w-[180px]"
+              >
+                <option value="">Весь день</option>
+                {[...new Set([...DURATION_CHOICES, ...(b.duration_minutes ? [b.duration_minutes] : [])])].sort((x, y) => x - y).map((m) => <option key={m} value={m}>{durationLabel(m)}</option>)}
+              </NativeSelect>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Мастер</span>
             <NativeSelect value={b.master_operator_id || ''} onChange={(e) => run({ action: 'update', master_operator_id: e.target.value || null }, 'Мастер сохранён')} className="h-8 max-w-[180px]">

@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/use-toast'
 import { invalidateApiCache, useApiCache } from '@/lib/client/use-api-cache'
 import { formatPhone } from '@/lib/core/format'
 import { type Booking, type Box, Plate, WaButton, isoLocal, money, postDetailing, shiftIso, useDetailingCompanyId, useOrgName, waText } from '@/components/detailing/detailing-shared'
+import { slotEndTime, slotTimeLabel } from '@/lib/core/detailing-slots'
 
 type GarageData = { company: { id: string; name: string } | null; boxes: Box[]; bookings: Booking[]; masters: Array<{ id: string; name: string }>; services?: Array<{ id: string }> }
 
@@ -26,12 +27,16 @@ const PAY: Array<{ id: 'cash' | 'kaspi' | 'card'; label: string }> = [
 
 /** Машина бокса на сегодня: сначала та, что уже стоит, потом записанная на сегодня. */
 function carOfBox(bookings: Booking[], boxId: string, today: string) {
+  return queueOfBox(bookings, boxId, today)[0] || null
+}
+
+/** Все машины бокса на сегодня по порядку: та, что стоит, потом записанные по времени. */
+function queueOfBox(bookings: Booking[], boxId: string, today: string) {
   const here = bookings.filter((b) => b.box_id === boxId)
-  return (
-    here.find((b) => b.status === 'in_box') ||
-    here.find((b) => b.status === 'booked' && b.start_date <= today && shiftIso(b.start_date, b.days) > today) ||
-    null
-  )
+  const waiting = here
+    .filter((b) => b.status === 'booked' && b.start_date <= today && shiftIso(b.start_date, b.days) > today)
+    .sort((a, b) => (a.start_time || '99').localeCompare(b.start_time || '99'))
+  return [...here.filter((b) => b.status === 'in_box'), ...waiting]
 }
 
 export function GarageToday({ onChanged }: { onChanged?: () => void | Promise<void> } = {}) {
@@ -123,13 +128,15 @@ export function GarageToday({ onChanged }: { onChanged?: () => void | Promise<vo
             )
           }
           const inBox = b.status === 'in_box'
+          const next = queueOfBox(bookings, box.id, today).slice(1)
+          const until = slotEndTime(b)
           const endDay = shiftIso(b.start_date, b.days - 1)
           const isBusy = busy === b.id
           return (
             <div key={box.id} className={`flex min-h-[170px] flex-col gap-2 rounded-xl p-3.5 ${inBox ? 'bg-blue-600/25 ring-1 ring-blue-400/40' : 'bg-white/[0.06] ring-1 ring-white/10'}`}>
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
                 <span className="text-slate-300">{box.name}</span>
-                <span className={inBox ? 'text-blue-300' : 'text-orange-300'}>{inBox ? (endDay <= today ? 'сдать сегодня' : 'в работе') : b.start_time ? `приедет в ${b.start_time}` : 'приедет сегодня'}</span>
+                <span className={inBox ? 'text-blue-300' : 'text-orange-300'}>{inBox ? (until ? `до ${until}` : endDay <= today ? 'сдать сегодня' : 'в работе') : b.start_time ? `приедет в ${b.start_time}` : 'приедет сегодня'}</span>
               </div>
               <Link href="/detailing" className="min-w-0">
                 <div className="flex items-center gap-2 truncate font-semibold"><CarFront className="h-4 w-4 shrink-0 text-slate-400" />{b.car?.model || 'Машина'} <Plate plate={b.car?.plate} /></div>
@@ -138,6 +145,11 @@ export function GarageToday({ onChanged }: { onChanged?: () => void | Promise<vo
                   {b.customer?.name || formatPhone(b.customer?.phone || '')}{master(b.master_operator_id) ? ` · ${master(b.master_operator_id)}` : ''}
                 </div>
               </Link>
+              {next.length ? (
+                <div className="truncate rounded-md bg-white/10 px-2 py-1 text-[11px] text-slate-200">
+                  Следом: {next.map((n) => `${slotTimeLabel(n) || 'сегодня'} ${n.car?.model || n.car?.plate || 'машина'}`).join(' · ')}
+                </div>
+              ) : null}
               <div className="text-xs text-slate-300">
                 {money(b.price_total)}{b.due > 0 ? <span className="text-orange-300"> · осталось {money(b.due)}</span> : <span className="text-emerald-300"> · оплачено</span>}
               </div>

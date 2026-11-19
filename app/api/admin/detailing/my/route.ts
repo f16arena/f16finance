@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const [carsRes, pay, boxesRes] = await Promise.all([
       ctx.supabase
         .from('detailing_bookings')
-        .select('id, box_id, start_date, start_time, days, status, price_total, materials_total, comment, car:customer_cars(plate, model), services:detailing_booking_services(name, sort_order)')
+        .select('id, box_id, start_date, start_time, duration_minutes, days, status, price_total, materials_total, comment, car:customer_cars(plate, model), services:detailing_booking_services(name, sort_order)')
         .in('company_id', companyIds)
         .eq('master_operator_id', operatorId)
         .in('status', ['booked', 'in_box'])
