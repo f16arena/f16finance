@@ -3,7 +3,9 @@ import { NICHE_ROLES, type NicheRoleCode, isNicheRole } from '@/lib/core/niche-r
 import { buildTenantHost } from '@/lib/core/tenant-domain'
 import { invalidateCapabilitiesCache, requireOwnerOrSuper } from '@/lib/server/capabilities'
 import { detailingContext, json, normalizePhone } from '@/lib/server/detailing'
+import { isAdminEmail } from '@/lib/server/admin'
 import { assertOrganizationLimitAvailable } from '@/lib/server/organizations'
+import { findAuthUserIdByEmail } from '@/lib/server/staff-auth-users'
 
 /**
  * Команда детейлинга: кто заходит в программу и кем работает.
@@ -15,6 +17,9 @@ import { assertOrganizationLimitAvailable } from '@/lib/server/organizations'
  *
  * Всё здесь — только владельцу.
  */
+
+const FOREIGN_ACCOUNT = 'foreign-account'
+const FOREIGN_ACCOUNT_TEXT = 'У этой почты уже есть свой вход в систему. Возьмите другую почту.'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -33,7 +38,13 @@ async function accessLink(supabase: any, orgId: string, email: string, staffId: 
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent('/set-password')}`
   const invite = await supabase.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo, data: { staff_id: staffId } } })
   if (!invite.error && invite.data?.properties?.action_link) return String(invite.data.properties.action_link)
-  // Почта уже зарегистрирована — даём ссылку на новый пароль.
+  // Почта уже зарегистрирована. Ссылку на новый пароль даём только аккаунту,
+  // который завели здесь же для этого человека (staff_id кладётся при приглашении).
+  // Чужому аккаунту — клиенту, оператору, человеку другой организации — нет:
+  // иначе владелец получал бы вход в любую учётку, зная её почту.
+  const userId = await findAuthUserIdByEmail(supabase, email)
+  const { data: existing } = userId ? await supabase.auth.admin.getUserById(userId) : { data: null }
+  if (String((existing as any)?.user?.user_metadata?.staff_id || '') !== staffId) throw new Error(FOREIGN_ACCOUNT)
   const recovery = await supabase.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo } })
   if (recovery.error || !recovery.data?.properties?.action_link) throw recovery.error || invite.error || new Error('link-failed')
   return String(recovery.data.properties.action_link)
@@ -131,6 +142,8 @@ export async function POST(request: Request) {
       const rows = (sameEmail || []) as any[]
       const returning = rows.length === 1 && rows[0].is_active === false && String(rows[0].organization_id) === ctx.orgId && isNicheRole(rows[0].role) ? rows[0] : null
       if (rows.length && !returning) return json({ error: 'Эта почта уже занята другим сотрудником. Возьмите другую.' }, 409)
+      // Новому человеку — только почта без аккаунта: чужую учётку к команде не привязываем.
+      if (!returning && (isAdminEmail(email) || (await findAuthUserIdByEmail(ctx.supabase, email)))) return json({ error: FOREIGN_ACCOUNT_TEXT }, 409)
       if (returning) {
         const staffId = String(returning.id)
         const { error: backError } = await ctx.supabase.from('staff').update({ full_name: name, short_name: name, role, phone, is_active: true }).eq('id', staffId)
@@ -196,7 +209,13 @@ export async function POST(request: Request) {
 
     if (action === 'link') {
       if (!person.email) return json({ error: 'У человека нет почты' }, 400)
-      const link = await accessLink(ctx.supabase, ctx.orgId, String(person.email).toLowerCase(), staffId)
+      let link: string
+      try {
+        link = await accessLink(ctx.supabase, ctx.orgId, String(person.email).toLowerCase(), staffId)
+      } catch (linkError: any) {
+        if (linkError?.message === FOREIGN_ACCOUNT) return json({ error: 'У этого человека свой вход — пароль он меняет сам, через «Забыли пароль» на странице входа.' }, 409)
+        throw linkError
+      }
       await audit(staffId, 'link', {})
       return json({ ok: true, data: { link, phone: person.phone || null, name: person.full_name } })
     }

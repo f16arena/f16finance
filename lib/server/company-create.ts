@@ -71,7 +71,7 @@ export async function createCompanyForOrganization(
   }
 
   if (organizationId) {
-    const [{ count: currentCount }, limit] = await Promise.all([
+    const [currentCount, limit] = await Promise.all([
       countOpenCompanies(supabase, organizationId),
       resolveCompanyLimit(organizationId),
     ])

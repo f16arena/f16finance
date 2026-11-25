@@ -22,7 +22,9 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // Камера нужна самому сайту: сканер ревизии и QR-вход терминала.
+          // С пустым списком браузер отказывает в ней, не спрашивая человека.
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
           // Принудительный HTTPS на 2 года + поддомены (preload-ready).
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],

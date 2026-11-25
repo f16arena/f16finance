@@ -114,7 +114,7 @@ async function resolveMentionTargets(
 }
 
 export async function GET(request: Request) {
-  const access = await getRequestAccessContext(request, { allowCustomer: true })
+  const access = await getRequestAccessContext(request, { allowCustomer: false })
   if ('response' in access) return access.response
 
   const url = new URL(request.url)

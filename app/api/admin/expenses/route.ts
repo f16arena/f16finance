@@ -296,6 +296,8 @@ export async function POST(req: Request) {
       await assertCompanyInScope(access, existing.company_id)
 
       const updatePayload = normalizePayload(body.payload)
+      // Точка из тела тоже должна быть своей: иначе расход уезжает в чужую организацию.
+      await assertCompanyInScope(access, updatePayload.company_id)
       const { data, error } = await supabase.from('expenses').update(updatePayload).eq('id', body.expenseId).select('*').single()
       if (error) throw error
 
